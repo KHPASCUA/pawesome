@@ -1,0 +1,68 @@
+.inventory-stock-page {
+ padding: 1.25rem;
+}
+
+.stock-header h2 {
+ margin: 0;
+ font-size: 1.85rem;
+}
+
+.stock-header p {
+ margin: 0.4rem 0 0;
+ color: #475569;
+}
+
+.stock-summary-grid {
+ display: grid;
+ grid-template-columns: repeat(3, minmax(0, 1fr));
+ gap: 1rem;
+ margin: 1.25rem 0;
+}
+
+.stock-card {
+ background: #ffffff;
+ padding: 1.25rem;
+ border-radius: 18px;
+ border: 1px solid #e2e8f0;
+ box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
+}
+
+.stock-card p {
+ margin: 0 0 0.75rem;
+ color: #64748b;
+}
+
+.stock-card strong {
+ font-size: 1.75rem;
+}
+
+.stock-table-wrapper {
+ overflow: auto;
+ border: 1px solid #e2e8f0;
+ border-radius: 18px;
+ background: #ffffff;
+ box-shadow: 0 10px 25px rgba(15, 23, 42, 0.05);
+}
+
+.stock-table {
+ width: 100%;
+ border-collapse: collapse;
+ min-width: 900px;
+}
+
+.stock-table th,
+.stock-table td {
+ padding: 1rem 1rem;
+ text-align: left;
+ border-bottom: 1px solid #e2e8f0;
+}
+
+.stock-table th {
+ background: #f8fafc;
+ color: #0f172a;
+ font-weight: 700;
+}
+
+.stock-table tbody tr:hover {
+ background: #f8fafc;
+}
