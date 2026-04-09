@@ -1,0 +1,107 @@
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex; justify-content: center; align-items: center;
+  z-index: 2000;
+}
+
+.modal {
+  background: #fff;
+  padding: 1.5rem;
+  border-radius: 8px;
+  width: 600px;
+  max-width: 90%;
+}
+
+.modal h2 {
+  margin-top: 0;
+}
+
+.users-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+}
+
+.users-table th,
+.users-table td {
+  border: 1px solid #ddd;
+  padding: 10px 12px;
+  text-align: left;
+}
+
+.users-table thead {
+  background: #f8f9fa;
+}
+
+.users-table tbody tr:hover {
+  background: rgba(13,110,253,0.05);
+}
+
+/* Status badge */
+.status.active {
+  background: #d1e7dd;
+  color: #0f5132;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+}
+
+.status.inactive {
+  background: #f8d7da;
+  color: #842029;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+}
+
+/* Action buttons */
+.actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.edit-btn,
+.delete-btn {
+  border: none;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.edit-btn {
+  background: #e9ecef;
+}
+
+.edit-btn:hover {
+  background: #ced4da;
+}
+
+.delete-btn {
+  background: #f8d7da;
+  color: #842029;
+}
+
+.delete-btn:hover {
+  background: #dc3545;
+  color: #fff;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 1rem;
+}
+
+.modal-actions button {
+  background: #0d6efd;
+  color: #fff;
+  border: none;
+  padding: 0.4rem 0.8rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.modal-actions button:hover {
+  background: #0b5ed7;
+}

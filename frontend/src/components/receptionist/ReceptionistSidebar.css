@@ -1,0 +1,421 @@
+/* Receptionist Sidebar Styles - Baby Blue & Pink Theme */
+
+.receptionist-sidebar {
+  width: 260px;
+  background: linear-gradient(135deg, #ADD8E6 0%, #FFC0CB 100%);
+  color: #000000 !important;
+  padding: 0;
+  position: fixed;
+  left: 0;
+  top: 0;
+  height: 100vh;
+  z-index: 1000;
+  transition: width 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 2px 0 10px rgba(173, 216, 230, 0.3);
+}
+
+/* Force all sidebar text to be black */
+.receptionist-sidebar * {
+  color: #000000 !important;
+}
+
+.receptionist-sidebar.collapsed {
+  width: 90px;
+}
+
+/* Sidebar Header */
+.sidebar-header {
+  padding: 1.25rem;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.collapse-btn {
+  background: rgba(255,255,255,0.1);
+  border: none;
+  color: white;
+  padding: 0.5rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+}
+
+.collapse-btn:hover {
+  background: rgba(255,255,255,0.2);
+}
+
+.sidebar-logo {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+.sidebar-logo svg {
+  font-size: 1.3rem;
+}
+
+/* Navigation */
+.sidebar-nav {
+  flex: 1;
+  padding: 1rem 0;
+  overflow-y: auto;
+}
+
+.nav-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.nav-item {
+  margin-bottom: 0.25rem;
+}
+
+.nav-item a {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.875rem 1.25rem;
+  color: rgba(255,255,255,0.8);
+  text-decoration: none;
+  transition: all 0.3s ease;
+  border-radius: 0;
+  position: relative;
+  font-weight: 500;
+}
+
+.nav-item a:hover {
+  background: rgba(255,255,255,0.1);
+  color: white;
+}
+
+.nav-item a.active {
+  background: rgba(255,255,255,0.15);
+  color: white;
+  border-left: 4px solid #ffeaa7;
+}
+
+.nav-item a svg {
+  font-size: 1.1rem;
+  width: 20px;
+  text-align: center;
+}
+
+.nav-item a span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Dropdown Styles */
+.nav-dropdown-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.875rem 1.25rem;
+  color: rgba(255,255,255,0.8);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border-radius: 0;
+  position: relative;
+  font-weight: 500;
+}
+
+.nav-dropdown-header:hover {
+  background: rgba(255,255,255,0.1);
+  color: white;
+}
+
+.nav-dropdown-header svg {
+  font-size: 1.1rem;
+  width: 20px;
+  text-align: center;
+}
+
+.nav-dropdown-header span {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dropdown-arrow {
+  font-size: 0.8rem !important;
+  width: 12px !important;
+  transition: transform 0.3s ease;
+}
+
+.nav-sublist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+
+.nav-sublist.expanded {
+  max-height: 300px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+}
+
+/* Custom scrollbar for booking dropdown */
+.nav-sublist.expanded::-webkit-scrollbar {
+  width: 8px;
+}
+
+.nav-sublist.expanded::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+  margin: 4px 0;
+}
+
+.nav-sublist.expanded::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: 4px;
+  transition: background 0.3s ease;
+  min-height: 20px;
+}
+
+.nav-sublist.expanded::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.nav-sublist.expanded::-webkit-scrollbar-thumb:active {
+  background: rgba(255, 255, 255, 0.8);
+}
+
+/* Firefox scrollbar support */
+.nav-sublist.expanded {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.4) rgba(255, 255, 255, 0.05);
+}
+
+.nav-sublist.expanded:hover {
+  scrollbar-color: rgba(255, 255, 255, 0.6) rgba(255, 255, 255, 0.05);
+}
+
+.nav-subitem {
+  margin: 0;
+}
+
+.nav-subitem a {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1.25rem 0.75rem 2.25rem;
+  color: rgba(255,255,255,0.7);
+  text-decoration: none;
+  transition: all 0.3s ease;
+  border-radius: 0;
+  position: relative;
+  font-weight: 400;
+  font-size: 0.9rem;
+}
+
+.nav-subitem a:hover {
+  background: rgba(255,255,255,0.05);
+  color: rgba(255,255,255,0.9);
+}
+
+.nav-subitem a.active {
+  background: rgba(255,255,255,0.1);
+  color: white;
+  border-left: 4px solid #ffd700;
+}
+
+.nav-subitem a svg {
+  font-size: 1rem;
+  width: 18px;
+  text-align: center;
+}
+
+.nav-subitem a span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Special background for Vet Appointments */
+.nav-subitem:nth-child(2) a {
+  background: rgba(255, 255, 255, 0.12);
+  border-left: 3px solid #28a745;
+}
+
+.nav-subitem:nth-child(2) a:hover {
+  background: rgba(255, 255, 255, 0.18);
+  border-left: 3px solid #20c997;
+}
+
+.nav-subitem:nth-child(2) a.active {
+  background: rgba(40, 167, 69, 0.15);
+  border-left: 3px solid #28a745;
+}
+
+/* Special background for Hotel Bookings */
+.nav-subitem:nth-child(1) a {
+  background: rgba(255, 255, 255, 0.12);
+  border-left: 3px solid #007bff;
+}
+
+.nav-subitem:nth-child(1) a:hover {
+  background: rgba(255, 255, 255, 0.18);
+  border-left: 3px solid #0056b3;
+}
+
+.nav-subitem:nth-child(1) a.active {
+  background: rgba(0, 123, 255, 0.15);
+  border-left: 3px solid #007bff;
+}
+
+/* Special background for Grooming */
+.nav-subitem:nth-child(3) a {
+  background: rgba(255, 255, 255, 0.12);
+  border-left: 3px solid #6f42c1;
+}
+
+.nav-subitem:nth-child(3) a:hover {
+  background: rgba(255, 255, 255, 0.18);
+  border-left: 3px solid #5a32a3;
+}
+
+.nav-subitem:nth-child(3) a.active {
+  background: rgba(111, 66, 193, 0.15);
+  border-left: 3px solid #6f42c1;
+}
+
+/* Sidebar Footer */
+.sidebar-footer {
+  padding: 1rem;
+  border-top: 1px solid rgba(255,255,255,0.1);
+}
+
+.logout-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.875rem 1.25rem;
+  background: rgba(255,255,255,0.1);
+  border: none;
+  border-radius: 6px;
+  color: rgba(255,255,255,0.8);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: 500;
+  font-size: 0.95rem;
+}
+
+.logout-btn:hover {
+  background: rgba(255,255,255,0.2);
+  color: white;
+}
+
+.logout-btn svg {
+  font-size: 1.1rem;
+  width: 20px;
+  text-align: center;
+}
+
+/* Collapsed State Styles */
+.receptionist-sidebar.collapsed .sidebar-logo span {
+  display: none;
+}
+
+.receptionist-sidebar.collapsed .nav-item a span {
+  display: none;
+}
+
+.receptionist-sidebar.collapsed .logout-btn span {
+  display: none;
+}
+
+.receptionist-sidebar.collapsed .nav-item a {
+  justify-content: center;
+  padding: 0.875rem;
+}
+
+.receptionist-sidebar.collapsed .logout-btn {
+  justify-content: center;
+  padding: 0.875rem;
+}
+
+/* Tooltips for collapsed state */
+.receptionist-sidebar.collapsed .nav-item a {
+  position: relative;
+}
+
+.receptionist-sidebar.collapsed .nav-item a:hover::after {
+  content: attr(title);
+  position: absolute;
+  left: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  margin-left: 0.5rem;
+  background: #1f2937;
+  color: white;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  white-space: nowrap;
+  z-index: 1001;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.receptionist-sidebar.collapsed .logout-btn:hover::after {
+  content: "Logout";
+  position: absolute;
+  left: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  margin-left: 0.5rem;
+  background: #1f2937;
+  color: white;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  white-space: nowrap;
+  z-index: 1001;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+ .receptionist-sidebar {
+ width: 80px;
+ }
+ 
+ .receptionist-sidebar.collapsed {
+ width: 0;
+ overflow: hidden;
+ }
+ 
+ .sidebar-logo span,
+ .nav-item a span,
+ .logout-btn span {
+ display: none;
+ }
+ 
+ .nav-item a {
+ justify-content: center;
+ padding: 1rem;
+ }
+ 
+ .logout-btn {
+ justify-content: center;
+ padding: 1rem;
+ }
+}
