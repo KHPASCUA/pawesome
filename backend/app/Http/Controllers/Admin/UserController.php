@@ -25,6 +25,16 @@ class UserController extends Controller
             'email' => 'required|string|email|max:255|unique:users',
             'username' => 'required|string|max:255|unique:users',
             'password' => 'required|string|min:6',
+            'phone' => 'sometimes|string|max:20',
+            'address' => 'sometimes|string|max:255',
+            'city' => 'sometimes|string|max:255',
+            'state' => 'sometimes|string|max:255',
+            'zip_code' => 'sometimes|string|max:20',
+            'country' => 'sometimes|string|max:255',
+            'date_of_birth' => 'sometimes|date',
+            'gender' => 'sometimes|string|in:male,female,other',
+            'emergency_contact_person' => 'sometimes|string|max:255',
+            'emergency_contact_number' => 'sometimes|string|max:20',
             'role' => 'required|string|in:admin,manager,receptionist,veterinary,cashier,inventory,payroll,customer',
             'is_active' => 'boolean',
         ]);
@@ -33,6 +43,9 @@ class UserController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
+        // Create API token for the user
+        $apiToken = Hash::make(uniqid() . time());
+
         $user = User::create([
             'name' => $request->name,
             'first_name' => $request->first_name,
@@ -40,8 +53,19 @@ class UserController extends Controller
             'email' => $request->email,
             'username' => $request->username,
             'password' => Hash::make($request->password),
+            'phone' => $request->phone,
+            'address' => $request->address,
+            'city' => $request->city,
+            'state' => $request->state,
+            'zip_code' => $request->zip_code,
+            'country' => $request->country ?? 'Philippines',
+            'date_of_birth' => $request->date_of_birth,
+            'gender' => $request->gender,
+            'emergency_contact_person' => $request->emergency_contact_person,
+            'emergency_contact_number' => $request->emergency_contact_number,
             'role' => $request->role,
             'is_active' => $request->is_active ?? true,
+            'api_token' => $apiToken,
         ]);
 
         return response()->json([

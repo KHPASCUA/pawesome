@@ -27,6 +27,19 @@ class User extends Authenticatable
         'is_active',
         'first_name',
         'last_name',
+        'phone',
+        'address',
+        'city',
+        'state',
+        'zip_code',
+        'country',
+        'bio',
+        'profile_image',
+        'date_of_birth',
+        'gender',
+        'emergency_contact_person',
+        'emergency_contact_number',
+        'api_token',
     ];
 
     /**
@@ -37,6 +50,7 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'api_token',
     ];
 
     /**
