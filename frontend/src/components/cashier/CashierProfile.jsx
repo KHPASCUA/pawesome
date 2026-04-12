@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faUser,
@@ -12,29 +12,40 @@ import {
   faLock,
   faEye,
   faEyeSlash,
+  faSpinner,
 } from "@fortawesome/free-solid-svg-icons";
+import { apiRequest } from "../../api/client";
 import "./CashierProfile.css";
 
 const CashierProfile = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState("");
-  
-  // Profile data state
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
+
+  // Profile data state - initialize with empty values
   const [profileData, setProfileData] = useState({
-    firstName: "John",
-    lastName: "Smith",
-    email: "john.smith@pawstore.com",
-    phone: "+1 (555) 0101",
-    address: "123 Cashier Lane",
-    city: "Pet City",
-    state: "PC",
-    zipCode: "12345",
-    country: "United States",
-    bio: "Professional cashier with 5+ years of experience in pet retail.",
-    memberSince: "January 2024",
+    first_name: "",
+    middle_name: "",
+    last_name: "",
+    username: "",
+    email: "",
+    phone: "",
+    address: "",
+    city: "",
+    state: "",
+    zip_code: "",
+    country: "",
+    bio: "",
+    memberSince: "",
     profileImage: null,
   });
+
+  // Store original email to avoid "already taken" validation
+  const [originalEmail, setOriginalEmail] = useState("");
 
   // Password change state
   const [passwordData, setPasswordData] = useState({
@@ -57,6 +68,71 @@ const CashierProfile = () => {
       ...prev,
       [name]: value
     }));
+  };
+
+  // Fetch user profile data
+  const fetchUserProfile = async () => {
+    try {
+      setLoading(true);
+      setError("");
+      console.log("=== Starting CashierProfile fetch ===");
+      
+      // Check if token exists
+      let token = localStorage.getItem("token");
+      console.log("Token exists:", !!token);
+      
+      if (!token) {
+        console.log("No token found, cannot fetch profile");
+        setError("No authentication token found. Please log in again.");
+        setLoading(false);
+        return;
+      }
+      
+      console.log("Fetching user profile...");
+      const response = await apiRequest("/auth/me");
+      console.log("User data received:", response);
+      
+      if (response) {
+        console.log("Setting profile data with:", response);
+        console.log("User role:", response.role);
+        console.log("Role type:", typeof response.role);
+        console.log("Role value:", JSON.stringify(response.role));
+        
+        // Only proceed if user is cashier or admin
+        if (response.role !== 'cashier' && response.role !== 'admin') {
+          console.error("Access denied: User is not a cashier");
+          console.error("Expected: 'cashier' or 'admin', got:", response.role);
+          setError("Access denied: User role does not match cashier profile");
+          setLoading(false);
+          return;
+        }
+        
+        setProfileData({
+          first_name: response.first_name || "",
+          middle_name: response.middle_name || "",
+          last_name: response.last_name || "",
+          username: response.username || "",
+          email: response.email || "",
+          phone: response.phone || "",
+          address: response.address || "",
+          city: response.city || "",
+          state: response.state || "",
+          zip_code: response.zip_code || "",
+          country: response.country || "",
+          bio: response.bio || "",
+          memberSince: response.created_at ? new Date(response.created_at).toLocaleDateString() : "Unknown",
+          profileImage: response.profile_image || null,
+        });
+        // Store original email to avoid validation conflicts
+        setOriginalEmail(response.email || "");
+        console.log("Profile data set successfully");
+      }
+    } catch (err) {
+      setError(err.message || "Failed to load profile data");
+      console.error("Profile fetch error:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handlePasswordChange = (e) => {
@@ -83,33 +159,81 @@ const CashierProfile = () => {
   };
 
   // Save profile changes
-  const handleSaveProfile = () => {
+  const handleSaveProfile = async () => {
     // Validation
-    if (!profileData.firstName || !profileData.lastName || !profileData.email) {
+    if (!profileData.first_name || !profileData.last_name || !profileData.email) {
       setMessage("Please fill in all required fields.");
       setMessageType("error");
       setTimeout(() => setMessage(""), 3000);
       return;
     }
 
-    // Email validation
+    // Email validation - only check if email has changed
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(profileData.email)) {
+    if (profileData.email !== originalEmail && !emailRegex.test(profileData.email)) {
       setMessage("Please enter a valid email address.");
       setMessageType("error");
       setTimeout(() => setMessage(""), 3000);
       return;
     }
 
-    // Success message
-    setMessage("Profile updated successfully!");
-    setMessageType("success");
-    setTimeout(() => setMessage(""), 3000);
-    setIsEditing(false);
+    try {
+      setSaving(true);
+      setError("");
+      console.log("=== Starting CashierProfile save ===");
+      
+      // Prepare update data
+      const updateData = {
+        first_name: profileData.first_name,
+        middle_name: profileData.middle_name,
+        last_name: profileData.last_name,
+        username: profileData.username,
+        // Only include email if it has changed
+        ...(profileData.email !== originalEmail && { email: profileData.email }),
+        phone: profileData.phone,
+        address: profileData.address,
+        city: profileData.city,
+        state: profileData.state,
+        zip_code: profileData.zip_code,
+        country: profileData.country,
+        bio: profileData.bio,
+      };
+      
+      console.log("Update data being sent:", updateData);
+      
+      // Update profile via API
+      const response = await apiRequest("/auth/profile", {
+        method: "PUT",
+        body: JSON.stringify(updateData),
+      });
+      
+      console.log("API response:", response);
+      
+      setMessage("Profile updated successfully!");
+      setMessageType("success");
+      setIsEditing(false);
+      
+      // Refresh profile data
+      await fetchUserProfile();
+      setTimeout(() => setMessage(""), 3000);
+    } catch (err) {
+      console.error("=== Profile update error ===");
+      console.error("Error object:", err);
+      console.error("Error message:", err.message);
+      console.error("Error status:", err.status);
+      console.error("Error response:", err.response);
+      
+      setMessage(err.message || "Failed to update profile");
+      setMessageType("error");
+      setTimeout(() => setMessage(""), 3000);
+    } finally {
+      setSaving(false);
+      console.log("=== Save process completed ===");
+    }
   };
 
   // Handle password change
-  const handleChangePassword = () => {
+  const handleChangePassword = async () => {
     // Validation
     if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
       setMessage("Please fill in all password fields.");
@@ -132,15 +256,36 @@ const CashierProfile = () => {
       return;
     }
 
-    // Success message
-    setMessage("Password changed successfully!");
-    setMessageType("success");
-    setTimeout(() => setMessage(""), 3000);
-    setPasswordData({
-      currentPassword: "",
-      newPassword: "",
-      confirmPassword: "",
-    });
+    try {
+      setChangingPassword(true);
+      setError("");
+      
+      // Change password via API
+      await apiRequest("/auth/change-password", {
+        method: "POST",
+        body: JSON.stringify({
+          current_password: passwordData.currentPassword,
+          new_password: passwordData.newPassword,
+          new_password_confirmation: passwordData.confirmPassword,
+        })
+      });
+      
+      setMessage("Password changed successfully!");
+      setMessageType("success");
+      setPasswordData({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
+      setTimeout(() => setMessage(""), 3000);
+    } catch (err) {
+      setMessage(err.message || "Failed to change password");
+      setMessageType("error");
+      console.error("Password change error:", err);
+      setTimeout(() => setMessage(""), 3000);
+    } finally {
+      setChangingPassword(false);
+    }
   };
 
   // Toggle password visibility
@@ -163,6 +308,11 @@ const CashierProfile = () => {
     setMessage("");
   };
 
+  // Fetch profile data on component mount
+  useEffect(() => {
+    fetchUserProfile();
+  }, []);
+
   return (
     <div className="customer-profile">
       {/* Profile Header */}
@@ -180,7 +330,14 @@ const CashierProfile = () => {
         </div>
       )}
 
-      {/* Profile Form */}
+      {loading ? (
+        <div className="loading-container">
+          <FontAwesomeIcon icon={faSpinner} spin size="2x" />
+          <p>Loading your profile...</p>
+        </div>
+      ) : (
+        <>
+          {/* Profile Form */}
       <div className="profile-card">
         <div className="profile-section">
           <h3>Personal Information</h3>
@@ -222,24 +379,47 @@ const CashierProfile = () => {
               <label>First Name *</label>
               <input
                 type="text"
-                name="firstName"
-                value={profileData.firstName}
+                name="first_name"
+                value={profileData.first_name}
                 onChange={handleInputChange}
                 disabled={!isEditing}
                 placeholder="Enter your first name"
               />
             </div>
             <div className="form-group">
+              <label>Middle Name</label>
+              <input
+                type="text"
+                name="middle_name"
+                value={profileData.middle_name}
+                onChange={handleInputChange}
+                disabled={!isEditing}
+                placeholder="Enter your middle name"
+              />
+            </div>
+            <div className="form-group">
               <label>Last Name *</label>
               <input
                 type="text"
-                name="lastName"
-                value={profileData.lastName}
+                name="last_name"
+                value={profileData.last_name}
                 onChange={handleInputChange}
                 disabled={!isEditing}
                 placeholder="Enter your last name"
               />
             </div>
+          </div>
+
+          <div className="form-group">
+            <label>Username *</label>
+            <input
+              type="text"
+              name="username"
+              value={profileData.username}
+              onChange={handleInputChange}
+              disabled={!isEditing}
+              placeholder="Enter your username"
+            />
           </div>
 
           <div className="form-group">
@@ -322,8 +502,8 @@ const CashierProfile = () => {
               <label>ZIP Code</label>
               <input
                 type="text"
-                name="zipCode"
-                value={profileData.zipCode}
+                name="zip_code"
+                value={profileData.zip_code}
                 onChange={handleInputChange}
                 disabled={!isEditing}
                 placeholder="Enter your ZIP code"
@@ -344,6 +524,51 @@ const CashierProfile = () => {
           </div>
         </div>
 
+        {/* Account Info */}
+        <div className="profile-section">
+          <h3>Account Information</h3>
+          <div className="form-row">
+            <div className="form-group">
+              <label>Role</label>
+              <input
+                type="text"
+                value="Cashier"
+                disabled
+                style={{ backgroundColor: '#f8f9fa' }}
+              />
+            </div>
+            <div className="form-group">
+              <label>Status</label>
+              <input
+                type="text"
+                value="Active"
+                disabled
+                style={{ backgroundColor: '#f8f9fa' }}
+              />
+            </div>
+          </div>
+          <div className="form-row">
+            <div className="form-group">
+              <label>Member Since</label>
+              <input
+                type="text"
+                value={profileData.memberSince}
+                disabled
+                style={{ backgroundColor: '#f8f9fa' }}
+              />
+            </div>
+            <div className="form-group">
+              <label>Last Updated</label>
+              <input
+                type="text"
+                value="Today"
+                disabled
+                style={{ backgroundColor: '#f8f9fa' }}
+              />
+            </div>
+          </div>
+        </div>
+
         {/* Action Buttons */}
         <div className="btn-group">
           {!isEditing ? (
@@ -354,8 +579,16 @@ const CashierProfile = () => {
             </>
           ) : (
             <>
-              <button className="btn-primary" onClick={handleSaveProfile}>
-                <FontAwesomeIcon icon={faSave} /> Save Changes
+              <button className="btn-primary" onClick={handleSaveProfile} disabled={saving}>
+                {saving ? (
+                  <>
+                    <FontAwesomeIcon icon={faSpinner} spin /> Saving...
+                  </>
+                ) : (
+                  <>
+                    <FontAwesomeIcon icon={faSave} /> Save Changes
+                  </>
+                )}
               </button>
               <button className="btn-secondary" onClick={handleCancel}>
                 <FontAwesomeIcon icon={faTimes} /> Cancel
@@ -437,28 +670,22 @@ const CashierProfile = () => {
           </div>
 
           <div className="btn-group">
-            <button className="btn-primary" onClick={handleChangePassword}>
-              <FontAwesomeIcon icon={faLock} /> Change Password
+            <button className="btn-primary" onClick={handleChangePassword} disabled={changingPassword}>
+              {changingPassword ? (
+                <>
+                  <FontAwesomeIcon icon={faSpinner} spin /> Changing Password...
+                </>
+              ) : (
+                <>
+                  <FontAwesomeIcon icon={faLock} /> Change Password
+                </>
+              )}
             </button>
           </div>
         </div>
       </div>
-
-      {/* Account Info */}
-      <div className="profile-card">
-        <div className="profile-section">
-          <h3>Account Information</h3>
-          <div className="form-group">
-            <label>Member Since</label>
-            <input
-              type="text"
-              value={profileData.memberSince}
-              disabled
-              style={{ backgroundColor: '#f8f9fa' }}
-            />
-          </div>
-        </div>
-      </div>
+        </>
+      )}
     </div>
   );
 };

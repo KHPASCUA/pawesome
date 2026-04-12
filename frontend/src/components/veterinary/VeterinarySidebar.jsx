@@ -38,7 +38,7 @@ const VeterinarySidebar = ({ collapsed, onToggleCollapse }) => {
         <ul className="nav-list">
           <li className="nav-item">
             <NavLink
-              to="/vet"
+              to="/veterinary"
               className={({ isActive }) => (isActive ? "active" : "")}
               title="Dashboard"
             >
@@ -49,7 +49,7 @@ const VeterinarySidebar = ({ collapsed, onToggleCollapse }) => {
           
           <li className="nav-item">
             <NavLink
-              to="/vet/appointments"
+              to="/veterinary/appointments"
               className={({ isActive }) => (isActive ? "active" : "")}
               title="Appointments"
             >
@@ -60,7 +60,7 @@ const VeterinarySidebar = ({ collapsed, onToggleCollapse }) => {
           
           <li className="nav-item">
             <NavLink
-              to="/vet/customers"
+              to="/veterinary/customers"
               className={({ isActive }) => (isActive ? "active" : "")}
               title="Customer Profiles"
             >
@@ -71,7 +71,7 @@ const VeterinarySidebar = ({ collapsed, onToggleCollapse }) => {
           
           <li className="nav-item">
             <NavLink
-              to="/vet/history"
+              to="/veterinary/history"
               className={({ isActive }) => (isActive ? "active" : "")}
               title="History"
             >
@@ -82,7 +82,7 @@ const VeterinarySidebar = ({ collapsed, onToggleCollapse }) => {
           
           <li className="nav-item">
             <NavLink
-              to="/vet/reports"
+              to="/veterinary/reports"
               className={({ isActive }) => (isActive ? "active" : "")}
               title="Reports"
             >
@@ -93,7 +93,7 @@ const VeterinarySidebar = ({ collapsed, onToggleCollapse }) => {
 
           <li className="nav-item">
             <NavLink
-              to="/vet/profile"
+              to="/veterinary/profile"
               className={({ isActive }) => (isActive ? "active" : "")}
               title="Profile"
             >

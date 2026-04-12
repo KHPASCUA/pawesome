@@ -240,7 +240,7 @@ export default function CustomerStore() {
                 {orderHistory.slice(-3).map(order => (
                   <div key={order.id} className="history-item">
                     <span>Order #{order.id}</span>
-                    <span>₱{order.total}</span>
+                    <span>¥{order.total}</span>
                     <span className={`status ${order.status.toLowerCase()}`}>{order.status}</span>
                   </div>
                 ))}
@@ -500,98 +500,12 @@ export default function CustomerStore() {
                     </div>
                   ))}
                 </div>
-                <div className="receipt-total">
-                  <span>Total Paid: ₱{getTotal()}</span>
-                </div>
-                <div className="receipt-footer">
-                  <p>Payment Method: Online</p>
-                  <p>Status: Processing</p>
-                  <p>Estimated Delivery: 2-3 business days</p>
-                </div>
               </div>
-              <button className="done-btn" onClick={() => {
-                setCheckoutStep("cart");
-                setCart([]);
-                setPaymentImage(null);
-                setDiscountCode("");
-                setDiscountApplied(0);
-              }}>
-                Continue Shopping
-              </button>
             </div>
           )}
-        </aside>
-      </div>
 
-      {/* Quick View Modal */}
-      {showQuickView && selectedProduct && (
-        <div className="modal-overlay" onClick={() => setShowQuickView(false)}>
-          <div className="quick-view-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>{selectedProduct.name}</h3>
-              <button className="close-btn" onClick={() => setShowQuickView(false)}>✖️</button>
-            </div>
-            <div className="modal-content">
-              <div className="product-image-large">
-                <span className="product-emoji-large">{selectedProduct.image}</span>
-              </div>
-              <div className="product-details">
-                <div className="product-rating-large">
-                  {renderStars(selectedProduct.rating)}
-                  <span>({selectedProduct.reviews} reviews)</span>
-                </div>
-                <div className="product-price-large">
-                  {selectedProduct.discount > 0 ? (
-                    <>
-                      <span className="original-price">₱{selectedProduct.price}</span>
-                      <span className="discounted-price">
-                        ₱{Math.round(selectedProduct.price * (1 - selectedProduct.discount / 100))}
-                      </span>
-                    </>
-                  ) : (
-                    <span className="current-price">₱{selectedProduct.price}</span>
-                  )}
-                </div>
-                <div className="product-description">
-                  <p>High-quality product designed for your beloved pet. Made with premium materials and pet-safe ingredients.</p>
-                </div>
-                <div className="product-features">
-                  <h4>Features:</h4>
-                  <ul>
-                    <li>Premium quality materials</li>
-                    <li>Pet-safe and non-toxic</li>
-                    <li>Durable and long-lasting</li>
-                    <li>Easy to clean and maintain</li>
-                  </ul>
-                </div>
-                <div className="stock-status">
-                  <span className={`status ${selectedProduct.inStock ? 'in-stock' : 'out-stock'}`}>
-                    {selectedProduct.inStock ? '✅ In Stock' : '❌ Out of Stock'}
-                  </span>
-                </div>
-              </div>
-            </div>
-            <div className="modal-actions">
-              <button 
-                className={`wishlist-toggle ${wishlist.find(w => w.id === selectedProduct.id) ? 'active' : ''}`}
-                onClick={() => toggleWishlist(selectedProduct)}
-              >
-                {wishlist.find(w => w.id === selectedProduct.id) ? '❤️ Remove from Wishlist' : '🤍 Add to Wishlist'}
-              </button>
-              <button 
-                className="add-to-cart-btn-large"
-                onClick={() => {
-                  addToCart(selectedProduct);
-                  setShowQuickView(false);
-                }}
-                disabled={!selectedProduct.inStock}
-              >
-                {selectedProduct.inStock ? '🛒 Add to Cart' : 'Out of Stock'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+        </aside>
     </div>
+  </div>
   );
-}
+}; 

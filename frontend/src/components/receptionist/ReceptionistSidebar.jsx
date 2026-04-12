@@ -59,114 +59,13 @@ const ReceptionistSidebar = ({ collapsed, onToggleCollapse }) => {
           </li>
           
           <li className="nav-item">
-            <div 
-              className="nav-dropdown-header"
-              onClick={() => !collapsed && setBookingsExpanded(!bookingsExpanded)}
+            <NavLink
+              to="/receptionist/bookings"
+              className={({ isActive }) => (isActive ? "active" : "")}
               title="Bookings"
             >
               <FontAwesomeIcon icon={faCalendarAlt} />
               {!collapsed && <span>Bookings</span>}
-              {!collapsed && (
-                <FontAwesomeIcon 
-                  icon={bookingsExpanded ? faChevronDown : faChevronRight} 
-                  className="dropdown-arrow"
-                />
-              )}
-            </div>
-            {!collapsed && (
-              <ul className={`nav-sublist ${bookingsExpanded ? 'expanded' : ''}`}>
-                <li className="nav-subitem">
-                  <NavLink
-                    to="/receptionist/bookings/hotel"
-                    className={({ isActive }) => (isActive ? "active" : "")}
-                    title="Hotel Bookings"
-                  >
-                    <FontAwesomeIcon icon={faHotel} />
-                    <span>Hotel Bookings</span>
-                  </NavLink>
-                </li>
-                <li className="nav-subitem">
-                  <NavLink
-                    to="/receptionist/bookings/vet"
-                    className={({ isActive }) => (isActive ? "active" : "")}
-                    title="Vet Appointments"
-                  >
-                    <FontAwesomeIcon icon={faStethoscope} />
-                    <span>Vet Appointments</span>
-                  </NavLink>
-                </li>
-                <li className="nav-subitem">
-                  <NavLink
-                    to="/receptionist/bookings/grooming"
-                    className={({ isActive }) => (isActive ? "active" : "")}
-                    title="Grooming"
-                  >
-                    <FontAwesomeIcon icon={faCut} />
-                    <span>Grooming</span>
-                  </NavLink>
-                </li>
-                <li className="nav-subitem">
-                  <NavLink
-                    to="/receptionist/bookings/daycare"
-                    className={({ isActive }) => (isActive ? "active" : "")}
-                    title="Daycare"
-                  >
-                    <FontAwesomeIcon icon={faCalendarAlt} />
-                    <span>Daycare Services</span>
-                  </NavLink>
-                </li>
-                <li className="nav-subitem">
-                  <NavLink
-                    to="/receptionist/bookings/training"
-                    className={({ isActive }) => (isActive ? "active" : "")}
-                    title="Training"
-                  >
-                    <FontAwesomeIcon icon={faCalendarAlt} />
-                    <span>Training Classes</span>
-                  </NavLink>
-                </li>
-                <li className="nav-subitem">
-                  <NavLink
-                    to="/receptionist/bookings/emergency"
-                    className={({ isActive }) => (isActive ? "active" : "")}
-                    title="Emergency"
-                  >
-                    <FontAwesomeIcon icon={faCalendarAlt} />
-                    <span>Emergency Care</span>
-                  </NavLink>
-                </li>
-                <li className="nav-subitem">
-                  <NavLink
-                    to="/receptionist/bookings/boarding"
-                    className={({ isActive }) => (isActive ? "active" : "")}
-                    title="Boarding"
-                  >
-                    <FontAwesomeIcon icon={faCalendarAlt} />
-                    <span>Extended Boarding</span>
-                  </NavLink>
-                </li>
-                <li className="nav-subitem">
-                  <NavLink
-                    to="/receptionist/bookings/special"
-                    className={({ isActive }) => (isActive ? "active" : "")}
-                    title="Special Services"
-                  >
-                    <FontAwesomeIcon icon={faCalendarAlt} />
-                    <span>Special Services</span>
-                  </NavLink>
-                </li>
-              </ul>
-            )}
-          </li>
-          
-          <li className="nav-item">
-            <NavLink
-              to="/receptionist/customers"
-              className={({ isActive }) => (isActive ? "active" : "")}
-              title="Customers"
-            >
-              <FontAwesomeIcon icon={faUsers} />
-              {!collapsed && <span>Customers</span>}
             </NavLink>
           </li>
           

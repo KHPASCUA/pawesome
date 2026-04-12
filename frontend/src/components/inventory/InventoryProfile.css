@@ -1,5 +1,5 @@
-/* Admin Profile Styles - Based on Customer Profile */
-.admin-profile {
+/* Inventory Profile Styles - Based on Customer Profile */
+.inventory-profile {
   max-width: 1200px;
   margin: 0 auto;
   padding: 20px;
@@ -237,7 +237,7 @@
 
 /* Responsive Design */
 @media (max-width: 768px) {
-  .admin-profile {
+  .inventory-profile {
     padding: 15px;
   }
   

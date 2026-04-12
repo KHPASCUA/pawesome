@@ -1,23 +1,326 @@
-import React from "react";
+import React, { useState } from "react";
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { 
+  faChartLine, 
+  faCalendarCheck, 
+  faUserCheck, 
+  faPaw, 
+  faCut, 
+  faStethoscope, 
+  faHotel,
+  faSearch,
+  faFilter,
+  faDownload,
+  faPrint,
+  faEye,
+  faTimes
+} from '@fortawesome/free-solid-svg-icons';
+import './Reports.css';
 
 const Reports = () => {
-  const reports = [
-    { id: 1, title: "Daily Check-ins", count: 12 },
-    { id: 2, title: "Vet Appointments", count: 5 },
-    { id: 3, title: "Hotel Bookings", count: 7 },
-    { id: 4, title: "Grooming Sessions", count: 4 }
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterType, setFilterType] = useState("all");
+  const [selectedTransaction, setSelectedTransaction] = useState(null);
+
+  // Sample transaction data
+  const transactions = [
+    { id: "TRX-001", type: "check-in", customer: "John Smith", pet: "Max", date: "2024-01-15", time: "09:30 AM", amount: 500, status: "completed" },
+    { id: "TRX-002", type: "vet-appointment", customer: "Emily Davis", pet: "Luna", date: "2024-01-15", time: "10:15 AM", amount: 1200, status: "completed" },
+    { id: "TRX-003", type: "hotel-booking", customer: "Robert Wilson", pet: "Charlie", date: "2024-01-15", time: "11:00 AM", amount: 800, status: "pending" },
+    { id: "TRX-004", type: "grooming", customer: "Sarah Johnson", pet: "Bella", date: "2024-01-15", time: "02:30 PM", amount: 600, status: "completed" },
+    { id: "TRX-005", type: "check-out", customer: "Michael Brown", pet: "Rocky", date: "2024-01-15", time: "03:45 PM", amount: 0, status: "completed" },
+    { id: "TRX-006", type: "check-in", customer: "Jessica Martinez", pet: "Daisy", date: "2024-01-16", time: "08:00 AM", amount: 500, status: "completed" },
+    { id: "TRX-007", type: "vet-appointment", customer: "David Lee", pet: "Milo", date: "2024-01-16", time: "09:30 AM", amount: 1500, status: "scheduled" },
+    { id: "TRX-008", type: "hotel-booking", customer: "Amanda White", pet: "Coco", date: "2024-01-16", time: "10:00 AM", amount: 1200, status: "confirmed" },
+    { id: "TRX-009", type: "grooming", customer: "Christopher Garcia", pet: "Buddy", date: "2024-01-16", time: "01:00 PM", amount: 700, status: "in-progress" },
+    { id: "TRX-010", type: "check-out", customer: "Lisa Rodriguez", pet: "Lucky", date: "2024-01-16", time: "04:00 PM", amount: 0, status: "completed" }
   ];
 
+  // Calculate statistics
+  const stats = {
+    totalTransactions: transactions.length,
+    totalRevenue: transactions.filter(t => t.amount > 0).reduce((sum, t) => sum + t.amount, 0),
+    checkIns: transactions.filter(t => t.type === "check-in").length,
+    checkOuts: transactions.filter(t => t.type === "check-out").length,
+    vetAppointments: transactions.filter(t => t.type === "vet-appointment").length,
+    hotelBookings: transactions.filter(t => t.type === "hotel-booking").length,
+    groomingSessions: transactions.filter(t => t.type === "grooming").length,
+    completedTransactions: transactions.filter(t => t.status === "completed").length
+  };
+
+  // Filter transactions based on search and filter
+  const filteredTransactions = transactions.filter(transaction => {
+    const matchesSearch = transaction.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         transaction.pet.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         transaction.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         transaction.id.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    if (filterType === "all") return matchesSearch;
+    if (filterType === "today") return matchesSearch && transaction.date === new Date().toISOString().split('T')[0];
+    if (filterType === "completed") return matchesSearch && transaction.status === "completed";
+    if (filterType === "pending") return matchesSearch && transaction.status === "pending";
+    return matchesSearch;
+  });
+
+  const getTransactionIcon = (type) => {
+    switch(type) {
+      case "check-in": return faUserCheck;
+      case "check-out": return faUserCheck;
+      case "vet-appointment": return faStethoscope;
+      case "hotel-booking": return faHotel;
+      case "grooming": return faCut;
+      default: return faPaw;
+    }
+  };
+
+  const getTransactionLabel = (type) => {
+    switch(type) {
+      case "check-in": return "Check-in";
+      case "check-out": return "Check-out";
+      case "vet-appointment": return "Vet Appointment";
+      case "hotel-booking": return "Hotel Booking";
+      case "grooming": return "Grooming";
+      default: return "Other";
+    }
+  };
+
+  const getStatusColor = (status) => {
+    switch(status) {
+      case "completed": return "#10b981";
+      case "pending": return "#f59e0b";
+      case "scheduled": return "#3b82f6";
+      case "in-progress": return "#8b5cf6";
+      case "confirmed": return "#059669";
+      default: return "#6b7280";
+    }
+  };
+
+  const handleCloseDetails = () => {
+    setSelectedTransaction(null);
+  };
+
   return (
-    <div>
-      <h2>Receptionist Reports</h2>
-      <ul>
-        {reports.map((r) => (
-          <li key={r.id}>
-            {r.title}: {r.count}
-          </li>
-        ))}
-      </ul>
+    <div className="reports-container">
+      {/* Header Section */}
+      <div className="reports-header">
+        <div className="header-content">
+          <div className="header-title">
+            <h1><FontAwesomeIcon icon={faChartLine} /> Reports & Analytics</h1>
+            <p>Comprehensive view of all transactions and operations</p>
+          </div>
+          <div className="header-actions">
+            <button className="action-btn export-btn">
+              <FontAwesomeIcon icon={faDownload} /> Export
+            </button>
+            <button className="action-btn print-btn">
+              <FontAwesomeIcon icon={faPrint} /> Print
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="stats-grid">
+        <div className="stat-card">
+          <div className="stat-icon">
+            <FontAwesomeIcon icon={faChartLine} />
+          </div>
+          <div className="stat-content">
+            <h3>{stats.totalTransactions}</h3>
+            <p>Total Transactions</p>
+          </div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-icon">
+            <FontAwesomeIcon icon={faCalendarCheck} />
+          </div>
+          <div className="stat-content">
+            <h3>PHP {stats.totalRevenue.toLocaleString()}</h3>
+            <p>Total Revenue</p>
+          </div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-icon">
+            <FontAwesomeIcon icon={faUserCheck} />
+          </div>
+          <div className="stat-content">
+            <h3>{stats.checkIns + stats.checkOuts}</h3>
+            <p>Check-ins/Check-outs</p>
+          </div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-icon">
+            <FontAwesomeIcon icon={faStethoscope} />
+          </div>
+          <div className="stat-content">
+            <h3>{stats.vetAppointments}</h3>
+            <p>Vet Appointments</p>
+          </div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-icon">
+            <FontAwesomeIcon icon={faHotel} />
+          </div>
+          <div className="stat-content">
+            <h3>{stats.hotelBookings}</h3>
+            <p>Hotel Bookings</p>
+          </div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-icon">
+            <FontAwesomeIcon icon={faCut} />
+          </div>
+          <div className="stat-content">
+            <h3>{stats.groomingSessions}</h3>
+            <p>Grooming Sessions</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Search and Filter Section */}
+      <div className="search-filter-section">
+        <div className="search-bar">
+          <FontAwesomeIcon icon={faSearch} className="search-icon" />
+          <input
+            type="text"
+            placeholder="Search transactions by customer, pet, type, or ID..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+        <div className="filter-dropdown">
+          <FontAwesomeIcon icon={faFilter} />
+          <select value={filterType} onChange={(e) => setFilterType(e.target.value)}>
+            <option value="all">All Transactions</option>
+            <option value="today">Today</option>
+            <option value="completed">Completed</option>
+            <option value="pending">Pending</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Transactions Table */}
+      <div className="transactions-table-container">
+        <table className="transactions-table">
+          <thead>
+            <tr>
+              <th>Transaction ID</th>
+              <th>Type</th>
+              <th>Customer</th>
+              <th>Pet</th>
+              <th>Date</th>
+              <th>Time</th>
+              <th>Amount</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredTransactions.map(transaction => (
+              <tr key={transaction.id}>
+                <td>
+                  <span className="transaction-id">{transaction.id}</span>
+                </td>
+                <td>
+                  <div className="transaction-type">
+                    <FontAwesomeIcon icon={getTransactionIcon(transaction.type)} />
+                    <span>{getTransactionLabel(transaction.type)}</span>
+                  </div>
+                </td>
+                <td>{transaction.customer}</td>
+                <td>{transaction.pet}</td>
+                <td>{transaction.date}</td>
+                <td>{transaction.time}</td>
+                <td>
+                  <span className="amount">
+                    {transaction.amount > 0 ? `PHP ${transaction.amount.toLocaleString()}` : "-"}
+                  </span>
+                </td>
+                <td>
+                  <span 
+                    className="status-badge"
+                    style={{ backgroundColor: getStatusColor(transaction.status) }}
+                  >
+                    {transaction.status}
+                  </span>
+                </td>
+                <td>
+                  <div className="table-actions">
+                    <button 
+                      className="action-btn view-btn"
+                      onClick={() => setSelectedTransaction(transaction)}
+                      title="View Details"
+                    >
+                      <FontAwesomeIcon icon={faEye} />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {filteredTransactions.length === 0 && (
+        <div className="no-results">
+          <FontAwesomeIcon icon={faSearch} />
+          <h3>No transactions found</h3>
+          <p>Try adjusting your search or filter criteria</p>
+        </div>
+      )}
+
+      {/* Transaction Details Modal */}
+      {selectedTransaction && (
+        <div className="transaction-modal-overlay" onClick={handleCloseDetails}>
+          <div className="transaction-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Transaction Details</h3>
+              <button className="close-modal-btn" onClick={handleCloseDetails}>
+                <FontAwesomeIcon icon={faTimes} />
+              </button>
+            </div>
+            <div className="modal-content">
+              <div className="detail-row">
+                <label>Transaction ID:</label>
+                <span>{selectedTransaction.id}</span>
+              </div>
+              <div className="detail-row">
+                <label>Type:</label>
+                <span>{getTransactionLabel(selectedTransaction.type)}</span>
+              </div>
+              <div className="detail-row">
+                <label>Customer:</label>
+                <span>{selectedTransaction.customer}</span>
+              </div>
+              <div className="detail-row">
+                <label>Pet:</label>
+                <span>{selectedTransaction.pet}</span>
+              </div>
+              <div className="detail-row">
+                <label>Date:</label>
+                <span>{selectedTransaction.date}</span>
+              </div>
+              <div className="detail-row">
+                <label>Time:</label>
+                <span>{selectedTransaction.time}</span>
+              </div>
+              <div className="detail-row">
+                <label>Amount:</label>
+                <span>{selectedTransaction.amount > 0 ? `PHP ${selectedTransaction.amount.toLocaleString()}` : "No charge"}</span>
+              </div>
+              <div className="detail-row">
+                <label>Status:</label>
+                <span 
+                  className="status-badge"
+                  style={{ backgroundColor: getStatusColor(selectedTransaction.status) }}
+                >
+                  {selectedTransaction.status}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

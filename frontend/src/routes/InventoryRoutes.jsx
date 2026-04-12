@@ -6,6 +6,7 @@ import InventoryProducts from "../components/inventory/InventoryProducts";
 import InventoryStock from "../components/inventory/InventoryStock";
 import InventoryReports from "../components/inventory/InventoryReports";
 import InventoryHistory from "../components/inventory/InventoryHistory";
+import InventoryProfile from "../components/inventory/InventoryProfile";
 
 const InventoryRoutes = () => (
   <Routes>
@@ -22,6 +23,7 @@ const InventoryRoutes = () => (
       <Route path="stock" element={<InventoryStock />} />
       <Route path="history" element={<InventoryHistory />} />
       <Route path="reports" element={<InventoryReports />} />
+      <Route path="profile" element={<InventoryProfile />} />
     </Route>
   </Routes>
 );

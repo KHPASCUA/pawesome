@@ -98,7 +98,7 @@ const VetDashboard = () => {
           </div>
 
           <div className="navbar-actions">
-            <NavLink to="/vet/profile" className="vet-profile-btn">
+            <NavLink to="/veterinary/profile" className="vet-profile-btn">
               <span className="profile-avatar-icon">
                 <FontAwesomeIcon icon={faUserCircle} />
               </span>
@@ -175,7 +175,7 @@ const VetDashboard = () => {
                   <div>
                     <h2>Upcoming Appointments</h2>
                   </div>
-                  <NavLink to="/vet/appointments" className="see-all-link">
+                  <NavLink to="/veterinary/appointments" className="see-all-link">
                     See all ({todayAppointments.length})
                   </NavLink>
                 </div>
@@ -224,7 +224,7 @@ const VetDashboard = () => {
                   <div>
                     <h2>Recent Activity</h2>
                   </div>
-                  <NavLink to="/vet/history" className="see-all-link">
+                  <NavLink to="/veterinary/history" className="see-all-link">
                     See all
                   </NavLink>
                 </div>

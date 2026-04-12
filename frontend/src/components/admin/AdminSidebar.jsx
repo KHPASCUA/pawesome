@@ -142,7 +142,7 @@ const AdminSidebar = ({ collapsed, onToggleCollapse }) => {
             <NavLink
               to="/admin/history"
               className="nav-link"
-              title="History"
+              title="System History"
             >
               <FontAwesomeIcon icon={faHistory} />
               {!collapsed && <span>History</span>}

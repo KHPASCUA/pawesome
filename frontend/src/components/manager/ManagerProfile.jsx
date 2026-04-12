@@ -15,9 +15,9 @@ import {
   faSpinner,
 } from "@fortawesome/free-solid-svg-icons";
 import { apiRequest } from "../../api/client";
-import "./CustomerProfile.css";
+import "./ManagerProfile.css";
 
-const CustomerProfile = () => {
+const ManagerProfile = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState("");
@@ -28,11 +28,13 @@ const CustomerProfile = () => {
 
   // Profile data state - initialize with empty values
   const [profileData, setProfileData] = useState({
+    id: null,
+    name: "",
     first_name: "",
     middle_name: "",
     last_name: "",
-    username: "",
     email: "",
+    username: "",
     phone: "",
     address: "",
     city: "",
@@ -40,9 +42,16 @@ const CustomerProfile = () => {
     zip_code: "",
     country: "",
     bio: "",
-    memberSince: "",
+    role: "",
+    is_active: true,
+    created_at: "",
+    updated_at: "",
     profileImage: null,
   });
+
+  // Store original values for validation
+  const [originalEmail, setOriginalEmail] = useState("");
+  const [originalUsername, setOriginalUsername] = useState("");
 
   // Password change state
   const [passwordData, setPasswordData] = useState({
@@ -75,54 +84,6 @@ const CustomerProfile = () => {
     }));
   };
 
-  // Fetch user profile data
-  const fetchUserProfile = async () => {
-    try {
-      setLoading(true);
-      setError("");
-      console.log("=== Starting CustomerProfile fetch ===");
-      
-      // Check if token exists
-      let token = localStorage.getItem("token");
-      console.log("Token exists:", !!token);
-      
-      if (!token) {
-        console.log("No token found, cannot fetch profile");
-        setError("No authentication token found. Please log in again.");
-        setLoading(false);
-        return;
-      }
-      
-      console.log("Fetching user profile...");
-      const response = await apiRequest("/auth/me");
-      console.log("User data received:", response);
-      
-      if (response) {
-        setProfileData({
-          first_name: response.first_name || "",
-          middle_name: response.middle_name || "",
-          last_name: response.last_name || "",
-          username: response.username || "",
-          email: response.email || "",
-          phone: response.phone || "",
-          address: response.address || "",
-          city: response.city || "",
-          state: response.state || "",
-          zip_code: response.zip_code || "",
-          country: response.country || "",
-          bio: response.bio || "",
-          memberSince: response.created_at ? new Date(response.created_at).toLocaleDateString() : "Unknown",
-          profileImage: response.profile_image || null,
-        });
-      }
-    } catch (err) {
-      setError(err.message || "Failed to load profile data");
-      console.error("Profile fetch error:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   // Handle profile image upload
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
@@ -138,8 +99,90 @@ const CustomerProfile = () => {
     }
   };
 
+  // Fetch user profile data
+  const fetchUserProfile = () => {
+    setLoading(true);
+    setError("");
+    console.log("=== Starting ManagerProfile fetch ===");
+    
+    // Check if token exists
+    let token = localStorage.getItem("token");
+    console.log("Token exists:", !!token);
+    
+    if (!token) {
+      console.log("No token found, cannot fetch profile");
+      setError("No authentication token found. Please log in again.");
+      setLoading(false);
+      return;
+    }
+    
+    console.log("Fetching user profile...");
+    
+    // First get current user to check role
+    apiRequest("/auth/me")
+      .then(response => {
+        console.log("User data received:", response);
+        
+        if (response) {
+          console.log("Setting profile data with:", response);
+          console.log("User role:", response.role);
+          console.log("Role type:", typeof response.role);
+          console.log("Role value:", JSON.stringify(response.role));
+          console.log("User ID:", response.id);
+          console.log("User email:", response.email);
+          
+          // Only proceed if user is manager (not admin)
+          if (response.role !== 'manager') {
+            console.error("Access denied: User is not a manager");
+            console.error("Expected: 'manager', got:", response.role);
+            if (response.role === 'admin') {
+              setError("Admin users should use AdminProfile, not ManagerProfile");
+            } else {
+              setError("Access denied: User role does not match manager profile");
+            }
+            setLoading(false);
+            return;
+          }
+          
+          setProfileData({
+            id: response.id,
+            name: response.name || "",
+            first_name: response.first_name || "",
+            middle_name: response.middle_name || "",
+            last_name: response.last_name || "",
+            email: response.email || "",
+            username: response.username || "",
+            phone: response.phone || "",
+            address: response.address || "",
+            city: response.city || "",
+            state: response.state || "",
+            zip_code: response.zip_code || "",
+            country: response.country || "",
+            bio: response.bio || "",
+            role: response.role || "",
+            is_active: response.is_active !== undefined ? response.is_active : true,
+            created_at: response.created_at || "",
+            updated_at: response.updated_at || "",
+            profileImage: response.profile_image || null,
+          });
+          
+          // Store original values for validation
+          setOriginalEmail(response.email || "");
+          setOriginalUsername(response.username || "");
+          console.log("Profile data set successfully");
+        }
+      })
+      .catch(err => {
+        setError(err.message || "Failed to load profile data");
+        console.error("Profile fetch error:", err);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  };
+
   // Save profile changes
-  const handleSaveProfile = async () => {
+  const handleSaveProfile = () => {
     // Validation
     if (!profileData.first_name || !profileData.last_name || !profileData.email) {
       setMessage("Please fill in all required fields.");
@@ -157,51 +200,70 @@ const CustomerProfile = () => {
       return;
     }
 
-    try {
-      setSaving(true);
-      setError("");
-      
-      // Prepare update data
-      const updateData = {
-        first_name: profileData.first_name,
-        middle_name: profileData.middle_name,
-        last_name: profileData.last_name,
-        username: profileData.username,
-        email: profileData.email,
-        phone: profileData.phone,
-        address: profileData.address,
-        city: profileData.city,
-        state: profileData.state,
-        zip_code: profileData.zip_code,
-        country: profileData.country,
-        bio: profileData.bio,
-      };
-      
-      // Update profile via API
-      await apiRequest("/auth/profile", {
-        method: "PUT",
-        body: JSON.stringify(updateData),
-      });
-      
-      setMessage("Profile updated successfully!");
-      setMessageType("success");
-      setIsEditing(false);
-      
-      // Refresh profile data
-      await fetchUserProfile();
-      setTimeout(() => setMessage(""), 3000);
-    } catch (err) {
-      setMessage(err.message || "Failed to update profile");
-      setMessageType("error");
-      console.error("Profile update error:", err);
-      setTimeout(() => setMessage(""), 3000);
-    } finally {
-      setSaving(false);
+    setSaving(true);
+    setError("");
+    console.log("=== Starting ManagerProfile save ===");
+    
+    // Prepare update data
+    const updateData = {
+      first_name: profileData.first_name,
+      middle_name: profileData.middle_name,
+      last_name: profileData.last_name,
+      phone: profileData.phone,
+      address: profileData.address,
+      city: profileData.city,
+      state: profileData.state,
+      zip_code: profileData.zip_code,
+      country: profileData.country,
+      bio: profileData.bio,
+    };
+    
+    // Only include email if it has changed
+    if (profileData.email !== originalEmail) {
+      updateData.email = profileData.email;
     }
+    
+    // Only include username if it has changed
+    if (profileData.username !== originalUsername) {
+      updateData.username = profileData.username;
+    }
+    
+    console.log("Update data being sent:", updateData);
+    
+    // Update profile via API
+    apiRequest("/auth/profile", {
+      method: "PUT",
+      body: JSON.stringify(updateData),
+    })
+      .then(response => {
+        console.log("API response:", response);
+        setMessage("Profile updated successfully!");
+        setMessageType("success");
+        setIsEditing(false);
+        
+        // Refresh profile data
+        fetchUserProfile();
+        setTimeout(() => setMessage(""), 3000);
+      })
+      .catch(err => {
+        console.error("=== Profile update error ===");
+        console.error("Error object:", err);
+        console.error("Error message:", err.message);
+        console.error("Error status:", err.status);
+        console.error("Error response:", err.response);
+        
+        setMessage(err.message || "Failed to update profile");
+        setMessageType("error");
+        setTimeout(() => setMessage(""), 3000);
+      })
+      .finally(() => {
+        setSaving(false);
+        console.log("=== Save process completed ===");
+      });
   };
 
   // Handle password change
-  const handleChangePassword = async () => {
+  const handleChangePassword = () => {
     // Validation
     if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
       setMessage("Please fill in all password fields.");
@@ -224,36 +286,37 @@ const CustomerProfile = () => {
       return;
     }
 
-    try {
-      setChangingPassword(true);
-      setError("");
-      
-      // Change password via API
-      await apiRequest("/auth/change-password", {
-        method: "POST",
-        body: JSON.stringify({
-          current_password: passwordData.currentPassword,
-          new_password: passwordData.newPassword,
-          new_password_confirmation: passwordData.confirmPassword,
-        })
+    setChangingPassword(true);
+    setError("");
+    
+    // Change password via API
+    apiRequest("/auth/change-password", {
+      method: "POST",
+      body: JSON.stringify({
+        current_password: passwordData.currentPassword,
+        new_password: passwordData.newPassword,
+        new_password_confirmation: passwordData.confirmPassword,
+      })
+    })
+      .then(() => {
+        setMessage("Password changed successfully!");
+        setMessageType("success");
+        setPasswordData({
+          currentPassword: "",
+          newPassword: "",
+          confirmPassword: "",
+        });
+        setTimeout(() => setMessage(""), 3000);
+      })
+      .catch(err => {
+        setMessage(err.message || "Failed to change password");
+        setMessageType("error");
+        console.error("Password change error:", err);
+        setTimeout(() => setMessage(""), 3000);
+      })
+      .finally(() => {
+        setChangingPassword(false);
       });
-      
-      setMessage("Password changed successfully!");
-      setMessageType("success");
-      setPasswordData({
-        currentPassword: "",
-        newPassword: "",
-        confirmPassword: "",
-      });
-      setTimeout(() => setMessage(""), 3000);
-    } catch (err) {
-      setMessage(err.message || "Failed to change password");
-      setMessageType("error");
-      console.error("Password change error:", err);
-      setTimeout(() => setMessage(""), 3000);
-    } finally {
-      setChangingPassword(false);
-    }
   };
 
   // Cancel editing
@@ -282,14 +345,16 @@ const CustomerProfile = () => {
   }, []);
 
   return (
-    <div className="customer-profile">
+    <div className="manager-profile">
+      {/* Profile Header */}
       <div className="profile-header">
         <h2>
-          <FontAwesomeIcon icon={faUser} /> My Profile
+          <FontAwesomeIcon icon={faUser} /> Manager Profile
         </h2>
         <p>Manage your personal information and preferences</p>
       </div>
 
+      {/* Success/Error Messages */}
       {message && (
         <div className={`${messageType}-message`}>
           {message}
@@ -303,9 +368,12 @@ const CustomerProfile = () => {
         </div>
       ) : (
         <>
+          {/* Profile Form */}
           <div className="profile-card">
             <div className="profile-section">
               <h3>Personal Information</h3>
+              
+              {/* Profile Image */}
               <div className="profile-avatar-section">
                 <div className="avatar-container">
                   {profileData.profileImage ? (
@@ -336,6 +404,7 @@ const CustomerProfile = () => {
                 </div>
               </div>
 
+              {/* Form Fields */}
               <div className="form-row">
                 <div className="form-group">
                   <label>First Name *</label>
@@ -415,7 +484,7 @@ const CustomerProfile = () => {
                   value={profileData.bio}
                   onChange={handleInputChange}
                   disabled={!isEditing}
-                  placeholder="Tell us about yourself and your pets..."
+                  placeholder="Tell us about yourself and your management experience..."
                 />
               </div>
             </div>
@@ -493,7 +562,7 @@ const CustomerProfile = () => {
                   <label>Role</label>
                   <input
                     type="text"
-                    value="Customer"
+                    value="Manager"
                     disabled
                     style={{ backgroundColor: '#f8f9fa' }}
                   />
@@ -513,7 +582,7 @@ const CustomerProfile = () => {
                   <label>Member Since</label>
                   <input
                     type="text"
-                    value={profileData.memberSince}
+                    value={profileData.created_at ? new Date(profileData.created_at).toLocaleDateString() : "Unknown"}
                     disabled
                     style={{ backgroundColor: '#f8f9fa' }}
                   />
@@ -522,7 +591,7 @@ const CustomerProfile = () => {
                   <label>Last Updated</label>
                   <input
                     type="text"
-                    value="Today"
+                    value={profileData.updated_at ? new Date(profileData.updated_at).toLocaleDateString() : "Today"}
                     disabled
                     style={{ backgroundColor: '#f8f9fa' }}
                   />
@@ -549,7 +618,7 @@ const CustomerProfile = () => {
                       </>
                     )}
                   </button>
-                  <button className="btn-secondary" onClick={handleCancel} disabled={saving}>
+                  <button className="btn-secondary" onClick={handleCancel}>
                     <FontAwesomeIcon icon={faTimes} /> Cancel
                   </button>
                 </div>
@@ -648,4 +717,4 @@ const CustomerProfile = () => {
   );
 };
 
-export default CustomerProfile;
+export default ManagerProfile;

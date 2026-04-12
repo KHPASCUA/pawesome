@@ -7,9 +7,10 @@ import AdminDashboard from "../components/admin/AdminDashboard";
 import AdminReports from "../components/admin/AdminReports";
 import ManageUsers from "../components/admin/ManageUsers";
 import CreateUser from "../components/admin/CreateUser";
-import LoginHistory from "../components/admin/LoginHistory";
+import History from "../components/admin/History";
 import Attendance from "../components/admin/Attendance";
 import AdminProfile from "../components/admin/AdminProfile";
+import ChatbotLogs from "../components/admin/ChatbotLogs";
 
 // Payroll modules
 import AdminPayroll from "../components/admin/AdminPayroll";
@@ -36,7 +37,8 @@ const AdminRoutes = () => (
       <Route path="reports" element={<AdminReports />}>
         <Route path="attendance" element={<Attendance />} /> {/* nested */}
       </Route>
-      <Route path="login-history" element={<LoginHistory />} />
+      <Route path="history" element={<History />} />
+      <Route path="chatbot" element={<ChatbotLogs />} />
 
       {/* Payroll routes */}
       <Route path="payroll" element={<AdminPayroll />} />

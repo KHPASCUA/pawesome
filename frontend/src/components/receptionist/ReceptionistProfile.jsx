@@ -15,9 +15,9 @@ import {
   faSpinner,
 } from "@fortawesome/free-solid-svg-icons";
 import { apiRequest } from "../../api/client";
-import "./CustomerProfile.css";
+import "./ReceptionistProfile.css";
 
-const CustomerProfile = () => {
+const ReceptionistProfile = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState("");
@@ -67,20 +67,12 @@ const CustomerProfile = () => {
     }));
   };
 
-  const handlePasswordChange = (e) => {
-    const { name, value } = e.target;
-    setPasswordData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
   // Fetch user profile data
   const fetchUserProfile = async () => {
     try {
       setLoading(true);
       setError("");
-      console.log("=== Starting CustomerProfile fetch ===");
+      console.log("=== Starting ReceptionistProfile fetch ===");
       
       // Check if token exists
       let token = localStorage.getItem("token");
@@ -121,6 +113,14 @@ const CustomerProfile = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handlePasswordChange = (e) => {
+    const { name, value } = e.target;
+    setPasswordData(prev => ({
+      ...prev,
+      [name]: value
+    }));
   };
 
   // Handle profile image upload
@@ -282,10 +282,10 @@ const CustomerProfile = () => {
   }, []);
 
   return (
-    <div className="customer-profile">
+    <div className="receptionist-profile">
       <div className="profile-header">
         <h2>
-          <FontAwesomeIcon icon={faUser} /> My Profile
+          <FontAwesomeIcon icon={faUser} /> Receptionist Profile
         </h2>
         <p>Manage your personal information and preferences</p>
       </div>
@@ -415,7 +415,7 @@ const CustomerProfile = () => {
                   value={profileData.bio}
                   onChange={handleInputChange}
                   disabled={!isEditing}
-                  placeholder="Tell us about yourself and your pets..."
+                  placeholder="Tell us about yourself and your experience..."
                 />
               </div>
             </div>
@@ -493,7 +493,7 @@ const CustomerProfile = () => {
                   <label>Role</label>
                   <input
                     type="text"
-                    value="Customer"
+                    value="Receptionist"
                     disabled
                     style={{ backgroundColor: '#f8f9fa' }}
                   />
@@ -648,4 +648,4 @@ const CustomerProfile = () => {
   );
 };
 
-export default CustomerProfile;
+export default ReceptionistProfile;

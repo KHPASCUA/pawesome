@@ -1,481 +1,468 @@
 import React, { useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
+  faUser,
+  faEnvelope,
+  faPhone,
+  faMapMarkerAlt,
   faCalendarAlt,
-  faSearch,
-  faFilter,
-  faPlus,
-  faEdit,
-  faTrash,
-  faCheckCircle,
-  faTimesCircle,
-  faClock,
-  faPaw,
-  faHotel,
-  faStethoscope,
-  faCut,
+  faCamera,
+  faSave,
+  faTimes,
+  faLock,
+  faEye,
+  faEyeSlash,
 } from "@fortawesome/free-solid-svg-icons";
 import "./AppointmentList.css";
 
 const AppointmentList = () => {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [filterStatus, setFilterStatus] = useState("all");
-  const [filterType, setFilterType] = useState("all");
-  const [showNewAppointmentModal, setShowNewAppointmentModal] = useState(false);
-  const [newAppointment, setNewAppointment] = useState({
-    petName: "",
-    petType: "Dog",
-    breed: "",
-    owner: "",
-    type: "hotel",
-    service: "",
-    date: "",
-    time: "",
-    duration: "",
-    notes: "",
+  const [isEditing, setIsEditing] = useState(false);
+  const [message, setMessage] = useState("");
+  const [messageType, setMessageType] = useState("");
+  
+  // Profile data state
+  const [profileData, setProfileData] = useState({
+    firstName: "Receptionist",
+    lastName: "User",
+    email: "receptionist@pawesomeretreat.com",
+    phone: "+1 (555) 123-4567",
+    address: "789 Front Desk Avenue",
+    city: "Service City",
+    state: "SC",
+    zipCode: "54321",
+    country: "United States",
+    bio: "Dedicated receptionist with excellent customer service skills and experience in managing appointments and customer inquiries.",
+    memberSince: "February 2024",
+    profileImage: null,
   });
 
-  const appointments = [
-    {
-      id: "APT-001",
-      petName: "Buddy",
-      petType: "Dog",
-      breed: "Golden Retriever",
-      owner: "John Smith",
-      type: "hotel",
-      service: "Pet Hotel Stay",
-      date: "2026-04-05",
-      time: "10:00 AM",
-      duration: "3 days",
-      status: "confirmed",
-    },
-    {
-      id: "APT-002",
-      petName: "Luna",
-      petType: "Cat",
-      breed: "Persian",
-      owner: "Sarah Johnson",
-      type: "vet",
-      service: "Regular Checkup",
-      date: "2026-04-05",
-      time: "11:30 AM",
-      duration: "30 mins",
-      status: "confirmed",
-    },
-    {
-      id: "APT-003",
-      petName: "Max",
-      petType: "Dog",
-      breed: "German Shepherd",
-      owner: "Robert Wilson",
-      type: "grooming",
-      service: "Full Grooming",
-      date: "2026-04-05",
-      time: "2:00 PM",
-      duration: "2 hours",
-      status: "pending",
-    },
-    {
-      id: "APT-004",
-      petName: "Whiskers",
-      petType: "Cat",
-      breed: "Siamese",
-      owner: "Emily Davis",
-      type: "vet",
-      service: "Vaccination",
-      date: "2026-04-06",
-      time: "9:00 AM",
-      duration: "15 mins",
-      status: "confirmed",
-    },
-  ];
-
-  const filteredAppointments = appointments.filter(appointment => {
-    const matchesSearch = 
-      appointment.petName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      appointment.owner.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      appointment.service.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesStatus = filterStatus === "all" || appointment.status === filterStatus;
-    const matchesType = filterType === "all" || appointment.type === filterType;
-    
-    return matchesSearch && matchesStatus && matchesType;
+  // Password change state
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
   });
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case "confirmed":
-        return "info";
-      case "pending":
-        return "warning";
-      case "completed":
-        return "success";
-      case "cancelled":
-        return "danger";
-      default:
-        return "secondary";
+  // Password visibility state
+  const [showPasswords, setShowPasswords] = useState({
+    currentPassword: false,
+    newPassword: false,
+    confirmPassword: false,
+  });
+
+  // Handle input changes
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setProfileData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handlePasswordChange = (e) => {
+    const { name, value } = e.target;
+    setPasswordData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  // Handle profile image upload
+  const handleImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setProfileData(prev => ({
+          ...prev,
+          profileImage: reader.result
+        }));
+      };
+      reader.readAsDataURL(file);
     }
   };
 
-  const getTypeIcon = (type) => {
-    switch (type) {
-      case "hotel":
-        return faHotel;
-      case "vet":
-        return faStethoscope;
-      case "grooming":
-        return faCut;
-      default:
-        return faCalendarAlt;
+  // Save profile changes
+  const handleSaveProfile = () => {
+    // Validation
+    if (!profileData.firstName || !profileData.lastName || !profileData.email) {
+      setMessage("Please fill in all required fields.");
+      setMessageType("error");
+      setTimeout(() => setMessage(""), 3000);
+      return;
     }
+
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(profileData.email)) {
+      setMessage("Please enter a valid email address.");
+      setMessageType("error");
+      setTimeout(() => setMessage(""), 3000);
+      return;
+    }
+
+    // Simulate API call
+    setTimeout(() => {
+      setMessage("Profile updated successfully!");
+      setMessageType("success");
+      setIsEditing(false);
+      setTimeout(() => setMessage(""), 3000);
+    }, 1000);
+  };
+
+  // Handle password change
+  const handleChangePassword = () => {
+    // Validation
+    if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
+      setMessage("Please fill in all password fields.");
+      setMessageType("error");
+      setTimeout(() => setMessage(""), 3000);
+      return;
+    }
+
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      setMessage("New passwords do not match.");
+      setMessageType("error");
+      setTimeout(() => setMessage(""), 3000);
+      return;
+    }
+
+    if (passwordData.newPassword.length < 8) {
+      setMessage("Password must be at least 8 characters long.");
+      setMessageType("error");
+      setTimeout(() => setMessage(""), 3000);
+      return;
+    }
+
+    // Simulate API call
+    setTimeout(() => {
+      setMessage("Password changed successfully!");
+      setMessageType("success");
+      setPasswordData({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
+      setTimeout(() => setMessage(""), 3000);
+    }, 1000);
+  };
+
+  // Cancel editing
+  const handleCancel = () => {
+    setIsEditing(false);
+    setMessage("");
+  };
+
+  // Toggle edit mode
+  const toggleEditMode = () => {
+    setIsEditing(!isEditing);
+    setMessage("");
+  };
+
+  // Toggle password visibility
+  const togglePasswordVisibility = (field) => {
+    setShowPasswords(prev => ({
+      ...prev,
+      [field]: !prev[field]
+    }));
   };
 
   return (
     <div className="appointment-list">
-      <div className="appointments-header">
-        <div className="header-left">
-          <h1>All Appointments</h1>
-          <p>View and manage all appointments across all services</p>
-        </div>
-        <div className="header-actions">
-          <button className="primary-btn" onClick={() => setShowNewAppointmentModal(true)}>
-            <FontAwesomeIcon icon={faPlus} />
-            New Appointment
-          </button>
-        </div>
+      {/* Profile Header */}
+      <div className="profile-header">
+        <h2>
+          <FontAwesomeIcon icon={faUser} /> Receptionist Profile
+        </h2>
+        <p>Manage your personal information and preferences</p>
       </div>
 
-      {/* Summary Cards */}
-      <div className="summary-cards">
-        <div className="summary-card">
-          <div className="card-icon">
-            <FontAwesomeIcon icon={faCalendarAlt} />
-          </div>
-          <div className="card-content">
-            <h3>{appointments.length}</h3>
-            <p>Total Appointments</p>
-          </div>
-        </div>
-        <div className="summary-card">
-          <div className="card-icon">
-            <FontAwesomeIcon icon={faClock} />
-          </div>
-          <div className="card-content">
-            <h3>{appointments.filter(a => a.status === 'confirmed').length}</h3>
-            <p>Confirmed</p>
-          </div>
-        </div>
-        <div className="summary-card">
-          <div className="card-icon">
-            <FontAwesomeIcon icon={faClock} />
-          </div>
-          <div className="card-content">
-            <h3>{appointments.filter(a => a.status === 'pending').length}</h3>
-            <p>Pending</p>
-          </div>
-        </div>
-        <div className="summary-card">
-          <div className="card-icon">
-            <FontAwesomeIcon icon={faCheckCircle} />
-          </div>
-          <div className="card-content">
-            <h3>{appointments.filter(a => a.status === 'completed').length}</h3>
-            <p>Completed</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Filters */}
-      <div className="appointments-controls">
-        <div className="search-filter-group">
-          <div className="search-box">
-            <FontAwesomeIcon icon={faSearch} />
-            <input
-              type="text"
-              placeholder="Search by pet name, owner, or service..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          <div className="filter-dropdown">
-            <FontAwesomeIcon icon={faFilter} />
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-            >
-              <option value="all">All Status</option>
-              <option value="confirmed">Confirmed</option>
-              <option value="pending">Pending</option>
-              <option value="completed">Completed</option>
-              <option value="cancelled">Cancelled</option>
-            </select>
-          </div>
-          <div className="filter-dropdown">
-            <FontAwesomeIcon icon={faCalendarAlt} />
-            <select
-              value={filterType}
-              onChange={(e) => setFilterType(e.target.value)}
-            >
-              <option value="all">All Types</option>
-              <option value="hotel">Hotel</option>
-              <option value="vet">Veterinary</option>
-              <option value="grooming">Grooming</option>
-            </select>
-          </div>
-        </div>
-      </div>
-
-      {/* Appointments Table */}
-      <div className="appointments-table-container">
-        <table className="appointments-table">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Pet Info</th>
-              <th>Owner</th>
-              <th>Type</th>
-              <th>Service</th>
-              <th>Date & Time</th>
-              <th>Status</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredAppointments.map((appointment) => (
-              <tr key={appointment.id} className="appointment-row">
-                <td className="appointment-id">
-                  <span className="id-badge">{appointment.id}</span>
-                </td>
-                <td className="pet-info">
-                  <div className="pet-details">
-                    <div className="pet-avatar">
-                      <FontAwesomeIcon icon={faPaw} />
-                    </div>
-                    <div>
-                      <span className="pet-name">{appointment.petName}</span>
-                      <span className="pet-breed">{appointment.breed}</span>
-                      <span className="pet-type">{appointment.petType}</span>
-                    </div>
-                  </div>
-                </td>
-                <td className="owner">
-                  <span className="owner-name">{appointment.owner}</span>
-                </td>
-                <td className="type">
-                  <div className="type-info">
-                    <FontAwesomeIcon icon={getTypeIcon(appointment.type)} />
-                    <span className="type-name">{appointment.type}</span>
-                  </div>
-                </td>
-                <td className="service">
-                  <span className="service-name">{appointment.service}</span>
-                </td>
-                <td className="datetime">
-                  <div className="datetime-details">
-                    <div className="date">{appointment.date}</div>
-                    <div className="time">{appointment.time}</div>
-                    <div className="duration">{appointment.duration}</div>
-                  </div>
-                </td>
-                <td className="status">
-                  <span className={`status-badge ${getStatusColor(appointment.status)}`}>
-                    {appointment.status}
-                  </span>
-                </td>
-                <td className="actions">
-                  <button className="action-btn edit-btn" title="Edit">
-                    <FontAwesomeIcon icon={faEdit} />
-                  </button>
-                  <button className="action-btn delete-btn" title="Cancel">
-                    <FontAwesomeIcon icon={faTrash} />
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* New Appointment Modal */}
-      {showNewAppointmentModal && (
-        <div className="appointment-modal-overlay" onClick={() => setShowNewAppointmentModal(false)}>
-          <div className="appointment-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>New Appointment</h2>
-              <button
-                className="close-btn"
-                onClick={() => setShowNewAppointmentModal(false)}
-              >
-                ×
-              </button>
-            </div>
-            <div className="modal-content">
-              <form className="appointment-form">
-                <div className="form-grid">
-                  <div className="form-group">
-                    <label>Pet Name *</label>
-                    <input
-                      type="text"
-                      value={newAppointment.petName}
-                      onChange={(e) => setNewAppointment({...newAppointment, petName: e.target.value})}
-                      placeholder="Enter pet name"
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Pet Type *</label>
-                    <select
-                      value={newAppointment.petType}
-                      onChange={(e) => setNewAppointment({...newAppointment, petType: e.target.value})}
-                      required
-                    >
-                      <option value="Dog">Dog</option>
-                      <option value="Cat">Cat</option>
-                      <option value="Bird">Bird</option>
-                      <option value="Rabbit">Rabbit</option>
-                      <option value="Other">Other</option>
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label>Breed</label>
-                    <input
-                      type="text"
-                      value={newAppointment.breed}
-                      onChange={(e) => setNewAppointment({...newAppointment, breed: e.target.value})}
-                      placeholder="Enter breed"
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Owner Name *</label>
-                    <input
-                      type="text"
-                      value={newAppointment.owner}
-                      onChange={(e) => setNewAppointment({...newAppointment, owner: e.target.value})}
-                      placeholder="Enter owner name"
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Appointment Type *</label>
-                    <select
-                      value={newAppointment.type}
-                      onChange={(e) => setNewAppointment({...newAppointment, type: e.target.value, service: ""})}
-                      required
-                    >
-                      <option value="hotel">Hotel</option>
-                      <option value="vet">Veterinary</option>
-                      <option value="grooming">Grooming</option>
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label>Service *</label>
-                    <select
-                      value={newAppointment.service}
-                      onChange={(e) => setNewAppointment({...newAppointment, service: e.target.value})}
-                      required
-                    >
-                      {newAppointment.type === "hotel" && (
-                        <>
-                          <option value="">Select service</option>
-                          <option value="Pet Hotel Stay">Pet Hotel Stay</option>
-                          <option value="Daycare">Daycare</option>
-                          <option value="Extended Boarding">Extended Boarding</option>
-                        </>
-                      )}
-                      {newAppointment.type === "vet" && (
-                        <>
-                          <option value="">Select service</option>
-                          <option value="Regular Checkup">Regular Checkup</option>
-                          <option value="Vaccination">Vaccination</option>
-                          <option value="Dental Cleaning">Dental Cleaning</option>
-                          <option value="Surgery Consultation">Surgery Consultation</option>
-                        </>
-                      )}
-                      {newAppointment.type === "grooming" && (
-                        <>
-                          <option value="">Select service</option>
-                          <option value="Full Grooming">Full Grooming</option>
-                          <option value="Bath & Brush">Bath & Brush</option>
-                          <option value="Nail Trimming">Nail Trimming</option>
-                          <option value="Haircut">Haircut</option>
-                        </>
-                      )}
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label>Date *</label>
-                    <input
-                      type="date"
-                      value={newAppointment.date}
-                      onChange={(e) => setNewAppointment({...newAppointment, date: e.target.value})}
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Time *</label>
-                    <input
-                      type="time"
-                      value={newAppointment.time}
-                      onChange={(e) => setNewAppointment({...newAppointment, time: e.target.value})}
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Duration</label>
-                    <input
-                      type="text"
-                      value={newAppointment.duration}
-                      onChange={(e) => setNewAppointment({...newAppointment, duration: e.target.value})}
-                      placeholder="e.g., 2 hours, 3 days"
-                    />
-                  </div>
-                </div>
-                <div className="form-group full-width">
-                  <label>Notes</label>
-                  <textarea
-                    value={newAppointment.notes}
-                    onChange={(e) => setNewAppointment({...newAppointment, notes: e.target.value})}
-                    placeholder="Additional notes or special requirements"
-                    rows="3"
-                  />
-                </div>
-              </form>
-            </div>
-            <div className="modal-actions">
-              <button
-                className="secondary-btn"
-                onClick={() => setShowNewAppointmentModal(false)}
-              >
-                Cancel
-              </button>
-              <button
-                className="primary-btn"
-                onClick={() => {
-                  // Handle form submission
-                  console.log("New appointment:", newAppointment);
-                  setShowNewAppointmentModal(false);
-                  // Reset form
-                  setNewAppointment({
-                    petName: "",
-                    petType: "Dog",
-                    breed: "",
-                    owner: "",
-                    type: "hotel",
-                    service: "",
-                    date: "",
-                    time: "",
-                    duration: "",
-                    notes: "",
-                  });
-                }}
-              >
-                <FontAwesomeIcon icon={faPlus} />
-                Create Appointment
-              </button>
-            </div>
-          </div>
+      {/* Success/Error Messages */}
+      {message && (
+        <div className={`${messageType}-message`}>
+          {message}
         </div>
       )}
+
+      {/* Profile Form */}
+      <div className="profile-card">
+        <div className="profile-section">
+          <h3>Personal Information</h3>
+          
+          {/* Profile Image */}
+          <div className="profile-avatar-section">
+            <div className="avatar-container">
+              {profileData.profileImage ? (
+                <img 
+                  src={profileData.profileImage} 
+                  alt="Profile" 
+                  className="avatar-img"
+                />
+              ) : (
+                <div className="avatar-img">
+                  <FontAwesomeIcon icon={faUser} size="3x" />
+                </div>
+              )}
+            </div>
+            {isEditing && (
+              <div>
+                <input
+                  type="file"
+                  id="avatar-upload"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  style={{ display: 'none' }}
+                />
+                <label htmlFor="avatar-upload" className="avatar-upload-btn">
+                  <FontAwesomeIcon icon={faCamera} /> Change Photo
+                </label>
+              </div>
+            )}
+          </div>
+
+          {/* Form Fields */}
+          <div className="form-row">
+            <div className="form-group">
+              <label>First Name *</label>
+              <input
+                type="text"
+                name="firstName"
+                value={profileData.firstName}
+                onChange={handleInputChange}
+                disabled={!isEditing}
+                placeholder="Enter your first name"
+              />
+            </div>
+            <div className="form-group">
+              <label>Last Name *</label>
+              <input
+                type="text"
+                name="lastName"
+                value={profileData.lastName}
+                onChange={handleInputChange}
+                disabled={!isEditing}
+                placeholder="Enter your last name"
+              />
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label>Email Address *</label>
+            <input
+              type="email"
+              name="email"
+              value={profileData.email}
+              onChange={handleInputChange}
+              disabled={!isEditing}
+              placeholder="Enter your email"
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Phone Number</label>
+            <input
+              type="tel"
+              name="phone"
+              value={profileData.phone}
+              onChange={handleInputChange}
+              disabled={!isEditing}
+              placeholder="Enter your phone number"
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Bio</label>
+            <textarea
+              name="bio"
+              value={profileData.bio}
+              onChange={handleInputChange}
+              disabled={!isEditing}
+              placeholder="Tell us about yourself and your experience..."
+            />
+          </div>
+        </div>
+
+        {/* Address Section */}
+        <div className="profile-section">
+          <h3>Address Information</h3>
+          <div className="form-row">
+            <div className="form-group">
+              <label>Street Address</label>
+              <input
+                type="text"
+                name="address"
+                value={profileData.address}
+                onChange={handleInputChange}
+                disabled={!isEditing}
+                placeholder="Enter your street address"
+              />
+            </div>
+            <div className="form-group">
+              <label>City</label>
+              <input
+                type="text"
+                name="city"
+                value={profileData.city}
+                onChange={handleInputChange}
+                disabled={!isEditing}
+                placeholder="Enter your city"
+              />
+            </div>
+          </div>
+
+          <div className="form-row">
+            <div className="form-group">
+              <label>State</label>
+              <input
+                type="text"
+                name="state"
+                value={profileData.state}
+                onChange={handleInputChange}
+                disabled={!isEditing}
+                placeholder="Enter your state"
+              />
+            </div>
+            <div className="form-group">
+              <label>ZIP Code</label>
+              <input
+                type="text"
+                name="zipCode"
+                value={profileData.zipCode}
+                onChange={handleInputChange}
+                disabled={!isEditing}
+                placeholder="Enter your ZIP code"
+              />
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label>Country</label>
+            <input
+              type="text"
+              name="country"
+              value={profileData.country}
+              onChange={handleInputChange}
+              disabled={!isEditing}
+              placeholder="Enter your country"
+            />
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="btn-group">
+          {!isEditing ? (
+            <>
+              <button className="btn-primary" onClick={toggleEditMode}>
+                <FontAwesomeIcon icon={faUser} /> Edit Profile
+              </button>
+            </>
+          ) : (
+            <>
+              <button className="btn-primary" onClick={handleSaveProfile}>
+                <FontAwesomeIcon icon={faSave} /> Save Changes
+              </button>
+              <button className="btn-secondary" onClick={handleCancel}>
+                <FontAwesomeIcon icon={faTimes} /> Cancel
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Password Change Section */}
+      <div className="profile-card password-section">
+        <div className="profile-section">
+          <h3>
+            <FontAwesomeIcon icon={faLock} /> Change Password
+          </h3>
+          
+          <div className="form-group">
+            <label>Current Password</label>
+            <div className="password-input-wrapper">
+              <input
+                type={showPasswords.currentPassword ? "text" : "password"}
+                name="currentPassword"
+                value={passwordData.currentPassword}
+                onChange={handlePasswordChange}
+                placeholder="Enter current password"
+              />
+              <button
+                type="button"
+                className="password-toggle-btn"
+                onClick={() => togglePasswordVisibility('currentPassword')}
+              >
+                <FontAwesomeIcon icon={showPasswords.currentPassword ? faEyeSlash : faEye} />
+              </button>
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label>New Password</label>
+            <div className="password-input-wrapper">
+              <input
+                type={showPasswords.newPassword ? "text" : "password"}
+                name="newPassword"
+                value={passwordData.newPassword}
+                onChange={handlePasswordChange}
+                placeholder="Enter new password"
+              />
+              <button
+                type="button"
+                className="password-toggle-btn"
+                onClick={() => togglePasswordVisibility('newPassword')}
+              >
+                <FontAwesomeIcon icon={showPasswords.newPassword ? faEyeSlash : faEye} />
+              </button>
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label>Confirm New Password</label>
+            <div className="password-input-wrapper">
+              <input
+                type={showPasswords.confirmPassword ? "text" : "password"}
+                name="confirmPassword"
+                value={passwordData.confirmPassword}
+                onChange={handlePasswordChange}
+                placeholder="Confirm new password"
+              />
+              <button
+                type="button"
+                className="password-toggle-btn"
+                onClick={() => togglePasswordVisibility('confirmPassword')}
+              >
+                <FontAwesomeIcon icon={showPasswords.confirmPassword ? faEyeSlash : faEye} />
+              </button>
+            </div>
+          </div>
+
+          <div className="password-requirements">
+            Password must be at least 8 characters long and contain both letters and numbers.
+          </div>
+
+          <div className="btn-group">
+            <button className="btn-primary" onClick={handleChangePassword}>
+              <FontAwesomeIcon icon={faLock} /> Change Password
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Account Info */}
+      <div className="profile-card">
+        <div className="profile-section">
+          <h3>Account Information</h3>
+          <div className="form-group">
+            <label>Member Since</label>
+            <input
+              type="text"
+              value={profileData.memberSince}
+              disabled
+              style={{ backgroundColor: '#f8f9fa' }}
+            />
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
