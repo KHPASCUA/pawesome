@@ -5,6 +5,129 @@
   min-height: 100vh;
 }
 
+.chatbot-admin-console .success-message,
+.chatbot-admin-console .error-message {
+  border-radius: 12px;
+  margin-bottom: 16px;
+  padding: 12px 14px;
+}
+
+.chatbot-tabs {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.chatbot-tabs button {
+  background: #edf4fa;
+  border: 1px solid rgba(18, 52, 88, 0.08);
+  border-radius: 12px;
+  cursor: pointer;
+  padding: 10px 14px;
+}
+
+.chatbot-tabs button.active {
+  background: #123458;
+  color: #fff;
+}
+
+.admin-grid {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.management-panel {
+  background: #fff;
+  border: 1px solid rgba(18, 52, 88, 0.08);
+  border-radius: 18px;
+  padding: 18px;
+}
+
+.management-panel h3 {
+  margin-top: 0;
+}
+
+.management-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.management-form input,
+.management-form textarea,
+.management-form select {
+  border: 1px solid rgba(18, 52, 88, 0.12);
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+
+.management-row {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.checkbox-row {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+}
+
+.management-actions,
+.card-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.management-actions button,
+.card-actions button {
+  background: #123458;
+  border: none;
+  border-radius: 10px;
+  color: #fff;
+  cursor: pointer;
+  padding: 10px 14px;
+}
+
+.card-actions button.danger {
+  background: #b91c1c;
+}
+
+.management-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+  max-height: 640px;
+  overflow-y: auto;
+}
+
+.management-card {
+  background: #f7fbff;
+  border: 1px solid rgba(18, 52, 88, 0.08);
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px;
+}
+
+.management-card.clickable {
+  cursor: pointer;
+  text-align: left;
+}
+
+@media (max-width: 900px) {
+  .admin-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .chatbot-tabs {
+    flex-wrap: wrap;
+  }
+}
+
 /* Section Header */
 .section-header {
   display: flex;

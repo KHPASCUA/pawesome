@@ -33,6 +33,7 @@ const CustomerRoutes = () => (
       <Route path="chatbot" element={<CustomerChatbot />} />
       <Route path="userinfo" element={<CustomerUserInfo />} />
       <Route path="profile" element={<CustomerProfile />} />
+      <Route path="history" element={<CustomerReports />} />
 
       {/* Nested under reports */}
       <Route path="reports" element={<CustomerReports />}>

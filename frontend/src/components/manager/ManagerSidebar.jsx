@@ -75,23 +75,23 @@ const ManagerSidebar = ({ collapsed, onToggleCollapse }) => {
           
           <li className="nav-item">
             <NavLink
-              to="/manager/tasks"
+              to="/manager/reports"
               className={({ isActive }) => (isActive ? "active" : "")}
-              title="Tasks"
+              title="Reports"
             >
               <FontAwesomeIcon icon={faTasks} />
-              {!collapsed && <span>Tasks</span>}
+              {!collapsed && <span>Reports</span>}
             </NavLink>
           </li>
           
           <li className="nav-item">
             <NavLink
-              to="/manager/history"
+              to="/manager/attendance"
               className={({ isActive }) => (isActive ? "active" : "")}
-              title="History"
+              title="Attendance History"
             >
               <FontAwesomeIcon icon={faHistory} />
-              {!collapsed && <span>History</span>}
+              {!collapsed && <span>Attendance Log</span>}
             </NavLink>
           </li>
           

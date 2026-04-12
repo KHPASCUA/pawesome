@@ -163,10 +163,17 @@ class PortalController extends Controller
             'message' => 'required|string',
             'type' => 'nullable|string',
         ]);
+        $user = $request->user();
+
         $log = ChatbotLog::create([
+            'user_id' => $user?->id,
+            'role' => $user?->role,
+            'channel' => 'web',
             'message' => $data['message'],
             'type' => $data['type'] ?? 'inquiry',
+            'user_message' => $data['message'],
         ]);
+
         return response()->json($log, 201);
     }
 }

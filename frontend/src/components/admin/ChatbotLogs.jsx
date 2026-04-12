@@ -1,349 +1,439 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  faRobot,
-  faSearch,
-  faFilter,
-  faUser,
+  faBook,
   faComments,
-  faClock,
-  faEye,
+  faPlus,
+  faRobot,
   faSpinner,
-  faExclamationTriangle,
-  faCheckCircle,
-  faTimesCircle,
-  faCalendarAlt,
-  faMessage,
+  faTrash,
+  faWrench,
 } from "@fortawesome/free-solid-svg-icons";
 import { apiRequest } from "../../api/client";
 import "./ChatbotLogs.css";
 
+const emptyFaq = {
+  question: "",
+  answer: "",
+  keywords: "",
+  scope: "general",
+  is_active: true,
+  sort_order: 0,
+};
+
+const emptyService = {
+  name: "",
+  price: "",
+  description: "",
+};
+
 const ChatbotLogs = () => {
+  const [activeTab, setActiveTab] = useState("logs");
   const [chatLogs, setChatLogs] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
-  const [searchTerm, setSearchTerm] = useState("");
-  const [filterUser, setFilterUser] = useState("all");
-  const [filterDate, setFilterDate] = useState("all");
-  
   const [selectedUser, setSelectedUser] = useState(null);
   const [userChats, setUserChats] = useState([]);
-  const [showChatModal, setShowChatModal] = useState(false);
-  const [loadingChats, setLoadingChats] = useState(false);
+  const [faqs, setFaqs] = useState([]);
+  const [services, setServices] = useState([]);
+  const [faqForm, setFaqForm] = useState(emptyFaq);
+  const [serviceForm, setServiceForm] = useState(emptyService);
+  const [editingFaqId, setEditingFaqId] = useState(null);
+  const [editingServiceId, setEditingServiceId] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
-  // Fetch chat logs summary from database
-  const fetchChatLogs = async () => {
+  const showMessage = (setter, message) => {
+    setter(message);
+    setTimeout(() => setter(""), 3000);
+  };
+
+  const loadData = async () => {
     try {
       setLoading(true);
+      const [logsData, faqData, serviceData] = await Promise.all([
+        apiRequest("/admin/chatbot/logs"),
+        apiRequest("/admin/chatbot/faqs"),
+        apiRequest("/admin/services"),
+      ]);
+      setChatLogs(Array.isArray(logsData) ? logsData : []);
+      setFaqs(Array.isArray(faqData) ? faqData : []);
+      setServices(Array.isArray(serviceData) ? serviceData : []);
       setError("");
-      const data = await apiRequest("/admin/chatbot/logs");
-      // Ensure data is an array
-      setChatLogs(Array.isArray(data) ? data : []);
     } catch (err) {
-      setError(err.message || "Failed to fetch chat logs");
-      console.error("Fetch chat logs error:", err);
-      setChatLogs([]); // Set empty array on error
+      setError(err.message || "Failed to load chatbot management data.");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchChatLogs();
+    loadData();
   }, []);
 
-  // Show success message
-  const showSuccess = (message) => {
-    setSuccess(message);
-    setTimeout(() => setSuccess(""), 3000);
-  };
-
-  // Show error message
-  const showError = (message) => {
-    setError(message);
-    setTimeout(() => setError(""), 5000);
-  };
-
-  // Fetch specific user chat history
-  const fetchUserChats = async (userId) => {
+  const loadUserChats = async (userId) => {
     try {
-      setLoadingChats(true);
-      setError("");
+      setDetailsLoading(true);
       const data = await apiRequest(`/admin/chatbot/logs/user/${userId}`);
-      // Ensure data is an array
       setUserChats(Array.isArray(data) ? data : []);
     } catch (err) {
-      setError(err.message || "Failed to fetch user chat history");
-      console.error("Fetch user chats error:", err);
-      setUserChats([]); // Set empty array on error
+      setError(err.message || "Failed to load chat history.");
     } finally {
-      setLoadingChats(false);
+      setDetailsLoading(false);
     }
   };
 
-  // Open user chat modal
-  const openUserChats = (user) => {
-    setSelectedUser(user);
-    setShowChatModal(true);
-    fetchUserChats(user.id);
+  const openUserChats = (log) => {
+    setSelectedUser(log);
+    loadUserChats(log.user_id);
   };
 
-  // Close chat modal
-  const closeChatModal = () => {
-    setShowChatModal(false);
-    setSelectedUser(null);
-    setUserChats([]);
+  const resetFaqForm = () => {
+    setFaqForm(emptyFaq);
+    setEditingFaqId(null);
   };
 
-  // Filter chat logs
-  const filteredChatLogs = Array.isArray(chatLogs) ? chatLogs.filter((log) => {
-    const matchesSearch = 
-      log.user_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      log.user_email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      log.user_username?.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesUser = filterUser === "all" || log.user_id?.toString() === filterUser;
-    const matchesDate = filterDate === "all" || 
-      (filterDate === "today" && new Date(log.last_chat_date).toDateString() === new Date().toDateString()) ||
-      (filterDate === "week" && (Date.now() - new Date(log.last_chat_date).getTime()) < 7 * 24 * 60 * 60 * 1000) ||
-      (filterDate === "month" && (Date.now() - new Date(log.last_chat_date).getTime()) < 30 * 24 * 60 * 60 * 1000);
-    
-    return matchesSearch && matchesUser && matchesDate;
-  }) : [];
-
-  // Format date
-  const formatDate = (dateString) => {
-    if (!dateString) return "N/A";
-    return new Date(dateString).toLocaleDateString();
+  const resetServiceForm = () => {
+    setServiceForm(emptyService);
+    setEditingServiceId(null);
   };
 
-  // Format time
-  const formatTime = (dateString) => {
-    if (!dateString) return "N/A";
-    return new Date(dateString).toLocaleTimeString();
+  const submitFaq = async (event) => {
+    event.preventDefault();
+    setSaving(true);
+    try {
+      const payload = {
+        ...faqForm,
+        keywords: faqForm.keywords
+          .split(",")
+          .map((item) => item.trim())
+          .filter(Boolean),
+        sort_order: Number(faqForm.sort_order || 0),
+      };
+
+      if (editingFaqId) {
+        await apiRequest(`/admin/chatbot/faqs/${editingFaqId}`, {
+          method: "PUT",
+          body: JSON.stringify(payload),
+        });
+      } else {
+        await apiRequest("/admin/chatbot/faqs", {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
+      }
+
+      resetFaqForm();
+      await loadData();
+      showMessage(setSuccess, "FAQ saved.");
+    } catch (err) {
+      setError(err.message || "Failed to save FAQ.");
+    } finally {
+      setSaving(false);
+    }
   };
 
-  // Get role badge color
-  const getRoleBadgeColor = (role) => {
-    const colors = {
-      admin: "danger",
-      manager: "warning",
-      receptionist: "info",
-      veterinary: "success",
-      cashier: "primary",
-      inventory: "secondary",
-      payroll: "dark",
-      customer: "light",
-    };
-    return colors[role] || "secondary";
+  const submitService = async (event) => {
+    event.preventDefault();
+    setSaving(true);
+    try {
+      const payload = {
+        ...serviceForm,
+        price: Number(serviceForm.price || 0),
+      };
+
+      if (editingServiceId) {
+        await apiRequest(`/admin/services/${editingServiceId}`, {
+          method: "PUT",
+          body: JSON.stringify(payload),
+        });
+      } else {
+        await apiRequest("/admin/services", {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
+      }
+
+      resetServiceForm();
+      await loadData();
+      showMessage(setSuccess, "Service saved.");
+    } catch (err) {
+      setError(err.message || "Failed to save service.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const removeFaq = async (id) => {
+    try {
+      await apiRequest(`/admin/chatbot/faqs/${id}`, { method: "DELETE" });
+      await loadData();
+      showMessage(setSuccess, "FAQ deleted.");
+    } catch (err) {
+      setError(err.message || "Failed to delete FAQ.");
+    }
+  };
+
+  const removeService = async (id) => {
+    try {
+      await apiRequest(`/admin/services/${id}`, { method: "DELETE" });
+      await loadData();
+      showMessage(setSuccess, "Service deleted.");
+    } catch (err) {
+      setError(err.message || "Failed to delete service.");
+    }
   };
 
   return (
-    <div className="chatbot-logs">
+    <div className="chatbot-logs chatbot-admin-console">
       <div className="section-header">
         <div className="header-left">
           <h2>
-            <FontAwesomeIcon icon={faRobot} /> Chatbot Logs
+            <FontAwesomeIcon icon={faRobot} /> Chatbot Control Center
           </h2>
-          <p>View and manage user chatbot interactions across all accounts</p>
+          <p>Manage chatbot logs, editable FAQs, and live service answers.</p>
         </div>
       </div>
 
-      {/* Success/Error Messages */}
-      {success && (
-        <div className="success-message">
-          <FontAwesomeIcon icon={faCheckCircle} /> {success}
-        </div>
-      )}
-      {error && (
-        <div className="error-message">
-          <FontAwesomeIcon icon={faExclamationTriangle} /> {error}
-        </div>
-      )}
+      {success && <div className="success-message">{success}</div>}
+      {error && <div className="error-message">{error}</div>}
 
-      {/* Filters */}
-      <div className="chatlogs-controls">
-        <div className="search-filter-group">
-          <div className="search-box">
-            <FontAwesomeIcon icon={faSearch} />
-            <input
-              type="text"
-              placeholder="Search by name, email, or username..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          <div className="filter-dropdown">
-            <FontAwesomeIcon icon={faFilter} />
-            <select
-              value={filterUser}
-              onChange={(e) => setFilterUser(e.target.value)}
-            >
-              <option value="all">All Users</option>
-              {Array.isArray(chatLogs) && chatLogs.map((log) => (
-                <option key={log.user_id} value={log.user_id}>
-                  {log.user_name} ({log.user_username})
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="filter-dropdown">
-            <FontAwesomeIcon icon={faCalendarAlt} />
-            <select
-              value={filterDate}
-              onChange={(e) => setFilterDate(e.target.value)}
-            >
-              <option value="all">All Time</option>
-              <option value="today">Today</option>
-              <option value="week">This Week</option>
-              <option value="month">This Month</option>
-            </select>
-          </div>
-        </div>
+      <div className="chatbot-tabs">
+        <button className={activeTab === "logs" ? "active" : ""} onClick={() => setActiveTab("logs")}>
+          <FontAwesomeIcon icon={faComments} /> Logs
+        </button>
+        <button className={activeTab === "faqs" ? "active" : ""} onClick={() => setActiveTab("faqs")}>
+          <FontAwesomeIcon icon={faBook} /> FAQs
+        </button>
+        <button className={activeTab === "services" ? "active" : ""} onClick={() => setActiveTab("services")}>
+          <FontAwesomeIcon icon={faWrench} /> Services
+        </button>
       </div>
 
-      {/* Chat Logs Table */}
-      <div className="chatlogs-table-container">
-        {loading ? (
-          <div className="loading-container">
-            <FontAwesomeIcon icon={faSpinner} spin /> Loading chat logs...
-          </div>
-        ) : filteredChatLogs.length === 0 ? (
-          <div className="empty-state">
-            <FontAwesomeIcon icon={faComments} size="3x" />
-            <h3>No chat logs found</h3>
-            <p>Try adjusting your filters or check back later.</p>
-          </div>
-        ) : (
-          <table className="chatlogs-table">
-            <thead>
-              <tr>
-                <th>User ID</th>
-                <th>User Name</th>
-                <th>Username</th>
-                <th>Email</th>
-                <th>Role</th>
-                <th>Total Chats</th>
-                <th>Last Chat Date</th>
-                <th>Last Chat Time</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredChatLogs.map((log) => (
-                <tr key={log.user_id} className="chatlog-row">
-                  <td className="user-id">#{log.user_id}</td>
-                  <td className="user-name">
-                    <div className="user-info">
-                      <FontAwesomeIcon icon={faUser} className="user-icon" />
-                      <strong>{log.user_name}</strong>
-                    </div>
-                  </td>
-                  <td className="user-username">{log.user_username || "N/A"}</td>
-                  <td className="user-email">{log.user_email}</td>
-                  <td className="user-role">
-                    <span className={`role-badge ${getRoleBadgeColor(log.user_role)}`}>
-                      {log.user_role}
-                    </span>
-                  </td>
-                  <td className="total-chats">
-                    <div className="chat-count">
-                      <FontAwesomeIcon icon={faMessage} />
-                      <span>{log.total_chats || 0}</span>
-                    </div>
-                  </td>
-                  <td className="last-chat-date">{formatDate(log.last_chat_date)}</td>
-                  <td className="last-chat-time">{formatTime(log.last_chat_date)}</td>
-                  <td className="chat-actions">
+      {loading ? (
+        <div className="loading-container">
+          <FontAwesomeIcon icon={faSpinner} spin /> Loading chatbot admin tools...
+        </div>
+      ) : (
+        <>
+          {activeTab === "logs" && (
+            <div className="admin-grid">
+              <div className="management-panel">
+                <h3>Conversation Summary</h3>
+                <div className="management-list">
+                  {chatLogs.map((log) => (
                     <button
-                      className="action-btn view-btn"
+                      type="button"
+                      key={log.user_id}
+                      className="management-card clickable"
                       onClick={() => openUserChats(log)}
-                      title="View Chat History"
-                      disabled={log.total_chats === 0}
                     >
-                      <FontAwesomeIcon icon={faEye} />
+                      <strong>{log.user_name}</strong>
+                      <span>{log.user_role}</span>
+                      <span>{log.total_chats} chats</span>
+                      <span>{log.last_chat_date || "No date"}</span>
                     </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-
-      {/* Chat History Modal */}
-      {showChatModal && selectedUser && (
-        <div className="modal-overlay" onClick={closeChatModal}>
-          <div className="chat-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>
-                <FontAwesomeIcon icon={faComments} /> Chat History: {selectedUser.user_name}
-              </h3>
-              <button className="close-btn" onClick={closeChatModal}>
-                <FontAwesomeIcon icon={faTimesCircle} />
-              </button>
-            </div>
-
-            <div className="modal-body">
-              <div className="user-info-summary">
-                <div className="info-item">
-                  <FontAwesomeIcon icon={faUser} />
-                  <span><strong>{selectedUser.user_name}</strong> ({selectedUser.user_username})</span>
-                </div>
-                <div className="info-item">
-                  <FontAwesomeIcon icon={faMessage} />
-                  <span>Total Chats: {selectedUser.total_chats || 0}</span>
-                </div>
-                <div className="info-item">
-                  <FontAwesomeIcon icon={faClock} />
-                  <span>Last Chat: {formatDate(selectedUser.last_chat_date)} at {formatTime(selectedUser.last_chat_date)}</span>
+                  ))}
+                  {chatLogs.length === 0 && <div className="empty-state">No chatbot logs yet.</div>}
                 </div>
               </div>
 
-              <div className="chat-history-container">
-                {loadingChats ? (
+              <div className="management-panel">
+                <h3>{selectedUser ? `Chat History: ${selectedUser.user_name}` : "Select a user"}</h3>
+                {detailsLoading ? (
                   <div className="loading-container">
-                    <FontAwesomeIcon icon={faSpinner} spin /> Loading chat history...
-                  </div>
-                ) : userChats.length === 0 ? (
-                  <div className="empty-state">
-                    <FontAwesomeIcon icon={faComments} size="2x" />
-                    <h4>No chat history found</h4>
-                    <p>This user hasn't had any conversations yet.</p>
+                    <FontAwesomeIcon icon={faSpinner} spin /> Loading conversations...
                   </div>
                 ) : (
-                  <div className="chat-messages">
-                    {userChats.map((chat, index) => (
-                      <div key={chat.id || index} className="chat-message">
-                        <div className="message-header">
-                          <span className="message-time">
-                            <FontAwesomeIcon icon={faClock} />
-                            {formatDate(chat.created_at)} at {formatTime(chat.created_at)}
-                          </span>
-                        </div>
-                        <div className="message-content">
-                          <div className="user-message">
-                            <strong>User:</strong> {chat.user_message}
-                          </div>
-                          <div className="bot-message">
-                            <strong>Bot:</strong> {chat.bot_response}
-                          </div>
-                        </div>
+                  <div className="management-list">
+                    {userChats.map((chat) => (
+                      <div key={chat.id} className="management-card">
+                        <strong>{chat.intent || "general"}</strong>
+                        <span>User: {chat.user_message}</span>
+                        <span>Bot: {chat.bot_response}</span>
+                        <span>{chat.created_at}</span>
                       </div>
                     ))}
+                    {selectedUser && userChats.length === 0 && (
+                      <div className="empty-state">No conversation history for this user yet.</div>
+                    )}
                   </div>
                 )}
               </div>
             </div>
+          )}
 
-            <div className="modal-actions">
-              <button className="close-modal-btn" onClick={closeChatModal}>
-                Close
-              </button>
+          {activeTab === "faqs" && (
+            <div className="admin-grid">
+              <div className="management-panel">
+                <h3>{editingFaqId ? "Edit FAQ" : "Create FAQ"}</h3>
+                <form className="management-form" onSubmit={submitFaq}>
+                  <input
+                    type="text"
+                    placeholder="Question"
+                    value={faqForm.question}
+                    onChange={(event) => setFaqForm((prev) => ({ ...prev, question: event.target.value }))}
+                    required
+                  />
+                  <textarea
+                    placeholder="Answer"
+                    value={faqForm.answer}
+                    onChange={(event) => setFaqForm((prev) => ({ ...prev, answer: event.target.value }))}
+                    rows="5"
+                    required
+                  />
+                  <input
+                    type="text"
+                    placeholder="Keywords separated by commas"
+                    value={faqForm.keywords}
+                    onChange={(event) => setFaqForm((prev) => ({ ...prev, keywords: event.target.value }))}
+                  />
+                  <div className="management-row">
+                    <select
+                      value={faqForm.scope}
+                      onChange={(event) => setFaqForm((prev) => ({ ...prev, scope: event.target.value }))}
+                    >
+                      <option value="general">General</option>
+                      <option value="admin">Admin</option>
+                      <option value="customer">Customer</option>
+                      <option value="receptionist">Receptionist</option>
+                      <option value="veterinary">Veterinary</option>
+                      <option value="cashier">Cashier</option>
+                      <option value="inventory">Inventory</option>
+                      <option value="manager">Manager</option>
+                    </select>
+                    <input
+                      type="number"
+                      placeholder="Sort order"
+                      value={faqForm.sort_order}
+                      onChange={(event) => setFaqForm((prev) => ({ ...prev, sort_order: event.target.value }))}
+                    />
+                  </div>
+                  <label className="checkbox-row">
+                    <input
+                      type="checkbox"
+                      checked={faqForm.is_active}
+                      onChange={(event) => setFaqForm((prev) => ({ ...prev, is_active: event.target.checked }))}
+                    />
+                    Active
+                  </label>
+                  <div className="management-actions">
+                    <button type="submit" disabled={saving}>
+                      <FontAwesomeIcon icon={faPlus} /> {editingFaqId ? "Update FAQ" : "Add FAQ"}
+                    </button>
+                    {editingFaqId && <button type="button" onClick={resetFaqForm}>Cancel</button>}
+                  </div>
+                </form>
+              </div>
+
+              <div className="management-panel">
+                <h3>Editable FAQs</h3>
+                <div className="management-list">
+                  {faqs.map((faq) => (
+                    <div key={faq.id} className="management-card">
+                      <strong>{faq.question}</strong>
+                      <span>{faq.answer}</span>
+                      <span>Scope: {faq.scope}</span>
+                      <span>Keywords: {(faq.keywords || []).join(", ") || "None"}</span>
+                      <div className="card-actions">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingFaqId(faq.id);
+                            setFaqForm({
+                              question: faq.question,
+                              answer: faq.answer,
+                              keywords: (faq.keywords || []).join(", "),
+                              scope: faq.scope || "general",
+                              is_active: Boolean(faq.is_active),
+                              sort_order: faq.sort_order ?? 0,
+                            });
+                          }}
+                        >
+                          Edit
+                        </button>
+                        <button type="button" className="danger" onClick={() => removeFaq(faq.id)}>
+                          <FontAwesomeIcon icon={faTrash} /> Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  {faqs.length === 0 && <div className="empty-state">No FAQs configured yet.</div>}
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
+          )}
+
+          {activeTab === "services" && (
+            <div className="admin-grid">
+              <div className="management-panel">
+                <h3>{editingServiceId ? "Edit Service" : "Create Service"}</h3>
+                <form className="management-form" onSubmit={submitService}>
+                  <input
+                    type="text"
+                    placeholder="Service name"
+                    value={serviceForm.name}
+                    onChange={(event) => setServiceForm((prev) => ({ ...prev, name: event.target.value }))}
+                    required
+                  />
+                  <input
+                    type="number"
+                    step="0.01"
+                    placeholder="Price"
+                    value={serviceForm.price}
+                    onChange={(event) => setServiceForm((prev) => ({ ...prev, price: event.target.value }))}
+                    required
+                  />
+                  <textarea
+                    placeholder="Description"
+                    value={serviceForm.description}
+                    onChange={(event) => setServiceForm((prev) => ({ ...prev, description: event.target.value }))}
+                    rows="4"
+                  />
+                  <div className="management-actions">
+                    <button type="submit" disabled={saving}>
+                      <FontAwesomeIcon icon={faPlus} /> {editingServiceId ? "Update Service" : "Add Service"}
+                    </button>
+                    {editingServiceId && <button type="button" onClick={resetServiceForm}>Cancel</button>}
+                  </div>
+                </form>
+              </div>
+
+              <div className="management-panel">
+                <h3>Live Service Answers</h3>
+                <div className="management-list">
+                  {services.map((service) => (
+                    <div key={service.id} className="management-card">
+                      <strong>{service.name}</strong>
+                      <span>${Number(service.price || 0).toFixed(2)}</span>
+                      <span>{service.description || "No description"}</span>
+                      <div className="card-actions">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingServiceId(service.id);
+                            setServiceForm({
+                              name: service.name,
+                              price: service.price,
+                              description: service.description || "",
+                            });
+                          }}
+                        >
+                          Edit
+                        </button>
+                        <button type="button" className="danger" onClick={() => removeService(service.id)}>
+                          <FontAwesomeIcon icon={faTrash} /> Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  {services.length === 0 && <div className="empty-state">No services configured yet.</div>}
+                </div>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

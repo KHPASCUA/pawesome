@@ -10,10 +10,10 @@ import {
   faReceipt,
   faCalendarAlt,
   faCreditCard,
-  faCashRegister,
   faArrowUp,
 } from "@fortawesome/free-solid-svg-icons";
 import CashierSidebar from "./CashierSidebar";
+import RoleAwareChatbot from "../chatbot/RoleAwareChatbot";
 import "./CashierDashboard.css";
 import { apiRequest } from "../../api/client";
 
@@ -236,7 +236,7 @@ const CashierDashboard = () => {
                       <div>
                         <h2>Sales by Type</h2>
                       </div>
-                      <NavLink to="/cashier/sales" className="see-all-link">
+                      <NavLink to="/cashier/transactions" className="see-all-link">
                         View all
                       </NavLink>
                     </div>
@@ -265,8 +265,8 @@ const CashierDashboard = () => {
                       <div>
                         <h2>Sales Performance</h2>
                       </div>
-                      <NavLink to="/cashier/analytics" className="see-all-link">
-                        View analytics
+                      <NavLink to="/cashier/reports" className="see-all-link">
+                        View reports
                       </NavLink>
                     </div>
                     
@@ -300,6 +300,11 @@ const CashierDashboard = () => {
           </section>
         )}
       </main>
+      <RoleAwareChatbot
+        mode="widget"
+        title="Cashier Assistant"
+        subtitle="Transactions, payments, and cashier workflow help"
+      />
     </div>
   );
 };

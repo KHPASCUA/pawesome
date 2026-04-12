@@ -6,7 +6,10 @@ use App\Http\Controllers\Admin\ServiceController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\CustomersController;
 use App\Http\Controllers\Admin\ChatbotController;
+use App\Http\Controllers\Admin\ChatbotFaqController;
 use App\Http\Controllers\Admin\ReportsController;
+use App\Http\Controllers\ChatbotController as SharedChatbotController;
+use App\Http\Controllers\ChatbotWorkflowController;
 use App\Http\Controllers\Customer\PortalController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\Cashier\DashboardController as CashierDashboardController;
@@ -52,8 +55,22 @@ Route::middleware(['auth:api', 'role:admin'])->prefix('admin')->group(function (
     Route::put('customers/{id}', [CustomersController::class, 'update']);
 
     Route::get('chatbot/logs', [ChatbotController::class, 'index']);
+    Route::get('chatbot/logs/user/{user}', [ChatbotController::class, 'userHistory']);
+    Route::get('chatbot/faqs', [ChatbotFaqController::class, 'index']);
+    Route::post('chatbot/faqs', [ChatbotFaqController::class, 'store']);
+    Route::put('chatbot/faqs/{faq}', [ChatbotFaqController::class, 'update']);
+    Route::delete('chatbot/faqs/{faq}', [ChatbotFaqController::class, 'destroy']);
 
     Route::get('reports/summary', [ReportsController::class, 'summary']);
+});
+
+Route::middleware(['auth:api'])->prefix('chatbot')->group(function () {
+    Route::get('welcome', [SharedChatbotController::class, 'welcome']);
+    Route::post('message', [SharedChatbotController::class, 'message']);
+    Route::get('workflow/booking-options', [ChatbotWorkflowController::class, 'bookingOptions']);
+    Route::post('workflow/bookings', [ChatbotWorkflowController::class, 'createBooking']);
+    Route::post('workflow/appointments/lookup', [ChatbotWorkflowController::class, 'lookupAppointments']);
+    Route::post('workflow/inventory/search', [ChatbotWorkflowController::class, 'searchInventory']);
 });
 
 Route::middleware(['auth:api', 'role:customer'])->prefix('customer')->group(function () {

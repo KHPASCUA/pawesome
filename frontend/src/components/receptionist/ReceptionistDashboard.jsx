@@ -6,7 +6,6 @@ import {
   faMoon,
   faSun,
   faUserCircle,
-  faCalendarAlt,
   faUsers,
   faPhone,
   faClipboardList,
@@ -16,6 +15,7 @@ import {
   faPaw,
 } from "@fortawesome/free-solid-svg-icons";
 import ReceptionistSidebar from "./ReceptionistSidebar";
+import RoleAwareChatbot from "../chatbot/RoleAwareChatbot";
 import "./ReceptionistDashboard.css";
 import { apiRequest } from "../../api/client";
 
@@ -306,6 +306,11 @@ const ReceptionistDashboard = () => {
           </section>
         )}
       </main>
+      <RoleAwareChatbot
+        mode="widget"
+        title="Receptionist Assistant"
+        subtitle="Bookings, front desk help, and customer guidance"
+      />
     </div>
   );
 };

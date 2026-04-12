@@ -8,11 +8,9 @@ import {
   faUserCircle,
   faCalendarAlt,
   faUsers,
-  faClipboardList,
-  faHistory,
-  faChartBar,
 } from "@fortawesome/free-solid-svg-icons";
 import VeterinarySidebar from "./VeterinarySidebar";
+import RoleAwareChatbot from "../chatbot/RoleAwareChatbot";
 import "./VetDashboard.css";
 
 const VetDashboard = () => {
@@ -248,6 +246,11 @@ const VetDashboard = () => {
           </section>
         )}
       </main>
+      <RoleAwareChatbot
+        mode="widget"
+        title="Veterinary Assistant"
+        subtitle="Appointments, patient workflow, and dashboard help"
+      />
     </div>
   );
 };

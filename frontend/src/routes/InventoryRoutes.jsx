@@ -22,6 +22,7 @@ const InventoryRoutes = () => (
       <Route path="products" element={<InventoryProducts />} />
       <Route path="stock" element={<InventoryStock />} />
       <Route path="history" element={<InventoryHistory />} />
+      <Route path="analytics" element={<InventoryReports />} />
       <Route path="reports" element={<InventoryReports />} />
       <Route path="profile" element={<InventoryProfile />} />
     </Route>

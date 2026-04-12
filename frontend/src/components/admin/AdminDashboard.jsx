@@ -10,6 +10,7 @@ import {
   faClipboardList,
 } from "@fortawesome/free-solid-svg-icons";
 import AdminSidebar from "./AdminSidebar";
+import RoleAwareChatbot from "../chatbot/RoleAwareChatbot";
 import "./AdminDashboard.css";
 import { apiRequest } from "../../api/client";
 
@@ -331,6 +332,11 @@ const AdminDashboard = () => {
           </section>
         )}
       </main>
+      <RoleAwareChatbot
+        mode="widget"
+        title="Admin Assistant"
+        subtitle="Logs, navigation, and RBAC guidance"
+      />
     </div>
   );
 };

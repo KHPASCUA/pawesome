@@ -6,20 +6,14 @@ import {
   faMoon,
   faSun,
   faUserCircle,
-  faHome,
-  faBoxes,
-  faChartBar,
   faTruck,
-  faCog,
-  faSignOutAlt,
-  faBars,
-  faUser,
   faCalendarAlt,
   faBox,
   faWarehouse,
   faArrowUp,
 } from "@fortawesome/free-solid-svg-icons";
 import InventorySidebar from "./InventorySidebar";
+import RoleAwareChatbot from "../chatbot/RoleAwareChatbot";
 import "./InventoryDashboard.css";
 
 const InventoryDashboard = () => {
@@ -265,7 +259,7 @@ const InventoryDashboard = () => {
                   <div>
                     <h2>Inventory Analytics</h2>
                   </div>
-                  <NavLink to="/inventory/analytics" className="see-all-link">
+                  <NavLink to="/inventory/reports" className="see-all-link">
                     View reports
                   </NavLink>
                 </div>
@@ -296,6 +290,11 @@ const InventoryDashboard = () => {
           </section>
         )}
       </main>
+      <RoleAwareChatbot
+        mode="widget"
+        title="Inventory Assistant"
+        subtitle="Stock guidance, navigation, and inventory help"
+      />
     </div>
   );
 };

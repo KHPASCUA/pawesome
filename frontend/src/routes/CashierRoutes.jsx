@@ -23,7 +23,9 @@ const CashierRoutes = () => (
 
       {/* Nested routes */}
       <Route path="pos" element={<CashierPOS />} />
+      <Route path="sales" element={<CashierTransactions />} />
       <Route path="transactions" element={<CashierTransactions />} />
+      <Route path="analytics" element={<CashierReports />} />
       <Route path="history" element={<CashierHistory />} />
       <Route path="reports" element={<CashierReports />} />
       <Route path="profile" element={<CashierProfile />} />

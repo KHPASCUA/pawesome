@@ -23,6 +23,9 @@ const ManagerRoutes = () => (
       {/* Nested routes */}
       <Route path="staff" element={<ManagerStaff />} />
       <Route path="attendance" element={<ManagerAttendance />} />
+      <Route path="tasks" element={<ManagerReports />} />
+      <Route path="history" element={<ManagerAttendance />} />
+      <Route path="analytics" element={<ManagerReports />} />
       <Route path="reports" element={<ManagerReports />} />
       <Route path="profile" element={<ManagerProfile />} />
     </Route>

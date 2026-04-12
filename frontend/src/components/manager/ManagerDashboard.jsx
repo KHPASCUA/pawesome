@@ -6,19 +6,13 @@ import {
   faMoon,
   faSun,
   faUserCircle,
-  faHome,
   faUsers,
-  faChartBar,
   faClipboardList,
-  faCog,
-  faSignOutAlt,
-  faBars,
-  faUser,
   faCalendarAlt,
-  faTasks,
   faArrowUp,
 } from "@fortawesome/free-solid-svg-icons";
 import ManagerSidebar from "./ManagerSidebar";
+import RoleAwareChatbot from "../chatbot/RoleAwareChatbot";
 import "./ManagerDashboard.css";
 
 const ManagerDashboard = () => {
@@ -214,8 +208,8 @@ const ManagerDashboard = () => {
                   <div>
                     <h2>Recent Tasks</h2>
                   </div>
-                  <NavLink to="/manager/tasks" className="see-all-link">
-                    See all tasks
+                  <NavLink to="/manager/reports" className="see-all-link">
+                    See all activity
                   </NavLink>
                 </div>
 
@@ -272,7 +266,7 @@ const ManagerDashboard = () => {
                   <div>
                     <h2>Performance Analytics</h2>
                   </div>
-                  <NavLink to="/manager/analytics" className="see-all-link">
+                  <NavLink to="/manager/reports" className="see-all-link">
                     View details
                   </NavLink>
                 </div>
@@ -303,6 +297,11 @@ const ManagerDashboard = () => {
           </section>
         )}
       </main>
+      <RoleAwareChatbot
+        mode="widget"
+        title="Manager Assistant"
+        subtitle="Operations guidance and dashboard shortcuts"
+      />
     </div>
   );
 };

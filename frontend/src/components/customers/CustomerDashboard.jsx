@@ -8,13 +8,10 @@ import {
   faUserCircle,
   faPaw,
   faCalendarAlt,
-  faClipboardList,
-  faHistory,
-  faUser,
   faArrowUp,
 } from "@fortawesome/free-solid-svg-icons";
 import CustomerSidebar from "./CustomerSidebar";
-import CustomerChatbot from "./CustomerChatbot";
+import RoleAwareChatbot from "../chatbot/RoleAwareChatbot";
 import "./CustomerDashboard.css";
 
 const CustomerDashboard = () => {
@@ -223,7 +220,7 @@ const CustomerDashboard = () => {
                   <div>
                     <h2>Recent Activity</h2>
                   </div>
-                  <NavLink to="/customer/history" className="see-all-link">
+                  <NavLink to="/customer/reports" className="see-all-link">
                     See all
                   </NavLink>
                 </div>
@@ -252,7 +249,11 @@ const CustomerDashboard = () => {
       </main>
       
       {/* Floating Chatbot */}
-      <CustomerChatbot />
+      <RoleAwareChatbot
+        mode="widget"
+        title="Customer Assistant"
+        subtitle="Bookings, pets, services, and support"
+      />
     </div>
   );
 };
