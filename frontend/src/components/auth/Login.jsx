@@ -3,6 +3,18 @@ import { useNavigate, Link } from "react-router-dom";
 import { apiRequest } from "../../api/client";
 import "./Login.css";
 
+const roleRouteMap = {
+  admin: "/admin",
+  payroll: "/payroll",
+  customer: "/customer",
+  receptionist: "/receptionist",
+  veterinary: "/veterinary",
+  vet: "/veterinary",
+  inventory: "/inventory",
+  cashier: "/cashier",
+  manager: "/manager",
+};
+
 const Login = () => {
   const [formData, setFormData] = useState({
     username: "",
@@ -78,7 +90,7 @@ const Login = () => {
       alert(`Welcome back, ${response.user.name}!`);
       
       // Redirect to role-based dashboard
-      navigate(`/${response.user.role}`);
+      navigate(roleRouteMap[response.user.role] || "/dashboard");
     } catch (error) {
       setErrors({ 
         username: "Invalid username or password",

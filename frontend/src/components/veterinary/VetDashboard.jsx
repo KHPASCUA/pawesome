@@ -23,7 +23,7 @@ const VetDashboard = () => {
   const location = useLocation();
 
   const normalizedPath = location.pathname.replace(/\/+$/, "");
-  const showOverview = normalizedPath === "/vet";
+  const showOverview = normalizedPath === "/veterinary" || normalizedPath === "/vet";
 
   const summaryCards = [
     {

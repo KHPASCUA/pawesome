@@ -42,6 +42,7 @@ const AppRoutes = () => (
       <Route path="/customer/*" element={<CustomerRoutes />} />
       <Route path="/receptionist/*" element={<ReceptionistRoutes />} />
       <Route path="/veterinary/*" element={<VetRoutes />} />
+      <Route path="/vet/*" element={<VetRoutes />} />
       <Route path="/inventory/*" element={<InventoryRoutes />} />
       <Route path="/cashier/*" element={<CashierRoutes />} />
       <Route path="/manager/*" element={<ManagerRoutes />} />

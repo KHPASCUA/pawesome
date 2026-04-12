@@ -5,6 +5,7 @@ export async function apiRequest(path, options = {}) {
   const response = await fetch(`${API_URL}${path}`, {
     headers: {
       "Content-Type": "application/json",
+      Accept: "application/json",
       ...(options.headers || {}),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
