@@ -1,0 +1,305 @@
+/* Enhanced Cashier POS Styles - Better Design */
+
+/* Payment Section Styles */
+.payment-section {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: #f8f9fa;
+  border-radius: 12px;
+  border: 1px solid #e9ecef;
+}
+
+.cash-payment {
+  margin-bottom: 1rem;
+}
+
+.cash-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.cash-field span {
+  font-weight: 600;
+  color: #2c3e50;
+  font-size: 0.9rem;
+}
+
+.cash-field input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 2px solid #e9ecef;
+  border-radius: 10px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  text-align: center;
+  background: #ffffff;
+  transition: all 0.3s ease;
+}
+
+.cash-field input:focus {
+  outline: none;
+  border-color: #28a745;
+  box-shadow: 0 0 0 4px rgba(40, 167, 69, 0.1);
+}
+
+.change-display {
+  background: #ffffff;
+  border-radius: 10px;
+  padding: 1rem;
+  border: 1px solid #e9ecef;
+  margin-top: 0.5rem;
+}
+
+.change-row {
+  border-top: 2px solid #28a745;
+  padding-top: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.change-amount {
+  color: #28a745;
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.quick-cash-buttons {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 1rem;
+}
+
+.quick-cash-buttons span {
+  font-weight: 600;
+  color: #6c757d;
+  font-size: 0.85rem;
+  margin-right: 0.5rem;
+}
+
+.quick-cash-buttons button {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #28a745;
+  background: #ffffff;
+  color: #28a745;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.quick-cash-buttons button:hover {
+  background: #28a745;
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+/* Enhanced Order Type Buttons */
+.order-type-switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.type-button {
+  padding: 0.875rem;
+  border: 2px solid #e9ecef;
+  border-radius: 12px;
+  background: #f8f9fa;
+  color: #2c3e50;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.95rem;
+}
+
+.type-button:hover {
+  border-color: #667eea;
+  background: #f8f9fa;
+}
+
+.type-button.selected {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-color: transparent;
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+/* Enhanced Checkout Button */
+.checkout-button {
+  width: 100%;
+  padding: 1rem;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+  color: #ffffff;
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 16px rgba(40, 167, 69, 0.3);
+  margin-top: 1rem;
+}
+
+.checkout-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
+}
+
+.checkout-button:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+/* Enhanced Customer Field */
+.customer-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.customer-field span {
+  font-weight: 600;
+  color: #2c3e50;
+  font-size: 0.9rem;
+}
+
+.customer-field input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #dee2e6;
+  border-radius: 10px;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+}
+
+.customer-field input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+}
+
+/* Enhanced Order Summary */
+.order-summary {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid #e9ecef;
+  margin: 1rem 0;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0;
+  font-size: 0.95rem;
+}
+
+.total-row {
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: #2c3e50;
+  border-top: 2px solid #e9ecef;
+  padding-top: 1rem;
+  margin-top: 0.5rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .quick-cash-buttons {
+    justify-content: center;
+  }
+  
+  .quick-cash-buttons span {
+    width: 100%;
+    text-align: center;
+    margin-bottom: 0.5rem;
+  }
+  
+  .order-type-switch {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Animation and Transitions */
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.change-display {
+  animation: slideIn 0.3s ease-out;
+}
+
+/* Focus States */
+.cash-field input:valid {
+  border-color: #28a745;
+}
+
+.cash-field input:invalid {
+  border-color: #dc3545;
+}
+
+/* Improved Visual Hierarchy */
+.order-details-header h3 {
+  margin: 0;
+  font-size: 1.3rem;
+  color: #2c3e50;
+  font-weight: 700;
+}
+
+/* Enhanced Cart Items */
+.order-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  border-radius: 12px;
+  background: #f8f9fa;
+  margin-bottom: 0.75rem;
+  border: 1px solid #e9ecef;
+  transition: all 0.2s ease;
+}
+
+.order-item:hover {
+  background: #e9ecef;
+  transform: translateX(2px);
+}
+
+.remove-item {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 50%;
+  background: #dc3545;
+  color: #ffffff;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.remove-item:hover {
+  background: #c82333;
+  transform: scale(1.1);
+}

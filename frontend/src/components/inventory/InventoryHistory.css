@@ -1,0 +1,68 @@
+.inventory-history-page {
+ padding: 1.25rem;
+}
+
+.history-header h2 {
+ margin: 0;
+ font-size: 1.85rem;
+}
+
+.history-header p {
+ margin: 0.4rem 0 0;
+ color: #475569;
+}
+
+.history-stats {
+ display: grid;
+ grid-template-columns: repeat(1, minmax(0, 1fr));
+ gap: 1rem;
+ margin: 1.25rem 0;
+}
+
+.history-card {
+ background: #ffffff;
+ padding: 1.25rem;
+ border-radius: 18px;
+ border: 1px solid #e2e8f0;
+ box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
+}
+
+.history-card p {
+ margin: 0 0 0.75rem;
+ color: #64748b;
+}
+
+.history-card strong {
+ font-size: 1.75rem;
+}
+
+.history-table-wrapper {
+ overflow: auto;
+ border: 1px solid #e2e8f0;
+ border-radius: 18px;
+ background: #ffffff;
+ box-shadow: 0 10px 25px rgba(15, 23, 42, 0.05);
+}
+
+.history-table {
+ width: 100%;
+ min-width: 900px;
+ border-collapse: collapse;
+}
+
+.history-table th,
+.history-table td {
+ padding: 1rem 1rem;
+ text-align: left;
+ border-bottom: 1px solid #e2e8f0;
+}
+
+.history-table th {
+ background: #f8fafc;
+ color: #0f172a;
+ font-weight: 700;
+}
+
+.history-table tbody tr:hover {
+ background: #f8fafc;
+}

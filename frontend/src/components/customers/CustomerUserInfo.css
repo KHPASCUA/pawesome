@@ -1,0 +1,36 @@
+.userinfo-section {
+  padding: 20px;
+}
+
+.userinfo-section h2 {
+  margin-bottom: 15px;
+  color: #2c3e50;
+}
+
+.userinfo-card {
+  display: flex;
+  justify-content: space-between;
+  background: #f9f9f9;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.userinfo-left,
+.userinfo-right {
+  flex: 1;
+}
+
+.userinfo-left {
+  margin-right: 40px;
+}
+
+.userinfo-card p {
+  margin: 8px 0;
+  font-size: 15px;
+  color: #333;
+}
+
+.userinfo-card strong {
+  color: #000;
+}
