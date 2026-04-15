@@ -17,6 +17,9 @@ use App\Http\Controllers\Inventory\DashboardController as InventoryDashboardCont
 use App\Http\Controllers\Manager\DashboardController as ManagerDashboardController;
 use App\Http\Controllers\Receptionist\DashboardController as ReceptionistDashboardController;
 use App\Http\Controllers\Veterinary\DashboardController as VeterinaryDashboardController;
+use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\BoardingController;
+use App\Http\Controllers\HotelRoomController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('auth')->group(function () {
@@ -112,4 +115,57 @@ Route::middleware(['auth:api', 'role:veterinary'])->prefix('veterinary')->group(
     Route::get('dashboard', [VeterinaryDashboardController::class, 'overview']);
     Route::get('appointments', [VeterinaryDashboardController::class, 'appointments']);
     Route::get('patients', [VeterinaryDashboardController::class, 'patients']);
+});
+
+// Notification Routes (available to all authenticated users)
+Route::middleware(['auth:api'])->prefix('notifications')->group(function () {
+    Route::get('/', [NotificationController::class, 'index']);
+    Route::get('/unread-count', [NotificationController::class, 'unreadCount']);
+    Route::post('/', [NotificationController::class, 'store']);
+    Route::post('/{id}/read', [NotificationController::class, 'markAsRead']);
+    Route::post('/mark-all-read', [NotificationController::class, 'markAllAsRead']);
+    Route::post('/clear-all', [NotificationController::class, 'clearAll']);
+    Route::delete('/{id}', [NotificationController::class, 'destroy']);
+});
+
+// Hotel Room Management Routes (Admin/Manager only)
+Route::middleware(['auth:api', 'role:admin,manager'])->prefix('hotel-rooms')->group(function () {
+    Route::get('/', [HotelRoomController::class, 'index']);
+    Route::post('/', [HotelRoomController::class, 'store']);
+    Route::get('/{id}', [HotelRoomController::class, 'show']);
+    Route::put('/{id}', [HotelRoomController::class, 'update']);
+    Route::delete('/{id}', [HotelRoomController::class, 'destroy']);
+    Route::post('/{id}/status', [HotelRoomController::class, 'setStatus']);
+});
+
+// Boarding/Hotel Reservation Routes (Receptionist, Admin, Manager)
+Route::middleware(['auth:api', 'role:receptionist,admin,manager'])->prefix('boardings')->group(function () {
+    Route::get('/', [BoardingController::class, 'index']);
+    Route::post('/', [BoardingController::class, 'store']);
+    Route::get('/available-rooms', [BoardingController::class, 'availableRooms']);
+    Route::get('/current-boarders', [BoardingController::class, 'currentBoarders']);
+    Route::get('/today-activity', [BoardingController::class, 'todayActivity']);
+    Route::get('/occupancy-stats', [BoardingController::class, 'occupancyStats']);
+    Route::get('/{id}', [BoardingController::class, 'show']);
+    Route::put('/{id}', [BoardingController::class, 'update']);
+    Route::delete('/{id}', [BoardingController::class, 'destroy']);
+    Route::post('/{id}/confirm', [BoardingController::class, 'confirm']);
+    Route::post('/{id}/check-in', [BoardingController::class, 'checkIn']);
+    Route::post('/{id}/check-out', [BoardingController::class, 'checkOut']);
+    Route::post('/{id}/cancel', [BoardingController::class, 'cancel']);
+});
+
+// Customer Boarding Routes (View own reservations, create new)
+Route::middleware(['auth:api', 'role:customer'])->prefix('customer/boardings')->group(function () {
+    Route::get('/', [BoardingController::class, 'index']);
+    Route::post('/', [BoardingController::class, 'store']);
+    Route::get('/available-rooms', [BoardingController::class, 'availableRooms']);
+    Route::get('/{id}', [BoardingController::class, 'show']);
+    Route::post('/{id}/cancel', [BoardingController::class, 'cancel']);
+});
+
+// Vet Boarding Routes (View current boarders for emergency access)
+Route::middleware(['auth:api', 'role:veterinary'])->prefix('veterinary/boardings')->group(function () {
+    Route::get('/current-boarders', [BoardingController::class, 'currentBoarders']);
+    Route::get('/{id}', [BoardingController::class, 'show']);
 });

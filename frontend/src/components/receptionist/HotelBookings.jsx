@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faHotel,
@@ -18,15 +18,31 @@ import {
   faWalking,
   faBox,
   faPhone,
+  faSignInAlt,
+  faSignOutAlt,
+  faMoneyBillWave,
+  faCreditCard,
+  faDollarSign,
 } from "@fortawesome/free-solid-svg-icons";
+import { boardingApi } from "../../api/boardings";
 import "./HotelBookings.css";
 
 const HotelBookings = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterRoomType, setFilterRoomType] = useState("all");
+  const [filterPayment, setFilterPayment] = useState("all");
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [showNewBookingModal, setShowNewBookingModal] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+  
+  // API data states
+  const [bookings, setBookings] = useState([]);
+  const [availableRooms, setAvailableRooms] = useState([]);
+  const [stats, setStats] = useState({ total: 0, checked_in: 0, pending: 0 });
+  
   const [bookingFormData, setBookingFormData] = useState({
     customerId: "",
     petId: "",
@@ -40,106 +56,101 @@ const HotelBookings = () => {
     duration: "1 day",
     roomType: "Standard Room",
     service: "Pet Hotel Stay",
-    specialRequests: ""
+    specialRequests: "",
+    hotelRoomId: "",
   });
 
-  // Sample customer and pet data
+  // Fetch bookings on mount
+  useEffect(() => {
+    fetchBookings();
+  }, []);
+
+  const fetchBookings = async () => {
+    try {
+      setLoading(true);
+      const response = await boardingApi.getBoardings();
+      if (response.boardings) {
+        setBookings(response.boardings.data || []);
+        setStats(response.summary || { total: 0, checked_in: 0, pending: 0 });
+      }
+    } catch (err) {
+      console.error("Failed to fetch bookings:", err);
+      setError("Failed to load bookings");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const searchAvailableRooms = async () => {
+    if (!bookingFormData.checkInDate) {
+      setError("Please select check-in date first");
+      return;
+    }
+    // Calculate check-out based on duration
+    const days = parseInt(bookingFormData.duration) || 1;
+    const checkOut = new Date(bookingFormData.checkInDate);
+    checkOut.setDate(checkOut.getDate() + days);
+    
+    try {
+      const response = await boardingApi.getAvailableRooms(
+        bookingFormData.checkInDate,
+        checkOut.toISOString().split('T')[0]
+      );
+      setAvailableRooms(response.available_rooms || []);
+    } catch (err) {
+      console.error("Failed to fetch available rooms:", err);
+    }
+  };
+
+  // Auto-search rooms when dates change
+  useEffect(() => {
+    if (bookingFormData.checkInDate) {
+      searchAvailableRooms();
+    }
+  }, [bookingFormData.checkInDate, bookingFormData.duration]);
+
+  // Sample customer and pet data (would come from API in production)
   const customers = [
-    { id: "CUST-001", name: "John Smith", phone: "+1-234-567-8901", email: "john.smith@email.com" },
-    { id: "CUST-002", name: "Emily Davis", phone: "+1-234-567-8902", email: "emily.davis@email.com" },
-    { id: "CUST-003", name: "Robert Wilson", phone: "+1-234-567-8903", email: "robert.wilson@email.com" },
-    { id: "CUST-004", name: "Jessica Brown", phone: "+1-234-567-8904", email: "jessica.brown@email.com" },
-    { id: "CUST-005", name: "Michael Johnson", phone: "+1-234-567-8905", email: "michael.johnson@email.com" },
+    { id: "1", name: "John Smith", phone: "+63-912-345-6789", email: "john.smith@email.com" },
+    { id: "2", name: "Emily Davis", phone: "+63-913-456-7890", email: "emily.davis@email.com" },
+    { id: "3", name: "Robert Wilson", phone: "+63-914-567-8901", email: "robert.wilson@email.com" },
   ];
 
   const pets = [
-    { id: "PET-001", customerId: "CUST-001", name: "Buddy", type: "Dog", breed: "Golden Retriever", age: "3 years" },
-    { id: "PET-002", customerId: "CUST-001", name: "Max", type: "Dog", breed: "Labrador", age: "5 years" },
-    { id: "PET-003", customerId: "CUST-002", name: "Luna", type: "Cat", breed: "Persian", age: "2 years" },
-    { id: "PET-004", customerId: "CUST-003", name: "Charlie", type: "Dog", breed: "German Shepherd", age: "4 years" },
-    { id: "PET-005", customerId: "CUST-004", name: "Whiskers", type: "Cat", breed: "Siamese", age: "1 year" },
-    { id: "PET-006", customerId: "CUST-005", name: "Bella", type: "Dog", breed: "Poodle", age: "6 years" },
-    { id: "PET-007", customerId: "CUST-005", name: "Duke", type: "Dog", breed: "Bulldog", age: "2 years" },
+    { id: "1", customerId: "1", name: "Buddy", type: "Dog", breed: "Golden Retriever", age: "3 years" },
+    { id: "2", customerId: "1", name: "Max", type: "Dog", breed: "Labrador", age: "5 years" },
+    { id: "3", customerId: "2", name: "Luna", type: "Cat", breed: "Persian", age: "2 years" },
   ];
 
-  const hotelBookings = [
-    {
-      id: "HOTEL-001",
-      petName: "Buddy",
-      petType: "Dog",
-      breed: "Golden Retriever",
-      owner: "John Smith",
-      ownerPhone: "+1-234-567-8901",
-      roomType: "Deluxe Suite",
-      roomNumber: "101",
-      checkInDate: "2026-04-05",
-      checkInTime: "10:00 AM",
-      duration: "3 days",
-      checkOutDate: "2026-04-08",
-      service: "Pet Hotel Stay",
-      status: "checked-in",
-      specialRequests: "Extra toys, dietary restrictions",
-      lastVisit: "2025-10-15",
-    },
-    {
-      id: "HOTEL-002",
-      petName: "Luna",
-      petType: "Cat",
-      breed: "Persian",
-      owner: "Emily Davis",
-      ownerPhone: "+1-234-567-8902",
-      roomType: "Standard Room",
-      roomNumber: "205",
-      checkInDate: "2026-04-05",
-      checkInTime: "2:00 PM",
-      duration: "2 days",
-      checkOutDate: "2026-04-07",
-      service: "Daycare",
-      status: "confirmed",
-      specialRequests: "Quiet environment needed",
-      lastVisit: "2026-01-20",
-    },
-    {
-      id: "HOTEL-003",
-      petName: "Max",
-      petType: "Dog",
-      breed: "German Shepherd",
-      owner: "Robert Wilson",
-      ownerPhone: "+1-234-567-8903",
-      roomType: "Premium Suite",
-      roomNumber: "301",
-      checkInDate: "2026-04-06",
-      checkInTime: "9:00 AM",
-      duration: "5 days",
-      checkOutDate: "2026-04-11",
-      service: "Extended Boarding",
-      status: "pending",
-      specialRequests: "Daily walks required",
-      lastVisit: "2026-03-28",
-    },
-    {
-      id: "HOTEL-004",
-      petName: "Whiskers",
-      petType: "Cat",
-      breed: "Siamese",
-      owner: "Jessica Brown",
-      ownerPhone: "+1-234-567-8904",
-      roomType: "Economy Room",
-      roomNumber: "102",
-      checkInDate: "2026-04-04",
-      checkInTime: "3:00 PM",
-      duration: "1 day",
-      checkOutDate: "2026-04-05",
-      service: "Pet Hotel Stay",
-      status: "checked-out",
-      specialRequests: "None",
-      lastVisit: "2026-03-01",
-    },
-  ];
+  // Transform API bookings to match component format
+  const formattedBookings = bookings.map(booking => ({
+    id: `HOTEL-${booking.id}`,
+    guestName: booking.pet?.name || "Unknown",
+    ownerName: booking.customer?.name || "Unknown",
+    ownerPhone: booking.customer?.phone || "N/A",
+    petType: booking.pet?.species || "Unknown",
+    breed: booking.pet?.breed || "Unknown",
+    checkInDate: booking.check_in ? new Date(booking.check_in).toISOString().split('T')[0] : "",
+    checkInTime: booking.check_in ? new Date(booking.check_in).toTimeString().slice(0, 5) : "10:00",
+    roomType: booking.hotel_room?.type || "Standard",
+    roomNumber: booking.hotel_room?.room_number || "TBD",
+    duration: booking.check_in && booking.check_out 
+      ? `${Math.ceil((new Date(booking.check_out) - new Date(booking.check_in)) / (1000 * 60 * 60 * 24))} days`
+      : "1 day",
+    service: "Pet Hotel Stay",
+    status: booking.status,
+    specialRequests: booking.special_requests || "None",
+    totalAmount: booking.total_amount,
+    lastVisit: booking.pet?.updated_at ? new Date(booking.pet.updated_at).toISOString().split('T')[0] : "N/A",
+    // Payment fields (from backend or default)
+    paymentStatus: booking.payment_status || "unpaid",
+    amountPaid: booking.amount_paid || 0,
+    balance: booking.total_amount - (booking.amount_paid || 0),
+  }));
 
   const roomTypes = ["Deluxe Suite", "Standard Room", "Premium Suite", "Economy Room"];
 
-  const filteredBookings = hotelBookings.filter(booking => {
+  const filteredBookings = formattedBookings.filter(booking => {
     const matchesSearch = 
       booking.petName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       booking.owner.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -147,8 +158,9 @@ const HotelBookings = () => {
     
     const matchesStatus = filterStatus === "all" || booking.status === filterStatus;
     const matchesRoomType = filterRoomType === "all" || booking.roomType === filterRoomType;
+    const matchesPayment = filterPayment === "all" || booking.paymentStatus === filterPayment;
     
-    return matchesSearch && matchesStatus && matchesRoomType;
+    return matchesSearch && matchesStatus && matchesRoomType && matchesPayment;
   });
 
   const getStatusColor = (status) => {
@@ -198,6 +210,29 @@ const HotelBookings = () => {
     }
   };
 
+  // Check-in and Check-out handlers
+  const handleCheckIn = async (bookingId) => {
+    const originalId = bookingId.replace('HOTEL-', '');
+    try {
+      await boardingApi.checkIn(originalId);
+      alert("Guest checked in successfully!");
+      fetchBookings();
+    } catch (err) {
+      alert(err.message || "Failed to check in");
+    }
+  };
+
+  const handleCheckOut = async (bookingId) => {
+    const originalId = bookingId.replace('HOTEL-', '');
+    try {
+      await boardingApi.checkOut(originalId);
+      alert("Guest checked out successfully!");
+      fetchBookings();
+    } catch (err) {
+      alert(err.message || "Failed to check out");
+    }
+  };
+
   // Booking form handlers
   const handleBookingInputChange = (e) => {
     const { name, value } = e.target;
@@ -244,7 +279,7 @@ const HotelBookings = () => {
     return pets.filter(pet => pet.customerId === bookingFormData.customerId);
   };
 
-  const handleBookingSubmit = (e) => {
+  const handleBookingSubmit = async (e) => {
     e.preventDefault();
     
     // Validation
@@ -260,28 +295,29 @@ const HotelBookings = () => {
       checkOutDate.setDate(checkOutDate.getDate() + days);
     }
 
-    // Create new booking
-    const newBooking = {
-      id: `HOTEL-${String(hotelBookings.length + 1).padStart(3, '0')}`,
-      petName: bookingFormData.petName,
-      petType: bookingFormData.petType,
-      breed: bookingFormData.breed,
-      owner: bookingFormData.ownerName,
-      ownerPhone: bookingFormData.ownerPhone,
-      roomType: bookingFormData.roomType,
-      roomNumber: String(Math.floor(Math.random() * 400) + 100),
-      checkInDate: bookingFormData.checkInDate,
-      checkInTime: bookingFormData.checkInTime,
-      duration: bookingFormData.duration,
-      checkOutDate: checkOutDate.toISOString().split('T')[0],
-      service: bookingFormData.service,
-      status: "confirmed",
-      specialRequests: bookingFormData.specialRequests,
-      lastVisit: new Date().toISOString().split('T')[0],
-    };
-
-    console.log("New hotel booking:", newBooking);
-    alert("Hotel booking created successfully!");
+    // Create new booking via API
+    try {
+      setLoading(true);
+      await boardingApi.createBoarding({
+        pet_id: bookingFormData.petId,
+        customer_id: bookingFormData.customerId,
+        hotel_room_id: bookingFormData.hotelRoomId,
+        check_in: bookingFormData.checkInDate,
+        check_out: checkOutDate.toISOString().split('T')[0],
+        special_requests: bookingFormData.specialRequests,
+      });
+      
+      setSuccessMessage("Hotel booking created successfully!");
+      setTimeout(() => setSuccessMessage(""), 3000);
+      
+      // Refresh bookings list
+      fetchBookings();
+    } catch (err) {
+      setError(err.message || "Failed to create booking");
+      return;
+    } finally {
+      setLoading(false);
+    }
     
     // Reset form and close modal
     setBookingFormData({
@@ -321,6 +357,9 @@ const HotelBookings = () => {
 
   return (
     <div className="hotel-bookings">
+      {error && <div className="alert alert-error" style={{margin: '20px', padding: '10px', background: '#fee2e2', color: '#dc2626', borderRadius: '4px'}}>{error}</div>}
+      {successMessage && <div className="alert alert-success" style={{margin: '20px', padding: '10px', background: '#dcfce7', color: '#16a34a', borderRadius: '4px'}}>{successMessage}</div>}
+      
       <div className="appointments-header">
         <div className="header-left">
           <h1>Hotel Bookings</h1>
@@ -341,7 +380,7 @@ const HotelBookings = () => {
             <FontAwesomeIcon icon={faHotel} />
           </div>
           <div className="card-content">
-            <h3>{hotelBookings.length}</h3>
+            <h3>{stats.total}</h3>
             <p>Total Bookings</p>
           </div>
         </div>
@@ -350,8 +389,8 @@ const HotelBookings = () => {
             <FontAwesomeIcon icon={faClock} />
           </div>
           <div className="card-content">
-            <h3>{hotelBookings.filter(b => b.status === 'confirmed').length}</h3>
-            <p>Confirmed</p>
+            <h3>{stats.checked_in}</h3>
+            <p>Checked In</p>
           </div>
         </div>
         <div className="summary-card">
@@ -359,8 +398,8 @@ const HotelBookings = () => {
             <FontAwesomeIcon icon={faBed} />
           </div>
           <div className="card-content">
-            <h3>{hotelBookings.filter(b => b.roomType === 'Deluxe Suite').length}</h3>
-            <p>Deluxe Suites</p>
+            <h3>{stats.pending}</h3>
+            <p>Pending</p>
           </div>
         </div>
       </div>
@@ -403,6 +442,18 @@ const HotelBookings = () => {
               ))}
             </select>
           </div>
+          <div className="filter-dropdown">
+            <FontAwesomeIcon icon={faMoneyBillWave} />
+            <select
+              value={filterPayment}
+              onChange={(e) => setFilterPayment(e.target.value)}
+            >
+              <option value="all">All Payments</option>
+              <option value="paid">Paid</option>
+              <option value="partial">Partial</option>
+              <option value="unpaid">Unpaid</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -418,6 +469,7 @@ const HotelBookings = () => {
               <th>Check-in & Check-out</th>
               <th>Service</th>
               <th>Status</th>
+              <th>Payment</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -479,6 +531,25 @@ const HotelBookings = () => {
                     {booking.status}
                   </span>
                 </td>
+                <td className="payment">
+                  <div className="payment-info">
+                    <span className={`payment-badge ${booking.paymentStatus}`}>
+                      <FontAwesomeIcon icon={faCreditCard} />
+                      {booking.paymentStatus === 'paid' ? 'Paid' : 
+                       booking.paymentStatus === 'partial' ? 'Partial' : 'Unpaid'}
+                    </span>
+                    {booking.totalAmount > 0 && (
+                      <span className="amount">
+                        ₱{booking.totalAmount.toLocaleString()}
+                      </span>
+                    )}
+                    {booking.balance > 0 && booking.paymentStatus !== 'paid' && (
+                      <span className="balance-due">
+                        Balance: ₱{booking.balance.toLocaleString()}
+                      </span>
+                    )}
+                  </div>
+                </td>
                 <td className="actions">
                   <button
                     className="action-btn view-btn"
@@ -487,9 +558,24 @@ const HotelBookings = () => {
                   >
                     <FontAwesomeIcon icon={faEdit} />
                   </button>
-                  <button className="action-btn edit-btn" title="Edit">
-                    <FontAwesomeIcon icon={faEdit} />
-                  </button>
+                  {booking.status === 'confirmed' && (
+                    <button
+                      className="action-btn checkin-btn"
+                      onClick={() => handleCheckIn(booking.id)}
+                      title="Check In"
+                    >
+                      <FontAwesomeIcon icon={faSignInAlt} />
+                    </button>
+                  )}
+                  {booking.status === 'checked_in' && (
+                    <button
+                      className="action-btn checkout-btn"
+                      onClick={() => handleCheckOut(booking.id)}
+                      title="Check Out"
+                    >
+                      <FontAwesomeIcon icon={faSignOutAlt} />
+                    </button>
+                  )}
                   <button className="action-btn delete-btn" title="Cancel">
                     <FontAwesomeIcon icon={faTrash} />
                   </button>
@@ -596,6 +682,47 @@ const HotelBookings = () => {
                       </span>
                     </div>
                   </div>
+                </div>
+
+                {/* Payment Section */}
+                <div className="overview-section payment-section">
+                  <h3><FontAwesomeIcon icon={faMoneyBillWave} /> Payment Details</h3>
+                  <div className="info-grid">
+                    <div className="info-item">
+                      <label>Total Amount:</label>
+                      <span className="amount-value">
+                        ₱{selectedBooking.totalAmount?.toLocaleString() || '0'}
+                      </span>
+                    </div>
+                    <div className="info-item">
+                      <label>Amount Paid:</label>
+                      <span className="amount-paid">
+                        ₱{selectedBooking.amountPaid?.toLocaleString() || '0'}
+                      </span>
+                    </div>
+                    <div className="info-item">
+                      <label>Balance:</label>
+                      <span className={`balance-value ${selectedBooking.balance > 0 ? 'unpaid' : 'paid'}`}>
+                        ₱{selectedBooking.balance?.toLocaleString() || '0'}
+                      </span>
+                    </div>
+                    <div className="info-item">
+                      <label>Payment Status:</label>
+                      <span className={`payment-badge ${selectedBooking.paymentStatus}`}>
+                        <FontAwesomeIcon icon={faCreditCard} />
+                        {selectedBooking.paymentStatus === 'paid' ? 'Paid' : 
+                         selectedBooking.paymentStatus === 'partial' ? 'Partial' : 'Unpaid'}
+                      </span>
+                    </div>
+                  </div>
+                  {selectedBooking.balance > 0 && (
+                    <div className="payment-actions">
+                      <button className="payment-btn">
+                        <FontAwesomeIcon icon={faDollarSign} />
+                        Record Payment
+                      </button>
+                    </div>
+                  )}
                 </div>
                 
                 <div className="overview-section">

@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { Outlet, NavLink, useLocation } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  faBell,
   faMoon,
   faSun,
   faUserCircle,
@@ -11,6 +10,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import AdminSidebar from "./AdminSidebar";
 import RoleAwareChatbot from "../chatbot/RoleAwareChatbot";
+import NotificationDropdown from "../shared/NotificationDropdown";
 import "./AdminDashboard.css";
 import { apiRequest } from "../../api/client";
 
@@ -18,7 +18,6 @@ const AdminDashboard = () => {
   const name = localStorage.getItem("name") || "Admin";
   const [theme, setTheme] = useState("light");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [unreadNotifications] = useState(3);
   const location = useLocation();
 
   // Backend data states
@@ -161,14 +160,7 @@ const AdminDashboard = () => {
               </span>
             </NavLink>
 
-            <button className="icon-btn notification-btn" type="button">
-              <FontAwesomeIcon icon={faBell} />
-              {unreadNotifications > 0 && (
-                <span className="notification-badge">
-                  {unreadNotifications}
-                </span>
-              )}
-            </button>
+            <NotificationDropdown />
 
             <button
               className="theme-toggle-btn"

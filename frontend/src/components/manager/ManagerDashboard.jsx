@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo, useCallback, lazy, Suspense } from
 import { Outlet, NavLink, useLocation } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  faBell,
   faMoon,
   faSun,
   faUserCircle,
@@ -29,21 +28,30 @@ import {
   faChartLine,
   faBullseye,
   faHeartbeat,
+  faHotel,
 } from "@fortawesome/free-solid-svg-icons";
+import { boardingApi } from "../../api/boardings";
 import ManagerSidebar from "./ManagerSidebar";
 import RoleAwareChatbot from "../chatbot/RoleAwareChatbot";
+import NotificationDropdown from "../shared/NotificationDropdown";
 import "./ManagerDashboard.css";
 
 const ManagerDashboard = () => {
   const name = localStorage.getItem("name") || "Manager";
   const [theme, setTheme] = useState("light");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [unreadNotifications, setUnreadNotifications] = useState(5);
   const [searchTerm, setSearchTerm] = useState("");
-  const [showNotifications, setShowNotifications] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedTimeRange, setSelectedTimeRange] = useState("month");
   const [animatedStats, setAnimatedStats] = useState(false);
+  const [hotelStats, setHotelStats] = useState({
+    totalRooms: 0,
+    occupiedRooms: 0,
+    occupancyRate: 0,
+    todayCheckIns: 0,
+    todayCheckOuts: 0,
+    revenue: 0,
+  });
   const location = useLocation();
 
   // Enhanced data with more realistic metrics
@@ -56,14 +64,6 @@ const ManagerDashboard = () => {
     serverLoad: 45,
     activeProjects: 8,
   });
-
-  const notifications = [
-    { id: 1, type: "success", message: "Q1 Performance Review completed", time: "2 min ago", read: false },
-    { id: 2, type: "warning", message: "Server load above 80% threshold", time: "15 min ago", read: false },
-    { id: 3, type: "info", message: "New staff onboarding scheduled", time: "1 hour ago", read: true },
-    { id: 4, type: "error", message: "Backup process failed", time: "2 hours ago", read: false },
-    { id: 5, type: "success", message: "Monthly report generated", time: "3 hours ago", read: true },
-  ];
 
   const normalizedPath = location.pathname.replace(/\/+$/, "");
   const showOverview = normalizedPath === "/manager";
@@ -106,9 +106,18 @@ const ManagerDashboard = () => {
       color: realTimeData.serverLoad > 80 ? "red" : "orange",
       trend: realTimeData.serverLoad > 80 ? "down" : "up",
     },
-  ], [realTimeData]);
+    {
+      title: "Hotel Occupancy",
+      value: `${hotelStats.occupancyRate}%`,
+      subtitle: `${hotelStats.occupiedRooms}/${hotelStats.totalRooms} rooms occupied`,
+      change: `${hotelStats.todayCheckIns} in / ${hotelStats.todayCheckOuts} out today`,
+      icon: faHotel,
+      color: hotelStats.occupancyRate > 80 ? "green" : hotelStats.occupancyRate > 50 ? "blue" : "orange",
+      trend: hotelStats.occupancyRate > 60 ? "up" : "stable",
+    },
+  ], [realTimeData, hotelStats]);
 
-  const teamPerformance = [
+  const teamPerformance = useMemo(() => [
     {
       department: "Veterinary",
       efficiency: 96,
@@ -149,7 +158,7 @@ const ManagerDashboard = () => {
       satisfaction: 4.7,
       trend: "up",
     },
-  ];
+  ], []);
 
   // Optimized interactive functions with useCallback
   const handleRefresh = useCallback(async () => {
@@ -169,14 +178,6 @@ const ManagerDashboard = () => {
     }
   }, []);
 
-  const markNotificationAsRead = useCallback((id) => {
-    setUnreadNotifications(prev => Math.max(0, prev - 1));
-  }, []);
-
-  const clearAllNotifications = useCallback(() => {
-    setUnreadNotifications(0);
-    setShowNotifications(false);
-  }, []);
 
   // Memoized filtered data for search functionality
   const filteredTeamPerformance = useMemo(() => {
@@ -207,9 +208,31 @@ const ManagerDashboard = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Animation effect
+  // Animation effect with hotel stats fetch
   useEffect(() => {
-    setTimeout(() => setAnimatedStats(true), 500);
+    const timer = setTimeout(() => setAnimatedStats(true), 100);
+    
+    // Fetch hotel occupancy stats
+    const fetchHotelStats = async () => {
+      try {
+        const response = await boardingApi.getOccupancyStats();
+        if (response.occupancy_stats) {
+          setHotelStats({
+            totalRooms: response.occupancy_stats.total_rooms || 0,
+            occupiedRooms: response.occupancy_stats.occupied_rooms || 0,
+            occupancyRate: response.occupancy_stats.occupancy_rate || 0,
+            todayCheckIns: response.occupancy_stats.today_check_ins || 0,
+            todayCheckOuts: response.occupancy_stats.today_check_outs || 0,
+            revenue: response.occupancy_stats.monthly_revenue || 0,
+          });
+        }
+      } catch (error) {
+        console.error("Failed to fetch hotel stats:", error);
+      }
+    };
+    
+    fetchHotelStats();
+    return () => clearTimeout(timer);
   }, []);
 
   return (
@@ -270,51 +293,7 @@ const ManagerDashboard = () => {
               <FontAwesomeIcon icon={refreshing ? faSpinner : faRefresh} className={refreshing ? "spinning" : ""} />
             </button>
 
-            <div className="notification-dropdown">
-              <button 
-                className="icon-btn notification-btn" 
-                type="button"
-                onClick={() => setShowNotifications(!showNotifications)}
-              >
-                <FontAwesomeIcon icon={faBell} />
-                {unreadNotifications > 0 && (
-                  <span className="notification-badge pulse">
-                    {unreadNotifications}
-                  </span>
-                )}
-              </button>
-              
-              {showNotifications && (
-                <div className="notifications-panel">
-                  <div className="notifications-header">
-                    <h3>Notifications</h3>
-                    <button onClick={clearAllNotifications} className="clear-all">
-                      Clear all
-                    </button>
-                  </div>
-                  <div className="notifications-list">
-                    {notifications.map(notification => (
-                      <div 
-                        key={notification.id} 
-                        className={`notification-item ${notification.type} ${!notification.read ? 'unread' : ''}`}
-                        onClick={() => markNotificationAsRead(notification.id)}
-                      >
-                        <div className="notification-icon">
-                          {notification.type === 'success' && <FontAwesomeIcon icon={faCheck} />}
-                          {notification.type === 'warning' && <FontAwesomeIcon icon={faExclamationTriangle} />}
-                          {notification.type === 'error' && <FontAwesomeIcon icon={faTimes} />}
-                          {notification.type === 'info' && <FontAwesomeIcon icon={faClock} />}
-                        </div>
-                        <div className="notification-content">
-                          <p>{notification.message}</p>
-                          <span className="notification-time">{notification.time}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
+            <NotificationDropdown />
 
             <NavLink to="/manager/profile" className="manager-profile-btn">
               <span className="profile-avatar-icon">

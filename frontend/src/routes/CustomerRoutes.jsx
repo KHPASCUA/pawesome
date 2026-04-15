@@ -12,6 +12,7 @@ import CustomerChatbot from "../components/customers/CustomerChatbot";
 import CustomerUserInfo from "../components/customers/CustomerUserInfo";
 import CustomerProfile from "../components/customers/CustomerProfile";
 import CustomerPayments from "../components/customers/CustomerPayments";
+import HotelForm from "../components/customers/HotelForm";
 
 const CustomerRoutes = () => (
   <Routes>
@@ -29,6 +30,7 @@ const CustomerRoutes = () => (
       {/* Core customer routes */}
       <Route path="bookings" element={<CustomerBookings />} />
       <Route path="pets" element={<CustomerPets />} />
+      <Route path="hotel" element={<HotelForm />} />
       <Route path="store" element={<CustomerStore />} />
       <Route path="chatbot" element={<CustomerChatbot />} />
       <Route path="userinfo" element={<CustomerUserInfo />} />

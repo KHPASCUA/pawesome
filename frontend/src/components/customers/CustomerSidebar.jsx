@@ -10,6 +10,7 @@ import {
   faBars,
   faUser,
   faBone,
+  faHotel,
 } from "@fortawesome/free-solid-svg-icons";
 import "./CustomerSidebar.css";
 
@@ -69,6 +70,17 @@ const CustomerSidebar = ({ collapsed, onToggleCollapse }) => {
             >
               <FontAwesomeIcon icon={faPaw} />
               {!collapsed && <span>My Pets</span>}
+            </NavLink>
+          </li>
+          
+          <li className="nav-item">
+            <NavLink
+              to="/customer/hotel"
+              className={({ isActive }) => (isActive ? "active" : "")}
+              title="Pet Hotel"
+            >
+              <FontAwesomeIcon icon={faHotel} />
+              {!collapsed && <span>Pet Hotel</span>}
             </NavLink>
           </li>
           

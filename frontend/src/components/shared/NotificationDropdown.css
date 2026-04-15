@@ -1,0 +1,415 @@
+/* Notification Dropdown Container */
+.notification-container {
+  position: relative;
+}
+
+/* Notification Button */
+.notification-btn {
+  position: relative;
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  background: #fff;
+  color: #102a43;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  font-size: 1rem;
+}
+
+.notification-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 24px rgba(59, 130, 246, 0.16);
+}
+
+.dark .notification-btn,
+.admin-dashboard.dark .notification-btn,
+.cashier-dashboard.dark .notification-btn,
+.customer-dashboard.dark .notification-btn,
+.inventory-dashboard.dark .notification-btn,
+.receptionist-dashboard.dark .notification-btn,
+.vet-dashboard.dark .notification-btn,
+.manager-dashboard.dark .notification-btn {
+  background: #1e293b;
+  color: #e2e8f0;
+}
+
+/* Notification Badge */
+.notification-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 600;
+  display: grid;
+  place-items: center;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+/* Notification Dropdown */
+.notification-dropdown {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 10px);
+  min-width: 320px;
+  max-width: 360px;
+  max-height: 400px;
+  background: #fff;
+  border: 1px solid rgba(173, 216, 230, 0.3);
+  border-radius: 16px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.notification-dropdown::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  right: 20px;
+  width: 12px;
+  height: 12px;
+  background: #fff;
+  border-left: 1px solid rgba(173, 216, 230, 0.3);
+  border-top: 1px solid rgba(173, 216, 230, 0.3);
+  transform: rotate(45deg);
+}
+
+.dark .notification-dropdown,
+.admin-dashboard.dark .notification-dropdown,
+.cashier-dashboard.dark .notification-dropdown,
+.customer-dashboard.dark .notification-dropdown,
+.inventory-dashboard.dark .notification-dropdown,
+.receptionist-dashboard.dark .notification-dropdown,
+.vet-dashboard.dark .notification-dropdown,
+.manager-dashboard.dark .notification-dropdown {
+  background: #1e293b;
+  border-color: rgba(255, 192, 203, 0.2);
+}
+
+.dark .notification-dropdown::before,
+.admin-dashboard.dark .notification-dropdown::before,
+.cashier-dashboard.dark .notification-dropdown::before,
+.customer-dashboard.dark .notification-dropdown::before,
+.inventory-dashboard.dark .notification-dropdown::before,
+.receptionist-dashboard.dark .notification-dropdown::before,
+.vet-dashboard.dark .notification-dropdown::before,
+.manager-dashboard.dark .notification-dropdown::before {
+  background: #1e293b;
+  border-color: rgba(255, 192, 203, 0.2);
+}
+
+/* Notification Header */
+.notification-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(173, 216, 230, 0.2);
+  background: linear-gradient(135deg, rgba(173, 216, 230, 0.1) 0%, rgba(255, 192, 203, 0.1) 100%);
+}
+
+.dark .notification-header,
+.admin-dashboard.dark .notification-header,
+.cashier-dashboard.dark .notification-header,
+.customer-dashboard.dark .notification-header,
+.inventory-dashboard.dark .notification-header,
+.receptionist-dashboard.dark .notification-header,
+.vet-dashboard.dark .notification-header,
+.manager-dashboard.dark .notification-header {
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.8) 0%, rgba(30, 41, 59, 0.6) 100%);
+  border-color: rgba(255, 192, 203, 0.1);
+}
+
+.notification-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #102a43;
+}
+
+.dark .notification-header h3,
+.admin-dashboard.dark .notification-header h3,
+.cashier-dashboard.dark .notification-header h3,
+.customer-dashboard.dark .notification-header h3,
+.inventory-dashboard.dark .notification-header h3,
+.receptionist-dashboard.dark .notification-header h3,
+.vet-dashboard.dark .notification-header h3,
+.manager-dashboard.dark .notification-header h3 {
+  color: #e2e8f0;
+}
+
+.notification-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.notification-actions button {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #64748b;
+  transition: all 0.2s ease;
+}
+
+.notification-actions button:hover {
+  background: rgba(173, 216, 230, 0.2);
+  color: #102a43;
+}
+
+.dark .notification-actions button:hover,
+.admin-dashboard.dark .notification-actions button:hover,
+.cashier-dashboard.dark .notification-actions button:hover,
+.customer-dashboard.dark .notification-actions button:hover,
+.inventory-dashboard.dark .notification-actions button:hover,
+.receptionist-dashboard.dark .notification-actions button:hover,
+.vet-dashboard.dark .notification-actions button:hover,
+.manager-dashboard.dark .notification-actions button:hover {
+  background: rgba(255, 192, 203, 0.1);
+  color: #e2e8f0;
+}
+
+/* Notification List */
+.notification-list {
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.notification-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.notification-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.notification-list::-webkit-scrollbar-thumb {
+  background: rgba(173, 216, 230, 0.5);
+  border-radius: 3px;
+}
+
+.notification-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(173, 216, 230, 0.8);
+}
+
+/* Notification Item */
+.notification-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  position: relative;
+}
+
+.notification-item:hover {
+  background: rgba(173, 216, 230, 0.1);
+}
+
+.dark .notification-item:hover,
+.admin-dashboard.dark .notification-item:hover,
+.cashier-dashboard.dark .notification-item:hover,
+.customer-dashboard.dark .notification-item:hover,
+.inventory-dashboard.dark .notification-item:hover,
+.receptionist-dashboard.dark .notification-item:hover,
+.vet-dashboard.dark .notification-item:hover,
+.manager-dashboard.dark .notification-item:hover {
+  background: rgba(255, 192, 203, 0.05);
+}
+
+.notification-item.unread {
+  background: rgba(59, 130, 246, 0.05);
+}
+
+.dark .notification-item.unread,
+.admin-dashboard.dark .notification-item.unread,
+.cashier-dashboard.dark .notification-item.unread,
+.customer-dashboard.dark .notification-item.unread,
+.inventory-dashboard.dark .notification-item.unread,
+.receptionist-dashboard.dark .notification-item.unread,
+.vet-dashboard.dark .notification-item.unread,
+.manager-dashboard.dark .notification-item.unread {
+  background: rgba(59, 130, 246, 0.1);
+}
+
+.notification-dot {
+  flex-shrink: 0;
+  font-size: 8px;
+  margin-top: 6px;
+}
+
+.notification-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.notification-title {
+  margin: 0 0 4px 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #102a43;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dark .notification-title,
+.admin-dashboard.dark .notification-title,
+.cashier-dashboard.dark .notification-title,
+.customer-dashboard.dark .notification-title,
+.inventory-dashboard.dark .notification-title,
+.receptionist-dashboard.dark .notification-title,
+.vet-dashboard.dark .notification-title,
+.manager-dashboard.dark .notification-title {
+  color: #e2e8f0;
+}
+
+.notification-message {
+  margin: 0 0 6px 0;
+  font-size: 0.8rem;
+  color: #64748b;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.dark .notification-message,
+.admin-dashboard.dark .notification-message,
+.cashier-dashboard.dark .notification-message,
+.customer-dashboard.dark .notification-message,
+.inventory-dashboard.dark .notification-message,
+.receptionist-dashboard.dark .notification-message,
+.vet-dashboard.dark .notification-message,
+.manager-dashboard.dark .notification-message {
+  color: #94a3b8;
+}
+
+.notification-time {
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+.dark .notification-time,
+.admin-dashboard.dark .notification-time,
+.cashier-dashboard.dark .notification-time,
+.customer-dashboard.dark .notification-time,
+.inventory-dashboard.dark .notification-time,
+.receptionist-dashboard.dark .notification-time,
+.vet-dashboard.dark .notification-time,
+.manager-dashboard.dark .notification-time {
+  color: #64748b;
+}
+
+.unread-indicator {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 8px;
+  height: 8px;
+  background: #3b82f6;
+  border-radius: 50%;
+}
+
+/* Empty State */
+.notification-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  color: #94a3b8;
+}
+
+.notification-empty .empty-icon {
+  font-size: 2rem;
+  margin-bottom: 12px;
+  opacity: 0.5;
+}
+
+.notification-empty p {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+/* Footer */
+.notification-footer {
+  padding: 12px 16px;
+  border-top: 1px solid rgba(173, 216, 230, 0.2);
+  display: flex;
+  justify-content: center;
+}
+
+.dark .notification-footer,
+.admin-dashboard.dark .notification-footer,
+.cashier-dashboard.dark .notification-footer,
+.customer-dashboard.dark .notification-footer,
+.inventory-dashboard.dark .notification-footer,
+.receptionist-dashboard.dark .notification-footer,
+.vet-dashboard.dark .notification-footer,
+.manager-dashboard.dark .notification-footer {
+  border-color: rgba(255, 192, 203, 0.1);
+}
+
+.clear-all-btn {
+  background: transparent;
+  border: none;
+  color: #64748b;
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 6px 12px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.clear-all-btn:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .notification-dropdown {
+    position: fixed;
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    min-width: auto;
+    max-width: none;
+    border-radius: 16px 16px 0 0;
+    max-height: 70vh;
+  }
+  
+  .notification-dropdown::before {
+    display: none;
+  }
+}
