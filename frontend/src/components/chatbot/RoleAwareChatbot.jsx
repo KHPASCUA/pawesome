@@ -1,9 +1,12 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
+  checkHotelAvailability,
   createChatbotBooking,
+  createChatbotHotelBooking,
   fetchBookingOptions,
   fetchChatbotWelcome,
+  fetchHotelOptions,
   lookupChatbotAppointments,
   searchChatbotInventory,
   sendChatbotMessage,
@@ -27,13 +30,19 @@ const RoleAwareChatbot = ({
   const [workflowState, setWorkflowState] = useState({
     loading: false,
     error: "",
-    options: { pets: [], services: [] },
+    options: { pets: [], services: [], rooms: [] },
     results: [],
     form: {
       pet_id: "",
       service_id: "",
       scheduled_at: "",
       query: "",
+      // Hotel booking form fields
+      hotel_pet_id: "",
+      hotel_room_id: "",
+      check_in: "",
+      check_out: "",
+      special_requests: "",
     },
   });
   const messagesEndRef = useRef(null);
@@ -85,6 +94,7 @@ const RoleAwareChatbot = ({
           text: data.reply,
           suggestions: data.suggestions || [],
           actions: data.actions || [],
+          source: data.source || "rule_based",
         },
       ]);
     } catch (err) {
@@ -140,6 +150,33 @@ const RoleAwareChatbot = ({
           ...prev,
           loading: false,
           error: err.message || "Failed to load booking options.",
+        }));
+      }
+    }
+
+    if (workflowName === "hotel_booking") {
+      try {
+        const data = await fetchHotelOptions();
+        setWorkflowState((prev) => ({
+          ...prev,
+          loading: false,
+          options: {
+            pets: data.pets || [],
+            rooms: data.rooms || [],
+          },
+          form: {
+            ...prev.form,
+            hotel_pet_id: data.pets?.[0]?.id?.toString() || "",
+            hotel_room_id: "",
+            check_in: "",
+            check_out: "",
+          },
+        }));
+      } catch (err) {
+        setWorkflowState((prev) => ({
+          ...prev,
+          loading: false,
+          error: err.message || "Failed to load hotel options.",
         }));
       }
     }
@@ -234,6 +271,37 @@ const RoleAwareChatbot = ({
     }
   };
 
+  const submitHotelBookingWorkflow = async (event) => {
+    event.preventDefault();
+    setWorkflowState((prev) => ({ ...prev, loading: true, error: "" }));
+
+    try {
+      const data = await createChatbotHotelBooking({
+        pet_id: Number(workflowState.form.hotel_pet_id),
+        hotel_room_id: Number(workflowState.form.hotel_room_id),
+        check_in: workflowState.form.check_in,
+        check_out: workflowState.form.check_out,
+        special_requests: workflowState.form.special_requests,
+      });
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          sender: "bot",
+          text: `Hotel booking created for ${data.boarding?.pet?.name || "your pet"} from ${workflowState.form.check_in} to ${workflowState.form.check_out}. Room: ${data.boarding?.hotel_room?.room_number || "TBD"}.`,
+          suggestions: ["Check room availability", "Book another stay", "Show dashboard summary"],
+        },
+      ]);
+      closeWorkflow();
+    } catch (err) {
+      setWorkflowState((prev) => ({
+        ...prev,
+        loading: false,
+        error: err.message || "Failed to create hotel booking.",
+      }));
+    }
+  };
+
   const containerClass = `rbac-chatbot ${mode} ${isOpen ? "open" : ""}`;
 
   return (
@@ -278,6 +346,9 @@ const RoleAwareChatbot = ({
                       {formatMessage(message.text).map((line, lineIndex) => (
                         <p key={lineIndex}>{line}</p>
                       ))}
+                      {message.source === "ai" && message.sender === "bot" && (
+                        <span className="rbac-ai-indicator" title="AI-generated response">✨ AI</span>
+                      )}
                       {message.suggestions?.length > 0 && (
                         <div className="rbac-chat-actions">
                           {message.suggestions.map((suggestion) => (
@@ -343,6 +414,7 @@ const RoleAwareChatbot = ({
                 {workflow === "create_booking" && "Create Booking"}
                 {workflow === "appointment_lookup" && "Appointment Lookup"}
                 {workflow === "inventory_search" && "Inventory Search"}
+                {workflow === "hotel_booking" && "Book Pet Hotel Stay"}
               </h4>
               <button type="button" onClick={closeWorkflow}>Close</button>
             </div>
@@ -421,6 +493,68 @@ const RoleAwareChatbot = ({
                 </label>
                 <button type="submit" disabled={workflowState.loading}>
                   {workflowState.loading ? "Searching..." : "Search"}
+                </button>
+              </form>
+            )}
+
+            {workflow === "hotel_booking" && (
+              <form className="rbac-workflow-form" onSubmit={submitHotelBookingWorkflow}>
+                <label>
+                  Pet
+                  <select
+                    value={workflowState.form.hotel_pet_id}
+                    onChange={(event) => updateWorkflowForm("hotel_pet_id", event.target.value)}
+                  >
+                    {workflowState.options.pets.map((pet) => (
+                      <option key={pet.id} value={pet.id}>
+                        {pet.name} {pet.species ? `(${pet.species})` : ""}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Check-in Date
+                  <input
+                    type="date"
+                    value={workflowState.form.check_in}
+                    onChange={(event) => updateWorkflowForm("check_in", event.target.value)}
+                    required
+                  />
+                </label>
+                <label>
+                  Check-out Date
+                  <input
+                    type="date"
+                    value={workflowState.form.check_out}
+                    onChange={(event) => updateWorkflowForm("check_out", event.target.value)}
+                    required
+                  />
+                </label>
+                <label>
+                  Room (Optional - leave empty for auto-assignment)
+                  <select
+                    value={workflowState.form.hotel_room_id}
+                    onChange={(event) => updateWorkflowForm("hotel_room_id", event.target.value)}
+                  >
+                    <option value="">Auto-assign available room</option>
+                    {workflowState.options.rooms.map((room) => (
+                      <option key={room.id} value={room.id}>
+                        {room.room_number} - {room.type} (₱{room.daily_rate}/night)
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Special Requests
+                  <textarea
+                    value={workflowState.form.special_requests}
+                    onChange={(event) => updateWorkflowForm("special_requests", event.target.value)}
+                    placeholder="Any special care instructions..."
+                    rows="3"
+                  />
+                </label>
+                <button type="submit" disabled={workflowState.loading}>
+                  {workflowState.loading ? "Booking..." : "Book Hotel Stay"}
                 </button>
               </form>
             )}

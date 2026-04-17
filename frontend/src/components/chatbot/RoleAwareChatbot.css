@@ -301,3 +301,23 @@
     width: 100%;
   }
 }
+
+/* AI indicator styles */
+.rbac-ai-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  color: #8b5cf6;
+  background: linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 100%);
+  padding: 2px 8px;
+  border-radius: 12px;
+  margin-top: 8px;
+  font-weight: 500;
+  cursor: help;
+}
+
+.rbac-ai-indicator::before {
+  content: "✨";
+  font-size: 0.7rem;
+}

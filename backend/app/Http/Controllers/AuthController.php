@@ -190,4 +190,28 @@ class AuthController extends Controller
     {
         return response()->json(['message' => 'Logout successful']);
     }
+
+    /**
+     * Unlink Telegram account from user
+     */
+    public function unlinkTelegram(Request $request)
+    {
+        $user = $request->user();
+
+        if (!$user->telegram_chat_id) {
+            return response()->json([
+                'message' => 'Telegram account is not linked'
+            ], 400);
+        }
+
+        $user->update([
+            'telegram_chat_id' => null,
+            'telegram_username' => null,
+            'telegram_linked_at' => null,
+        ]);
+
+        return response()->json([
+            'message' => 'Telegram account unlinked successfully'
+        ]);
+    }
 }

@@ -20,6 +20,7 @@ use App\Http\Controllers\Veterinary\DashboardController as VeterinaryDashboardCo
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\BoardingController;
 use App\Http\Controllers\HotelRoomController;
+use App\Http\Controllers\TelegramBotController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('auth')->group(function () {
@@ -32,6 +33,7 @@ Route::prefix('auth')->group(function () {
         Route::put('profile', [AuthController::class, 'updateProfile']);
         Route::post('change-password', [AuthController::class, 'changePassword']);
         Route::post('logout', [AuthController::class, 'logout']);
+        Route::post('telegram/unlink', [AuthController::class, 'unlinkTelegram']);
     });
 });
 
@@ -74,6 +76,10 @@ Route::middleware(['auth:api'])->prefix('chatbot')->group(function () {
     Route::post('workflow/bookings', [ChatbotWorkflowController::class, 'createBooking']);
     Route::post('workflow/appointments/lookup', [ChatbotWorkflowController::class, 'lookupAppointments']);
     Route::post('workflow/inventory/search', [ChatbotWorkflowController::class, 'searchInventory']);
+    // Hotel booking workflow routes
+    Route::get('workflow/hotel-options', [ChatbotWorkflowController::class, 'hotelOptions']);
+    Route::get('workflow/hotel/availability', [ChatbotWorkflowController::class, 'checkHotelAvailability']);
+    Route::post('workflow/hotel-bookings', [ChatbotWorkflowController::class, 'createHotelBooking']);
 });
 
 Route::middleware(['auth:api', 'role:customer'])->prefix('customer')->group(function () {
@@ -168,4 +174,13 @@ Route::middleware(['auth:api', 'role:customer'])->prefix('customer/boardings')->
 Route::middleware(['auth:api', 'role:veterinary'])->prefix('veterinary/boardings')->group(function () {
     Route::get('/current-boarders', [BoardingController::class, 'currentBoarders']);
     Route::get('/{id}', [BoardingController::class, 'show']);
+});
+
+// Telegram Bot Webhook (public - receives updates from Telegram)
+Route::post('/telegram/webhook', [TelegramBotController::class, 'webhook']);
+
+// Telegram Admin Routes (setup webhooks)
+Route::middleware(['auth:api', 'role:admin'])->prefix('admin/telegram')->group(function () {
+    Route::post('/set-webhook', [TelegramBotController::class, 'setWebhook']);
+    Route::post('/remove-webhook', [TelegramBotController::class, 'removeWebhook']);
 });

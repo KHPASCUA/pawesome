@@ -38,3 +38,21 @@ export async function searchChatbotInventory(query) {
     body: JSON.stringify({ query }),
   });
 }
+
+// Hotel Booking Workflow APIs
+export async function fetchHotelOptions() {
+  return apiRequest("/chatbot/workflow/hotel-options");
+}
+
+export async function checkHotelAvailability(checkIn, checkOut, roomType = null) {
+  const params = new URLSearchParams({ check_in: checkIn, check_out: checkOut });
+  if (roomType) params.append("room_type", roomType);
+  return apiRequest(`/chatbot/workflow/hotel/availability?${params.toString()}`);
+}
+
+export async function createChatbotHotelBooking(payload) {
+  return apiRequest("/chatbot/workflow/hotel-bookings", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}

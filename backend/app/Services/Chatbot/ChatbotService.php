@@ -6,6 +6,7 @@ use App\Models\Appointment;
 use App\Models\ChatbotFaq;
 use App\Models\ChatbotLog;
 use App\Models\Customer;
+use App\Models\HotelRoom;
 use App\Models\InventoryItem;
 use App\Models\Pet;
 use App\Models\Sale;
@@ -15,10 +16,13 @@ use Illuminate\Support\Carbon;
 
 class ChatbotService
 {
+    private AiChatbotService $aiService;
+
     public function __construct(
         private readonly RoleScopeService $roleScopeService,
         private readonly KnowledgeBaseService $knowledgeBaseService,
     ) {
+        $this->aiService = new AiChatbotService();
     }
 
     public function welcome(?User $user): array
@@ -42,11 +46,19 @@ class ChatbotService
         $intent = $this->detectIntent($message);
         $faqResponse = $this->faqResponse($message, $role);
 
-        if ($faqResponse) {
+        // HYBRID LOGIC: Determine response source
+        if ($faqResponse && config('chatbot.hybrid_mode') === 'faq_first') {
+            // Use FAQ if available
             $intent = 'faq';
             $response = $faqResponse;
+        } elseif ($this->shouldUseAi($intent)) {
+            // Use AI for eligible intents
+            $response = $this->aiResponse($message, $role, $intent);
+            $intent = $response['intent'] ?? $intent;
         } else {
+            // Use rule-based for critical actions
             $response = match ($intent) {
+                'hotel_booking' => $this->hotelBookingResponse($role),
                 'booking_help' => $this->bookingResponse($role),
                 'pricing' => $this->pricingResponse($role),
                 'services' => $this->servicesResponse($role),
@@ -55,7 +67,7 @@ class ChatbotService
                 'logs' => $this->logsResponse($role),
                 'role_help' => $this->roleHelpResponse($role, $config),
                 'support' => $this->supportResponse($role),
-                default => $this->generalResponse($role, $config),
+                default => $this->aiResponse($message, $role, $intent), // Fallback to AI
             };
         }
 
@@ -73,6 +85,7 @@ class ChatbotService
             'metadata' => [
                 'suggestions' => $response['suggestions'] ?? [],
                 'actions' => $response['actions'] ?? [],
+                'source' => $response['source'] ?? 'rule_based',
             ],
         ]);
 
@@ -84,6 +97,16 @@ class ChatbotService
             'scope' => $config['scope'],
             'suggestions' => $response['suggestions'] ?? [],
             'actions' => $response['actions'] ?? [],
+            'source' => $response['source'] ?? 'rule_based',
+            'confidence' => $response['confidence'] ?? 1.0,
+            'rich_content' => $response['rich_content'] ?? null,
+            'metadata' => [
+                'processing_time_ms' => round((microtime(true) - LARAVEL_START) * 1000, 2),
+                'context_used' => !empty($this->gatherLiveContext()),
+                'ai_model' => $this->aiService->isEnabled() ? config('chatbot.ai_model') : null,
+                'channel' => $channel,
+                'requires_follow_up' => $response['requires_follow_up'] ?? false,
+            ],
         ];
     }
 
@@ -93,9 +116,10 @@ class ChatbotService
 
         return match (true) {
             str_contains($normalized, 'summary') || str_contains($normalized, 'overview') || str_contains($normalized, 'stats') || str_contains($normalized, 'status') || str_contains($normalized, 'how many') || str_contains($normalized, 'revenue') || str_contains($normalized, 'low stock') || str_contains($normalized, 'appointments today') => 'summary',
+            str_contains($normalized, 'hotel') || str_contains($normalized, 'pet hotel') || str_contains($normalized, 'boarding') || str_contains($normalized, 'room') || str_contains($normalized, 'stay') => 'hotel_booking',
             str_contains($normalized, 'book') || str_contains($normalized, 'appointment') || str_contains($normalized, 'schedule') => 'booking_help',
             str_contains($normalized, 'price') || str_contains($normalized, 'cost') || str_contains($normalized, 'rate') || str_contains($normalized, 'fee') => 'pricing',
-            str_contains($normalized, 'service') || str_contains($normalized, 'groom') || str_contains($normalized, 'vet') || str_contains($normalized, 'boarding') || str_contains($normalized, 'hotel') => 'services',
+            str_contains($normalized, 'service') || str_contains($normalized, 'groom') || str_contains($normalized, 'vet') || str_contains($normalized, 'boarding') => 'services',
             str_contains($normalized, 'where') || str_contains($normalized, 'navigate') || str_contains($normalized, 'dashboard') || str_contains($normalized, 'shortcut') => 'navigation',
             str_contains($normalized, 'log') || str_contains($normalized, 'chat history') || str_contains($normalized, 'analytics') => 'logs',
             str_contains($normalized, 'role') || str_contains($normalized, 'permission') || str_contains($normalized, 'what can i do') => 'role_help',
@@ -120,6 +144,120 @@ class ChatbotService
                 'How do I contact support?',
             ],
             'actions' => $this->bookingActions($role),
+        ];
+    }
+
+    private function hotelBookingResponse(string $role): array
+    {
+        // Get available rooms for quick info
+        $availableRooms = HotelRoom::where('status', 'available')
+            ->orderBy('daily_rate')
+            ->limit(5)
+            ->get(['room_number', 'type', 'size', 'daily_rate', 'capacity', 'features']);
+
+        // Get occupancy stats
+        $totalRooms = HotelRoom::count();
+        $occupiedRooms = HotelRoom::where('status', 'occupied')->count();
+        $occupancyRate = $totalRooms > 0 ? round(($occupiedRooms / $totalRooms) * 100) : 0;
+
+        // Get current boarders count
+        $activeBoarders = \App\Models\Boarding::where('status', 'checked_in')->count();
+
+        // Build rich room list
+        $roomList = [];
+        foreach ($availableRooms as $room) {
+            $roomList[] = [
+                'room_number' => $room->room_number,
+                'type' => $room->type,
+                'size' => $room->size,
+                'rate' => $room->daily_rate,
+                'capacity' => $room->capacity,
+                'features' => $room->features,
+            ];
+        }
+
+        // Format room info for text
+        $roomInfo = $availableRooms->isNotEmpty()
+            ? $availableRooms->map(fn ($room) => "• {$room->type} (Room {$room->room_number}): ₱" . number_format($room->daily_rate, 2) . "/night - fits {$room->capacity} pets")
+                ->implode("\n")
+            : '❌ No rooms currently available. Please check back later.';
+
+        $messages = [
+            'customer' => "🏨 **Pet Hotel Booking**\n\n" .
+                "We have **{$availableRooms->count()} rooms** available right now!\n\n" .
+                "**Available Rooms:**\n{$roomInfo}\n\n" .
+                "Our hotel is currently at **{$occupancyRate}% occupancy** with **{$activeBoarders} pets** enjoying their stay.\n\n" .
+                "Would you like to check availability for your dates or view pricing?",
+
+            'receptionist' => "🏨 **Hotel Status**\n\n" .
+                "**Available Rooms:** {$availableRooms->count()}\n" .
+                "**Occupancy Rate:** {$occupancyRate}%\n" .
+                "**Current Boarders:** {$activeBoarders} pets\n\n" .
+                "**Available Room Details:**\n{$roomInfo}\n\n" .
+                "Manage check-ins, check-outs, and reservations from the Hotel Bookings page.",
+
+            'manager' => "📊 **Hotel Summary**\n\n" .
+                "**Current Status:**\n" .
+                "• Available Rooms: {$availableRooms->count()}\n" .
+                "• Occupied: {$occupiedRooms}\n" .
+                "• Occupancy Rate: {$occupancyRate}%\n" .
+                "• Active Boarders: {$activeBoarders} pets\n\n" .
+                "View detailed occupancy and revenue stats on your dashboard.",
+
+            'veterinary' => "🏥 **Boarding Overview**\n\n" .
+                "**Current Boarders:** {$activeBoarders} pets in-house\n" .
+                "**Available for Admission:** {$availableRooms->count()} rooms\n" .
+                "**Hotel Occupancy:** {$occupancyRate}%\n\n" .
+                "Review current boarders and their medical needs on your dashboard.",
+        ];
+
+        $actions = match ($role) {
+            'customer' => [
+                ['label' => '🔍 Check Availability', 'type' => 'workflow', 'workflow' => 'hotel_booking'],
+                ['label' => '👁️ View Rooms', 'path' => '/customer/pet-hotel'],
+                ['label' => '📅 My Bookings', 'path' => '/customer/bookings'],
+            ],
+            'receptionist' => [
+                ['label' => '📋 Hotel Bookings', 'path' => '/receptionist/hotel-bookings'],
+                ['label' => '➕ New Reservation', 'type' => 'workflow', 'workflow' => 'hotel_booking'],
+                ['label' => '✅ Check-in/Out', 'path' => '/receptionist/hotel-bookings'],
+            ],
+            'manager' => [
+                ['label' => '📊 Dashboard', 'path' => '/manager'],
+                ['label' => '📈 Occupancy Report', 'path' => '/manager/reports'],
+            ],
+            'veterinary' => [
+                ['label' => '🐾 Current Boarders', 'path' => '/veterinary/boardings'],
+                ['label' => '📋 Medical Records', 'path' => '/veterinary/records'],
+            ],
+            default => [],
+        };
+
+        $richContent = [
+            'type' => 'hotel_summary',
+            'stats' => [
+                'available_rooms' => $availableRooms->count(),
+                'occupied_rooms' => $occupiedRooms,
+                'occupancy_rate' => $occupancyRate,
+                'active_boarders' => $activeBoarders,
+                'total_rooms' => $totalRooms,
+            ],
+            'rooms' => $roomList,
+            'occupancy_trend' => $occupancyRate > 80 ? 'high' : ($occupancyRate > 50 ? 'medium' : 'low'),
+        ];
+
+        return [
+            'message' => $messages[$role] ?? "🏨 Pet Hotel services are available.\n\n**Available Rooms:**\n{$roomInfo}",
+            'suggestions' => [
+                'Check room availability',
+                'What are the hotel rates?',
+                'Book a hotel stay',
+                'How many pets can stay?',
+            ],
+            'actions' => $actions,
+            'rich_content' => $richContent,
+            'source' => 'rule_based',
+            'confidence' => 1.0,
         ];
     }
 
@@ -553,5 +691,369 @@ class ChatbotService
         ];
 
         return $routes[$role][$section] ?? $this->basePathForRole($role);
+    }
+
+    /**
+     * Determine if this intent should use AI response
+     */
+    private function shouldUseAi(string $intent): bool
+    {
+        // If AI is not enabled, never use it
+        if (!$this->aiService->isEnabled()) {
+            return false;
+        }
+
+        // Critical actions always use rule-based
+        if (in_array($intent, config('chatbot.rule_based_intents', []), true)) {
+            return false;
+        }
+
+        // AI-eligible intents
+        if (in_array($intent, config('chatbot.ai_eligible_intents', []), true)) {
+            return true;
+        }
+
+        // For unknown intents, check config
+        return config('chatbot.ai_for_unknown_intents', true);
+    }
+
+    /**
+     * Generate AI-powered response with live context
+     */
+    private function aiResponse(string $message, string $role, string $intent): array
+    {
+        // Gather live context for AI
+        $context = $this->gatherLiveContext();
+
+        // Try AI first
+        $aiResponse = $this->aiService->generateResponse($message, $role, $context);
+
+        if ($aiResponse) {
+            return array_merge($aiResponse, [
+                'intent' => $intent,
+                'actions' => [],
+            ]);
+        }
+
+        // Fallback to rule-based general response if AI fails
+        $config = $this->roleScopeService->getRoleConfig(null);
+        return $this->generalResponse($role, $config);
+    }
+
+    /**
+     * Gather live system data for AI context - MAXIMUM CAPABILITY VERSION
+     */
+    private function gatherLiveContext(): array
+    {
+        $context = [];
+
+        try {
+            // ========== HOTEL & BOARDING ==========
+            // Available rooms with details
+            $availableRooms = HotelRoom::where('status', 'available')
+                ->select('room_number', 'type', 'size', 'daily_rate', 'capacity', 'features')
+                ->orderBy('daily_rate')
+                ->take(10)
+                ->get();
+
+            $context['hotel'] = [
+                'rooms_available_count' => $availableRooms->count(),
+                'rooms_available_details' => $availableRooms->map(fn($r) => [
+                    'room' => $r->room_number,
+                    'type' => $r->type,
+                    'size' => $r->size,
+                    'rate' => '₱' . number_format($r->daily_rate, 2),
+                    'capacity' => $r->capacity,
+                    'features' => $r->features,
+                ])->toArray(),
+                'rooms_occupied' => HotelRoom::where('status', 'occupied')->count(),
+                'rooms_maintenance' => HotelRoom::where('status', 'maintenance')->count(),
+                'total_rooms' => HotelRoom::count(),
+                'occupancy_rate' => round((HotelRoom::where('status', 'occupied')->count() / max(HotelRoom::count(), 1)) * 100, 1) . '%',
+            ];
+
+            // Current boarders with pet details
+            $activeBoarders = \App\Models\Boarding::with(['pet', 'customer', 'room'])
+                ->where('status', 'checked_in')
+                ->orderBy('check_in_date')
+                ->take(10)
+                ->get();
+
+            $context['current_boarders'] = [
+                'count' => $activeBoarders->count(),
+                'boarders' => $activeBoarders->map(fn($b) => [
+                    'pet_name' => $b->pet?->name,
+                    'pet_species' => $b->pet?->species,
+                    'customer' => $b->customer?->first_name . ' ' . $b->customer?->last_name,
+                    'room' => $b->room?->room_number,
+                    'check_in' => $b->check_in_date?->format('M j, Y'),
+                    'check_out' => $b->check_out_date?->format('M j, Y'),
+                    'nights' => $b->check_in_date ? now()->diffInDays($b->check_in_date) : 0,
+                ])->toArray(),
+            ];
+
+            // ========== APPOINTMENTS ==========
+            $todayAppointments = Appointment::with(['customer', 'pet', 'service'])
+                ->whereDate('scheduled_at', today())
+                ->orderBy('scheduled_at')
+                ->get();
+
+            $context['today_appointments'] = [
+                'count' => $todayAppointments->count(),
+                'confirmed' => $todayAppointments->where('status', 'confirmed')->count(),
+                'pending' => $todayAppointments->where('status', 'pending')->count(),
+                'completed' => $todayAppointments->where('status', 'completed')->count(),
+                'appointments' => $todayAppointments->map(fn($a) => [
+                    'time' => $a->scheduled_at?->format('g:i A'),
+                    'customer' => $a->customer?->first_name,
+                    'pet' => $a->pet?->name,
+                    'service' => $a->service?->name,
+                    'status' => $a->status,
+                ])->toArray(),
+            ];
+
+            // Upcoming appointments (next 7 days)
+            $upcomingAppointments = Appointment::whereBetween('scheduled_at', [now(), now()->addDays(7)])
+                ->count();
+            $context['upcoming_appointments_week'] = $upcomingAppointments;
+
+            // ========== SERVICES & PRICING ==========
+            $services = Service::select('name', 'price', 'duration', 'description', 'category')
+                ->where('is_active', true)
+                ->orderBy('category')
+                ->get()
+                ->groupBy('category');
+
+            $context['services'] = $services->map(fn($categoryServices) =>
+                $categoryServices->map(fn($s) => [
+                    'name' => $s->name,
+                    'price' => '₱' . number_format($s->price, 2),
+                    'duration' => $s->duration . ' min',
+                ])->toArray()
+            )->toArray();
+
+            // ========== INVENTORY ==========
+            $lowStock = InventoryItem::where('quantity', '<=', 10)
+                ->select('name', 'quantity', 'unit')
+                ->take(5)
+                ->get();
+
+            $context['inventory'] = [
+                'total_items' => InventoryItem::count(),
+                'low_stock_count' => InventoryItem::where('quantity', '<=', 10)->count(),
+                'low_stock_items' => $lowStock->map(fn($i) => [
+                    'name' => $i->name,
+                    'quantity' => $i->quantity . ' ' . $i->unit,
+                ])->toArray(),
+            ];
+
+            // ========== CUSTOMERS & PETS ==========
+            $context['customers'] = [
+                'total_customers' => \App\Models\Customer::count(),
+                'total_pets' => \App\Models\Pet::count(),
+                'new_customers_this_month' => \App\Models\Customer::whereMonth('created_at', now()->month)->count(),
+            ];
+
+            // ========== FINANCIAL METRICS ==========
+            $todayRevenue = \App\Models\Boarding::whereDate('created_at', today())
+                ->sum('total_price');
+
+            $context['financial'] = [
+                'today_revenue' => '₱' . number_format($todayRevenue, 2),
+                'unpaid_boardings' => \App\Models\Boarding::where('payment_status', 'unpaid')->count(),
+                'partial_payments' => \App\Models\Boarding::where('payment_status', 'partial')->count(),
+            ];
+
+            // ========== SYSTEM HEALTH ==========
+            $context['system'] = [
+                'current_datetime' => now()->format('l, F j, Y g:i A'),
+                'business_hours' => 'Mon-Sat 9AM-6PM, Sun 10AM-4PM',
+                'next_holiday' => $this->getNextHoliday(),
+            ];
+
+        } catch (\Exception $e) {
+            // Silently fail - context is optional
+            Log::warning('Context gathering error: ' . $e->getMessage());
+        }
+
+        return $context;
+    }
+
+    /**
+     * Get next upcoming holiday or special date
+     */
+    private function getNextHoliday(): ?string
+    {
+        $holidays = [
+            '01-01' => 'New Year\'s Day',
+            '02-14' => 'Valentine\'s Day',
+            '12-25' => 'Christmas Day',
+            '12-31' => 'New Year\'s Eve',
+        ];
+
+        $today = now()->format('m-d');
+
+        foreach ($holidays as $date => $name) {
+            if ($date >= $today) {
+                return $name . ' (' . $date . ')';
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Process complex multi-step user intents
+     */
+    public function processComplexIntent(?User $user, string $message, array $conversationHistory = []): array
+    {
+        $intent = $this->detectIntent($message);
+        $role = $this->roleScopeService->normalizeRole($user?->role);
+
+        // Handle complex booking workflows
+        if (str_contains($intent, 'booking')) {
+            return $this->handleBookingWorkflow($user, $message, $intent, $conversationHistory);
+        }
+
+        // Handle FAQ with context
+        if ($intent === 'faq' || $intent === 'general') {
+            return $this->handleSmartFaq($user, $message, $role);
+        }
+
+        // Default to standard respond
+        return $this->respond($user, $message);
+    }
+
+    /**
+     * Smart FAQ handler with knowledge base search
+     */
+    private function handleSmartFaq(?User $user, string $message, string $role): array
+    {
+        // First try exact FAQ match
+        $faqResponse = $this->knowledgeBaseService->findAnswer($message, $role);
+
+        if ($faqResponse) {
+            return [
+                'reply' => $faqResponse['answer'],
+                'intent' => 'faq',
+                'suggestions' => $faqResponse['related'] ?? [],
+                'actions' => [],
+                'source' => 'knowledge_base',
+            ];
+        }
+
+        // Fallback to AI
+        return $this->aiResponse($message, $role, 'general');
+    }
+
+    /**
+     * Handle complex booking workflow with state management
+     */
+    private function handleBookingWorkflow(?User $user, string $message, string $intent, array $history): array
+    {
+        $role = $this->roleScopeService->normalizeRole($user?->role);
+
+        // Analyze conversation history for context
+        $extractedDates = $this->extractDatesFromMessage($message);
+        $extractedPets = $this->extractPetReferences($message, $user);
+
+        $context = array_merge(
+            $this->gatherLiveContext(),
+            [
+                'requested_dates' => $extractedDates,
+                'mentioned_pets' => $extractedPets,
+                'conversation_stage' => $this->determineConversationStage($history),
+            ]
+        );
+
+        // Use AI with full context for intelligent booking assistance
+        $aiResponse = $this->aiService->generateResponse($message, $role, $context);
+
+        if ($aiResponse) {
+            // Add booking-specific actions
+            $aiResponse['actions'] = [
+                ['label' => 'Check Availability', 'type' => 'workflow', 'workflow' => 'hotel_booking'],
+                ['label' => 'View Hotel Rooms', 'path' => '/customer/pet-hotel'],
+            ];
+
+            return array_merge($aiResponse, [
+                'intent' => $intent,
+                'source' => 'ai_enhanced',
+            ]);
+        }
+
+        return $this->hotelBookingResponse($role);
+    }
+
+    /**
+     * Extract dates from natural language message
+     */
+    private function extractDatesFromMessage(string $message): array
+    {
+        $dates = [];
+        $message = strtolower($message);
+
+        // Pattern: "next week", "this weekend", "tomorrow", "in 3 days"
+        if (str_contains($message, 'tomorrow')) {
+            $dates['check_in'] = now()->addDay()->format('Y-m-d');
+        }
+        if (str_contains($message, 'next week')) {
+            $dates['check_in'] = now()->addWeek()->startOfWeek()->format('Y-m-d');
+        }
+        if (str_contains($message, 'this weekend')) {
+            $dates['check_in'] = now()->next(now()->dayOfWeek >= 5 ? 6 : 5)->format('Y-m-d');
+        }
+
+        // Extract specific date mentions
+        if (preg_match('/(\d{1,2})\s+(january|february|march|april|may|june|july|august|september|october|november|december)/i', $message, $matches)) {
+            $month = date('n', strtotime($matches[2]));
+            $day = $matches[1];
+            $dates['check_in'] = now()->setDate(now()->year, $month, $day)->format('Y-m-d');
+        }
+
+        return $dates;
+    }
+
+    /**
+     * Extract pet references from message
+     */
+    private function extractPetReferences(string $message, ?User $user): array
+    {
+        if (!$user) {
+            return [];
+        }
+
+        $pets = [];
+        $customer = \App\Models\Customer::where('email', $user->email)->first();
+
+        if ($customer) {
+            $userPets = \App\Models\Pet::where('customer_id', $customer->id)->pluck('name')->toArray();
+
+            foreach ($userPets as $petName) {
+                if (stripos($message, $petName) !== false) {
+                    $pets[] = $petName;
+                }
+            }
+        }
+
+        return $pets;
+    }
+
+    /**
+     * Determine conversation stage based on history
+     */
+    private function determineConversationStage(array $history): string
+    {
+        $turns = count($history);
+
+        if ($turns === 0) {
+            return 'initial';
+        } elseif ($turns <= 2) {
+            return 'gathering_info';
+        } elseif ($turns <= 4) {
+            return 'clarifying';
+        } else {
+            return 'ready_to_book';
+        }
     }
 }
