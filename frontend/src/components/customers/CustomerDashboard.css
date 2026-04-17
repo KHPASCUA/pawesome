@@ -1,9 +1,9 @@
-/* Customer Dashboard Styles - Baby Blue & Pink Theme */
+/* Customer Dashboard Styles - Cream White & Gray Theme */
 
 .customer-dashboard {
   display: flex;
   min-height: 100vh;
-  background: linear-gradient(135deg, #ADD8E6 0%, #ffffff 50%, #FFC0CB 100%);
+  background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 50%, #f1f3f4 100%);
   color: #000000;
 }
 
@@ -71,16 +71,17 @@
 }
 
 .upcoming-appointment-card {
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(248, 249, 250, 0.9);
   border-radius: 12px;
   padding: 1.5rem;
-  border: 1px solid rgba(255, 107, 157, 0.1);
-  box-shadow: 0 4px 15px rgba(255, 107, 157, 0.1);
+  border: 1px solid rgba(241, 243, 244, 0.3);
+  box-shadow: 0 4px 15px rgba(241, 243, 244, 0.15);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .upcoming-appointment-card:hover {
   transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(241, 243, 244, 0.15);
   box-shadow: 0 8px 25px rgba(255, 107, 157, 0.15);
 }
 
@@ -133,13 +134,13 @@
 
 /* Enhanced Booking Cards */
 .booking-card {
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(248, 249, 250, 0.9);
   border-radius: 12px;
   padding: 1.5rem;
   margin-bottom: 1rem;
-  border: 1px solid rgba(255, 107, 157, 0.1);
-  box-shadow: 0 4px 15px rgba(255, 107, 157, 0.1);
-  transition: transform 0.2s ease;
+  border: 1px solid rgba(241, 243, 244, 0.3);
+  box-shadow: 0 4px 15px rgba(241, 243, 244, 0.15);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .booking-card:hover {
@@ -199,14 +200,14 @@
 
 /* Navbar Styles */
 .customer-navbar {
-  background: rgba(255, 255, 255, 0.95);
+  background: rgba(248, 249, 250, 0.95);
   backdrop-filter: blur(12px);
   padding: 1rem 2rem .40rem 2rem; /* Reduced bottom padding */
-  border-bottom: 1px solid rgba(255, 107, 157, 0.1);
+  border-bottom: 1px solid rgba(241, 243, 244, 0.3);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  box-shadow: 0 12px 35px rgba(255, 107, 157, 0.08);
+  box-shadow: 0 12px 35px rgba(241, 243, 244, 0.15);
 }
 
 .customer-navbar.top-navbar {
@@ -245,7 +246,7 @@
   border-radius: 8px;
   font-size: 0.9rem;
   transition: border-color 0.3s ease;
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(248, 249, 250, 0.9);
   color: #2d3436;
 }
 
