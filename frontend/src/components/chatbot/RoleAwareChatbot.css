@@ -321,3 +321,57 @@
   content: "✨";
   font-size: 0.7rem;
 }
+
+/* ============================================
+   REAL-TIME CHAT ANIMATIONS
+   ============================================ */
+
+/* Typing indicator (three bouncing dots) */
+.rbac-typing-indicator {
+  align-items: center;
+  display: flex;
+  gap: 3px;
+  justify-content: center;
+}
+
+.rbac-typing-indicator span {
+  animation: typing-bounce 1.4s infinite ease-in-out both;
+  background: #0ea5e9;
+  border-radius: 50%;
+  display: inline-block;
+  height: 6px;
+  width: 6px;
+}
+
+.rbac-typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
+.rbac-typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
+
+@keyframes typing-bounce {
+  0%, 80%, 100% { transform: scale(0); }
+  40% { transform: scale(1); }
+}
+
+/* Blinking cursor effect */
+.rbac-cursor {
+  animation: cursor-blink 1s step-end infinite;
+  color: #0ea5e9;
+  font-weight: 300;
+  margin-left: 2px;
+}
+
+@keyframes cursor-blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+/* Message timestamp */
+.rbac-message-timestamp {
+  color: #94a3b8;
+  font-size: 11px;
+  margin-top: 4px;
+  text-align: right;
+}
+
+.rbac-message-user .rbac-message-timestamp {
+  color: rgba(255, 255, 255, 0.7);
+}

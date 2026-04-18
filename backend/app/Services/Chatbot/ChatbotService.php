@@ -13,6 +13,7 @@ use App\Models\Sale;
 use App\Models\Service;
 use App\Models\User;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Log;
 
 class ChatbotService
 {

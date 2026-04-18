@@ -161,17 +161,70 @@ class AiChatbotService
 
         $prompt = $basePrompt . ($rolePrompts[$role] ?? $rolePrompts['default']);
 
-        // Add live context if available
+        // Add live context if available (rich format from gatherLiveContext)
         if (!empty($context)) {
             $prompt .= "\n\nCURRENT SYSTEM CONTEXT:\n";
-            if (isset($context['hotel_rooms_available'])) {
-                $prompt .= "- Available hotel rooms: " . $context['hotel_rooms_available'] . "\n";
+
+            // Hotel information
+            if (isset($context['hotel'])) {
+                $h = $context['hotel'];
+                $prompt .= "🏨 HOTEL:\n";
+                $prompt .= "- Available rooms: " . ($h['rooms_available_count'] ?? 'N/A') . "\n";
+                $prompt .= "- Occupancy rate: " . ($h['occupancy_rate'] ?? 'N/A') . "\n";
+                if (!empty($h['rooms_available_details'])) {
+                    $prompt .= "- Room options:\n";
+                    foreach (array_slice($h['rooms_available_details'], 0, 3) as $room) {
+                        $prompt .= "  • {$room['type']} ({$room['room']}): {$room['rate']}/night, fits {$room['capacity']} pets\n";
+                    }
+                }
             }
+
+            // Current boarders
+            if (isset($context['current_boarders'])) {
+                $cb = $context['current_boarders'];
+                $prompt .= "\n🐾 CURRENT BOARDERS: " . ($cb['count'] ?? 0) . " pets\n";
+                if (!empty($cb['boarders'])) {
+                    foreach (array_slice($cb['boarders'], 0, 3) as $b) {
+                        $prompt .= "  • {$b['pet_name']} ({$b['pet_species']}) - Room {$b['room']}\n";
+                    }
+                }
+            }
+
+            // Today's appointments
             if (isset($context['today_appointments'])) {
-                $prompt .= "- Today's appointments: " . $context['today_appointments'] . "\n";
+                $ta = $context['today_appointments'];
+                $prompt .= "\n📅 TODAY'S APPOINTMENTS: " . ($ta['count'] ?? 0) . "\n";
+                if (!empty($ta['appointments'])) {
+                    foreach (array_slice($ta['appointments'], 0, 3) as $a) {
+                        $prompt .= "  • {$a['time']} - {$a['service']} for {$a['pet']} ({$a['status']})\n";
+                    }
+                }
             }
-            if (isset($context['active_boarders'])) {
-                $prompt .= "- Current boarders: " . $context['active_boarders'] . "\n";
+
+            // Services and pricing
+            if (isset($context['services']) && !empty($context['services'])) {
+                $prompt .= "\n💰 SERVICES:\n";
+                foreach (array_slice($context['services'], 0, 2, true) as $category => $services) {
+                    $prompt .= "- " . ucfirst($category) . ":\n";
+                    foreach (array_slice($services, 0, 3) as $svc) {
+                        $prompt .= "  • {$svc['name']}: {$svc['price']}\n";
+                    }
+                }
+            }
+
+            // Financial info
+            if (isset($context['financial'])) {
+                $f = $context['financial'];
+                $prompt .= "\n💵 FINANCIAL:\n";
+                $prompt .= "- Today's revenue: " . ($f['today_revenue'] ?? 'N/A') . "\n";
+            }
+
+            // System info
+            if (isset($context['system'])) {
+                $s = $context['system'];
+                $prompt .= "\n⏰ SYSTEM:\n";
+                $prompt .= "- Current time: " . ($s['current_datetime'] ?? now()->format('l, F j, Y g:i A')) . "\n";
+                $prompt .= "- Business hours: " . ($s['business_hours'] ?? 'Mon-Sat 9AM-6PM, Sun 10AM-4PM') . "\n";
             }
         }
 

@@ -74,33 +74,55 @@ const RoleAwareChatbot = ({
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isLoading]);
 
+  const [typingMessage, setTypingMessage] = useState("");
+  const [isTyping, setIsTyping] = useState(false);
+
   const submitMessage = async (messageText) => {
     const trimmed = messageText.trim();
     if (!trimmed || isLoading) {
       return;
     }
 
-    setMessages((prev) => [...prev, { sender: "user", text: trimmed }]);
+    const timestamp = new Date().toISOString();
+    setMessages((prev) => [...prev, { sender: "user", text: trimmed, timestamp }]);
     setInput("");
     setError("");
     setIsLoading(true);
 
     try {
       const data = await sendChatbotMessage(trimmed);
+
+      // Simulate typing effect for more natural feel
+      setIsTyping(true);
+      const replyText = data.reply;
+      let currentText = "";
+      const words = replyText.split(" ");
+
+      for (let i = 0; i < words.length; i++) {
+        currentText += (i > 0 ? " " : "") + words[i];
+        setTypingMessage(currentText);
+        await new Promise((resolve) => setTimeout(resolve, 30)); // Typing speed
+      }
+
+      setIsTyping(false);
+      setTypingMessage("");
+
       setMessages((prev) => [
         ...prev,
         {
           sender: "bot",
-          text: data.reply,
+          text: replyText,
           suggestions: data.suggestions || [],
           actions: data.actions || [],
           source: data.source || "rule_based",
+          timestamp: new Date().toISOString(),
         },
       ]);
     } catch (err) {
       setError(err.message || "Unable to reach the chatbot service.");
     } finally {
       setIsLoading(false);
+      setIsTyping(false);
     }
   };
 
@@ -384,7 +406,21 @@ const RoleAwareChatbot = ({
                     </div>
                   </div>
                 ))}
-                {isLoading && <div className="rbac-chatbot-state">Assistant is thinking...</div>}
+                {isTyping && (
+                  <div className="rbac-message rbac-message-bot">
+                    <div className="rbac-message-avatar">
+                      <span className="rbac-typing-indicator">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                      </span>
+                    </div>
+                    <div className="rbac-message-content">
+                      <div className="rbac-message-text">{typingMessage}<span className="rbac-cursor">|</span></div>
+                    </div>
+                  </div>
+                )}
+                {isLoading && !isTyping && <div className="rbac-chatbot-state">Assistant is thinking...</div>}
                 {error && <div className="rbac-chatbot-error">{error}</div>}
               </>
             )}

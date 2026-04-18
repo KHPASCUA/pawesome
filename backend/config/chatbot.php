@@ -12,17 +12,18 @@ return [
     |
     */
 
-    // Enable/disable AI features
+    // AI Chatbot Configuration (Optional - enables AI-powered responses)
+    // Get your free Gemini API key from: https://ai.google.dev
     'ai_enabled' => env('CHATBOT_AI_ENABLED', false),
 
-    // OpenAI API Key (or compatible service like OpenRouter, Azure)
+    // Google Gemini API Key (FREE tier: 1,500 requests/day)
     'ai_api_key' => env('CHATBOT_AI_API_KEY', null),
 
-    // Model to use (gpt-3.5-turbo, gpt-4, gpt-4-turbo, etc.)
-    'ai_model' => env('CHATBOT_AI_MODEL', 'gpt-3.5-turbo'),
+    // Model: gemini-1.5-flash (fast/cheap) or gemini-1.5-pro (powerful)
+    'ai_model' => env('CHATBOT_AI_MODEL', 'gemini-1.5-flash'),
 
-    // API Base URL (default is OpenAI, can be changed for Azure or other providers)
-    'ai_base_url' => env('CHATBOT_AI_BASE_URL', 'https://api.openai.com/v1'),
+    // Google Gemini API endpoint
+    'ai_base_url' => env('CHATBOT_AI_BASE_URL', 'https://generativelanguage.googleapis.com/v1beta'),
 
     // Timeout for AI requests in seconds
     'ai_timeout' => env('CHATBOT_AI_TIMEOUT', 30),
@@ -43,19 +44,26 @@ return [
 
     // Intents that ALWAYS use rule-based responses (critical actions)
     'rule_based_intents' => [
-        'booking_help',
+        'create_booking',
+        'cancel_booking',
+        'modify_booking',
+        'payment',
         'hotel_booking',
-        'pricing', // Uses live database data
-        'navigation',
-        'logs',
-        'summary',
+        'check_in',
+        'check_out',
     ],
 
-    // Intents that can use AI for general knowledge
+    // Intents eligible for AI responses (general questions, advice, help)
     'ai_eligible_intents' => [
         'general',
-        'support',
-        'role_help',
+        'faq',
+        'pricing',
+        'services',
+        'help',
+        'advice',
+        'unknown',
+        'greeting',
+        'goodbye',
     ],
 
     // If no intent detected, use AI if enabled (true) or fallback response (false)
