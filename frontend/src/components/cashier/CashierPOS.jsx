@@ -62,7 +62,20 @@ const CashierPOS = ({ onCheckout }) => {
   const filteredProducts = useMemo(() => {
     let items = allItems;
     if (activeCategory !== "all") {
-      items = items.filter((item) => item.category === activeCategory || (activeCategory === "service" && item.itemType === "service"));
+      items = items.filter((item) => {
+        const itemCategory = (item.category || "").toLowerCase();
+        const activeCat = activeCategory.toLowerCase();
+        
+        // Match category or service type
+        if (activeCat === "service" && item.itemType === "service") return true;
+        if (itemCategory === activeCat) return true;
+        
+        // Special mappings
+        if (activeCat === "health" && (itemCategory === "medical" || itemCategory === "supplies")) return true;
+        if (activeCat === "food" && itemCategory === "treats") return true;
+        
+        return false;
+      });
     }
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
