@@ -212,21 +212,7 @@ const ManageUsers = () => {
     return matchesSearch && matchesRole && matchesStatus;
   });
 
-  // Get role badge color
-  const getRoleBadgeColor = (role) => {
-    const colors = {
-      admin: "danger",
-      manager: "warning",
-      receptionist: "info",
-      veterinary: "success",
-      cashier: "primary",
-      inventory: "secondary",
-      payroll: "dark",
-      customer: "light",
-    };
-    return colors[role] || "secondary";
-  };
-
+  
   // Format date
   const formatDate = (dateString) => {
     if (!dateString) return "N/A";
@@ -237,14 +223,12 @@ const ManageUsers = () => {
     <div className="manage-users">
       <div className="section-header">
         <div className="header-left">
-          <h2>
-            <FontAwesomeIcon icon={faUsers} /> Manage Users
-          </h2>
+          <h2>Manage Users</h2>
           <p>Manage system users, roles, and permissions</p>
         </div>
         <div className="header-actions">
           <NavLink to="/admin/users/create" className="add-user-btn">
-            <FontAwesomeIcon icon={faPlus} /> Add New User
+            Add New User
           </NavLink>
         </div>
       </div>
@@ -252,12 +236,12 @@ const ManageUsers = () => {
       {/* Success/Error Messages */}
       {success && (
         <div className="success-message">
-          <FontAwesomeIcon icon={faCheckCircle} /> {success}
+          {success}
         </div>
       )}
       {error && (
         <div className="error-message">
-          <FontAwesomeIcon icon={faExclamationTriangle} /> {error}
+          {error}
         </div>
       )}
 
@@ -265,7 +249,6 @@ const ManageUsers = () => {
       <div className="users-controls">
         <div className="search-filter-group">
           <div className="search-box">
-            <FontAwesomeIcon icon={faSearch} />
             <input
               type="text"
               placeholder="Search by name, email, or username..."
@@ -274,7 +257,6 @@ const ManageUsers = () => {
             />
           </div>
           <div className="filter-dropdown">
-            <FontAwesomeIcon icon={faFilter} />
             <select
               value={filterRole}
               onChange={(e) => setFilterRole(e.target.value)}
@@ -291,7 +273,6 @@ const ManageUsers = () => {
             </select>
           </div>
           <div className="filter-dropdown">
-            <FontAwesomeIcon icon={faFilter} />
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
@@ -308,11 +289,10 @@ const ManageUsers = () => {
       <div className="users-table-container">
         {loading ? (
           <div className="loading-container">
-            <FontAwesomeIcon icon={faSpinner} spin /> Loading users...
+            Loading users...
           </div>
         ) : filteredUsers.length === 0 ? (
           <div className="empty-state">
-            <FontAwesomeIcon icon={faUsers} size="3x" />
             <h3>No users found</h3>
             <p>Try adjusting your filters or add a new user.</p>
           </div>
@@ -342,7 +322,7 @@ const ManageUsers = () => {
                   <td className="user-username">{user.username || "N/A"}</td>
                   <td className="user-email">{user.email}</td>
                   <td className="user-role">
-                    <span className={`role-badge ${getRoleBadgeColor(user.role)}`}>
+                    <span className="role-badge">
                       {user.role}
                     </span>
                   </td>
@@ -352,7 +332,6 @@ const ManageUsers = () => {
                       onClick={() => handleToggleStatus(user)}
                       title={user.is_active ? "Deactivate" : "Activate"}
                     >
-                      <FontAwesomeIcon icon={user.is_active ? faToggleOn : faToggleOff} />
                       <span>{user.is_active ? "Active" : "Inactive"}</span>
                     </button>
                   </td>
@@ -363,14 +342,14 @@ const ManageUsers = () => {
                       onClick={() => openModal("edit", user)}
                       title="Edit User"
                     >
-                      <FontAwesomeIcon icon={faEdit} />
+                      Edit
                     </button>
                     <button
                       className="action-btn delete-btn"
                       onClick={() => openModal("delete", user)}
                       title="Delete User"
                     >
-                      <FontAwesomeIcon icon={faTrash} />
+                      Delete
                     </button>
                   </td>
                 </tr>
@@ -387,14 +366,14 @@ const ManageUsers = () => {
             <div className="modal-header">
               <h3>
                 {modalType === "edit" && (
-                  <><FontAwesomeIcon icon={faEdit} /> Edit User: {selectedUser?.name}</>
+                  <>Edit User: {selectedUser?.name}</>
                 )}
                 {modalType === "delete" && (
-                  <><FontAwesomeIcon icon={faTrash} /> Delete User: {selectedUser?.name}</>
+                  <>Delete User: {selectedUser?.name}</>
                 )}
               </h3>
               <button className="close-btn" onClick={closeModal}>
-                <FontAwesomeIcon icon={faTimesCircle} />
+                X
               </button>
             </div>
 
@@ -462,7 +441,6 @@ const ManageUsers = () => {
               )}
               {modalType === "delete" && (
                 <div className="delete-confirmation">
-                  <FontAwesomeIcon icon={faExclamationTriangle} className="warning-icon" />
                   <p>Are you sure you want to delete <strong>{selectedUser?.name}</strong>?</p>
                   <p className="warning-text">This action cannot be undone.</p>
                 </div>
@@ -483,14 +461,14 @@ const ManageUsers = () => {
                 disabled={processing}
               >
                 {processing ? (
-                  <><FontAwesomeIcon icon={faSpinner} spin /> Processing...</>
+                  <>Processing...</>
                 ) : (
                   <>
                     {modalType === "edit" && (
-                      <><FontAwesomeIcon icon={faCheckCircle} /> Update User</>
+                      <>Update User</>
                     )}
                     {modalType === "delete" && (
-                      <><FontAwesomeIcon icon={faTrash} /> Delete User</>
+                      <>Delete User</>
                     )}
                   </>
                 )}
