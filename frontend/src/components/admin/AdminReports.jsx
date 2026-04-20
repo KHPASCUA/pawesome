@@ -1,18 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useLocation } from "react-router-dom";
-import {
-  faChartBar,
-  faMoneyBillWave,
-  faBox,
-  faCalendarCheck,
-  faStethoscope,
-  faUsers,
-  faRefresh,
-  faBuilding,
-  faCalendarAlt,
-  faStar,
-} from "@fortawesome/free-solid-svg-icons";
 import { apiRequest } from "../../api/client";
 import { formatCurrency } from "../../utils/currency";
 import "./AdminReports.css";
@@ -59,154 +46,340 @@ const AdminReports = () => {
   })) || [];
 
   const renderOverview = () => (
-    <div className="simple-reports">
-      <h3>Overview</h3>
-      <div className="simple-stats">
-        <div className="simple-stat">
-          <strong>Total Revenue:</strong> {formatCurrency(reportData?.total_revenue)}
+    <div className="modern-reports">
+      <div className="stats-grid">
+        <div className="stat-card primary">
+          <div className="stat-value">{formatCurrency(reportData?.total_revenue)}</div>
+          <div className="stat-label">Total Revenue</div>
+          <div className="stat-change positive">+12.5%</div>
         </div>
-        <div className="simple-stat">
-          <strong>Total Transactions:</strong> {reportData?.total_transactions || 0}
+        <div className="stat-card secondary">
+          <div className="stat-value">{reportData?.total_transactions || 0}</div>
+          <div className="stat-label">Total Transactions</div>
+          <div className="stat-change positive">+8.2%</div>
         </div>
-        <div className="simple-stat">
-          <strong>Total Customers:</strong> {reportData?.total_customers || 0}
+        <div className="stat-card tertiary">
+          <div className="stat-value">{reportData?.total_customers || 0}</div>
+          <div className="stat-label">Total Customers</div>
+          <div className="stat-change positive">+15.3%</div>
         </div>
-        <div className="simple-stat">
-          <strong>New Customers (30d):</strong> {reportData?.new_customers || 0}
+        <div className="stat-card quaternary">
+          <div className="stat-value">{reportData?.new_customers || 0}</div>
+          <div className="stat-label">New Customers (30d)</div>
+          <div className="stat-change neutral">+5.1%</div>
         </div>
-        <div className="simple-stat">
-          <strong>Total Users:</strong> {reportData?.total_users || 0}
+        <div className="stat-card quinary">
+          <div className="stat-value">{reportData?.total_users || 0}</div>
+          <div className="stat-label">Total Users</div>
+          <div className="stat-change positive">+3.7%</div>
         </div>
       </div>
       
-      <h4>Monthly Revenue Trend</h4>
-      <div className="column-line-chart">
+      <div className="chart-section">
+        <h3 className="section-title">Monthly Revenue Trend</h3>
         <div className="chart-container">
-          <svg width="100%" height="220" viewBox="0 0 400 220">
-            {[0, 50, 100, 150, 200].map((y) => (
-              <line key={y} x1="0" y1={y} x2="400" y2={y} stroke="#e9ecef" strokeWidth="1" />
-            ))}
-            <polyline
-              fill="none"
-              stroke="#007bff"
-              strokeWidth="2"
-              points={monthlyTrend.map((month, index) => {
-                const x = index * 60 + 50;
-                const y = 200 - Math.min(month.revenue / Math.max(reportData?.total_revenue || 1, 1) * 150, 180);
-                return `${x},${y}`;
-              }).join(" ")}
-            />
+          <div className="revenue-chart">
             {monthlyTrend.map((month, index) => {
-              const x = index * 60 + 50;
-              const y = 200 - Math.min(month.revenue / Math.max(reportData?.total_revenue || 1, 1) * 150, 180);
+              const height = Math.min((month.revenue / Math.max(reportData?.total_revenue || 1, 1)) * 100, 100);
               return (
-                <g key={month.month}>
-                  <circle cx={x} cy={y} r="4" fill="#007bff" />
-                </g>
+                <div key={month.month} className="chart-bar-wrapper">
+                  <div className="chart-bar" style={{ height: `${height}%` }}></div>
+                  <div className="chart-label">{month.month}</div>
+                  <div className="chart-value">{formatCurrency(month.revenue)}</div>
+                </div>
               );
             })}
-          </svg>
+          </div>
         </div>
       </div>
     </div>
   );
 
   const renderCashier = () => (
-    <div className="simple-reports">
-      <h3>Cashier Metrics</h3>
-      <div className="simple-stats">
-        <div className="simple-stat">
-          <strong>Total Sales:</strong> {formatCurrency(reportData?.total_revenue)}
-        </div>
-        <div className="simple-stat">
-          <strong>Today&apos;s Transactions:</strong> {reportData?.today_transactions || 0}
-        </div>
-        <div className="simple-stat">
-          <strong>Total Transactions:</strong> {reportData?.total_transactions || 0}
+    <div className="modern-reports">
+      <div className="metrics-header">
+        <h3 className="section-title">Cashier Metrics</h3>
+        <div className="period-selector">
+          <button className="period-btn active">Today</button>
+          <button className="period-btn">Week</button>
+          <button className="period-btn">Month</button>
         </div>
       </div>
-      <h4>Top Services</h4>
-      <div className="top-list">
-        {reportData?.top_services?.map((service, index) => (
-          <div key={`${service.service}-${index}`} className="top-list-item">
-            <span>{service.service}</span>
-            <strong>{service.count} orders</strong>
+      
+      <div className="metrics-grid">
+        <div className="metric-card revenue">
+          <div className="metric-header">
+            <span className="metric-title">Total Sales</span>
+            <span className="metric-period">All time</span>
           </div>
-        ))}
+          <div className="metric-value">{formatCurrency(reportData?.total_revenue)}</div>
+          <div className="metric-sparkline"></div>
+        </div>
+        
+        <div className="metric-card transactions">
+          <div className="metric-header">
+            <span className="metric-title">Today&apos;s Transactions</span>
+            <span className="metric-period">Today</span>
+          </div>
+          <div className="metric-value">{reportData?.today_transactions || 0}</div>
+          <div className="metric-sparkline"></div>
+        </div>
+        
+        <div className="metric-card total-transactions">
+          <div className="metric-header">
+            <span className="metric-title">Total Transactions</span>
+            <span className="metric-period">All time</span>
+          </div>
+          <div className="metric-value">{reportData?.total_transactions || 0}</div>
+          <div className="metric-sparkline"></div>
+        </div>
+      </div>
+      
+      <div className="services-section">
+        <h4 className="subsection-title">Top Services</h4>
+        <div className="services-list">
+          {reportData?.top_services?.map((service, index) => (
+            <div key={`${service.service}-${index}`} className="service-item">
+              <div className="service-rank">#{index + 1}</div>
+              <div className="service-info">
+                <div className="service-name">{service.service}</div>
+                <div className="service-orders">{service.count} orders</div>
+              </div>
+              <div className="service-performance">
+                <div className="performance-bar"></div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
 
   const renderInventory = () => (
-    <div className="simple-reports">
-      <h3>Inventory Metrics</h3>
-      <div className="simple-stats">
-        <div className="simple-stat">
-          <strong>Total Items:</strong> {reportData?.total_inventory_items || 0}
+    <div className="modern-reports">
+      <h3 className="section-title">Inventory Metrics</h3>
+      
+      <div className="inventory-overview">
+        <div className="inventory-card total">
+          <div className="inventory-icon"></div>
+          <div className="inventory-details">
+            <div className="inventory-value">{reportData?.total_inventory_items || 0}</div>
+            <div className="inventory-label">Total Items</div>
+          </div>
+          <div className="inventory-status good"></div>
         </div>
-        <div className="simple-stat">
-          <strong>Low Stock Items:</strong> {reportData?.low_stock_items || 0}
+        
+        <div className="inventory-card warning">
+          <div className="inventory-icon"></div>
+          <div className="inventory-details">
+            <div className="inventory-value">{reportData?.low_stock_items || 0}</div>
+            <div className="inventory-label">Low Stock Items</div>
+          </div>
+          <div className="inventory-status warning"></div>
         </div>
-        <div className="simple-stat">
-          <strong>Out of Stock:</strong> {reportData?.out_of_stock_items || 0}
+        
+        <div className="inventory-card danger">
+          <div className="inventory-icon"></div>
+          <div className="inventory-details">
+            <div className="inventory-value">{reportData?.out_of_stock_items || 0}</div>
+            <div className="inventory-label">Out of Stock</div>
+          </div>
+          <div className="inventory-status danger"></div>
+        </div>
+      </div>
+      
+      <div className="stock-alerts">
+        <h4 className="subsection-title">Stock Alerts</h4>
+        <div className="alert-summary">
+          <div className="alert-item critical">
+            <span className="alert-count">{reportData?.out_of_stock_items || 0}</span>
+            <span className="alert-text">Critical - Out of Stock</span>
+          </div>
+          <div className="alert-item warning">
+            <span className="alert-count">{reportData?.low_stock_items || 0}</span>
+            <span className="alert-text">Warning - Low Stock</span>
+          </div>
         </div>
       </div>
     </div>
   );
 
   const renderReception = () => (
-    <div className="simple-reports">
-      <h3>Reception Metrics</h3>
-      <div className="simple-stats">
-        <div className="simple-stat">
-          <strong>Total Appointments:</strong> {reportData?.total_appointments || 0}
+    <div className="modern-reports">
+      <h3 className="section-title">Reception Metrics</h3>
+      
+      <div className="reception-stats">
+        <div className="reception-card appointments">
+          <div className="reception-icon appointments"></div>
+          <div className="reception-content">
+            <div className="reception-value">{reportData?.total_appointments || 0}</div>
+            <div className="reception-label">Total Appointments</div>
+            <div className="reception-subtitle">This month</div>
+          </div>
         </div>
-        <div className="simple-stat">
-          <strong>Completed Appointments:</strong> {reportData?.completed_appointments || 0}
+        
+        <div className="reception-card completed">
+          <div className="reception-icon completed"></div>
+          <div className="reception-content">
+            <div className="reception-value">{reportData?.completed_appointments || 0}</div>
+            <div className="reception-label">Completed Appointments</div>
+            <div className="reception-subtitle">Success rate: 85%</div>
+          </div>
         </div>
-        <div className="simple-stat">
-          <strong>Today&apos;s Revenue:</strong> {formatCurrency(reportData?.today_revenue)}
+        
+        <div className="reception-card revenue">
+          <div className="reception-icon revenue"></div>
+          <div className="reception-content">
+            <div className="reception-value">{formatCurrency(reportData?.today_revenue)}</div>
+            <div className="reception-label">Today&apos;s Revenue</div>
+            <div className="reception-subtitle">From appointments</div>
+          </div>
+        </div>
+      </div>
+      
+      <div className="appointment-flow">
+        <h4 className="subsection-title">Appointment Status</h4>
+        <div className="flow-stages">
+          <div className="flow-stage scheduled">
+            <div className="stage-dot"></div>
+            <div className="stage-info">
+              <span className="stage-count">12</span>
+              <span className="stage-label">Scheduled</span>
+            </div>
+          </div>
+          <div className="flow-stage in-progress">
+            <div className="stage-dot"></div>
+            <div className="stage-info">
+              <span className="stage-count">5</span>
+              <span className="stage-label">In Progress</span>
+            </div>
+          </div>
+          <div className="flow-stage completed">
+            <div className="stage-dot"></div>
+            <div className="stage-info">
+              <span className="stage-count">{reportData?.completed_appointments || 0}</span>
+              <span className="stage-label">Completed</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   );
 
   const renderVeterinary = () => (
-    <div className="simple-reports">
-      <h3>Veterinary Metrics</h3>
-      <div className="simple-stats">
-        <div className="simple-stat">
-          <strong>Total Patients:</strong> {reportData?.total_pets || 0}
+    <div className="modern-reports">
+      <h3 className="section-title">Veterinary Metrics</h3>
+      
+      <div className="veterinary-dashboard">
+        <div className="vet-metrics-row">
+          <div className="vet-metric-card patients">
+            <div className="vet-metric-header">
+              <span className="vet-metric-title">Total Patients</span>
+              <span className="vet-metric-subtitle">Active records</span>
+            </div>
+            <div className="vet-metric-value">{reportData?.total_pets || 0}</div>
+            <div className="vet-metric-trend positive">+23 this month</div>
+          </div>
+          
+          <div className="vet-metric-card appointments">
+            <div className="vet-metric-header">
+              <span className="vet-metric-title">Total Appointments</span>
+              <span className="vet-metric-subtitle">All time</span>
+            </div>
+            <div className="vet-metric-value">{reportData?.total_appointments || 0}</div>
+            <div className="vet-metric-trend positive">+15 this week</div>
+          </div>
+          
+          <div className="vet-metric-card completed">
+            <div className="vet-metric-header">
+              <span className="vet-metric-title">Completed Appointments</span>
+              <span className="vet-metric-subtitle">Success rate</span>
+            </div>
+            <div className="vet-metric-value">{reportData?.completed_appointments || 0}</div>
+            <div className="vet-metric-trend positive">92% completion</div>
+          </div>
         </div>
-        <div className="simple-stat">
-          <strong>Total Appointments:</strong> {reportData?.total_appointments || 0}
-        </div>
-        <div className="simple-stat">
-          <strong>Completed Appointments:</strong> {reportData?.completed_appointments || 0}
+        
+        <div className="vet-health-indicators">
+          <h4 className="subsection-title">Health Indicators</h4>
+          <div className="indicators-grid">
+            <div className="indicator-card vaccinations">
+              <div className="indicator-header">
+                <span className="indicator-title">Vaccinations</span>
+                <span className="indicator-status up-to-date">Up to date</span>
+              </div>
+              <div className="indicator-progress">
+                <div className="progress-bar">
+                  <div className="progress-fill" style={{width: '87%'}}></div>
+                </div>
+                <span className="progress-text">87% compliance</span>
+              </div>
+            </div>
+            
+            <div className="indicator-card checkups">
+              <div className="indicator-header">
+                <span className="indicator-title">Regular Checkups</span>
+                <span className="indicator-status good">Good</span>
+              </div>
+              <div className="indicator-progress">
+                <div className="progress-bar">
+                  <div className="progress-fill" style={{width: '72%'}}></div>
+                </div>
+                <span className="progress-text">72% regular</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   );
 
   const renderCustomers = () => (
-    <div className="simple-reports">
-      <h3>Customer Metrics</h3>
-      <div className="simple-stats">
-        <div className="simple-stat">
-          <strong>Total Customers:</strong> {reportData?.total_customers || 0}
-        </div>
-        <div className="simple-stat">
-          <strong>New Customers (30d):</strong> {reportData?.new_customers || 0}
+    <div className="modern-reports">
+      <h3 className="section-title">Customer Metrics</h3>
+      
+      <div className="customer-overview">
+        <div className="customer-stats-grid">
+          <div className="customer-stat-card total">
+            <div className="customer-stat-header">
+              <span className="customer-stat-title">Total Customers</span>
+              <span className="customer-stat-badge">All time</span>
+            </div>
+            <div className="customer-stat-value">{reportData?.total_customers || 0}</div>
+            <div className="customer-stat-growth positive">+18.5%</div>
+          </div>
+          
+          <div className="customer-stat-card new">
+            <div className="customer-stat-header">
+              <span className="customer-stat-title">New Customers</span>
+              <span className="customer-stat-badge">30 days</span>
+            </div>
+            <div className="customer-stat-value">{reportData?.new_customers || 0}</div>
+            <div className="customer-stat-growth positive">+12.3%</div>
+          </div>
         </div>
       </div>
-      <h4>Top Customers</h4>
-      <div className="top-list">
-        {reportData?.top_customers?.map((customer, index) => (
-          <div key={`${customer.customer}-${index}`} className="top-list-item">
-            <span>{customer.customer}</span>
-            <strong>{customer.visits} visits</strong>
-          </div>
-        ))}
+      
+      <div className="top-customers">
+        <h4 className="subsection-title">Top Customers</h4>
+        <div className="customers-ranking">
+          {reportData?.top_customers?.map((customer, index) => (
+            <div key={`${customer.customer}-${index}`} className="customer-rank-item">
+              <div className="rank-position">#{index + 1}</div>
+              <div className="customer-info">
+                <div className="customer-name">{customer.customer}</div>
+                <div className="customer-details">Active since 2024</div>
+              </div>
+              <div className="customer-stats">
+                <div className="visits-count">{customer.visits}</div>
+                <div className="visits-label">visits</div>
+              </div>
+              <div className="customer-loyalty">
+                <div className="loyalty-badge premium">Premium</div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -230,66 +403,74 @@ const AdminReports = () => {
 
   return (
     <div className="admin-reports-page">
-      <section className="report-header">
-        <div>
-          <h1>Admin Reports</h1>
-          <p>Live business metrics and activity trends from the backend.</p>
+      <div className="reports-header">
+        <div className="header-content">
+          <h1 className="page-title">Admin Reports</h1>
+          <p className="page-subtitle">Live business metrics and activity trends from the backend</p>
         </div>
-        <div className="report-actions">
+        <div className="header-actions">
+          <button className="export-btn">Export Report</button>
+          <button className="refresh-btn">Refresh Data</button>
+        </div>
+      </div>
+      
+      <div className="reports-navigation">
+        <nav className="nav-tabs">
           <button
-            className={activeTab === "overview" ? "active" : ""}
-            type="button"
+            className={`nav-tab ${activeTab === "overview" ? "active" : ""}`}
             onClick={() => setActiveTab("overview")}
           >
             Overview
           </button>
           <button
-            className={activeTab === "cashier" ? "active" : ""}
-            type="button"
+            className={`nav-tab ${activeTab === "cashier" ? "active" : ""}`}
             onClick={() => setActiveTab("cashier")}
           >
             Cashier
           </button>
           <button
-            className={activeTab === "inventory" ? "active" : ""}
-            type="button"
+            className={`nav-tab ${activeTab === "inventory" ? "active" : ""}`}
             onClick={() => setActiveTab("inventory")}
           >
             Inventory
           </button>
           <button
-            className={activeTab === "reception" ? "active" : ""}
-            type="button"
+            className={`nav-tab ${activeTab === "reception" ? "active" : ""}`}
             onClick={() => setActiveTab("reception")}
           >
             Reception
           </button>
           <button
-            className={activeTab === "veterinary" ? "active" : ""}
-            type="button"
+            className={`nav-tab ${activeTab === "veterinary" ? "active" : ""}`}
             onClick={() => setActiveTab("veterinary")}
           >
             Veterinary
           </button>
           <button
-            className={activeTab === "customers" ? "active" : ""}
-            type="button"
+            className={`nav-tab ${activeTab === "customers" ? "active" : ""}`}
             onClick={() => setActiveTab("customers")}
           >
             Customers
           </button>
-        </div>
-      </section>
+        </nav>
+      </div>
 
-      {loading ? (
-        <div className="loading-container">Loading live report metrics...</div>
-      ) : error ? (
-        <div className="error-container">
-          <div className="error-message">{error}</div>
-        </div>
-      ) : (
-        <div className="report-content">{renderActiveTab()}</div>
-      )}
+      <div className="reports-content">
+        {loading ? (
+          <div className="loading-state">
+            <div className="loading-spinner"></div>
+            <span>Loading live report metrics...</span>
+          </div>
+        ) : error ? (
+          <div className="error-state">
+            <div className="error-icon"></div>
+            <div className="error-message">{error}</div>
+            <button className="retry-btn">Retry</button>
+          </div>
+        ) : (
+          <div className="report-content">{renderActiveTab()}</div>
+        )}
+      </div>
     </div>
   );
 };

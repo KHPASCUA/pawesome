@@ -34,11 +34,13 @@
 
 .header-actions {
   display: flex;
-  gap: 10px;
+  gap: 12px;
+  align-items: center;
+  flex-shrink: 0;
 }
 
 .action-btn {
-  background: #007bff;
+  background: #6c757d;
   color: white;
   border: none;
   padding: 10px 16px;
@@ -48,11 +50,26 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  transition: background 0.2s ease;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  min-width: fit-content;
+  position: relative;
+  z-index: 1;
 }
 
 .action-btn:hover {
-  background: #0056b3;
+  background: #ffffff;
+  color: #6c757d;
+  border: 1px solid #6c757d;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.action-btn:first-child:hover,
+.action-btn:last-child:hover {
+  background: #ffffff;
+  color: #6c757d;
+  border: 1px solid #6c757d;
 }
 
 /* Success/Error Messages */

@@ -438,7 +438,6 @@ const History = () => {
             />
           </div>
           <div className="filter-dropdown">
-            <FontAwesomeIcon icon={faFilter} />
             <select
               value={filterCategory}
               onChange={(e) => setFilterCategory(e.target.value)}
@@ -450,7 +449,6 @@ const History = () => {
             </select>
           </div>
           <div className="filter-dropdown">
-            <FontAwesomeIcon icon={faUser} />
             <select
               value={filterUser}
               onChange={(e) => setFilterUser(e.target.value)}
@@ -464,7 +462,6 @@ const History = () => {
             </select>
           </div>
           <div className="filter-dropdown">
-            <FontAwesomeIcon icon={faBuilding} />
             <select
               value={filterAccount}
               onChange={(e) => setFilterAccount(e.target.value)}
@@ -478,7 +475,6 @@ const History = () => {
             </select>
           </div>
           <div className="filter-dropdown">
-            <FontAwesomeIcon icon={faCalendarAlt} />
             <select
               value={filterDate}
               onChange={(e) => setFilterDate(e.target.value)}
