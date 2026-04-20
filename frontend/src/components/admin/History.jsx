@@ -54,7 +54,9 @@ const History = () => {
       setError("");
       
       // Fetch from multiple endpoints to build history
-      const [chatbotLogs, inventoryLogs, salesData, appointmentsData] = await Promise.allSettled([
+      const [activityLogs, loginLogs, chatbotLogs, inventoryLogs, salesData, appointmentsData] = await Promise.allSettled([
+        apiRequest("/admin/activity-logs").catch(() => []),
+        apiRequest("/admin/login-logs").catch(() => []),
         apiRequest("/admin/chatbot/logs").catch(() => []),
         apiRequest("/inventory/logs").catch(() => []),
         apiRequest("/cashier/transactions").catch(() => []),
@@ -63,6 +65,46 @@ const History = () => {
       
       const historyEntries = [];
       let idCounter = 1;
+      
+      // Process activity logs (from seeded data)
+      if (activityLogs.status === 'fulfilled') {
+        const activities = activityLogs.value?.data || activityLogs.value || [];
+        activities.forEach(log => {
+          historyEntries.push({
+            id: idCounter++,
+            category: log.category || "general",
+            subcategory: log.subcategory || "activity",
+            user_name: log.user?.name || log.user_name || "System",
+            user_role: log.user?.role || log.user_role || "admin",
+            action: log.action || "Activity performed",
+            description: log.description || "System activity",
+            reference_id: log.reference_id || `ACT-${log.id}`,
+            status: "completed",
+            created_at: log.created_at,
+            metadata: log.metadata || {}
+          });
+        });
+      }
+      
+      // Process login logs (from seeded data)
+      if (loginLogs.status === 'fulfilled') {
+        const logs = loginLogs.value?.data || loginLogs.value || [];
+        logs.forEach(log => {
+          historyEntries.push({
+            id: idCounter++,
+            category: "login",
+            subcategory: log.action === 'logout' ? "logout" : "login",
+            user_name: log.user?.name || log.email || "Unknown",
+            user_role: log.user?.role || "unknown",
+            action: log.action === 'logout' ? "Logged out" : "Logged in",
+            description: log.status === 'success' ? "Successful authentication" : `Failed: ${log.failure_reason || 'Invalid credentials'}`,
+            reference_id: `LOGIN-${log.id}`,
+            status: log.status,
+            created_at: log.created_at || log.login_at,
+            metadata: { ip_address: log.ip_address, user_agent: log.user_agent }
+          });
+        });
+      }
       
       // Process chatbot logs
       if (chatbotLogs.status === 'fulfilled' && Array.isArray(chatbotLogs.value)) {
