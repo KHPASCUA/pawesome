@@ -246,6 +246,24 @@
   overflow-y: auto;
   max-height: calc(100vh - 280px);
   padding-right: 0.5rem;
+  min-height: 200px;
+}
+
+/* No Products Message */
+.no-products {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 4rem 2rem;
+  background: white;
+  border-radius: 16px;
+  color: #64748b;
+  font-size: 1rem;
+  font-weight: 500;
+  border: 2px dashed #e2e8f0;
+}
+
+.no-products p {
+  margin: 0;
 }
 
 /* Custom Scrollbar */
@@ -363,13 +381,16 @@
   line-height: 1.4;
 }
 
-.product-card-body span {
+.product-card-body span,
+.product-card-body .product-price {
   font-size: 1.25rem;
   font-weight: 700;
   background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  display: block;
+  margin: 0.25rem 0;
 }
 
 .stock-info {

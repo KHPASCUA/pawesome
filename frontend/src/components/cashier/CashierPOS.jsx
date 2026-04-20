@@ -196,26 +196,41 @@ const CashierPOS = ({ onCheckout }) => {
         </div>
 
         <div className="pos-product-grid">
-          {filteredProducts.map((product) => (
-            <article className={`product-card ${product.itemType === "service" ? "service-item" : ""}`} key={`${product.itemType}-${product.id}`}>
-              <div className="product-thumb">
-                {product.itemType === "service" && <span className="service-badge">SVC</span>}
-              </div>
-              <div className="product-card-body">
-                <strong>{product.name}</strong>
-                <span>{formatPrice(product.price)}</span>
-                {product.stock !== undefined && <small className="stock-info">Stock: {product.stock}</small>}
-              </div>
-              <button 
-                type="button" 
-                className="product-add" 
-                onClick={() => addToCart(product)}
-                disabled={product.stock !== undefined && product.stock <= 0}
+          {filteredProducts.length === 0 ? (
+            <div className="no-products">
+              <p>No products found in this category</p>
+            </div>
+          ) : (
+            filteredProducts.map((product) => (
+              <article 
+                className={`product-card ${product.itemType === "service" ? "service-item" : ""}`} 
+                key={`${product.itemType}-${product.id}`}
               >
-                {product.stock !== undefined && product.stock <= 0 ? "Out of Stock" : "Add"}
-              </button>
-            </article>
-          ))}
+                <div className="product-thumb">
+                  {product.itemType === "service" && <span className="service-badge">SVC</span>}
+                </div>
+                <div className="product-card-body">
+                  <strong>{product.name || "Unnamed Product"}</strong>
+                  <span className="product-price">{formatPrice(product.price || 0)}</span>
+                  {product.itemType === "product" && (
+                    <small className="stock-info">
+                      {product.stock !== undefined ? `Stock: ${product.stock}` : "In Stock"}
+                    </small>
+                  )}
+                </div>
+                <button 
+                  type="button" 
+                  className="product-add" 
+                  onClick={() => addToCart(product)}
+                  disabled={product.itemType === "product" && product.stock !== undefined && product.stock <= 0}
+                >
+                  {product.itemType === "product" && product.stock !== undefined && product.stock <= 0 
+                    ? "Out of Stock" 
+                    : "Add to Cart"}
+                </button>
+              </article>
+            ))
+          )}
         </div>
       </main>
 
