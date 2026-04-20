@@ -59,7 +59,7 @@ const AdminProfile = () => {
         method: "POST",
         body: JSON.stringify({
           email: "admin@example.com",
-          password: "password"
+          password: "admin123"
         })
       });
       
@@ -208,13 +208,13 @@ const AdminProfile = () => {
     
     try {
       console.log("Attempting login to:", "http://127.0.0.1:8001/api/auth/login");
-      console.log("Credentials:", { email: "admin@example.com", password: "password" });
+      console.log("Credentials:", { email: "admin@example.com", password: "admin123" });
       
       const response = await apiRequest("/auth/login", {
         method: "POST",
         body: JSON.stringify({
           email: "admin@example.com",
-          password: "password"
+          password: "admin123"
         })
       });
       
