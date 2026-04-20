@@ -26,11 +26,11 @@ import {
   faTrash,
   faPlus,
   faChartLine,
-  faBullseye,
-  faHeartbeat,
   faHotel,
 } from "@fortawesome/free-solid-svg-icons";
 import { boardingApi } from "../../api/boardings";
+import { apiRequest } from "../../api/client";
+import { formatCurrency } from "../../utils/currency";
 import ManagerSidebar from "./ManagerSidebar";
 import RoleAwareChatbot from "../chatbot/RoleAwareChatbot";
 import NotificationDropdown from "../shared/NotificationDropdown";
@@ -55,6 +55,10 @@ const ManagerDashboard = () => {
   const location = useLocation();
 
   // Enhanced data with more realistic metrics
+  const [dashboardData, setDashboardData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  
   const [realTimeData, setRealTimeData] = useState({
     onlineStaff: 18,
     totalTasks: 156,
@@ -68,43 +72,64 @@ const ManagerDashboard = () => {
   const normalizedPath = location.pathname.replace(/\/+$/, "");
   const showOverview = normalizedPath === "/manager";
 
+  // Fetch dashboard data from backend
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true);
+        const data = await apiRequest("/manager/dashboard");
+        setDashboardData(data);
+        setError("");
+      } catch (err) {
+        setError(err.message || "Failed to load dashboard data");
+        console.error("Manager dashboard fetch error:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (showOverview) {
+      fetchDashboardData();
+    }
+  }, [showOverview]);
+
   // Enhanced summary cards with real-time data
-  const summaryCards = useMemo(() => [
+  const summaryCards = useMemo(() => dashboardData ? [
     {
       title: "Team Members",
-      value: realTimeData.onlineStaff,
-      subtitle: `${realTimeData.onlineStaff} online now`,
-      change: "+2",
+      value: dashboardData.total_staff || 0,
+      subtitle: `${dashboardData.active_staff || 0} active`,
+      change: "",
       icon: faUsers,
       color: "blue",
       trend: "up",
     },
     {
-      title: "Active Projects",
-      value: realTimeData.activeProjects,
-      subtitle: "In progress",
-      change: "+1",
-      icon: faBullseye,
+      title: "Today's Appointments",
+      value: dashboardData.today_appointments || 0,
+      subtitle: "Scheduled",
+      change: "",
+      icon: faCalendarAlt,
       color: "green",
       trend: "up",
     },
     {
       title: "Tasks Completed",
-      value: realTimeData.completedTasks,
-      subtitle: `${realTimeData.pendingTasks} pending`,
-      change: "+23",
+      value: dashboardData.completed_appointments || 0,
+      subtitle: `${dashboardData.pending_appointments || 0} pending`,
+      change: "",
       icon: faCheck,
       color: "purple",
       trend: "up",
     },
     {
-      title: "System Health",
-      value: realTimeData.systemHealth,
-      subtitle: `Server load: ${realTimeData.serverLoad}%`,
-      change: realTimeData.serverLoad > 80 ? "-2%" : "+1%",
-      icon: faHeartbeat,
-      color: realTimeData.serverLoad > 80 ? "red" : "orange",
-      trend: realTimeData.serverLoad > 80 ? "down" : "up",
+      title: "Revenue Today",
+      value: formatCurrency(dashboardData.today_revenue || 0),
+      subtitle: `Month: ${formatCurrency(dashboardData.monthly_revenue || 0)}`,
+      change: "",
+      icon: faChartLine,
+      color: dashboardData.monthly_revenue > 5000 ? "green" : "orange",
+      trend: dashboardData.monthly_revenue > 5000 ? "up" : "stable",
     },
     {
       title: "Hotel Occupancy",
@@ -115,7 +140,7 @@ const ManagerDashboard = () => {
       color: hotelStats.occupancyRate > 80 ? "green" : hotelStats.occupancyRate > 50 ? "blue" : "orange",
       trend: hotelStats.occupancyRate > 60 ? "up" : "stable",
     },
-  ], [realTimeData, hotelStats]);
+  ] : [], [dashboardData, hotelStats]);
 
   const teamPerformance = useMemo(() => [
     {

@@ -14,6 +14,7 @@ import {
   faExclamationTriangle,
 } from "@fortawesome/free-solid-svg-icons";
 import { apiRequest } from "../../api/client";
+import { formatCurrency } from "../../utils/currency";
 import "./VetReceipt.css";
 
 const VetReceipt = () => {
@@ -175,7 +176,7 @@ const VetReceipt = () => {
                 <div className="service-name">{receiptData.service_name}</div>
                 <div className="service-price">
                   <FontAwesomeIcon icon={faDollarSign} />
-                  {receiptData.service_cost?.toFixed(2)}
+                  {formatCurrency(receiptData.service_cost)}
                 </div>
               </div>
               <div className="service-details">
@@ -189,13 +190,13 @@ const VetReceipt = () => {
                   <div className="service-name">Additional Services</div>
                   <div className="service-price">
                     <FontAwesomeIcon icon={faDollarSign} />
-                    {receiptData.additional_services.reduce((sum, service) => sum + (service.cost || 0), 0).toFixed(2)}
+                    {formatCurrency(receiptData.additional_services.reduce((sum, service) => sum + (service.cost || 0), 0))}
                   </div>
                 </div>
                 <div className="service-details">
                   {receiptData.additional_services.map((service, index) => (
                     <div key={index} className="additional-service">
-                      {service.name} - ${(service.cost || 0).toFixed(2)}
+                      {service.name} - {formatCurrency(service.cost)}
                     </div>
                   ))}
                 </div>
@@ -206,19 +207,19 @@ const VetReceipt = () => {
           <div className="receipt-footer">
             <div className="total-section">
               <div className="total-label">Subtotal:</div>
-              <div className="total-amount">${receiptData.subtotal?.toFixed(2)}</div>
+              <div className="total-amount">{formatCurrency(receiptData.subtotal)}</div>
             </div>
             
             {receiptData.tax && (
               <div className="total-section">
                 <div className="total-label">Tax:</div>
-                <div className="total-amount">${receiptData.tax?.toFixed(2)}</div>
+                <div className="total-amount">{formatCurrency(receiptData.tax)}</div>
               </div>
             )}
             
             <div className="total-section">
               <div className="total-label">Total:</div>
-              <div className="total-amount">${receiptData.total?.toFixed(2)}</div>
+              <div className="total-amount">{formatCurrency(receiptData.total)}</div>
             </div>
             
             <div className="payment-info">

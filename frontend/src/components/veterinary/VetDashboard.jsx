@@ -13,7 +13,7 @@ import {
   faPhone,
   faExclamationTriangle,
 } from "@fortawesome/free-solid-svg-icons";
-import { boardingApi } from "../../api/boardings";
+import { apiRequest } from "../../api/client";
 import VeterinarySidebar from "./VeterinarySidebar";
 import RoleAwareChatbot from "../chatbot/RoleAwareChatbot";
 import NotificationDropdown from "../shared/NotificationDropdown";
@@ -23,82 +23,76 @@ const VetDashboard = () => {
   const name = localStorage.getItem("name") || "Veterinarian";
   const [theme, setTheme] = useState("light");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [dashboardData, setDashboardData] = useState(null);
   const [currentBoarders, setCurrentBoarders] = useState([]);
   const [loadingBoarders, setLoadingBoarders] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const location = useLocation();
-
-  // Fetch current boarders on mount
-  useEffect(() => {
-    fetchCurrentBoarders();
-  }, []);
-
-  const fetchCurrentBoarders = async () => {
-    try {
-      setLoadingBoarders(true);
-      const response = await boardingApi.getCurrentBoarders();
-      if (response.current_boarders) {
-        setCurrentBoarders(response.current_boarders.data || []);
-      }
-    } catch (error) {
-      console.error("Failed to fetch current boarders:", error);
-    } finally {
-      setLoadingBoarders(false);
-    }
-  };
-
   const normalizedPath = location.pathname.replace(/\/+$/, "");
   const showOverview = normalizedPath === "/veterinary" || normalizedPath === "/vet";
 
-  const summaryCards = [
+  // Fetch dashboard data from backend
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true);
+        setLoadingBoarders(true);
+        const [data, boarders] = await Promise.all([
+          apiRequest("/veterinary/dashboard"),
+          apiRequest("/veterinary/boardings/current-boarders"),
+        ]);
+        setDashboardData(data);
+        setCurrentBoarders(Array.isArray(boarders) ? boarders : []);
+        setError("");
+      } catch (err) {
+        setError(err.message || "Failed to load dashboard data");
+        console.error("Vet dashboard fetch error:", err);
+      } finally {
+        setLoading(false);
+        setLoadingBoarders(false);
+      }
+    };
+
+    if (showOverview) {
+      fetchDashboardData();
+    }
+  }, [showOverview]);
+
+  const summaryCards = dashboardData ? [
     {
       title: "Today's Appointments",
-      value: 8,
+      value: dashboardData.today_appointments || 0,
       subtitle: "Scheduled today",
-      change: "+2",
+      change: "",
     },
     {
       title: "Active Patients",
-      value: 42,
-      subtitle: "Under care",
-      change: "+5",
+      value: dashboardData.total_patients || 0,
+      subtitle: "Patient records",
+      change: "",
     },
     {
       title: "Completed Checkups",
-      value: 156,
-      subtitle: "This month",
-      change: "+12",
+      value: dashboardData.completed_appointments || 0,
+      subtitle: "Total completed",
+      change: "",
     },
     {
-      title: "Current Boarders",
-      value: currentBoarders.length,
-      subtitle: "Pets in hotel",
-      change: loadingBoarders ? "..." : "View →",
+      title: "Pending Appointments",
+      value: dashboardData.pending_appointments || 0,
+      subtitle: "Awaiting confirmation",
+      change: "",
     },
-  ];
+  ] : [];
 
-  const todayAppointments = [
-    {
-      petName: "Max",
-      ownerName: "John Smith",
-      time: "09:00 AM",
-      type: "Regular Checkup",
-      status: "Confirmed",
-    },
-    {
-      petName: "Bella",
-      ownerName: "Sarah Johnson",
-      time: "10:30 AM",
-      type: "Vaccination",
-      status: "Confirmed",
-    },
-    {
-      petName: "Charlie",
-      ownerName: "Mike Davis",
-      time: "02:00 PM",
-      type: "Surgery Consultation",
-      status: "Pending",
-    },
-  ];
+  const todayAppointments = dashboardData ? (dashboardData.upcoming_appointments || []).map((apt) => ({
+    petName: apt.pet?.name || "Pet",
+    ownerName: apt.customer?.name || "Customer",
+    time: new Date(apt.scheduled_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    type: apt.service?.name || "Service",
+    status: apt.status || "pending",
+  })) : [];
 
   return (
     <div className={`vet-dashboard ${theme} ${sidebarCollapsed ? "collapsed" : ""}`}>

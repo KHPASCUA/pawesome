@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Outlet, NavLink, useLocation } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -14,67 +14,77 @@ import {
 import InventorySidebar from "./InventorySidebar";
 import RoleAwareChatbot from "../chatbot/RoleAwareChatbot";
 import NotificationDropdown from "../shared/NotificationDropdown";
+import { apiRequest } from "../../api/client";
+import { formatCurrency } from "../../utils/currency";
 import "./InventoryDashboard.css";
 
 const InventoryDashboard = () => {
   const name = localStorage.getItem("name") || "Inventory Manager";
   const [theme, setTheme] = useState("light");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [dashboardData, setDashboardData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const location = useLocation();
 
   const normalizedPath = location.pathname.replace(/\/+$/, "");
   const showOverview = normalizedPath === "/inventory";
 
-  const summaryCards = [
+  // Fetch dashboard data from backend
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true);
+        const data = await apiRequest("/inventory/dashboard");
+        setDashboardData(data);
+        setError("");
+      } catch (err) {
+        setError(err.message || "Failed to load dashboard data");
+        console.error("Inventory dashboard fetch error:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (showOverview) {
+      fetchDashboardData();
+    }
+  }, [showOverview]);
+
+  const summaryCards = dashboardData ? [
     {
       title: "Total Products",
-      value: "1,247",
+      value: dashboardData.total_items || 0,
       subtitle: "In inventory",
-      change: "+45",
+      change: "",
     },
     {
       title: "Low Stock Items",
-      value: 23,
+      value: dashboardData.low_stock_items || 0,
       subtitle: "Need reorder",
-      change: "-5",
+      change: "",
     },
     {
-      title: "Warehouse Capacity",
-      value: 78,
-      subtitle: "% utilized",
-      change: "+3%",
+      title: "Out of Stock",
+      value: dashboardData.out_of_stock_items || 0,
+      subtitle: "Items",
+      change: "",
     },
     {
-      title: "Pending Orders",
-      value: 12,
-      subtitle: "Awaiting delivery",
-      change: "+2",
+      title: "Stock Value",
+      value: formatCurrency(dashboardData.total_stock_value || 0),
+      subtitle: "Total value",
+      change: "",
     },
-  ];
+  ] : [];
 
-  const recentActivity = [
-    {
-      action: "New shipment received",
-      product: "Premium Pet Food",
-      quantity: 50,
-      time: "2 hours ago",
-      status: "completed",
-    },
-    {
-      action: "Stock level critical",
-      product: "Cat Toys Variety Pack",
-      quantity: 3,
-      time: "4 hours ago",
-      status: "warning",
-    },
-    {
-      action: "Order placed",
-      product: "Dog Shampoo Bulk",
-      quantity: 100,
-      time: "6 hours ago",
-      status: "pending",
-    },
-  ];
+  const recentActivity = dashboardData ? (dashboardData.recent_transactions || []).map((transaction) => ({
+    action: transaction.action || "Transaction",
+    product: transaction.item_name || "Item",
+    quantity: transaction.quantity || 0,
+    time: new Date(transaction.created_at).toLocaleDateString(),
+    status: transaction.status || "completed",
+  })) : [];
 
   return (
     <div className={`inventory-dashboard ${theme} ${sidebarCollapsed ? "collapsed" : ""}`}>

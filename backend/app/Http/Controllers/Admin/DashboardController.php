@@ -26,7 +26,13 @@ class DashboardController extends Controller
             'completed_appointments' => Appointment::where('status', 'completed')->count(),
             'total_revenue' => Sale::sum('amount'),
             'today_revenue' => Sale::whereDate('created_at', $today)->sum('amount'),
-            'low_stock_items' => InventoryItem::where('stock', '<=', 'reorder_level')->count(),
+            'low_stock_items' => InventoryItem::whereColumn('stock', '<=', 'reorder_level')->count(),
+            'appointments_by_status' => Appointment::selectRaw('status, COUNT(*) as count')
+                ->groupBy('status')
+                ->get(),
+            'users_by_role' => User::selectRaw('role, COUNT(*) as count')
+                ->groupBy('role')
+                ->get(),
             'recent_users' => User::latest()->take(5)->get(),
             'recent_appointments' => Appointment::with(['customer', 'pet', 'service'])->latest()->take(5)->get(),
         ]);

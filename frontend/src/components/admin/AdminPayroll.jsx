@@ -20,6 +20,7 @@ import {
   faCalculator,
 } from "@fortawesome/free-solid-svg-icons";
 import "./AdminPayroll.css";
+import { formatCurrency } from "../../utils/currency";
 
 const AdminPayroll = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -188,7 +189,7 @@ const AdminPayroll = () => {
             <FontAwesomeIcon icon={faMoneyBillWave} />
           </div>
           <div className="card-content">
-            <h3>${payrollSummary.totalNetPay.toLocaleString()}</h3>
+            <h3>{formatCurrency(payrollSummary.totalNetPay)}</h3>
             <p>Total Net Pay</p>
           </div>
         </div>
@@ -289,16 +290,16 @@ const AdminPayroll = () => {
                   <span className="department-badge">{payroll.department}</span>
                 </td>
                 <td className="salary">
-                  <span className="amount">${payroll.salary.toLocaleString()}</span>
+                  <span className="amount">{formatCurrency(payroll.salary)}</span>
                 </td>
                 <td className="bonus">
-                  <span className="amount positive">+${payroll.bonus.toLocaleString()}</span>
+                  <span className="amount positive">+{formatCurrency(payroll.bonus)}</span>
                 </td>
                 <td className="deductions">
-                  <span className="amount negative">-${payroll.deductions.toLocaleString()}</span>
+                  <span className="amount negative">-{formatCurrency(payroll.deductions)}</span>
                 </td>
                 <td className="net-pay">
-                  <span className="amount net-pay-amount">${payroll.netPay.toLocaleString()}</span>
+                  <span className="amount net-pay-amount">{formatCurrency(payroll.netPay)}</span>
                 </td>
                 <td className="pay-period">
                   <span className="period-badge">
@@ -384,19 +385,19 @@ const AdminPayroll = () => {
                 <h3>Payroll Breakdown</h3>
                 <div className="breakdown-item">
                   <label>Base Salary:</label>
-                  <span className="amount">${selectedPayroll.salary.toLocaleString()}</span>
+                  <span className="amount">{formatCurrency(selectedPayroll.salary)}</span>
                 </div>
                 <div className="breakdown-item">
                   <label>Bonus:</label>
-                  <span className="amount positive">+${selectedPayroll.bonus.toLocaleString()}</span>
+                  <span className="amount positive">+{formatCurrency(selectedPayroll.bonus)}</span>
                 </div>
                 <div className="breakdown-item">
                   <label>Deductions:</label>
-                  <span className="amount negative">-${selectedPayroll.deductions.toLocaleString()}</span>
+                  <span className="amount negative">-{formatCurrency(selectedPayroll.deductions)}</span>
                 </div>
                 <div className="breakdown-item total">
                   <label>Net Pay:</label>
-                  <span className="amount net-pay-amount">${selectedPayroll.netPay.toLocaleString()}</span>
+                  <span className="amount net-pay-amount">{formatCurrency(selectedPayroll.netPay)}</span>
                 </div>
               </div>
             </div>

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Notification;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Validator;
@@ -23,14 +24,14 @@ class NotificationController extends Controller
         }
 
         // Limit results
-        $limit = $request->get('limit', 20);
+        $limit = max(1, min((int) $request->get('limit', 20), 50));
         $notifications = $query->recent($limit)->get();
 
         // Get unread count
         $unreadCount = Notification::forUser($user->id)->unread()->count();
 
         return response()->json([
-            'notifications' => $notifications,
+            'notifications' => $notifications->map(fn (Notification $notification) => $this->formatNotification($notification)),
             'unread_count' => $unreadCount,
         ]);
     }
@@ -40,6 +41,13 @@ class NotificationController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
+        /** @var User $actor */
+        $actor = $request->user();
+
+        if ($actor->role !== 'admin') {
+            return response()->json(['message' => 'Only administrators can create notifications.'], 403);
+        }
+
         $validator = Validator::make($request->all(), [
             'user_id' => 'required|exists:users,id',
             'title' => 'required|string|max:255',
@@ -149,5 +157,22 @@ class NotificationController extends Controller
         $count = Notification::forUser($user->id)->unread()->count();
 
         return response()->json(['unread_count' => $count]);
+    }
+
+    private function formatNotification(Notification $notification): array
+    {
+        return [
+            'id' => $notification->id,
+            'title' => $notification->title,
+            'message' => $notification->message,
+            'type' => $notification->type,
+            'read' => $notification->read,
+            'related_type' => $notification->related_type,
+            'related_id' => $notification->related_id,
+            'data' => $notification->data,
+            'read_at' => optional($notification->read_at)?->toIso8601String(),
+            'created_at' => optional($notification->created_at)?->toIso8601String(),
+            'time' => optional($notification->created_at)?->diffForHumans() ?? 'Just now',
+        ];
     }
 }

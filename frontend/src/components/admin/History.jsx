@@ -29,6 +29,7 @@ import {
   faBuilding,
 } from "@fortawesome/free-solid-svg-icons";
 import { apiRequest } from "../../api/client";
+import { formatCurrency } from "../../utils/currency";
 import "./History.css";
 
 const History = () => {
@@ -61,7 +62,7 @@ const History = () => {
       action: "Payment received for consultation",
       description: "Customer payment for pet consultation - Golden Retriever",
       amount: 150.00,
-      currency: "USD",
+      currency: "PHP",
       reference_id: "PAY-2026-001",
       status: "completed",
       ip_address: "192.168.1.100",
@@ -86,7 +87,7 @@ const History = () => {
       action: "Product sale completed",
       description: "Sale of pet food and accessories",
       amount: 75.50,
-      currency: "USD",
+      currency: "PHP",
       reference_id: "SALE-2026-042",
       status: "completed",
       ip_address: "192.168.1.101",
@@ -178,7 +179,7 @@ const History = () => {
       action: "Refund processed",
       description: "Refund for cancelled appointment",
       amount: -50.00,
-      currency: "USD",
+      currency: "PHP",
       reference_id: "REF-2026-003",
       status: "completed",
       ip_address: "192.168.1.101",
@@ -327,13 +328,9 @@ const History = () => {
   };
 
   // Format amount
-  const formatAmount = (amount, currency = 'USD') => {
+  const formatAmount = (amount) => {
     if (amount === null || amount === undefined) return "N/A";
-    const formatted = new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currency
-    }).format(amount);
-    return formatted;
+    return formatCurrency(amount);
   };
 
   // Get category icon
@@ -553,7 +550,7 @@ const History = () => {
                   <td className="amount">
                     {log.amount !== null && log.amount !== undefined ? (
                       <span className={log.amount < 0 ? 'negative-amount' : 'positive-amount'}>
-                        {formatAmount(log.amount, log.currency)}
+                        {formatAmount(log.amount)}
                       </span>
                     ) : (
                       "N/A"
@@ -658,7 +655,7 @@ const History = () => {
                     <div className="detail-item">
                       <label>Amount:</label>
                       <span className={selectedLog.amount < 0 ? 'negative-amount' : 'positive-amount'}>
-                        {formatAmount(selectedLog.amount, selectedLog.currency)}
+                        {formatAmount(selectedLog.amount)}
                       </span>
                     </div>
                   )}

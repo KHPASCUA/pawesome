@@ -154,7 +154,7 @@ class ChatbotService
         $availableRooms = HotelRoom::where('status', 'available')
             ->orderBy('daily_rate')
             ->limit(5)
-            ->get(['room_number', 'type', 'size', 'daily_rate', 'capacity', 'features']);
+            ->get(['room_number', 'type', 'size', 'daily_rate', 'capacity', 'amenities']);
 
         // Get occupancy stats
         $totalRooms = HotelRoom::count();
@@ -173,7 +173,7 @@ class ChatbotService
                 'size' => $room->size,
                 'rate' => $room->daily_rate,
                 'capacity' => $room->capacity,
-                'features' => $room->features,
+                'amenities' => $room->amenities,
             ];
         }
 

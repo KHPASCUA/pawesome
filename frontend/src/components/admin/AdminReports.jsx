@@ -13,81 +13,17 @@ import {
   faCalendarAlt,
   faStar,
 } from "@fortawesome/free-solid-svg-icons";
+import { apiRequest } from "../../api/client";
+import { formatCurrency } from "../../utils/currency";
 import "./AdminReports.css";
 
 const AdminReports = () => {
   const location = useLocation();
   const [activeTab, setActiveTab] = useState("overview");
-  const [filterAccount, setFilterAccount] = useState("all");
-  const [filterDate, setFilterDate] = useState("month");
+  const [reportData, setReportData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  // Simple mock data
-  const mockData = {
-    overview: {
-      totalRevenue: 125750.50,
-      totalExpenses: 45320.75,
-      netProfit: 80429.75,
-      totalTransactions: 1247,
-      totalCustomers: 892,
-      monthlyTrend: [
-        { month: "Jan", revenue: 45000, expenses: 18000 },
-        { month: "Feb", revenue: 52000, expenses: 20000 },
-        { month: "Mar", revenue: 48500, expenses: 17320 },
-        { month: "Apr", revenue: 61000, expenses: 22000 },
-      ]
-    },
-    cashier: {
-      totalSales: 98500.50,
-      totalRefunds: 3250.00,
-      netRevenue: 95250.50,
-      topProducts: [
-        { name: "Premium Dog Food", sales: 156, revenue: 3900.00 },
-        { name: "Cat Food Premium", sales: 142, revenue: 2840.00 },
-        { name: "Pet Toys Bundle", sales: 89, revenue: 2670.00 },
-      ],
-    },
-    inventory: {
-      totalItems: 1247,
-      lowStockItems: 23,
-      outOfStockItems: 5,
-      categories: [
-        { name: "Pet Food", items: 234, value: 12340.50 },
-        { name: "Medications", items: 156, value: 15670.75 },
-        { name: "Toys & Accessories", items: 189, value: 8920.00 },
-      ],
-    },
-    reception: {
-      totalAppointments: 1456,
-      completedAppointments: 1234,
-      cancelledAppointments: 156,
-      staffPerformance: [
-        { name: "Dr. Sarah Johnson", appointments: 156, completionRate: 92.3, avgRating: 4.8 },
-        { name: "Dr. James Wilson", appointments: 142, completionRate: 89.1, avgRating: 4.7 },
-        { name: "Dr. Emily Davis", appointments: 134, completionRate: 87.3, avgRating: 4.6 },
-        { name: "Dr. Mike Chen", appointments: 128, completionRate: 85.9, avgRating: 4.5 },
-      ]
-    },
-    veterinary: {
-      totalPatients: 892,
-      newPatients: 156,
-      totalTreatments: 2345,
-      totalSurgeries: 89,
-      totalVaccinations: 456,
-    },
-    customers: {
-      totalCustomers: 892,
-      newCustomers: 156,
-      returningCustomers: 736,
-      customerRetentionRate: 82.5,
-      topCustomers: [
-        { name: "John Smith", visits: 23, spent: 3450.75 },
-        { name: "Sarah Johnson", visits: 19, spent: 2890.50 },
-        { name: "Mike Chen", visits: 17, spent: 2567.25 },
-      ],
-    }
-  };
-
-  // Update active tab when route changes
   useEffect(() => {
     const path = location.pathname;
     if (path === "/admin" || path === "/admin/reports") {
@@ -95,87 +31,77 @@ const AdminReports = () => {
     }
   }, [location.pathname]);
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(amount);
-  };
+  useEffect(() => {
+    const fetchReportData = async () => {
+      try {
+        setLoading(true);
+        const data = await apiRequest("/admin/reports/summary");
+        setReportData(data);
+        setError("");
+      } catch (err) {
+        setError(err.message || "Failed to load report data");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchReportData();
+  }, []);
 
   const formatPercentage = (value) => {
-    return `${value.toFixed(1)}%`;
+    return `${Number(value || 0).toFixed(1)}%`;
   };
 
-  // Simple render functions
+  const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const monthlyTrend = reportData?.monthly_revenue?.map((item) => ({
+    month: monthNames[(item.month ?? 1) - 1] || "N/A",
+    revenue: Number(item.total) || 0,
+  })) || [];
+
   const renderOverview = () => (
     <div className="simple-reports">
       <h3>Overview</h3>
       <div className="simple-stats">
         <div className="simple-stat">
-          <strong>Total Revenue:</strong> {formatCurrency(mockData.overview.totalRevenue)}
+          <strong>Total Revenue:</strong> {formatCurrency(reportData?.total_revenue)}
         </div>
         <div className="simple-stat">
-          <strong>Total Expenses:</strong> {formatCurrency(mockData.overview.totalExpenses)}
+          <strong>Total Transactions:</strong> {reportData?.total_transactions || 0}
         </div>
         <div className="simple-stat">
-          <strong>Net Profit:</strong> {formatCurrency(mockData.overview.netProfit)}
+          <strong>Total Customers:</strong> {reportData?.total_customers || 0}
         </div>
         <div className="simple-stat">
-          <strong>Total Transactions:</strong> {mockData.overview.totalTransactions}
+          <strong>New Customers (30d):</strong> {reportData?.new_customers || 0}
         </div>
         <div className="simple-stat">
-          <strong>Total Customers:</strong> {mockData.overview.totalCustomers}
+          <strong>Total Users:</strong> {reportData?.total_users || 0}
         </div>
       </div>
       
       <h4>Monthly Revenue Trend</h4>
       <div className="column-line-chart">
         <div className="chart-container">
-          <svg width="100%" height="200" viewBox="0 0 400 200">
-            {/* Grid lines */}
+          <svg width="100%" height="220" viewBox="0 0 400 220">
             {[0, 50, 100, 150, 200].map((y) => (
               <line key={y} x1="0" y1={y} x2="400" y2={y} stroke="#e9ecef" strokeWidth="1" />
             ))}
-            
-            {/* Line path */}
             <polyline
               fill="none"
               stroke="#007bff"
               strokeWidth="2"
-              points={mockData.overview.monthlyTrend.map((month, index) => {
-                const x = (index * 100) + 50;
-                const y = 200 - (month.revenue / 61000) * 150;
+              points={monthlyTrend.map((month, index) => {
+                const x = index * 60 + 50;
+                const y = 200 - Math.min(month.revenue / Math.max(reportData?.total_revenue || 1, 1) * 150, 180);
                 return `${x},${y}`;
-              }).join(' ')}
+              }).join(" ")}
             />
-            
-            {/* Data points and columns */}
-            {mockData.overview.monthlyTrend.map((month, index) => {
-              const x = (index * 100) + 50;
-              const height = (month.revenue / 61000) * 150;
-              const y = 200 - height;
+            {monthlyTrend.map((month, index) => {
+              const x = index * 60 + 50;
+              const y = 200 - Math.min(month.revenue / Math.max(reportData?.total_revenue || 1, 1) * 150, 180);
               return (
-                <g key={index}>
-                  {/* Column */}
-                  <rect
-                    x={x - 20}
-                    y={y}
-                    width="40"
-                    height={height}
-                    fill="rgba(0, 123, 255, 0.3)"
-                    stroke="#007bff"
-                    strokeWidth="1"
-                  />
-                  {/* Data point */}
+                <g key={month.month}>
                   <circle cx={x} cy={y} r="4" fill="#007bff" />
-                  {/* Value label */}
-                  <text x={x} y={y - 10} textAnchor="middle" fontSize="12" fill="#333">
-                    {formatCurrency(month.revenue)}
-                  </text>
-                  {/* Month label */}
-                  <text x={x} y="195" textAnchor="middle" fontSize="12" fill="#555">
-                    {month.month}
-                  </text>
                 </g>
               );
             })}
@@ -187,380 +113,76 @@ const AdminReports = () => {
 
   const renderCashier = () => (
     <div className="simple-reports">
-      <h3>Cashier Reports</h3>
+      <h3>Cashier Metrics</h3>
       <div className="simple-stats">
         <div className="simple-stat">
-          <strong>Total Sales:</strong> {formatCurrency(mockData.cashier.totalSales)}
+          <strong>Total Sales:</strong> {formatCurrency(reportData?.total_revenue)}
         </div>
         <div className="simple-stat">
-          <strong>Total Refunds:</strong> {formatCurrency(mockData.cashier.totalRefunds)}
+          <strong>Today&apos;s Transactions:</strong> {reportData?.today_transactions || 0}
         </div>
         <div className="simple-stat">
-          <strong>Net Revenue:</strong> {formatCurrency(mockData.cashier.netRevenue)}
+          <strong>Total Transactions:</strong> {reportData?.total_transactions || 0}
         </div>
       </div>
-      
-      <h4>Sales Distribution</h4>
-      <div className="column-line-chart">
-        <div className="chart-container">
-          <svg width="100%" height="200" viewBox="0 0 400 200">
-            {/* Grid lines */}
-            {[0, 50, 100, 150, 200].map((y) => (
-              <line key={y} x1="0" y1={y} x2="400" y2={y} stroke="#e9ecef" strokeWidth="1" />
-            ))}
-            
-            {/* Line path */}
-            <polyline
-              fill="none"
-              stroke="#007bff"
-              strokeWidth="2"
-              points={mockData.cashier.topProducts.map((product, index) => {
-                const x = (index * 120) + 50;
-                const y = 200 - (product.revenue / 3900) * 150;
-                return `${x},${y}`;
-              }).join(' ')}
-            />
-            
-            {/* Data points and columns */}
-            {mockData.cashier.topProducts.map((product, index) => {
-              const x = (index * 120) + 50;
-              const height = (product.revenue / 3900) * 150;
-              const y = 200 - height;
-              return (
-                <g key={index}>
-                  {/* Column */}
-                  <rect
-                    x={x - 20}
-                    y={y}
-                    width="40"
-                    height={height}
-                    fill="rgba(0, 123, 255, 0.3)"
-                    stroke="#007bff"
-                    strokeWidth="1"
-                  />
-                  {/* Data point */}
-                  <circle cx={x} cy={y} r="4" fill="#007bff" />
-                  {/* Value label */}
-                  <text x={x} y={y - 10} textAnchor="middle" fontSize="12" fill="#333">
-                    {formatCurrency(product.revenue)}
-                  </text>
-                  {/* Product label */}
-                  <text x={x} y="195" textAnchor="middle" fontSize="12" fill="#555">
-                    {product.name.length > 10 ? product.name.substring(0, 10) + '...' : product.name}
-                  </text>
-                </g>
-              );
-            })}
-          </svg>
-        </div>
+      <h4>Top Services</h4>
+      <div className="top-list">
+        {reportData?.top_services?.map((service, index) => (
+          <div key={`${service.service}-${index}`} className="top-list-item">
+            <span>{service.service}</span>
+            <strong>{service.count} orders</strong>
+          </div>
+        ))}
       </div>
-      
-      <h4>Top Products</h4>
-      <table className="simple-table">
-        <thead>
-          <tr>
-            <th>Product</th>
-            <th>Sales</th>
-            <th>Revenue</th>
-          </tr>
-        </thead>
-        <tbody>
-          {mockData.cashier.topProducts.map((product, index) => (
-            <tr key={index}>
-              <td>{product.name}</td>
-              <td>{product.sales}</td>
-              <td>{formatCurrency(product.revenue)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
     </div>
   );
 
   const renderInventory = () => (
     <div className="simple-reports">
-      <h3>Inventory Reports</h3>
+      <h3>Inventory Metrics</h3>
       <div className="simple-stats">
         <div className="simple-stat">
-          <strong>Total Items:</strong> {mockData.inventory.totalItems}
+          <strong>Total Items:</strong> {reportData?.total_inventory_items || 0}
         </div>
         <div className="simple-stat">
-          <strong>Low Stock Items:</strong> {mockData.inventory.lowStockItems}
+          <strong>Low Stock Items:</strong> {reportData?.low_stock_items || 0}
         </div>
         <div className="simple-stat">
-          <strong>Out of Stock:</strong> {mockData.inventory.outOfStockItems}
+          <strong>Out of Stock:</strong> {reportData?.out_of_stock_items || 0}
         </div>
       </div>
-      
-      <h4>Category Distribution</h4>
-      <div className="column-line-chart">
-        <div className="chart-container">
-          <svg width="100%" height="200" viewBox="0 0 400 200">
-            {/* Grid lines */}
-            {[0, 50, 100, 150, 200].map((y) => (
-              <line key={y} x1="0" y1={y} x2="400" y2={y} stroke="#e9ecef" strokeWidth="1" />
-            ))}
-            
-            {/* Line path */}
-            <polyline
-              fill="none"
-              stroke="#007bff"
-              strokeWidth="2"
-              points={mockData.inventory.categories.map((category, index) => {
-                const x = (index * 120) + 50;
-                const y = 200 - (category.value / 15670.75) * 150;
-                return `${x},${y}`;
-              }).join(' ')}
-            />
-            
-            {/* Data points and columns */}
-            {mockData.inventory.categories.map((category, index) => {
-              const x = (index * 120) + 50;
-              const height = (category.value / 15670.75) * 150;
-              const y = 200 - height;
-              return (
-                <g key={index}>
-                  {/* Column */}
-                  <rect
-                    x={x - 20}
-                    y={y}
-                    width="40"
-                    height={height}
-                    fill="rgba(0, 123, 255, 0.3)"
-                    stroke="#007bff"
-                    strokeWidth="1"
-                  />
-                  {/* Data point */}
-                  <circle cx={x} cy={y} r="4" fill="#007bff" />
-                  {/* Value label */}
-                  <text x={x} y={y - 10} textAnchor="middle" fontSize="12" fill="#333">
-                    {formatCurrency(category.value)}
-                  </text>
-                  {/* Category label */}
-                  <text x={x} y="195" textAnchor="middle" fontSize="12" fill="#555">
-                    {category.name.length > 10 ? category.name.substring(0, 10) + '...' : category.name}
-                  </text>
-                </g>
-              );
-            })}
-          </svg>
-        </div>
-      </div>
-      
-      <h4>Categories</h4>
-      <table className="simple-table">
-        <thead>
-          <tr>
-            <th>Category</th>
-            <th>Items</th>
-            <th>Value</th>
-          </tr>
-        </thead>
-        <tbody>
-          {mockData.inventory.categories.map((category, index) => (
-            <tr key={index}>
-              <td>{category.name}</td>
-              <td>{category.items}</td>
-              <td>{formatCurrency(category.value)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
     </div>
   );
 
   const renderReception = () => (
     <div className="simple-reports">
-      <h3>Reception Reports</h3>
+      <h3>Reception Metrics</h3>
       <div className="simple-stats">
         <div className="simple-stat">
-          <strong>Total Appointments:</strong> {mockData.reception.totalAppointments}
+          <strong>Total Appointments:</strong> {reportData?.total_appointments || 0}
         </div>
         <div className="simple-stat">
-          <strong>Completed:</strong> {mockData.reception.completedAppointments}
+          <strong>Completed Appointments:</strong> {reportData?.completed_appointments || 0}
         </div>
         <div className="simple-stat">
-          <strong>Cancelled:</strong> {mockData.reception.cancelledAppointments}
+          <strong>Today&apos;s Revenue:</strong> {formatCurrency(reportData?.today_revenue)}
         </div>
       </div>
-      
-      <h4>Appointment Status</h4>
-      <div className="column-line-chart">
-        <div className="chart-container">
-          <svg width="100%" height="200" viewBox="0 0 400 200">
-            {/* Grid lines */}
-            {[0, 50, 100, 150, 200].map((y) => (
-              <line key={y} x1="0" y1={y} x2="400" y2={y} stroke="#e9ecef" strokeWidth="1" />
-            ))}
-            
-            {/* Line path */}
-            <polyline
-              fill="none"
-              stroke="#007bff"
-              strokeWidth="2"
-              points={[
-                `${50},${200 - (mockData.reception.completedAppointments / 1456) * 150}`,
-                `${150},${200 - (mockData.reception.cancelledAppointments / 1456) * 150}`
-              ].join(' ')}
-            />
-            
-            {/* Data points and columns */}
-            <g>
-              {/* Completed */}
-              <rect
-                x={30}
-                y={200 - (mockData.reception.completedAppointments / 1456) * 150}
-                width="40"
-                height={(mockData.reception.completedAppointments / 1456) * 150}
-                fill="rgba(0, 123, 255, 0.3)"
-                stroke="#007bff"
-                strokeWidth="1"
-              />
-              <circle cx={50} cy={200 - (mockData.reception.completedAppointments / 1456) * 150} r="4" fill="#007bff" />
-              <text x={50} y={200 - (mockData.reception.completedAppointments / 1456) * 150 - 10} textAnchor="middle" fontSize="12" fill="#333">
-                {mockData.reception.completedAppointments}
-              </text>
-              <text x={50} y="195" textAnchor="middle" fontSize="12" fill="#555">Completed</text>
-              
-              {/* Cancelled */}
-              <rect
-                x={130}
-                y={200 - (mockData.reception.cancelledAppointments / 1456) * 150}
-                width="40"
-                height={(mockData.reception.cancelledAppointments / 1456) * 150}
-                fill="rgba(0, 123, 255, 0.3)"
-                stroke="#007bff"
-                strokeWidth="1"
-              />
-              <circle cx={150} cy={200 - (mockData.reception.cancelledAppointments / 1456) * 150} r="4" fill="#007bff" />
-              <text x={150} y={200 - (mockData.reception.cancelledAppointments / 1456) * 150 - 10} textAnchor="middle" fontSize="12" fill="#333">
-                {mockData.reception.cancelledAppointments}
-              </text>
-              <text x={150} y="195" textAnchor="middle" fontSize="12" fill="#555">Cancelled</text>
-            </g>
-          </svg>
-        </div>
-      </div>
-      
-      <h4>Staff Performance</h4>
-      <table className="simple-table">
-        <thead>
-          <tr>
-            <th>Staff Name</th>
-            <th>Appointments</th>
-            <th>Completion Rate</th>
-            <th>Avg Rating</th>
-          </tr>
-        </thead>
-        <tbody>
-          {mockData.reception.staffPerformance.map((staff, index) => (
-            <tr key={index}>
-              <td>{staff.name}</td>
-              <td>{staff.appointments}</td>
-              <td>{formatPercentage(staff.completionRate)}</td>
-              <td>
-                <FontAwesomeIcon icon={faStar} /> {staff.avgRating}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
     </div>
   );
 
   const renderVeterinary = () => (
     <div className="simple-reports">
-      <h3>Veterinary Reports</h3>
+      <h3>Veterinary Metrics</h3>
       <div className="simple-stats">
         <div className="simple-stat">
-          <strong>Total Patients:</strong> {mockData.veterinary.totalPatients}
+          <strong>Total Patients:</strong> {reportData?.total_pets || 0}
         </div>
         <div className="simple-stat">
-          <strong>New Patients:</strong> {mockData.veterinary.newPatients}
+          <strong>Total Appointments:</strong> {reportData?.total_appointments || 0}
         </div>
         <div className="simple-stat">
-          <strong>Total Treatments:</strong> {mockData.veterinary.totalTreatments}
-        </div>
-        <div className="simple-stat">
-          <strong>Total Surgeries:</strong> {mockData.veterinary.totalSurgeries}
-        </div>
-        <div className="simple-stat">
-          <strong>Total Vaccinations:</strong> {mockData.veterinary.totalVaccinations}
-        </div>
-      </div>
-      
-      <h4>Service Distribution</h4>
-      <div className="column-line-chart">
-        <div className="chart-container">
-          <svg width="100%" height="200" viewBox="0 0 400 200">
-            {/* Grid lines */}
-            {[0, 50, 100, 150, 200].map((y) => (
-              <line key={y} x1="0" y1={y} x2="400" y2={y} stroke="#e9ecef" strokeWidth="1" />
-            ))}
-            
-            {/* Line path */}
-            <polyline
-              fill="none"
-              stroke="#007bff"
-              strokeWidth="2"
-              points={[
-                `${50},${200 - (mockData.veterinary.totalTreatments / 2345) * 150}`,
-                `${150},${200 - (mockData.veterinary.totalSurgeries / 2345) * 150}`,
-                `${250},${200 - (mockData.veterinary.totalVaccinations / 2345) * 150}`
-              ].join(' ')}
-            />
-            
-            {/* Data points and columns */}
-            <g>
-              {/* Treatments */}
-              <rect
-                x={30}
-                y={200 - (mockData.veterinary.totalTreatments / 2345) * 150}
-                width="40"
-                height={(mockData.veterinary.totalTreatments / 2345) * 150}
-                fill="rgba(0, 123, 255, 0.3)"
-                stroke="#007bff"
-                strokeWidth="1"
-              />
-              <circle cx={50} cy={200 - (mockData.veterinary.totalTreatments / 2345) * 150} r="4" fill="#007bff" />
-              <text x={50} y={200 - (mockData.veterinary.totalTreatments / 2345) * 150 - 10} textAnchor="middle" fontSize="12" fill="#333">
-                {mockData.veterinary.totalTreatments}
-              </text>
-              <text x={50} y="195" textAnchor="middle" fontSize="12" fill="#555">Treatments</text>
-              
-              {/* Surgeries */}
-              <rect
-                x={130}
-                y={200 - (mockData.veterinary.totalSurgeries / 2345) * 150}
-                width="40"
-                height={(mockData.veterinary.totalSurgeries / 2345) * 150}
-                fill="rgba(0, 123, 255, 0.3)"
-                stroke="#007bff"
-                strokeWidth="1"
-              />
-              <circle cx={150} cy={200 - (mockData.veterinary.totalSurgeries / 2345) * 150} r="4" fill="#007bff" />
-              <text x={150} y={200 - (mockData.veterinary.totalSurgeries / 2345) * 150 - 10} textAnchor="middle" fontSize="12" fill="#333">
-                {mockData.veterinary.totalSurgeries}
-              </text>
-              <text x={150} y="195" textAnchor="middle" fontSize="12" fill="#555">Surgeries</text>
-              
-              {/* Vaccinations */}
-              <rect
-                x={230}
-                y={200 - (mockData.veterinary.totalVaccinations / 2345) * 150}
-                width="40"
-                height={(mockData.veterinary.totalVaccinations / 2345) * 150}
-                fill="rgba(0, 123, 255, 0.3)"
-                stroke="#007bff"
-                strokeWidth="1"
-              />
-              <circle cx={250} cy={200 - (mockData.veterinary.totalVaccinations / 2345) * 150} r="4" fill="#007bff" />
-              <text x={250} y={200 - (mockData.veterinary.totalVaccinations / 2345) * 150 - 10} textAnchor="middle" fontSize="12" fill="#333">
-                {mockData.veterinary.totalVaccinations}
-              </text>
-              <text x={250} y="195" textAnchor="middle" fontSize="12" fill="#555">Vaccinations</text>
-            </g>
-          </svg>
+          <strong>Completed Appointments:</strong> {reportData?.completed_appointments || 0}
         </div>
       </div>
     </div>
@@ -568,159 +190,106 @@ const AdminReports = () => {
 
   const renderCustomers = () => (
     <div className="simple-reports">
-      <h3>Customer Reports</h3>
+      <h3>Customer Metrics</h3>
       <div className="simple-stats">
         <div className="simple-stat">
-          <strong>Total Customers:</strong> {mockData.customers.totalCustomers}
+          <strong>Total Customers:</strong> {reportData?.total_customers || 0}
         </div>
         <div className="simple-stat">
-          <strong>New Customers:</strong> {mockData.customers.newCustomers}
-        </div>
-        <div className="simple-stat">
-          <strong>Returning Customers:</strong> {mockData.customers.returningCustomers}
-        </div>
-        <div className="simple-stat">
-          <strong>Retention Rate:</strong> {formatPercentage(mockData.customers.customerRetentionRate)}
+          <strong>New Customers (30d):</strong> {reportData?.new_customers || 0}
         </div>
       </div>
-      
-      <h4>Customer Distribution</h4>
-      <div className="column-line-chart">
-        <div className="chart-container">
-          <svg width="100%" height="200" viewBox="0 0 400 200">
-            {/* Grid lines */}
-            {[0, 50, 100, 150, 200].map((y) => (
-              <line key={y} x1="0" y1={y} x2="400" y2={y} stroke="#e9ecef" strokeWidth="1" />
-            ))}
-            
-            {/* Line path */}
-            <polyline
-              fill="none"
-              stroke="#007bff"
-              strokeWidth="2"
-              points={[
-                `${100},${200 - (mockData.customers.newCustomers / 892) * 150}`,
-                `${300},${200 - (mockData.customers.returningCustomers / 892) * 150}`
-              ].join(' ')}
-            />
-            
-            {/* Data points and columns */}
-            <g>
-              {/* New Customers */}
-              <rect
-                x={80}
-                y={200 - (mockData.customers.newCustomers / 892) * 150}
-                width="40"
-                height={(mockData.customers.newCustomers / 892) * 150}
-                fill="rgba(0, 123, 255, 0.3)"
-                stroke="#007bff"
-                strokeWidth="1"
-              />
-              <circle cx={100} cy={200 - (mockData.customers.newCustomers / 892) * 150} r="4" fill="#007bff" />
-              <text x={100} y={200 - (mockData.customers.newCustomers / 892) * 150 - 10} textAnchor="middle" fontSize="12" fill="#333">
-                {mockData.customers.newCustomers}
-              </text>
-              <text x={100} y="195" textAnchor="middle" fontSize="12" fill="#555">New</text>
-              
-              {/* Returning Customers */}
-              <rect
-                x={280}
-                y={200 - (mockData.customers.returningCustomers / 892) * 150}
-                width="40"
-                height={(mockData.customers.returningCustomers / 892) * 150}
-                fill="rgba(0, 123, 255, 0.3)"
-                stroke="#007bff"
-                strokeWidth="1"
-              />
-              <circle cx={300} cy={200 - (mockData.customers.returningCustomers / 892) * 150} r="4" fill="#007bff" />
-              <text x={300} y={200 - (mockData.customers.returningCustomers / 892) * 150 - 10} textAnchor="middle" fontSize="12" fill="#333">
-                {mockData.customers.returningCustomers}
-              </text>
-              <text x={300} y="195" textAnchor="middle" fontSize="12" fill="#555">Returning</text>
-            </g>
-          </svg>
-        </div>
-      </div>
-      
       <h4>Top Customers</h4>
-      <table className="simple-table">
-        <thead>
-          <tr>
-            <th>Customer</th>
-            <th>Visits</th>
-            <th>Total Spent</th>
-          </tr>
-        </thead>
-        <tbody>
-          {mockData.customers.topCustomers.map((customer, index) => (
-            <tr key={index}>
-              <td>{customer.name}</td>
-              <td>{customer.visits}</td>
-              <td>{formatCurrency(customer.spent)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <div className="top-list">
+        {reportData?.top_customers?.map((customer, index) => (
+          <div key={`${customer.customer}-${index}`} className="top-list-item">
+            <span>{customer.customer}</span>
+            <strong>{customer.visits} visits</strong>
+          </div>
+        ))}
+      </div>
     </div>
   );
 
-  const renderContent = () => {
+  const renderActiveTab = () => {
     switch (activeTab) {
-      case "overview": return renderOverview();
-      case "cashier": return renderCashier();
-      case "inventory": return renderInventory();
-      case "reception": return renderReception();
-      case "veterinary": return renderVeterinary();
-      case "customers": return renderCustomers();
-      default: return renderOverview();
+      case "cashier":
+        return renderCashier();
+      case "inventory":
+        return renderInventory();
+      case "reception":
+        return renderReception();
+      case "veterinary":
+        return renderVeterinary();
+      case "customers":
+        return renderCustomers();
+      default:
+        return renderOverview();
     }
   };
 
   return (
-    <div className="admin-reports">
-      <div className="simple-header">
-        <h2>Reports</h2>
-        <div className="simple-filters">
-          <select value={filterAccount} onChange={(e) => setFilterAccount(e.target.value)}>
-            <option value="all">All Accounts</option>
-            <option value="main">Main Clinic</option>
-            <option value="branch">Branch Office</option>
-          </select>
-          <select value={filterDate} onChange={(e) => setFilterDate(e.target.value)}>
-            <option value="today">Today</option>
-            <option value="week">This Week</option>
-            <option value="month">This Month</option>
-            <option value="quarter">This Quarter</option>
-            <option value="year">This Year</option>
-          </select>
-          <button className="simple-btn" onClick={() => window.location.reload()}>
-            <FontAwesomeIcon icon={faRefresh} /> Refresh
+    <div className="admin-reports-page">
+      <section className="report-header">
+        <div>
+          <h1>Admin Reports</h1>
+          <p>Live business metrics and activity trends from the backend.</p>
+        </div>
+        <div className="report-actions">
+          <button
+            className={activeTab === "overview" ? "active" : ""}
+            type="button"
+            onClick={() => setActiveTab("overview")}
+          >
+            Overview
+          </button>
+          <button
+            className={activeTab === "cashier" ? "active" : ""}
+            type="button"
+            onClick={() => setActiveTab("cashier")}
+          >
+            Cashier
+          </button>
+          <button
+            className={activeTab === "inventory" ? "active" : ""}
+            type="button"
+            onClick={() => setActiveTab("inventory")}
+          >
+            Inventory
+          </button>
+          <button
+            className={activeTab === "reception" ? "active" : ""}
+            type="button"
+            onClick={() => setActiveTab("reception")}
+          >
+            Reception
+          </button>
+          <button
+            className={activeTab === "veterinary" ? "active" : ""}
+            type="button"
+            onClick={() => setActiveTab("veterinary")}
+          >
+            Veterinary
+          </button>
+          <button
+            className={activeTab === "customers" ? "active" : ""}
+            type="button"
+            onClick={() => setActiveTab("customers")}
+          >
+            Customers
           </button>
         </div>
-      </div>
+      </section>
 
-      <div className="simple-tabs">
-        {[
-          { id: "overview", label: "Overview", icon: faChartBar },
-          { id: "cashier", label: "Cashier", icon: faMoneyBillWave },
-          { id: "inventory", label: "Inventory", icon: faBox },
-          { id: "reception", label: "Reception", icon: faCalendarCheck },
-          { id: "veterinary", label: "Veterinary", icon: faStethoscope },
-          { id: "customers", label: "Customers", icon: faUsers },
-        ].map((tab) => (
-          <button
-            key={tab.id}
-            className={`simple-tab ${activeTab === tab.id ? "active" : ""}`}
-            onClick={() => setActiveTab(tab.id)}
-          >
-            <FontAwesomeIcon icon={tab.icon} /> {tab.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="simple-content">
-        {renderContent()}
-      </div>
+      {loading ? (
+        <div className="loading-container">Loading live report metrics...</div>
+      ) : error ? (
+        <div className="error-container">
+          <div className="error-message">{error}</div>
+        </div>
+      ) : (
+        <div className="report-content">{renderActiveTab()}</div>
+      )}
     </div>
   );
 };

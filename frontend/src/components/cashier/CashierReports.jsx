@@ -1,30 +1,31 @@
 import React, { useState } from "react";
 import "./CashierReports.css";
+import { formatCurrency } from "../../utils/currency";
 
 const reportItems = [
-  { id: 'daily', title: 'Daily Sales', subtitle: "Today's sales summary for the cashier shift." },
-  { id: 'weekly', title: 'Weekly Revenue', subtitle: 'Performance across the current week.' },
-  { id: 'monthly', title: 'Monthly Report', subtitle: 'Revenue and order trends this month.' },
-  { id: 'transactions', title: 'Transactions', subtitle: 'Detailed transaction log and order history.' },
-  { id: 'top-items', title: 'Top Items', subtitle: 'Best selling products and categories.' },
-  { id: 'refunds', title: 'Refunds', subtitle: 'Refunds, returns, and adjustments.' },
-  { id: 'customer', title: 'Customer Activity', subtitle: 'Customer visits, loyalty and order frequency.' },
-  { id: 'inventory', title: 'Inventory Alerts', subtitle: 'Stock levels and low inventory warnings.' },
+  { id: "daily", title: "Daily Sales", subtitle: "Today's sales summary for the cashier shift." },
+  { id: "weekly", title: "Weekly Revenue", subtitle: "Performance across the current week." },
+  { id: "monthly", title: "Monthly Report", subtitle: "Revenue and order trends this month." },
+  { id: "transactions", title: "Transactions", subtitle: "Detailed transaction log and order history." },
+  { id: "top-items", title: "Top Items", subtitle: "Best selling products and categories." },
+  { id: "refunds", title: "Refunds", subtitle: "Refunds, returns, and adjustments." },
+  { id: "customer", title: "Customer Activity", subtitle: "Customer visits, loyalty and order frequency." },
+  { id: "inventory", title: "Inventory Alerts", subtitle: "Stock levels and low inventory warnings." },
 ];
 
 const summaries = {
-  daily: { value: '$3,420', label: 'Today’s total sales' },
-  weekly: { value: '$22,480', label: 'This week’s revenue' },
-  monthly: { value: '$89,740', label: 'This month’s total' },
-  transactions: { value: '124', label: 'Total transactions' },
-  'top-items': { value: '12', label: 'Best selling items' },
-  refunds: { value: '$520', label: 'Refunds processed' },
-  customer: { value: '63', label: 'Active customers' },
-  inventory: { value: '8', label: 'Restock alerts' },
+  daily: { value: formatCurrency(3420), label: "Today's total sales" },
+  weekly: { value: formatCurrency(22480), label: "This week's revenue" },
+  monthly: { value: formatCurrency(89740), label: "This month's total" },
+  transactions: { value: "124", label: "Total transactions" },
+  "top-items": { value: "12", label: "Best selling items" },
+  refunds: { value: formatCurrency(520), label: "Refunds processed" },
+  customer: { value: "63", label: "Active customers" },
+  inventory: { value: "8", label: "Restock alerts" },
 };
 
 const CashierReports = () => {
-  const [activeReport, setActiveReport] = useState('daily');
+  const [activeReport, setActiveReport] = useState("daily");
   const activeSummary = summaries[activeReport];
 
   return (
@@ -41,7 +42,7 @@ const CashierReports = () => {
           {reportItems.map((item) => (
             <button
               key={item.id}
-              className={item.id === activeReport ? 'report-item active' : 'report-item'}
+              className={item.id === activeReport ? "report-item active" : "report-item"}
               onClick={() => setActiveReport(item.id)}
             >
               <span className="report-item-title">{item.title}</span>
@@ -73,7 +74,7 @@ const CashierReports = () => {
             <h4>Current Status</h4>
             <ul>
               <li><strong>Updated</strong> 5 minutes ago</li>
-              <li><strong>Orders</strong> {activeReport === 'transactions' ? '124' : '86'}</li>
+              <li><strong>Orders</strong> {activeReport === "transactions" ? "124" : "86"}</li>
               <li><strong>Conversion</strong> 74%</li>
             </ul>
           </div>

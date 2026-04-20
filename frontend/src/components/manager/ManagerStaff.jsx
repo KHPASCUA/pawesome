@@ -73,6 +73,7 @@ import {
   faChevronLeft,
   faChevronRight,
 } from "@fortawesome/free-solid-svg-icons";
+import { formatCurrency } from "../../utils/currency";
 
 const ManagerStaff = () => {
   // State management
@@ -111,7 +112,7 @@ const ManagerStaff = () => {
       certifications: ["Licensed Veterinarian", "Surgery Specialist"],
       languages: ["English", "Spanish"],
       schedule: "Mon-Fri 9AM-6PM",
-      salary: "$85,000",
+      salary: 85000,
       performance: 4.8,
       lastLogin: "2024-04-13 08:30 AM",
       emergencyContact: "John Johnson - +1-555-0124",
@@ -132,7 +133,7 @@ const ManagerStaff = () => {
       certifications: ["Customer Service Excellence"],
       languages: ["English", "Mandarin"],
       schedule: "Mon-Sat 8AM-8PM",
-      salary: "$45,000",
+      salary: 45000,
       performance: 4.6,
       lastLogin: "2024-04-13 07:45 AM",
       emergencyContact: "Lisa Chen - +1-555-0126",
@@ -153,7 +154,7 @@ const ManagerStaff = () => {
       certifications: ["Inventory Management"],
       languages: ["English", "Spanish"],
       schedule: "Mon-Fri 7AM-5PM",
-      salary: "$52,000",
+      salary: 52000,
       performance: 4.5,
       lastLogin: "2024-04-13 06:30 AM",
       emergencyContact: "Carlos Rodriguez - +1-555-0128",
@@ -174,7 +175,7 @@ const ManagerStaff = () => {
       certifications: ["Cash Handling Certified"],
       languages: ["English"],
       schedule: "Part-time - Weekends",
-      salary: "$28,000",
+      salary: 28000,
       performance: 4.3,
       lastLogin: "2024-04-10 02:15 PM",
       emergencyContact: "Mary Wilson - +1-555-0130",
@@ -195,7 +196,7 @@ const ManagerStaff = () => {
       certifications: ["Certified Vet Tech", "Anesthesia"],
       languages: ["English", "Korean"],
       schedule: "Mon-Fri 8AM-6PM",
-      salary: "$42,000",
+      salary: 42000,
       performance: 4.7,
       lastLogin: "2024-04-13 08:00 AM",
       emergencyContact: "Susan Kim - +1-555-0132",
@@ -763,7 +764,7 @@ const ManagerStaff = () => {
                       </div>
                       <div className="info-item">
                         <FontAwesomeIcon icon={faDollarSign} />
-                        <span>Salary: {selectedStaff.salary}</span>
+                        <span>Salary: {formatCurrency(selectedStaff.salary)}</span>
                       </div>
                     </div>
                   </div>

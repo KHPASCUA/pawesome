@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { inventoryItems } from "./inventoryData";
 import "./InventoryProducts.css";
+import { formatCurrency } from "../../utils/currency";
 
 const InventoryProducts = () => {
   const [search, setSearch] = useState("");
@@ -64,7 +65,7 @@ const InventoryProducts = () => {
                 <td>{item.category}</td>
                 <td>{item.quantity}</td>
                 <td>{item.expiration}</td>
-                <td>${item.price.toFixed(2)}</td>
+                <td>{formatCurrency(item.price)}</td>
                 <td>{item.status}</td>
               </tr>
             ))}

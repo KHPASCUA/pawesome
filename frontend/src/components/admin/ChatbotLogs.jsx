@@ -10,6 +10,7 @@ import {
   faWrench,
 } from "@fortawesome/free-solid-svg-icons";
 import { apiRequest } from "../../api/client";
+import { formatCurrency } from "../../utils/currency";
 import "./ChatbotLogs.css";
 
 const emptyFaq = {
@@ -406,7 +407,7 @@ const ChatbotLogs = () => {
                   {services.map((service) => (
                     <div key={service.id} className="management-card">
                       <strong>{service.name}</strong>
-                      <span>${Number(service.price || 0).toFixed(2)}</span>
+                      <span>{formatCurrency(service.price)}</span>
                       <span>{service.description || "No description"}</span>
                       <div className="card-actions">
                         <button

@@ -16,6 +16,7 @@ import {
   faTimesCircle,
 } from "@fortawesome/free-solid-svg-icons";
 import "./CustomerManagement.css";
+import { formatCurrency } from "../../utils/currency";
 
 const CustomerManagement = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -276,7 +277,7 @@ const CustomerManagement = () => {
                   <span className="booking-count">{customer.totalBookings}</span>
                 </td>
                 <td className="spent">
-                  <span className="amount">${customer.totalSpent.toLocaleString()}</span>
+                  <span className="amount">{formatCurrency(customer.totalSpent)}</span>
                 </td>
                 <td className="actions">
                   <button
@@ -382,11 +383,11 @@ const CustomerManagement = () => {
                     </div>
                     <div className="stat-item">
                       <label>Total Spent:</label>
-                      <span className="amount">${selectedCustomer.totalSpent.toLocaleString()}</span>
+                      <span className="amount">{formatCurrency(selectedCustomer.totalSpent)}</span>
                     </div>
                     <div className="stat-item">
                       <label>Average per Booking:</label>
-                      <span>${Math.round(selectedCustomer.totalSpent / selectedCustomer.totalBookings)}</span>
+                      <span>{formatCurrency(Math.round(selectedCustomer.totalSpent / selectedCustomer.totalBookings))}</span>
                     </div>
                   </div>
                 </div>

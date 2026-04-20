@@ -34,6 +34,7 @@ import {
   faHeartbeat,
 } from "@fortawesome/free-solid-svg-icons";
 import { apiRequest } from "../../api/client";
+import { formatCurrency } from "../../utils/currency";
 import "./VetReports.css";
 
 const VetReports = () => {
@@ -474,11 +475,11 @@ const VetReports = () => {
               <FontAwesomeIcon icon={faMoneyBillWave} />
             </div>
             <div className="financial-content">
-              <div className="financial-value">$2085.00</div>
+              <div className="financial-value">{formatCurrency(stats.totalRevenue)}</div>
               <div className="financial-label">Total Revenue</div>
               <div className="financial-trend">
                 <FontAwesomeIcon icon={faArrowUp} />
-                <span>Paid: $1735.00</span>
+                <span>Paid: {formatCurrency(stats.paidRevenue)}</span>
               </div>
             </div>
           </div>
@@ -488,7 +489,7 @@ const VetReports = () => {
               <FontAwesomeIcon icon={faChartLine} />
             </div>
             <div className="financial-content">
-              <div className="financial-value">$1604.00</div>
+              <div className="financial-value">{formatCurrency(stats.totalProfit)}</div>
               <div className="financial-label">Total Profit</div>
               <div className="financial-trend">
                 <FontAwesomeIcon icon={faArrowUp} />
@@ -502,7 +503,7 @@ const VetReports = () => {
               <FontAwesomeIcon icon={faDollarSign} />
             </div>
             <div className="financial-content">
-              <div className="financial-value">$481.00</div>
+              <div className="financial-value">{formatCurrency(stats.totalExpenses)}</div>
               <div className="financial-label">Total Expenses</div>
               <div className="financial-trend">
                 <FontAwesomeIcon icon={faArrowDown} />
@@ -516,7 +517,7 @@ const VetReports = () => {
               <FontAwesomeIcon icon={faCalendarCheck} />
             </div>
             <div className="financial-content">
-              <div className="financial-value">$350.00</div>
+              <div className="financial-value">{formatCurrency(stats.pendingRevenue)}</div>
               <div className="financial-label">Pending Revenue</div>
               <div className="financial-trend">
                 <FontAwesomeIcon icon={faArrowUp} />
@@ -705,9 +706,9 @@ const VetReports = () => {
                     </span>
                   </td>
                   <td>{report.vet_name}</td>
-                  <td className="cost-cell">${(report.cost || 0).toFixed(2)}</td>
-                  <td className="revenue-cell">${(report.revenue || 0).toFixed(2)}</td>
-                  <td className="profit-cell">${(report.profit || 0).toFixed(2)}</td>
+                  <td className="cost-cell">{formatCurrency(report.cost)}</td>
+                  <td className="revenue-cell">{formatCurrency(report.revenue)}</td>
+                  <td className="profit-cell">{formatCurrency(report.profit)}</td>
                   <td>
                     <div className="rating-cell">
                       <div className="rating-stars">

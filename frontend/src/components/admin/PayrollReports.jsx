@@ -17,6 +17,7 @@ import {
   faMinus,
 } from "@fortawesome/free-solid-svg-icons";
 import "./PayrollReports.css";
+import { formatCurrency } from "../../utils/currency";
 
 const PayrollReports = () => {
   const [selectedPeriod, setSelectedPeriod] = useState("monthly");
@@ -148,7 +149,7 @@ const PayrollReports = () => {
                 <FontAwesomeIcon icon={faDollarSign} />
               </div>
               <div className="card-content">
-                <h3>${payrollData.summary.totalPayroll.toLocaleString()}</h3>
+                <h3>{formatCurrency(payrollData.summary.totalPayroll)}</h3>
                 <p>Total Payroll</p>
                 <div className={`growth-indicator ${getGrowthColor(payrollData.summary.growth)}`}>
                   <FontAwesomeIcon icon={getGrowthIcon(payrollData.summary.growth)} />
@@ -176,7 +177,7 @@ const PayrollReports = () => {
                 <FontAwesomeIcon icon={faChartBar} />
               </div>
               <div className="card-content">
-                <h3>${payrollData.summary.averageSalary.toLocaleString()}</h3>
+                <h3>{formatCurrency(payrollData.summary.averageSalary)}</h3>
                 <p>Average Salary</p>
                 <div className="growth-indicator positive">
                   <FontAwesomeIcon icon={faArrowUp} />
@@ -190,7 +191,7 @@ const PayrollReports = () => {
                 <FontAwesomeIcon icon={faDollarSign} />
               </div>
               <div className="card-content">
-                <h3>${payrollData.summary.totalBonuses.toLocaleString()}</h3>
+                <h3>{formatCurrency(payrollData.summary.totalBonuses)}</h3>
                 <p>Total Bonuses</p>
                 <div className="growth-indicator positive">
                   <FontAwesomeIcon icon={faArrowUp} />
@@ -210,7 +211,7 @@ const PayrollReports = () => {
                   {payrollData.monthlyTrend.map((data, index) => (
                     <div key={index} className="trend-item">
                       <span className="trend-month">{data.month}</span>
-                      <span className="trend-value">${(data.payroll / 1000).toFixed(0)}k</span>
+                      <span className="trend-value">{formatCurrency(data.payroll / 1000, { maximumFractionDigits: 0 })}k</span>
                     </div>
                   ))}
                 </div>
@@ -259,8 +260,8 @@ const PayrollReports = () => {
                       {dept.department}
                     </td>
                     <td className="employee-count">{dept.employees}</td>
-                    <td className="total-salary">${dept.totalSalary.toLocaleString()}</td>
-                    <td className="avg-salary">${dept.average.toLocaleString()}</td>
+                    <td className="total-salary">{formatCurrency(dept.totalSalary)}</td>
+                    <td className="avg-salary">{formatCurrency(dept.average)}</td>
                     <td className="percentage">{dept.percentage}%</td>
                     <td className="trend">
                       <div className="trend-indicator positive">
@@ -301,7 +302,7 @@ const PayrollReports = () => {
               
               <div className="insight-card">
                 <h4>Forecast</h4>
-                <p>Based on current trends, projected payroll for next quarter: $305,000</p>
+                <p>Based on current trends, projected payroll for next quarter: {formatCurrency(305000)}</p>
                 <p>Expected employee count: 49</p>
                 <p>Growth drivers: New hires, performance bonuses, annual increments</p>
               </div>
@@ -327,7 +328,7 @@ const PayrollReports = () => {
                     </div>
                   </div>
                   <div className="earner-salary">
-                    <span className="salary-amount">${earner.salary.toLocaleString()}</span>
+                    <span className="salary-amount">{formatCurrency(earner.salary)}</span>
                     <span className="salary-period">per month</span>
                   </div>
                 </div>
@@ -339,19 +340,19 @@ const PayrollReports = () => {
               <div className="analysis-grid">
                 <div className="analysis-item">
                   <label>Highest Salary Range</label>
-                  <span>$10,000 - $12,500</span>
+                  <span>{formatCurrency(10000)} - {formatCurrency(12500)}</span>
                 </div>
                 <div className="analysis-item">
                   <label>Median Salary</label>
-                  <span>$6,322</span>
+                  <span>{formatCurrency(6322)}</span>
                 </div>
                 <div className="analysis-item">
                   <label>Top 10% Earners</label>
-                  <span>$9,200+</span>
+                  <span>{formatCurrency(9200)}+</span>
                 </div>
                 <div className="analysis-item">
                   <label>Bottom 10% Earners</label>
-                  <span>$3,550-</span>
+                  <span>{formatCurrency(3550)}-</span>
                 </div>
               </div>
             </div>

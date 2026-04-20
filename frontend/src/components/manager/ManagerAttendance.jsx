@@ -47,6 +47,7 @@ import {
   faBox,
   faXmark,
 } from "@fortawesome/free-solid-svg-icons";
+import { formatCurrency } from "../../utils/currency";
 
 const ManagerAttendance = () => {
   // State management
@@ -536,7 +537,7 @@ const ManagerAttendance = () => {
             <FontAwesomeIcon icon={faDollarSign} />
           </div>
           <div className="stat-info">
-            <h3>${statistics.totalEarnings.toFixed(2)}</h3>
+            <h3>{formatCurrency(statistics.totalEarnings)}</h3>
             <p>Total Earnings</p>
           </div>
         </div>
@@ -904,11 +905,11 @@ const ManagerAttendance = () => {
                   <div className="detail-grid">
                     <div className="detail-item">
                       <label>Salary Rate:</label>
-                      <span>${selectedAttendance.salaryRate.toFixed(2)}/hour</span>
+                      <span>{formatCurrency(selectedAttendance.salaryRate)}/hour</span>
                     </div>
                     <div className="detail-item">
                       <label>Daily Earnings:</label>
-                      <span>${selectedAttendance.dailyEarnings.toFixed(2)}</span>
+                      <span>{formatCurrency(selectedAttendance.dailyEarnings)}</span>
                     </div>
                   </div>
                 </div>

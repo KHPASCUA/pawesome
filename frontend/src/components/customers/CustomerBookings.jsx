@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import "./CustomerBookings.css";
+import { formatCurrency } from "../../utils/currency";
 
 const CustomerBookings = () => {
   const [selectedBooking, setSelectedBooking] = useState(null);
@@ -168,9 +169,9 @@ const CustomerBookings = () => {
                       required
                     >
                       <option value="">Select room...</option>
-                      <option value="standard">Standard Room - $50/night</option>
-                      <option value="deluxe">Deluxe Room - $75/night</option>
-                      <option value="suite">Suite - $100/night</option>
+                      <option value="standard">Standard Room - {formatCurrency(50)}/night</option>
+                      <option value="deluxe">Deluxe Room - {formatCurrency(75)}/night</option>
+                      <option value="suite">Suite - {formatCurrency(100)}/night</option>
                     </select>
                   </div>
 
@@ -268,10 +269,10 @@ const CustomerBookings = () => {
                       required
                     >
                       <option value="">Select service...</option>
-                      <option value="bath">Bath & Dry - $30</option>
-                      <option value="haircut">Haircut & Styling - $45</option>
-                      <option value="nails">Nail Trim - $15</option>
-                      <option value="full">Full Grooming Package - $80</option>
+                      <option value="bath">Bath & Dry - {formatCurrency(30)}</option>
+                      <option value="haircut">Haircut & Styling - {formatCurrency(45)}</option>
+                      <option value="nails">Nail Trim - {formatCurrency(15)}</option>
+                      <option value="full">Full Grooming Package - {formatCurrency(80)}</option>
                     </select>
                   </div>
                 </div>

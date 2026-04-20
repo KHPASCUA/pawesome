@@ -15,6 +15,7 @@ import {
   faEye,
 } from "@fortawesome/free-solid-svg-icons";
 import "./CashierTransactions.css";
+import { formatCurrency } from "../../utils/currency";
 
 const CashierTransactions = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -26,7 +27,7 @@ const CashierTransactions = () => {
       id: "TRX-001",
       customer: "John Smith",
       email: "john.smith@email.com",
-      amount: "$125.50",
+      amount: 125.5,
       items: 3,
       payment: "Credit Card",
       paymentMethod: "visa",
@@ -34,15 +35,15 @@ const CashierTransactions = () => {
       time: "10:23 AM",
       status: "completed",
       products: [
-        { name: "Premium Dog Food", quantity: 2, price: "$45.00" },
-        { name: "Cat Toy Bundle", quantity: 1, price: "$35.50" },
+        { name: "Premium Dog Food", quantity: 2, price: 45 },
+        { name: "Cat Toy Bundle", quantity: 1, price: 35.5 },
       ],
     },
     {
       id: "TRX-002",
       customer: "Sarah Johnson",
       email: "sarah.j@email.com",
-      amount: "$89.25",
+      amount: 89.25,
       items: 2,
       payment: "Cash",
       paymentMethod: "cash",
@@ -50,15 +51,15 @@ const CashierTransactions = () => {
       time: "10:45 AM",
       status: "completed",
       products: [
-        { name: "Pet Shampoo", quantity: 1, price: "$25.00" },
-        { name: "Dog Leash", quantity: 1, price: "$64.25" },
+        { name: "Pet Shampoo", quantity: 1, price: 25 },
+        { name: "Dog Leash", quantity: 1, price: 64.25 },
       ],
     },
     {
       id: "TRX-003",
       customer: "Mike Davis",
       email: "mike.davis@email.com",
-      amount: "$234.80",
+      amount: 234.8,
       items: 5,
       payment: "Credit Card",
       paymentMethod: "mastercard",
@@ -66,16 +67,16 @@ const CashierTransactions = () => {
       time: "11:02 AM",
       status: "completed",
       products: [
-        { name: "Cat Food Premium", quantity: 3, price: "$89.40" },
-        { name: "Pet Bed Large", quantity: 1, price: "$120.00" },
-        { name: "Water Bowl", quantity: 1, price: "$25.40" },
+        { name: "Cat Food Premium", quantity: 3, price: 89.4 },
+        { name: "Pet Bed Large", quantity: 1, price: 120 },
+        { name: "Water Bowl", quantity: 1, price: 25.4 },
       ],
     },
     {
       id: "TRX-004",
       customer: "Emma Wilson",
       email: "emma.w@email.com",
-      amount: "$67.99",
+      amount: 67.99,
       items: 1,
       payment: "Credit Card",
       paymentMethod: "amex",
@@ -83,14 +84,14 @@ const CashierTransactions = () => {
       time: "11:30 AM",
       status: "pending",
       products: [
-        { name: "Grooming Service Package", quantity: 1, price: "$67.99" },
+        { name: "Grooming Service Package", quantity: 1, price: 67.99 },
       ],
     },
     {
       id: "TRX-005",
       customer: "Robert Brown",
       email: "robert.b@email.com",
-      amount: "$156.75",
+      amount: 156.75,
       items: 4,
       payment: "Cash",
       paymentMethod: "cash",
@@ -98,9 +99,9 @@ const CashierTransactions = () => {
       time: "12:15 PM",
       status: "completed",
       products: [
-        { name: "Bird Cage Medium", quantity: 1, price: "$89.99" },
-        { name: "Bird Food Premium", quantity: 2, price: "$33.38" },
-        { name: "Bird Toys Set", quantity: 1, price: "$33.50" },
+        { name: "Bird Cage Medium", quantity: 1, price: 89.99 },
+        { name: "Bird Food Premium", quantity: 2, price: 33.38 },
+        { name: "Bird Toys Set", quantity: 1, price: 33.5 },
       ],
     },
   ];
@@ -214,7 +215,7 @@ const CashierTransactions = () => {
                   <FontAwesomeIcon icon={faShoppingCart} />
                   {transaction.items} items
                 </td>
-                <td className="amount">{transaction.amount}</td>
+                <td className="amount">{formatCurrency(transaction.amount)}</td>
                 <td className="payment-method">
                   <FontAwesomeIcon icon={getPaymentIcon(transaction.paymentMethod)} />
                   {transaction.payment}
@@ -309,14 +310,14 @@ const CashierTransactions = () => {
                       <tr key={index}>
                         <td>{product.name}</td>
                         <td>{product.quantity}</td>
-                        <td>{product.price}</td>
+                        <td>{formatCurrency(product.price)}</td>
                       </tr>
                     ))}
                   </tbody>
                   <tfoot>
                     <tr className="total-row">
                       <td colSpan="2">Total:</td>
-                      <td className="total-amount">{selectedTransaction.amount}</td>
+                      <td className="total-amount">{formatCurrency(selectedTransaction.amount)}</td>
                     </tr>
                   </tfoot>
                 </table>

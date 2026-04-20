@@ -127,11 +127,14 @@ Route::middleware(['auth:api', 'role:veterinary'])->prefix('veterinary')->group(
 Route::middleware(['auth:api'])->prefix('notifications')->group(function () {
     Route::get('/', [NotificationController::class, 'index']);
     Route::get('/unread-count', [NotificationController::class, 'unreadCount']);
-    Route::post('/', [NotificationController::class, 'store']);
     Route::post('/{id}/read', [NotificationController::class, 'markAsRead']);
     Route::post('/mark-all-read', [NotificationController::class, 'markAllAsRead']);
     Route::post('/clear-all', [NotificationController::class, 'clearAll']);
     Route::delete('/{id}', [NotificationController::class, 'destroy']);
+});
+
+Route::middleware(['auth:api', 'role:admin'])->prefix('notifications')->group(function () {
+    Route::post('/', [NotificationController::class, 'store']);
 });
 
 // Hotel Room Management Routes (Admin/Manager only)

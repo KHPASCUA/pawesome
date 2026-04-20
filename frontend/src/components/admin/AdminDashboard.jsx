@@ -7,12 +7,17 @@ import {
   faUserCircle,
   faUsers,
   faClipboardList,
+  faArrowTrendUp,
+  faCalendarCheck,
+  faBoxOpen,
+  faUserShield,
 } from "@fortawesome/free-solid-svg-icons";
 import AdminSidebar from "./AdminSidebar";
 import RoleAwareChatbot from "../chatbot/RoleAwareChatbot";
 import NotificationDropdown from "../shared/NotificationDropdown";
 import "./AdminDashboard.css";
 import { apiRequest } from "../../api/client";
+import { formatCurrency } from "../../utils/currency";
 
 const AdminDashboard = () => {
   const name = localStorage.getItem("name") || "Admin";
@@ -20,7 +25,6 @@ const AdminDashboard = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const location = useLocation();
 
-  // Backend data states
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -28,7 +32,6 @@ const AdminDashboard = () => {
   const normalizedPath = location.pathname.replace(/\/+$/, "");
   const showOverview = normalizedPath === "/admin";
 
-  // Fetch dashboard data from backend
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
@@ -49,84 +52,109 @@ const AdminDashboard = () => {
     }
   }, [showOverview]);
 
-  const summaryCards = dashboardData ? [
-    {
-      title: "Total Users",
-      value: dashboardData.total_users || 0,
-      subtitle: "Registered users",
-      change: "",
-    },
-    {
-      title: "Active Users",
-      value: dashboardData.active_users || 0,
-      subtitle: "Currently active",
-      change: "",
-    },
-    {
-      title: "Total Customers",
-      value: dashboardData.total_customers || 0,
-      subtitle: "Registered customers",
-      change: "",
-    },
-    {
-      title: "Today's Appointments",
-      value: dashboardData.today_appointments || 0,
-      subtitle: "Scheduled today",
-      change: "",
-    },
-    {
-      title: "Total Appointments",
-      value: dashboardData.total_appointments || 0,
-      subtitle: "All appointments",
-      change: "",
-    },
-    {
-      title: "Completed Appointments",
-      value: dashboardData.completed_appointments || 0,
-      subtitle: "Finished services",
-      change: "",
-    },
-    {
-      title: "Total Revenue",
-      value: `$${dashboardData.total_revenue || 0}`,
-      subtitle: "All time revenue",
-      change: "",
-    },
-    {
-      title: "Today's Revenue",
-      value: `$${dashboardData.today_revenue || 0}`,
-      subtitle: "Revenue today",
-      change: "",
-    },
-    {
-      title: "Low Stock Items",
-      value: dashboardData.low_stock_items || 0,
-      subtitle: "Need restocking",
-      change: "",
-    },
-  ] : [];
+  const formatRelativeTime = (timestamp) => {
+    if (!timestamp) return "Just now";
+    const time = new Date(timestamp).getTime();
+    const diff = Date.now() - time;
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    const days = Math.floor(diff / 86400000);
 
-  const orderRequests = dashboardData ? [
-    ...(dashboardData.recent_appointments || []).map(apt => ({
-      id: apt.id,
-      name: apt.customer?.name || 'Unknown Customer',
-      time: 'Recently',
-      date: new Date(apt.scheduled_at).toLocaleDateString(),
-      service: apt.service?.name || 'Service',
-      pet: apt.pet?.name || 'Pet',
-      status: apt.status || 'scheduled',
-      type: 'appointment'
-    })),
-    ...(dashboardData.recent_users || []).map(user => ({
-      id: user.id,
-      name: user.name || user.username,
-      time: 'Recently',
-      date: new Date(user.created_at).toLocaleDateString(),
-      role: user.role || 'user',
-      status: user.is_active ? 'active' : 'inactive',
-      type: 'user'
-    }))
-  ].slice(0, 10) : [];
+    if (minutes < 1) return "Just now";
+    if (minutes < 60) return `${minutes}m ago`;
+    if (hours < 24) return `${hours}h ago`;
+    return `${days}d ago`;
+  };
+
+  const summaryCards = dashboardData
+    ? [
+        {
+          title: "Total Users",
+          value: dashboardData.total_users || 0,
+          subtitle: "Registered accounts",
+          icon: faUsers,
+        },
+        {
+          title: "Active Users",
+          value: dashboardData.active_users || 0,
+          subtitle: "Enabled team members",
+          icon: faUserShield,
+        },
+        {
+          title: "Total Customers",
+          value: dashboardData.total_customers || 0,
+          subtitle: "Customer records",
+          icon: faUsers,
+        },
+        {
+          title: "Today's Appointments",
+          value: dashboardData.today_appointments || 0,
+          subtitle: "Scheduled for today",
+          icon: faCalendarCheck,
+        },
+        {
+          title: "Total Revenue",
+          value: formatCurrency(dashboardData.total_revenue || 0),
+          subtitle: "All-time collections",
+          icon: faArrowTrendUp,
+        },
+        {
+          title: "Low Stock Items",
+          value: dashboardData.low_stock_items || 0,
+          subtitle: "Need replenishment",
+          icon: faBoxOpen,
+        },
+      ]
+    : [];
+
+  const completionRate = dashboardData?.total_appointments
+    ? Math.round((dashboardData.completed_appointments / dashboardData.total_appointments) * 100)
+    : 0;
+  const activeUserRate = dashboardData?.total_users
+    ? Math.round(((dashboardData.active_users || 0) / dashboardData.total_users) * 100)
+    : 0;
+  const pendingAppointments = Math.max(
+    (dashboardData?.total_appointments || 0) - (dashboardData?.completed_appointments || 0),
+    0
+  );
+  const lowStockMessage = dashboardData?.low_stock_items
+    ? `${dashboardData.low_stock_items} inventory item(s) need restocking.`
+    : "Inventory is currently within safe stock levels.";
+
+  const orderRequests = dashboardData
+    ? [
+        ...(dashboardData.recent_appointments || []).map((apt) => ({
+          id: apt.id,
+          name: apt.customer?.name || "Unknown Customer",
+          time: formatRelativeTime(apt.scheduled_at),
+          date: new Date(apt.scheduled_at).toLocaleDateString(),
+          service: apt.service?.name || "Service",
+          pet: apt.pet?.name || "Pet",
+          status: apt.status || "scheduled",
+          type: "appointment",
+        })),
+        ...(dashboardData.recent_users || []).map((user) => ({
+          id: user.id,
+          name: user.name || user.username,
+          time: formatRelativeTime(user.created_at),
+          date: new Date(user.created_at).toLocaleDateString(),
+          role: user.role || "user",
+          status: user.is_active ? "active" : "inactive",
+          type: "user",
+        })),
+      ].slice(0, 10)
+    : [];
+
+  const pageCopy = showOverview
+    ? {
+        title: "Admin Command Center",
+        subtitle:
+          "Track service flow, staff activity, revenue, and stock pressure from one polished workspace.",
+      }
+    : {
+        title: "Admin Workspace",
+        subtitle: "Manage users, reports, payroll, and operations with live context always in reach.",
+      };
 
   return (
     <div className={`admin-dashboard ${theme} ${sidebarCollapsed ? "collapsed" : ""}`}>
@@ -138,15 +166,17 @@ const AdminDashboard = () => {
       <main className="admin-main">
         <header className="admin-navbar top-navbar">
           <div className="navbar-left">
-            <h1>Overview</h1>
-            <p>Manage your team members and account permissions here.</p>
+            <h1>{pageCopy.title}</h1>
+            <p>{pageCopy.subtitle}</p>
           </div>
 
-          <div className="search-group">
-            <input
-              type="text"
-              placeholder="Search orders, users, reports..."
-            />
+          <div className="search-group admin-status-strip">
+            <span className="status-strip-pill">
+              <strong>{completionRate}%</strong> completion rate
+            </span>
+            <span className="status-strip-pill">
+              <strong>{activeUserRate}%</strong> users active
+            </span>
           </div>
 
           <div className="navbar-actions">
@@ -189,132 +219,199 @@ const AdminDashboard = () => {
               <>
                 <section className="overview-cards">
                   {summaryCards.map((card) => (
-                    <div key={card.title} className="overview-card">
-                      <div>
+                    <article key={card.title} className="overview-card">
+                      <div className="overview-card-copy">
+                        <span className="overview-card-icon">
+                          <FontAwesomeIcon icon={card.icon} />
+                        </span>
                         <h3>{card.value}</h3>
                         <p>{card.title}</p>
+                        <small>{card.subtitle}</small>
                       </div>
-                      <span>{card.change}</span>
-                    </div>
+                    </article>
                   ))}
                 </section>
 
-            <section className="dashboard-grid">
-              <article className="panel overview-panel">
-                <div className="panel-header">
-                  <div>
-                    <h2>Monthly Overview</h2>
-                    <p>
-                      Total revenue and appointment performance
-                    </p>
-                  </div>
-                  <span className="badge">{dashboardData?.today_appointments || 0} Appointments Today</span>
-                </div>
-                <div className="chart-placeholder">Chart placeholder</div>
-              </article>
+                <section className="dashboard-grid">
+                  <article className="panel overview-panel">
+                    <div className="panel-header">
+                      <div>
+                        <h2>Appointment Status</h2>
+                        <p>Live appointment rundown grouped by service progress.</p>
+                      </div>
+                      <span className="badge">{dashboardData?.today_appointments || 0} today</span>
+                    </div>
 
-              <article className="panel quick-stat-panel">
-                <div className="metric-card accent">
-                  <h3>{dashboardData?.completed_appointments || 0}</h3>
-                  <p>Completed Appointments</p>
-                  <small>Total finished services</small>
-                </div>
-
-                <div className="metric-card">
-                  <h3>${dashboardData?.today_revenue || 0}</h3>
-                  <p>Today&apos;s Revenue</p>
-                </div>
-              </article>
-            </section>
-
-            <section className="dashboard-bottom">
-              <div className="panel orders-panel">
-                <div className="panel-header space-between">
-                  <div>
-                    <h2>New order requests</h2>
-                  </div>
-                  <NavLink to="/admin/reports" className="see-all-link">
-                    See all ({orderRequests.length})
-                  </NavLink>
-                </div>
-
-                <div className="request-list">
-                  {orderRequests.map((order) => (
-                    <div key={order.id} className="request-card">
-                      <div className="request-card-top">
-                        <div>
-                          <h3>{order.name}</h3>
-                          <p>{order.time} • {order.date}</p>
+                    <div className="status-summary-grid">
+                      {(dashboardData?.appointments_by_status || []).map((status) => (
+                        <div key={status.status} className={`status-pill status-${status.status}`}>
+                          <strong>{status.count}</strong>
+                          <span>{status.status}</span>
                         </div>
-                        <span className={`status-badge ${order.status}`}>
-                          {order.type === 'appointment' ? order.status : order.role}
-                        </span>
+                      ))}
+                    </div>
+
+                    <div className="status-bars">
+                      {(dashboardData?.appointments_by_status || []).map((status) => (
+                        <div key={status.status} className="status-bar-row">
+                          <span>{status.status}</span>
+                          <div className="status-bar-track">
+                            <div
+                              className="status-bar-fill"
+                              style={{
+                                width: `${Math.min(
+                                  (status.count / Math.max(dashboardData.total_appointments || 1, 1)) * 100,
+                                  100
+                                )}%`,
+                              }}
+                            />
+                          </div>
+                          <strong>{status.count}</strong>
+                        </div>
+                      ))}
+                    </div>
+                  </article>
+
+                  <article className="panel quick-stat-panel">
+                    <div className="metric-card accent spotlight-card">
+                      <span className="metric-kicker">Daily Pulse</span>
+                      <h3>{formatCurrency(dashboardData?.today_revenue || 0)}</h3>
+                      <p>Revenue collected today</p>
+                      <small>Use this to gauge service demand and cashier throughput.</small>
+                    </div>
+
+                    <div className="metric-card">
+                      <span className="metric-kicker">Service Flow</span>
+                      <h3>{pendingAppointments}</h3>
+                      <p>Appointments still in progress</p>
+                      <small>{lowStockMessage}</small>
+                    </div>
+
+                    <div className="metric-card compact-metric">
+                      <span className="metric-kicker">Staff Readiness</span>
+                      <h3>{dashboardData?.active_users || 0}</h3>
+                      <p>Active accounts with dashboard access</p>
+                    </div>
+                  </article>
+                </section>
+
+                <section className="dashboard-bottom">
+                  <div className="panel orders-panel">
+                    <div className="panel-header space-between">
+                      <div>
+                        <h2>Recent Operational Activity</h2>
+                        <p>Newest appointments and user registrations in one stream.</p>
                       </div>
-                      <div className="request-info">
-                        {order.type === 'appointment' ? (
-                          <>
-                            <div>
-                              <strong>Service</strong>
-                              <p>{order.service}</p>
+                      <NavLink to="/admin/reports" className="see-all-link">
+                        See all ({orderRequests.length})
+                      </NavLink>
+                    </div>
+
+                    <div className="request-list">
+                      {orderRequests.length > 0 ? (
+                        orderRequests.map((order) => (
+                          <div key={`${order.type}-${order.id}`} className="request-card">
+                            <div className="request-card-top">
+                              <div>
+                                <h3>{order.name}</h3>
+                                <p>
+                                  {order.time} • {order.date}
+                                </p>
+                              </div>
+                              <span className={`status-badge ${order.status}`}>
+                                {order.type === "appointment" ? order.status : order.role}
+                              </span>
                             </div>
-                            <div>
-                              <strong>Pet</strong>
-                              <p>{order.pet}</p>
+                            <div className="request-info">
+                              {order.type === "appointment" ? (
+                                <>
+                                  <div>
+                                    <strong>Service</strong>
+                                    <p>{order.service}</p>
+                                  </div>
+                                  <div>
+                                    <strong>Pet</strong>
+                                    <p>{order.pet}</p>
+                                  </div>
+                                </>
+                              ) : (
+                                <>
+                                  <div>
+                                    <strong>Role</strong>
+                                    <p>{order.role}</p>
+                                  </div>
+                                  <div>
+                                    <strong>Status</strong>
+                                    <p>{order.status}</p>
+                                  </div>
+                                </>
+                              )}
                             </div>
-                          </>
-                        ) : (
-                          <>
-                            <div>
-                              <strong>Role</strong>
-                              <p>{order.role}</p>
+                            <div className="request-footer">
+                              <span>
+                                <FontAwesomeIcon icon={faUsers} />{" "}
+                                {order.type === "appointment" ? "Customer" : "New User"}
+                              </span>
+                              <span>
+                                <FontAwesomeIcon icon={faClipboardList} /> {order.type}
+                              </span>
+                              <button className="secondary-btn" type="button">
+                                {order.type === "appointment" ? "View Appointment" : "View User"}
+                              </button>
                             </div>
-                            <div>
-                              <strong>Status</strong>
-                              <p>{order.status}</p>
-                            </div>
-                          </>
-                        )}
+                          </div>
+                        ))
+                      ) : (
+                        <div className="empty-panel-state">
+                          <h3>No recent requests</h3>
+                          <p>New appointments and registrations will show up here as activity comes in.</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="panel completion-panel">
+                    <div className="panel-header space-between">
+                      <div>
+                        <h2>Operations Snapshot</h2>
+                        <p>Quick indicators for service completion, volume, and inventory pressure.</p>
                       </div>
-                      <div className="request-footer">
-                        <span>
-                          <FontAwesomeIcon icon={faUsers} /> {order.type === 'appointment' ? 'Customer' : 'New User'}
-                        </span>
-                        <span>
-                          <FontAwesomeIcon icon={faClipboardList} /> {order.type}
-                        </span>
-                        <button className="secondary-btn" type="button">
-                          {order.type === 'appointment' ? 'View Appointment' : 'View User'}
-                        </button>
+                      <NavLink to="/admin/reports" className="see-all-link">
+                        See report
+                      </NavLink>
+                    </div>
+                    <div className="completion-metrics">
+                      <div className="status-card success">
+                        <strong>{completionRate}%</strong>
+                        <p>Completion rate</p>
+                      </div>
+                      <div className="status-card info">
+                        <strong>{dashboardData?.total_appointments || 0}</strong>
+                        <p>Total appointments</p>
+                      </div>
+                      <div className="status-card danger">
+                        <strong>{dashboardData?.low_stock_items || 0}</strong>
+                        <p>Low stock alerts</p>
                       </div>
                     </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="panel completion-panel">
-                <div className="panel-header space-between">
-                  <div>
-                    <h2>Appointment Statistics</h2>
+                    <div className="mini-chart-placeholder">
+                      <div className="insight-stack">
+                        <div>
+                          <strong>{dashboardData?.today_appointments || 0}</strong>
+                          <span>Scheduled today</span>
+                        </div>
+                        <div>
+                          <strong>{dashboardData?.completed_appointments || 0}</strong>
+                          <span>Completed overall</span>
+                        </div>
+                        <div>
+                          <strong>{dashboardData?.total_customers || 0}</strong>
+                          <span>Customer records</span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <NavLink to="/admin/reports" className="see-all-link">
-                    See report
-                  </NavLink>
-                </div>
-                <div className="completion-metrics">
-                  <div className="status-card success">
-                    <strong>{dashboardData?.total_appointments > 0 
-                      ? Math.round((dashboardData.completed_appointments / dashboardData.total_appointments) * 100) 
-                      : 0}%</strong>
-                    <p>Completion rate</p>
-                  </div>
-                  <div className="status-card info">
-                    <strong>{dashboardData?.total_appointments || 0}</strong>
-                    <p>Total appointments</p>
-                  </div>
-                </div>
-                <div className="mini-chart-placeholder">Chart placeholder</div>
-              </div>
-            </section>
+                </section>
               </>
             )}
           </>

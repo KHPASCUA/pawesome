@@ -16,6 +16,7 @@ import {
   faCalculator,
 } from "@fortawesome/free-solid-svg-icons";
 import "./EmployeeSalaryManagement.css";
+import { formatCurrency } from "../../utils/currency";
 
 const EmployeeSalaryManagement = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -196,7 +197,7 @@ const EmployeeSalaryManagement = () => {
             <FontAwesomeIcon icon={faDollarSign} />
           </div>
           <div className="card-content">
-            <h3>${employees.reduce((sum, emp) => sum + emp.totalSalary, 0).toLocaleString()}</h3>
+            <h3>{formatCurrency(employees.reduce((sum, emp) => sum + emp.totalSalary, 0))}</h3>
             <p>Total Payroll</p>
           </div>
         </div>
@@ -205,7 +206,7 @@ const EmployeeSalaryManagement = () => {
             <FontAwesomeIcon icon={faCalculator} />
           </div>
           <div className="card-content">
-            <h3>${Math.round(employees.reduce((sum, emp) => sum + emp.totalSalary, 0) / employees.length).toLocaleString()}</h3>
+            <h3>{formatCurrency(Math.round(employees.reduce((sum, emp) => sum + emp.totalSalary, 0) / employees.length))}</h3>
             <p>Average Salary</p>
           </div>
         </div>
@@ -290,7 +291,7 @@ const EmployeeSalaryManagement = () => {
                   />
                 </div>
                 <div className="form-group">
-                  <label>Base Salary ($)</label>
+                  <label>Base Salary (PHP)</label>
                   <input
                     type="number"
                     value={newEmployee.baseSalary}
@@ -299,7 +300,7 @@ const EmployeeSalaryManagement = () => {
                   />
                 </div>
                 <div className="form-group">
-                  <label>Housing Allowance ($)</label>
+                  <label>Housing Allowance (PHP)</label>
                   <input
                     type="number"
                     value={newEmployee.housingAllowance}
@@ -308,7 +309,7 @@ const EmployeeSalaryManagement = () => {
                   />
                 </div>
                 <div className="form-group">
-                  <label>Transport Allowance ($)</label>
+                  <label>Transport Allowance (PHP)</label>
                   <input
                     type="number"
                     value={newEmployee.transportAllowance}
@@ -317,7 +318,7 @@ const EmployeeSalaryManagement = () => {
                   />
                 </div>
                 <div className="form-group">
-                  <label>Medical Allowance ($)</label>
+                  <label>Medical Allowance (PHP)</label>
                   <input
                     type="number"
                     value={newEmployee.medicalAllowance}
@@ -326,7 +327,7 @@ const EmployeeSalaryManagement = () => {
                   />
                 </div>
                 <div className="form-group">
-                  <label>Performance Bonus ($)</label>
+                  <label>Performance Bonus (PHP)</label>
                   <input
                     type="number"
                     value={newEmployee.performanceBonus}
@@ -386,23 +387,23 @@ const EmployeeSalaryManagement = () => {
                   </span>
                 </td>
                 <td className="base-salary">
-                  <span className="amount">${employee.baseSalary.toLocaleString()}</span>
+                  <span className="amount">{formatCurrency(employee.baseSalary)}</span>
                 </td>
                 <td className="allowances">
                   <div className="allowance-breakdown">
-                    <span>H: ${employee.housingAllowance}</span>
-                    <span>T: ${employee.transportAllowance}</span>
-                    <span>M: ${employee.medicalAllowance}</span>
+                    <span>H: {formatCurrency(employee.housingAllowance)}</span>
+                    <span>T: {formatCurrency(employee.transportAllowance)}</span>
+                    <span>M: {formatCurrency(employee.medicalAllowance)}</span>
                   </div>
                   <span className="total-allowances">
-                    ${(employee.housingAllowance + employee.transportAllowance + employee.medicalAllowance).toLocaleString()}
+                    {formatCurrency(employee.housingAllowance + employee.transportAllowance + employee.medicalAllowance)}
                   </span>
                 </td>
                 <td className="bonus">
-                  <span className="amount bonus-amount">${employee.performanceBonus.toLocaleString()}</span>
+                  <span className="amount bonus-amount">{formatCurrency(employee.performanceBonus)}</span>
                 </td>
                 <td className="total-salary">
-                  <span className="amount total-amount">${employee.totalSalary.toLocaleString()}</span>
+                  <span className="amount total-amount">{formatCurrency(employee.totalSalary)}</span>
                 </td>
                 <td className="status">
                   <span className="status-badge active">
@@ -479,7 +480,7 @@ const EmployeeSalaryManagement = () => {
                   />
                 </div>
                 <div className="form-group">
-                  <label>Base Salary ($)</label>
+                  <label>Base Salary (PHP)</label>
                   <input
                     type="number"
                     value={editingEmployee.baseSalary}
@@ -487,7 +488,7 @@ const EmployeeSalaryManagement = () => {
                   />
                 </div>
                 <div className="form-group">
-                  <label>Housing Allowance ($)</label>
+                  <label>Housing Allowance (PHP)</label>
                   <input
                     type="number"
                     value={editingEmployee.housingAllowance}
@@ -495,7 +496,7 @@ const EmployeeSalaryManagement = () => {
                   />
                 </div>
                 <div className="form-group">
-                  <label>Transport Allowance ($)</label>
+                  <label>Transport Allowance (PHP)</label>
                   <input
                     type="number"
                     value={editingEmployee.transportAllowance}
@@ -503,7 +504,7 @@ const EmployeeSalaryManagement = () => {
                   />
                 </div>
                 <div className="form-group">
-                  <label>Medical Allowance ($)</label>
+                  <label>Medical Allowance (PHP)</label>
                   <input
                     type="number"
                     value={editingEmployee.medicalAllowance}
@@ -511,7 +512,7 @@ const EmployeeSalaryManagement = () => {
                   />
                 </div>
                 <div className="form-group">
-                  <label>Performance Bonus ($)</label>
+                  <label>Performance Bonus (PHP)</label>
                   <input
                     type="number"
                     value={editingEmployee.performanceBonus}
@@ -523,19 +524,19 @@ const EmployeeSalaryManagement = () => {
                 <h3>Salary Preview</h3>
                 <div className="preview-item">
                   <span>Base Salary:</span>
-                  <span>${editingEmployee.baseSalary.toLocaleString()}</span>
+                  <span>{formatCurrency(editingEmployee.baseSalary)}</span>
                 </div>
                 <div className="preview-item">
                   <span>Total Allowances:</span>
-                  <span>${(editingEmployee.housingAllowance + editingEmployee.transportAllowance + editingEmployee.medicalAllowance).toLocaleString()}</span>
+                  <span>{formatCurrency(editingEmployee.housingAllowance + editingEmployee.transportAllowance + editingEmployee.medicalAllowance)}</span>
                 </div>
                 <div className="preview-item">
                   <span>Performance Bonus:</span>
-                  <span>${editingEmployee.performanceBonus.toLocaleString()}</span>
+                  <span>{formatCurrency(editingEmployee.performanceBonus)}</span>
                 </div>
                 <div className="preview-item total">
                   <span>Total Salary:</span>
-                  <span>${calculateTotalSalary(editingEmployee).toLocaleString()}</span>
+                  <span>{formatCurrency(calculateTotalSalary(editingEmployee))}</span>
                 </div>
               </div>
               <div className="form-actions">

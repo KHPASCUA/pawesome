@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Outlet, NavLink, useLocation } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -12,64 +12,75 @@ import {
 import CustomerSidebar from "./CustomerSidebar";
 import RoleAwareChatbot from "../chatbot/RoleAwareChatbot";
 import NotificationDropdown from "../shared/NotificationDropdown";
+import { apiRequest } from "../../api/client";
 import "./CustomerDashboard.css";
 
 const CustomerDashboard = () => {
   const name = localStorage.getItem("name") || "Customer";
   const [theme, setTheme] = useState("light");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [dashboardData, setDashboardData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const location = useLocation();
 
   const normalizedPath = location.pathname.replace(/\/+$/, "");
   const showOverview = normalizedPath === "/customer";
 
-  const summaryCards = [
+  // Fetch dashboard data from backend
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true);
+        const data = await apiRequest("/customer/overview");
+        setDashboardData(data);
+        setError("");
+      } catch (err) {
+        setError(err.message || "Failed to load dashboard data");
+        console.error("Customer dashboard fetch error:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (showOverview) {
+      fetchDashboardData();
+    }
+  }, [showOverview]);
+
+  const summaryCards = dashboardData ? [
     {
       title: "Active Bookings",
-      value: 3,
+      value: dashboardData.active_bookings || 0,
       subtitle: "Current reservations",
-      change: "+1",
+      change: "",
     },
     {
       title: "Total Pets",
-      value: 5,
+      value: dashboardData.total_pets || 0,
       subtitle: "Registered pets",
-      change: "+2",
+      change: "",
     },
     {
       title: "Completed Services",
-      value: 24,
+      value: dashboardData.completed_services || 0,
       subtitle: "This month",
-      change: "+8",
+      change: "",
     },
     {
       title: "Loyalty Points",
-      value: 850,
+      value: dashboardData.loyalty_points || 0,
       subtitle: "Available points",
-      change: "+50",
+      change: "",
     },
-  ];
+  ] : [];
 
-  const recentBookings = [
-    {
-      petName: "Max",
-      service: "Grooming",
-      date: "2026-03-28",
-      status: "confirmed",
-    },
-    {
-      petName: "Bella",
-      service: "Boarding",
-      date: "2026-03-30",
-      status: "pending",
-    },
-    {
-      petName: "Charlie",
-      service: "Veterinary Checkup",
-      date: "2026-04-02",
-      status: "confirmed",
-    },
-  ];
+  const recentBookings = dashboardData ? (dashboardData.recent_bookings || []).map((booking) => ({
+    petName: booking.pet?.name || "Pet",
+    service: booking.service?.name || "Service",
+    date: new Date(booking.scheduled_at).toLocaleDateString(),
+    status: booking.status || "pending",
+  })) : [];
 
   return (
     <div className={`customer-dashboard ${theme} ${sidebarCollapsed ? "collapsed" : ""}`}>
@@ -145,13 +156,13 @@ const CustomerDashboard = () => {
 
               <article className="panel quick-stat-panel">
                 <div className="metric-card accent">
-                  <h3>850</h3>
+                  <h3>{dashboardData?.loyalty_points || 0}</h3>
                   <p>Loyalty Points</p>
                   <small>Redeemable for services</small>
                 </div>
 
                 <div className="metric-card">
-                  <h3>Gold</h3>
+                  <h3>{dashboardData?.member_status || "Standard"}</h3>
                   <p>Member Status</p>
                 </div>
               </article>

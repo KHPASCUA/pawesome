@@ -16,6 +16,7 @@ import {
   faTimes
 } from '@fortawesome/free-solid-svg-icons';
 import './Reports.css';
+import { formatCurrency } from "../../utils/currency";
 
 const Reports = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -135,7 +136,7 @@ const Reports = () => {
             <FontAwesomeIcon icon={faCalendarCheck} />
           </div>
           <div className="stat-content">
-            <h3>PHP {stats.totalRevenue.toLocaleString()}</h3>
+            <h3>{formatCurrency(stats.totalRevenue)}</h3>
             <p>Total Revenue</p>
           </div>
         </div>
@@ -233,7 +234,7 @@ const Reports = () => {
                 <td>{transaction.time}</td>
                 <td>
                   <span className="amount">
-                    {transaction.amount > 0 ? `PHP ${transaction.amount.toLocaleString()}` : "-"}
+                    {transaction.amount > 0 ? formatCurrency(transaction.amount) : "-"}
                   </span>
                 </td>
                 <td>
@@ -306,7 +307,7 @@ const Reports = () => {
               </div>
               <div className="detail-row">
                 <label>Amount:</label>
-                <span>{selectedTransaction.amount > 0 ? `PHP ${selectedTransaction.amount.toLocaleString()}` : "No charge"}</span>
+                <span>{selectedTransaction.amount > 0 ? formatCurrency(selectedTransaction.amount) : "No charge"}</span>
               </div>
               <div className="detail-row">
                 <label>Status:</label>

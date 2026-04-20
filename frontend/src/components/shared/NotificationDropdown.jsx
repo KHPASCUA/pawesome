@@ -106,6 +106,22 @@ const NotificationDropdown = ({ className = "" }) => {
     }
   };
 
+  const getDisplayTime = (notification) => {
+    if (notification.time) return notification.time;
+    if (!notification.created_at) return "Just now";
+
+    const createdAt = new Date(notification.created_at).getTime();
+    const diff = Date.now() - createdAt;
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    const days = Math.floor(diff / 86400000);
+
+    if (minutes < 1) return "Just now";
+    if (minutes < 60) return `${minutes}m ago`;
+    if (hours < 24) return `${hours}h ago`;
+    return `${days}d ago`;
+  };
+
   return (
     <div className={`notification-container ${className}`} ref={dropdownRef}>
       <button 
@@ -177,7 +193,7 @@ const NotificationDropdown = ({ className = "" }) => {
                   <div className="notification-content">
                     <h4 className="notification-title">{notification.title}</h4>
                     <p className="notification-message">{notification.message}</p>
-                    <span className="notification-time">{notification.time}</span>
+                    <span className="notification-time">{getDisplayTime(notification)}</span>
                   </div>
                   {!notification.read && <div className="unread-indicator" />}
                 </div>

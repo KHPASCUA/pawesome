@@ -16,6 +16,7 @@ import RoleAwareChatbot from "../chatbot/RoleAwareChatbot";
 import NotificationDropdown from "../shared/NotificationDropdown";
 import "./CashierDashboard.css";
 import { apiRequest } from "../../api/client";
+import { formatCurrency } from "../../utils/currency";
 
 const CashierDashboard = () => {
   const name = localStorage.getItem("name") || "Cashier";
@@ -56,7 +57,7 @@ const CashierDashboard = () => {
   const summaryCards = dashboardData ? [
     {
       title: "Today's Sales",
-      value: `$${dashboardData.today_sales || 0}`,
+      value: formatCurrency(dashboardData.today_sales || 0),
       subtitle: "Total revenue",
       change: "",
     },
@@ -68,7 +69,7 @@ const CashierDashboard = () => {
     },
     {
       title: "Monthly Sales",
-      value: `$${dashboardData.monthly_sales || 0}`,
+      value: formatCurrency(dashboardData.monthly_sales || 0),
       subtitle: "This month",
       change: "",
     },
@@ -83,7 +84,7 @@ const CashierDashboard = () => {
   const recentTransactions = dashboardData ? (dashboardData.recent_sales || []).map((sale, index) => ({
     id: `TRX-${String(sale.id).padStart(3, '0')}`,
     customer: sale.type === 'appointment' ? 'Appointment Payment' : (sale.type === 'boarding' ? 'Boarding Payment' : 'Product Sale'),
-    amount: `$${sale.amount}`,
+    amount: formatCurrency(sale.amount),
     items: 1,
     payment: sale.type || 'Cash',
     time: new Date(sale.created_at).toLocaleTimeString(),
@@ -206,7 +207,7 @@ const CashierDashboard = () => {
 
                   <article className="panel quick-stat-panel">
                     <div className="metric-card accent">
-                      <h3>${dashboardData?.today_sales || 0}</h3>
+                      <h3>{formatCurrency(dashboardData?.today_sales || 0)}</h3>
                       <p>Today's Revenue</p>
                       <small>From {dashboardData?.today_transactions || 0} transactions</small>
                     </div>
@@ -244,7 +245,7 @@ const CashierDashboard = () => {
                             <h4>{type.type.charAt(0).toUpperCase() + type.type.slice(1)}</h4>
                             <p>{type.count} transactions</p>
                           </div>
-                          <div className="payment-amount">${type.total}</div>
+                          <div className="payment-amount">{formatCurrency(type.total)}</div>
                         </div>
                       ))}
                       {salesByType.length === 0 && (
@@ -265,9 +266,11 @@ const CashierDashboard = () => {
                     
                     <div className="sales-metrics">
                       <div className="status-card success">
-                        <strong>${dashboardData?.today_sales > 0 && dashboardData?.today_transactions > 0 
-                          ? (dashboardData.today_sales / dashboardData.today_transactions).toFixed(2) 
-                          : 0}</strong>
+                        <strong>{formatCurrency(
+                          dashboardData?.today_sales > 0 && dashboardData?.today_transactions > 0
+                            ? dashboardData.today_sales / dashboardData.today_transactions
+                            : 0
+                        )}</strong>
                         <p>Average Order</p>
                         <small>Today's average</small>
                       </div>

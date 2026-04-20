@@ -24,6 +24,7 @@ import {
   faThermometerHalf,
 } from "@fortawesome/free-solid-svg-icons";
 import { apiRequest } from "../../api/client";
+import { formatCurrency } from "../../utils/currency";
 import "./VetHistory.css";
 
 const VetHistory = () => {
@@ -341,7 +342,7 @@ const VetHistory = () => {
             <FontAwesomeIcon icon={faDollarSign} />
           </div>
           <div className="stat-content">
-            <div className="stat-value">${totalRevenue.toFixed(2)}</div>
+            <div className="stat-value">{formatCurrency(totalRevenue)}</div>
             <div className="stat-label">Total Revenue</div>
           </div>
         </div>
@@ -457,7 +458,7 @@ const VetHistory = () => {
                       <FontAwesomeIcon icon={faDollarSign} />
                       Cost
                     </h5>
-                    <p className="cost-amount">${record.cost.toFixed(2)}</p>
+                    <p className="cost-amount">{formatCurrency(record.cost)}</p>
                   </div>
                 </div>
 

@@ -51,14 +51,15 @@ return [
         'hotel_booking',
         'check_in',
         'check_out',
+        'summary',
+        'pricing',
+        'services',
     ],
 
     // Intents eligible for AI responses (general questions, advice, help)
     'ai_eligible_intents' => [
         'general',
         'faq',
-        'pricing',
-        'services',
         'help',
         'advice',
         'unknown',
