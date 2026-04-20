@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Boarding;
 use App\Models\HotelRoom;
 use App\Models\Pet;
+use App\Models\Customer;
+use App\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -111,6 +113,9 @@ class BoardingController extends Controller
         ]);
 
         $boarding->load(['pet', 'customer', 'hotelRoom']);
+
+        // Send notifications
+        NotificationService::notifyBoardingCreated($boarding);
 
         return response()->json([
             'message' => 'Reservation created successfully',
@@ -220,7 +225,11 @@ class BoardingController extends Controller
     public function confirm($id): JsonResponse
     {
         $boarding = Boarding::findOrFail($id);
+        $oldStatus = $boarding->status;
         $boarding->confirm();
+
+        // Send notification
+        NotificationService::notifyBoardingStatusChange($boarding, $oldStatus);
 
         return response()->json([
             'message' => 'Reservation confirmed',
@@ -239,7 +248,11 @@ class BoardingController extends Controller
             return response()->json(['error' => 'Invalid status for check-in'], 422);
         }
 
+        $oldStatus = $boarding->status;
         $boarding->checkIn();
+
+        // Send notification
+        NotificationService::notifyBoardingStatusChange($boarding, $oldStatus);
 
         return response()->json([
             'message' => 'Guest checked in successfully',
@@ -258,7 +271,11 @@ class BoardingController extends Controller
             return response()->json(['error' => 'Guest is not checked in'], 422);
         }
 
+        $oldStatus = $boarding->status;
         $boarding->checkOut();
+
+        // Send notification
+        NotificationService::notifyBoardingStatusChange($boarding, $oldStatus);
 
         return response()->json([
             'message' => 'Guest checked out successfully',
@@ -277,12 +294,17 @@ class BoardingController extends Controller
             return response()->json(['error' => 'Cannot cancel completed reservation'], 422);
         }
 
+        $oldStatus = $boarding->status;
+
         // Release room if checked in
         if ($boarding->status === 'checked_in' && $boarding->hotelRoom) {
             $boarding->hotelRoom->update(['status' => 'available']);
         }
 
         $boarding->update(['status' => 'cancelled']);
+
+        // Send notification
+        NotificationService::notifyBoardingStatusChange($boarding, $oldStatus);
 
         return response()->json([
             'message' => 'Reservation cancelled',

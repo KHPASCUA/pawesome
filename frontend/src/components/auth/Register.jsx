@@ -177,8 +177,12 @@ const Register = () => {
       });
 
       if (response.user) {
+        const token = response.token || response.user.api_token;
+
         // Store authentication data
-        localStorage.setItem("token", response.user.api_token);
+        if (token) {
+          localStorage.setItem("token", token);
+        }
         localStorage.setItem("role", response.user.role);
         localStorage.setItem("name", response.user.name);
         localStorage.setItem("username", response.user.username);

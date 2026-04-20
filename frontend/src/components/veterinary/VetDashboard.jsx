@@ -158,24 +158,35 @@ const VetDashboard = () => {
                   <div>
                     <h2>Today's Schedule</h2>
                     <p>
-                      You have {summaryCards[0].value} appointments scheduled for today.
+                      You have {summaryCards[0]?.value ?? 0} appointments scheduled for today.
                     </p>
                   </div>
-                  <span className="badge">{summaryCards[0].value} Appointments</span>
+                  <span className="badge">{summaryCards[0]?.value ?? 0} Appointments</span>
                 </div>
-                <div className="chart-placeholder">Schedule Overview Chart</div>
+                <div className="appointments-preview">
+                  {(dashboardData?.upcoming_appointments || []).slice(0, 3).map((apt, idx) => (
+                    <div key={idx} className="preview-appointment-item">
+                      <span className="apt-time">{new Date(apt.scheduled_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                      <span className="apt-pet">{apt.pet?.name || "Pet"}</span>
+                      <span className="apt-service">{apt.service?.name || "Service"}</span>
+                    </div>
+                  ))}
+                  {(dashboardData?.upcoming_appointments || []).length === 0 && (
+                    <p className="no-data">No upcoming appointments</p>
+                  )}
+                </div>
               </article>
 
               <article className="panel quick-stat-panel">
                 <div className="metric-card accent">
-                  <h3>{dashboardData?.patient_satisfaction || 0}%</h3>
-                  <p>Patient Satisfaction</p>
-                  <small>Based on recent feedback</small>
+                  <h3>{dashboardData?.new_patients_this_month || 0}</h3>
+                  <p>New Patients This Month</p>
+                  <small>New registrations</small>
                 </div>
 
                 <div className="metric-card">
-                  <h3>{dashboardData?.avg_response_time || "0m"}</h3>
-                  <p>Average Response Time</p>
+                  <h3>{dashboardData?.completed_appointments || 0}</h3>
+                  <p>Completed Appointments</p>
                 </div>
               </article>
             </section>
@@ -235,19 +246,19 @@ const VetDashboard = () => {
 
                           <div className="boarder-actions">
                             <NavLink 
-                              to={`/veterinary/pets/${boarder.pet?.id}`} 
+                              to="/veterinary/customer-profiles" 
                               className="view-pet-btn"
                             >
-                              View Pet Record
+                              View Pet Records
                             </NavLink>
                           </div>
                         </div>
                       ))}
                       {currentBoarders.length > 5 && (
                         <div className="more-boarders">
-                          <NavLink to="/veterinary/boarders" className="see-all-link">
-                            See all {currentBoarders.length} boarders →
-                          </NavLink>
+                          <span className="see-all-link">
+                            {currentBoarders.length} boarders total
+                          </span>
                         </div>
                       )}
                     </div>
@@ -317,15 +328,17 @@ const VetDashboard = () => {
                 </div>
                 <div className="activity-metrics">
                   <div className="status-card success">
-                    <strong>{dashboardData?.checkups_today || 0}</strong>
-                    <p>Checkups completed today</p>
+                    <strong>{dashboardData?.today_appointments || 0}</strong>
+                    <p>Appointments today</p>
                   </div>
                   <div className="status-card info">
-                    <strong>{dashboardData?.vaccinations_today || 0}</strong>
-                    <p>Vaccinations administered</p>
+                    <strong>{dashboardData?.pending_appointments || 0}</strong>
+                    <p>Pending appointments</p>
                   </div>
                 </div>
-                <div className="mini-chart-placeholder">Activity Chart</div>
+                <div className="activity-summary">
+                  <p>Total patients: {dashboardData?.total_patients || 0} | New this month: {dashboardData?.new_patients_this_month || 0}</p>
+                </div>
               </div>
             </section>
           </>

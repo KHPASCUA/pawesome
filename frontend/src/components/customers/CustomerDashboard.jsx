@@ -146,12 +146,23 @@ const CustomerDashboard = () => {
                   <div>
                     <h2>Your Pets</h2>
                     <p>
-                      You have {summaryCards[1].value} registered pets under your care.
+                      You have {dashboardData?.total_pets || 0} registered pets under your care.
                     </p>
                   </div>
-                  <span className="badge">{summaryCards[1].value} Pets</span>
+                  <span className="badge">{dashboardData?.total_pets || 0} Pets</span>
                 </div>
-                <div className="chart-placeholder">Pets Overview Chart</div>
+                <div className="pets-list">
+                  {(dashboardData?.recent_bookings || []).slice(0, 3).map((booking, idx) => (
+                    <div key={idx} className="pet-summary-item">
+                      <FontAwesomeIcon icon={faPaw} />
+                      <span>{booking.pet?.name || "Pet"}</span>
+                      <span className="pet-service">{booking.service?.name || "Service"}</span>
+                    </div>
+                  ))}
+                  {(dashboardData?.recent_bookings || []).length === 0 && (
+                    <p className="no-data">No recent bookings</p>
+                  )}
+                </div>
               </article>
 
               <article className="panel quick-stat-panel">
@@ -229,17 +240,16 @@ const CustomerDashboard = () => {
                 </div>
                 <div className="activity-metrics">
                   <div className="status-card success">
-                    <strong>24</strong>
+                    <strong>{dashboardData?.completed_services || 0}</strong>
                     <p>Services completed this month</p>
                   </div>
                   <div className="status-card info">
-                    <strong>3</strong>
+                    <strong>{dashboardData?.active_bookings || 0}</strong>
                     <p>Upcoming appointments</p>
                   </div>
                 </div>
-                <div className="mini-chart-placeholder">
-                  <FontAwesomeIcon icon={faArrowUp} />
-                  <span>Activity Trend</span>
+                <div className="activity-summary">
+                  <p>You have {dashboardData?.active_bookings || 0} active bookings and {dashboardData?.total_pets || 0} registered pets.</p>
                 </div>
               </div>
             </section>

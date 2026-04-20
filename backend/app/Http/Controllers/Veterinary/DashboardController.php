@@ -16,13 +16,14 @@ class DashboardController extends Controller
         
         return response()->json([
             'today_appointments' => Appointment::whereDate('scheduled_at', $today)->count(),
-            'pending_appointments' => Appointment::where('status', 'scheduled')->count(),
+            'pending_appointments' => Appointment::where('status', 'pending')->count(),
+            'approved_appointments' => Appointment::where('status', 'approved')->count(),
             'completed_appointments' => Appointment::where('status', 'completed')->count(),
             'total_patients' => Pet::count(),
             'new_patients_this_month' => Pet::whereMonth('created_at', $today->month)->count(),
-            'upcoming_appointments' => Appointment::with(['customer', 'pet', 'service'])
+            'upcoming_appointments' => Appointment::with(['customer', 'pet', 'service', 'veterinarian'])
                 ->where('scheduled_at', '>=', $today)
-                ->whereIn('status', ['scheduled', 'confirmed'])
+                ->whereIn('status', ['pending', 'approved'])
                 ->orderBy('scheduled_at')
                 ->limit(5)
                 ->get(),
@@ -38,7 +39,7 @@ class DashboardController extends Controller
     public function appointments()
     {
         return response()->json(
-            Appointment::with(['customer', 'pet', 'service'])
+            Appointment::with(['customer', 'pet', 'service', 'veterinarian'])
                 ->orderBy('scheduled_at')
                 ->get()
         );
@@ -51,5 +52,73 @@ class DashboardController extends Controller
                 $query->latest()->take(3);
             }])->get()
         );
+    }
+
+    public function appointment($id)
+    {
+        return response()->json([
+            'appointment' => Appointment::with(['customer', 'pet', 'service', 'veterinarian'])->findOrFail($id),
+        ]);
+    }
+
+    public function history(Request $request)
+    {
+        $statuses = $request->input('status', 'completed,cancelled');
+        $statusArray = explode(',', $statuses);
+        
+        $appointments = Appointment::with(['customer', 'pet', 'service', 'veterinarian'])
+            ->whereIn('status', $statusArray)
+            ->orderBy('scheduled_at', 'desc')
+            ->get();
+            
+        return response()->json($appointments);
+    }
+
+    public function reports()
+    {
+        $today = Carbon::today();
+        $monthStart = $today->copy()->startOfMonth();
+        
+        $completedAppointments = Appointment::where('status', 'completed')
+            ->whereMonth('scheduled_at', $today->month)
+            ->count();
+            
+        $totalRevenue = Appointment::where('status', 'completed')
+            ->whereMonth('scheduled_at', $today->month)
+            ->sum('price');
+            
+        $serviceBreakdown = Appointment::with('service')
+            ->where('status', 'completed')
+            ->whereMonth('scheduled_at', $today->month)
+            ->selectRaw('service_id, COUNT(*) as count, SUM(price) as revenue')
+            ->groupBy('service_id')
+            ->get();
+            
+        return response()->json([
+            'monthly_completed' => $completedAppointments,
+            'monthly_revenue' => $totalRevenue,
+            'service_breakdown' => $serviceBreakdown,
+            'period' => $today->format('F Y'),
+        ]);
+    }
+
+    public function receipt($id)
+    {
+        $appointment = Appointment::with(['customer', 'pet', 'service', 'veterinarian'])->findOrFail($id);
+        
+        return response()->json([
+            'receipt' => [
+                'id' => $appointment->id,
+                'date' => $appointment->scheduled_at,
+                'customer_name' => $appointment->customer?->name,
+                'pet_name' => $appointment->pet?->name,
+                'service_name' => $appointment->service?->name,
+                'service_category' => $appointment->service?->category,
+                'vet_name' => $appointment->veterinarian?->name ?? 'Unassigned',
+                'amount' => $appointment->price,
+                'status' => $appointment->payment_status ?? 'pending',
+                'notes' => $appointment->notes,
+            ],
+        ]);
     }
 }

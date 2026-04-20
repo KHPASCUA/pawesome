@@ -1,0 +1,781 @@
+/* Medical Records Management Styles */
+
+.medical-records {
+  padding: 20px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* Header */
+.records-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.header-content h2 {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 8px 0;
+  font-size: 1.75rem;
+  color: #1f2937;
+}
+
+.header-content h2 svg {
+  color: #2563eb;
+}
+
+.header-subtitle {
+  margin: 0;
+  color: #6b7280;
+  font-size: 0.95rem;
+}
+
+.header-actions {
+  display: flex;
+  gap: 12px;
+}
+
+/* Buttons */
+.btn-primary,
+.btn-secondary,
+.btn-search,
+.btn-clear,
+.btn-filter-toggle,
+.btn-retry {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  color: white;
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
+.btn-secondary {
+  background: #f3f4f6;
+  color: #374151;
+  border: 1px solid #d1d5db;
+}
+
+.btn-secondary:hover {
+  background: #e5e7eb;
+}
+
+.btn-search {
+  background: #2563eb;
+  color: white;
+}
+
+.btn-clear {
+  background: transparent;
+  color: #6b7280;
+  border: 1px solid #d1d5db;
+}
+
+.btn-filter-toggle {
+  background: #f9fafb;
+  color: #374151;
+  border: 1px solid #d1d5db;
+}
+
+.btn-retry {
+  background: #dc2626;
+  color: white;
+  margin-top: 12px;
+}
+
+/* Statistics Grid */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.stat-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 12px;
+  background: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e5e7eb;
+}
+
+.stat-card.total {
+  border-left: 4px solid #2563eb;
+}
+
+.stat-card.draft {
+  border-left: 4px solid #f59e0b;
+}
+
+.stat-card.finalized {
+  border-left: 4px solid #10b981;
+}
+
+.stat-card.locked {
+  border-left: 4px solid #6b7280;
+}
+
+.stat-card.prescriptions {
+  border-left: 4px solid #8b5cf6;
+}
+
+.stat-card.vaccinations {
+  border-left: 4px solid #ec4899;
+}
+
+.stat-icon {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  font-size: 1.2rem;
+}
+
+.stat-card.total .stat-icon {
+  background: #dbeafe;
+  color: #2563eb;
+}
+
+.stat-card.draft .stat-icon {
+  background: #fef3c7;
+  color: #f59e0b;
+}
+
+.stat-card.finalized .stat-icon {
+  background: #d1fae5;
+  color: #10b981;
+}
+
+.stat-card.locked .stat-icon {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.stat-card.prescriptions .stat-icon {
+  background: #ede9fe;
+  color: #8b5cf6;
+}
+
+.stat-card.vaccinations .stat-icon {
+  background: #fce7f3;
+  color: #ec4899;
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.stat-label {
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
+/* Filters Section */
+.filters-section {
+  background: white;
+  padding: 16px;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  margin-bottom: 24px;
+}
+
+.filters-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.search-input {
+  flex: 1;
+  min-width: 250px;
+  position: relative;
+}
+
+.search-input svg {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #9ca3af;
+}
+
+.search-input input {
+  width: 100%;
+  padding: 10px 12px 10px 40px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 0.95rem;
+}
+
+.search-input input:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.advanced-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.filter-group label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 6px;
+}
+
+.filter-group select,
+.filter-group input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+/* Records List */
+.records-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.record-card {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e5e7eb;
+  overflow: hidden;
+  transition: all 0.2s;
+}
+
+.record-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.record-card.expanded {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.record-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.record-main-info {
+  display: flex;
+  gap: 32px;
+  align-items: center;
+}
+
+.pet-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pet-avatar {
+  width: 44px;
+  height: 44px;
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 1.2rem;
+}
+
+.pet-details h4 {
+  margin: 0 0 4px 0;
+  font-size: 1.1rem;
+  color: #1f2937;
+}
+
+.pet-details p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.visit-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.visit-date,
+.veterinarian {
+  font-size: 0.85rem;
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.status-draft {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.status-finalized {
+  background: #d1fae5;
+  color: #059669;
+}
+
+.status-locked {
+  background: #e5e7eb;
+  color: #4b5563;
+}
+
+/* Record Summary */
+.record-summary {
+  padding: 16px 20px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.summary-item {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.summary-label {
+  font-weight: 600;
+  color: #374151;
+  font-size: 0.9rem;
+}
+
+.summary-value {
+  color: #4b5563;
+  font-size: 0.9rem;
+}
+
+.summary-tags {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 16px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.tag.prescriptions {
+  background: #ede9fe;
+  color: #7c3aed;
+}
+
+.tag.vaccinations {
+  background: #fce7f3;
+  color: #db2777;
+}
+
+.tag.weight {
+  background: #dbeafe;
+  color: #2563eb;
+}
+
+.tag.temp {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+/* Record Actions */
+.record-actions {
+  display: flex;
+  gap: 8px;
+  padding: 12px 20px;
+  background: #f9fafb;
+}
+
+.btn-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+}
+
+.btn-action.view {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.btn-action.view:hover {
+  background: #dbeafe;
+}
+
+.btn-action.edit {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.btn-action.edit:hover {
+  background: #fde68a;
+}
+
+.btn-action.lock {
+  background: #f3f4f6;
+  color: #4b5563;
+}
+
+.btn-action.lock:hover {
+  background: #e5e7eb;
+}
+
+.btn-action.delete {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.btn-action.delete:hover {
+  background: #fecaca;
+}
+
+/* Record Details (Expanded) */
+.record-details {
+  padding: 20px;
+  background: #f9fafb;
+  border-top: 1px solid #e5e7eb;
+}
+
+.details-section {
+  margin-bottom: 24px;
+  padding: 16px;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+.details-section:last-child {
+  margin-bottom: 0;
+}
+
+.details-section h4 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 16px 0;
+  font-size: 1rem;
+  color: #1f2937;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.details-section h4 svg {
+  color: #2563eb;
+}
+
+.details-section.diagnosis {
+  border-left: 4px solid #2563eb;
+}
+
+.vitals-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 16px;
+}
+
+.vital-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.vital-label {
+  font-size: 0.8rem;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.vital-value {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.detail-item {
+  margin-bottom: 16px;
+}
+
+.detail-item:last-child {
+  margin-bottom: 0;
+}
+
+.detail-label {
+  display: block;
+  font-weight: 600;
+  color: #374151;
+  font-size: 0.9rem;
+  margin-bottom: 6px;
+}
+
+.detail-value {
+  margin: 0;
+  color: #4b5563;
+  line-height: 1.6;
+}
+
+.detail-value.primary {
+  font-weight: 600;
+  color: #dc2626;
+}
+
+.detail-value.secondary {
+  color: #6b7280;
+}
+
+/* Prescriptions & Vaccinations Lists */
+.prescriptions-list,
+.vaccinations-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.prescription-item,
+.vaccination-item {
+  padding: 12px;
+  background: #f9fafb;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+}
+
+.prescription-header,
+.vaccination-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.medication-name,
+.vaccine-name {
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.prescription-status {
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.prescription-status.active {
+  background: #d1fae5;
+  color: #059669;
+}
+
+.prescription-status.inactive {
+  background: #e5e7eb;
+  color: #6b7280;
+}
+
+.prescription-details,
+.vaccination-date {
+  font-size: 0.85rem;
+  color: #4b5563;
+  margin: 0 0 6px 0;
+}
+
+.prescription-instructions {
+  font-size: 0.85rem;
+  color: #6b7280;
+  margin: 0;
+}
+
+.next-due {
+  font-size: 0.85rem;
+  color: #059669;
+  font-weight: 500;
+  margin: 0;
+}
+
+/* Metadata */
+.meta-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.meta-item {
+  display: flex;
+  gap: 8px;
+  font-size: 0.85rem;
+}
+
+.meta-label {
+  color: #6b7280;
+}
+
+.meta-value {
+  color: #374151;
+  font-weight: 500;
+}
+
+/* Details Actions */
+.details-actions {
+  margin-top: 20px;
+  display: flex;
+  gap: 12px;
+}
+
+/* No Records State */
+.no-records {
+  text-align: center;
+  padding: 60px 20px;
+  color: #6b7280;
+}
+
+.no-records svg {
+  font-size: 3rem;
+  color: #d1d5db;
+  margin-bottom: 16px;
+}
+
+.no-records h3 {
+  margin: 0 0 8px 0;
+  color: #374151;
+}
+
+.no-records p {
+  margin: 0 0 20px 0;
+}
+
+/* Loading & Error States */
+.loading-spinner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px;
+  color: #6b7280;
+}
+
+.loading-spinner svg {
+  font-size: 2rem;
+  margin-bottom: 12px;
+  color: #2563eb;
+}
+
+.error-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px;
+  color: #dc2626;
+  text-align: center;
+}
+
+.error-message svg {
+  font-size: 2rem;
+  margin-bottom: 12px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .records-header {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .header-actions {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .filters-row {
+    flex-direction: column;
+  }
+
+  .search-input {
+    min-width: 100%;
+  }
+
+  .record-header {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .record-main-info {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .visit-info {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+}

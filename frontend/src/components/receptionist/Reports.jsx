@@ -34,14 +34,27 @@ const Reports = () => {
     const fetchTransactions = async () => {
       try {
         setLoading(true);
-        // Note: Using cashier endpoint - may need backend to add /receptionist/transactions
-        // or give receptionists access to cashier transactions
+        // Backend returns Sale records with: id, amount, type, created_at, updated_at
+        // Transform to match expected format
         const data = await apiRequest("/cashier/transactions");
-        setTransactions(data.transactions || []);
+        const sales = Array.isArray(data) ? data : (data.transactions || data.sales || []);
+        // Transform Sale data to match expected transaction format
+        const transformedTransactions = sales.map(sale => ({
+          id: `TXN-${sale.id}`,
+          customer: sale.customer?.name || "Walk-in Customer",
+          pet: sale.pet?.name || "N/A",
+          date: sale.created_at ? new Date(sale.created_at).toISOString().split('T')[0] : "N/A",
+          time: sale.created_at ? new Date(sale.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "N/A",
+          amount: parseFloat(sale.amount) || 0,
+          status: "completed",
+          type: sale.type || "other"
+        }));
+        setTransactions(transformedTransactions);
         setError("");
       } catch (err) {
         console.error("Failed to fetch transactions:", err);
-        setError("Failed to load transactions");
+        setError("Failed to load transactions. Please ensure you have proper permissions.");
+        setTransactions([]);
       } finally {
         setLoading(false);
       }
@@ -86,10 +99,10 @@ const Reports = () => {
 
   // Filter transactions based on search and filter
   const filteredTransactions = transactions.filter(transaction => {
-    const matchesSearch = transaction.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         transaction.pet.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         transaction.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         transaction.id.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = (transaction.customer?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
+                         (transaction.pet?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
+                         (transaction.type?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
+                         (transaction.id?.toLowerCase() || "").includes(searchTerm.toLowerCase());
     
     if (filterType === "all") return matchesSearch;
     if (filterType === "today") return matchesSearch && transaction.date === new Date().toISOString().split('T')[0];

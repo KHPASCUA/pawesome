@@ -5,6 +5,8 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import LandingPage from "../components/landing/LandingPage";
 import Login from "../components/auth/Login";
 import Register from "../components/auth/Register";
+import ForgotPassword from "../components/auth/ForgotPassword";
+import Logout from "../components/auth/Logout";
 import Dashboard from "../components/Dashboard";
 import ProtectedRoute from "../components/ProtectedRoute";
 
@@ -25,6 +27,8 @@ const AppRoutes = () => (
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/logout" element={<Logout />} />
 
       {/* User dashboard */}
       <Route

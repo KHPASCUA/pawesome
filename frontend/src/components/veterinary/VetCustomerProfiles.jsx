@@ -25,16 +25,24 @@ const VetCustomerProfiles = () => {
   const fetchCustomers = async () => {
     try {
       setLoading(true);
-      // Try to fetch from API first
-      // Using patients endpoint (vets work with pets, not customers directly)
-      // May need backend to add /veterinary/customers if customer lookup is required
       const data = await apiRequest("/veterinary/patients");
-      setCustomers(data.customers || []);
+      const patients = Array.isArray(data) ? data : (data.patients || []);
+      const customers = patients.map((pet) => ({
+        id: pet.id,
+        name: pet.customer?.name || "Unknown Owner",
+        email: pet.customer?.email || "",
+        phone: pet.customer?.phone || "",
+        address: pet.customer?.address || "",
+        pet_name: pet.name,
+        pet_species: pet.species,
+        pet_breed: pet.breed,
+      }));
+      setCustomers(customers);
       setError("");
     } catch (err) {
-      // If API fails, use mock data (already set as default)
-      console.log("API failed, using mock data:", err);
-      setError("");
+      setError("Failed to load customers. Please try again.");
+      console.error("Failed to fetch customers:", err);
+      setCustomers([]);
     } finally {
       setLoading(false);
     }

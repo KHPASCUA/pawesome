@@ -71,7 +71,7 @@ const ReceptionistSidebar = ({ collapsed, onToggleCollapse }) => {
           
           <li className="nav-item">
             <NavLink
-              to="/receptionist/hotel"
+              to="/receptionist/bookings/hotel"
               className={({ isActive }) => (isActive ? "active" : "")}
               title="Pet Hotel"
             >

@@ -265,8 +265,8 @@ const ReceptionistDashboard = () => {
                       <div>
                         <h2>Reception Metrics</h2>
                       </div>
-                      <NavLink to="/receptionist/analytics" className="see-all-link">
-                        View analytics
+                      <NavLink to="/receptionist/reports" className="see-all-link">
+                        View reports
                       </NavLink>
                     </div>
                     

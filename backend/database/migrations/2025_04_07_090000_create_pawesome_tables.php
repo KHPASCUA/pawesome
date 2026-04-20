@@ -45,10 +45,13 @@ return new class extends Migration
             $table->foreignId('customer_id')->constrained()->onDelete('cascade');
             $table->foreignId('pet_id')->constrained()->onDelete('cascade');
             $table->foreignId('service_id')->constrained()->onDelete('cascade');
-            $table->enum('status', ['scheduled', 'confirmed', 'completed', 'cancelled'])->default('scheduled');
+            $table->foreignId('veterinarian_id')->nullable()->constrained('users')->onDelete('set null');
+            $table->enum('status', ['pending', 'approved', 'completed', 'cancelled'])->default('pending');
             $table->dateTime('scheduled_at');
+            $table->dateTime('completed_at')->nullable();
             $table->decimal('price', 10, 2)->nullable();
             $table->text('notes')->nullable();
+            $table->text('cancellation_reason')->nullable();
             $table->timestamps();
         });
 

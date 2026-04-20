@@ -38,7 +38,29 @@ const VetReceipt = () => {
     try {
       setLoading(true);
       const data = await apiRequest(`/veterinary/receipt/${id}`);
-      setReceiptData(data.receipt);
+      const receipt = data.receipt;
+
+      if (!receipt) {
+        throw new Error("Receipt not found");
+      }
+
+      setReceiptData({
+        id: receipt.id,
+        date: receipt.date,
+        time: new Date(receipt.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        service_type: receipt.service_name || 'service',
+        vet_name: receipt.vet_name || 'Unknown',
+        pet_name: receipt.pet_name || 'Unknown',
+        owner_name: receipt.customer_name || 'Unknown',
+        service_name: receipt.service_name || 'Service',
+        service_cost: receipt.amount || 0,
+        description: receipt.notes || 'No description',
+        subtotal: receipt.amount || 0,
+        tax: 0,
+        total: receipt.amount || 0,
+        payment_method: 'Cash',
+        payment_status: receipt.status || 'pending',
+      });
       setError("");
     } catch (err) {
       setError(err.message || "Failed to fetch receipt");
@@ -55,18 +77,7 @@ const VetReceipt = () => {
   const handleDownloadPDF = async () => {
     try {
       if (!receiptData) return;
-      
-      const response = await apiRequest(`/veterinary/receipt/${receiptId}/pdf`, {
-        method: "GET"
-      });
-      
-      const blob = new Blob([response], { type: "application/pdf" });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `receipt_${receiptId}.pdf`;
-      a.click();
-      window.URL.revokeObjectURL(url);
+      window.print();
     } catch (err) {
       setError("Failed to download PDF");
       console.error("PDF download error:", err);

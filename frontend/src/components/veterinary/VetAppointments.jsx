@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faCalendarAlt,
@@ -12,55 +12,48 @@ import {
   faCheckCircle,
   faTimesCircle,
   faSearch,
+  faSpinner,
+  faExclamationTriangle,
 } from "@fortawesome/free-solid-svg-icons";
+import { apiRequest } from "../../api/client";
 import "./VetAppointments.css";
 
 const VetAppointments = () => {
-  const [appointments, setAppointments] = useState([
-    {
-      id: 1,
-      pet: "Max",
-      owner: "John Smith",
-      date: "2026-03-28",
-      time: "09:00 AM",
-      service: "Regular Checkup",
-      status: "confirmed",
-      notes: "Annual vaccination due",
-    },
-    {
-      id: 2,
-      pet: "Bella",
-      owner: "Sarah Johnson",
-      date: "2026-03-28",
-      time: "10:30 AM",
-      service: "Vaccination",
-      status: "confirmed",
-      notes: "Rabies vaccination",
-    },
-    {
-      id: 3,
-      pet: "Charlie",
-      owner: "Mike Davis",
-      date: "2026-03-29",
-      time: "02:00 PM",
-      service: "Surgery Consultation",
-      status: "pending",
-      notes: "Pre-surgical evaluation",
-    },
-    {
-      id: 4,
-      pet: "Luna",
-      owner: "Emily Brown",
-      date: "2026-03-29",
-      time: "03:30 PM",
-      service: "Dental Cleaning",
-      status: "confirmed",
-      notes: "Regular dental maintenance",
-    },
-  ]);
-
+  const [appointments, setAppointments] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const [filter, setFilter] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
+
+  useEffect(() => {
+    fetchAppointments();
+  }, []);
+
+  const fetchAppointments = async () => {
+    try {
+      setLoading(true);
+      const data = await apiRequest("/veterinary/appointments");
+      const appointmentsData = Array.isArray(data) ? data : (data.appointments || []);
+      const transformedAppointments = appointmentsData.map(apt => ({
+        id: apt.id,
+        pet: apt.pet?.name || "Unknown Pet",
+        owner: apt.customer?.name || "Unknown Owner",
+        date: new Date(apt.scheduled_at).toISOString().split('T')[0],
+        time: new Date(apt.scheduled_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        service: apt.service?.name || "General Service",
+        status: apt.status || "pending",
+        notes: apt.notes || "",
+      }));
+      setAppointments(transformedAppointments);
+      setError("");
+    } catch (err) {
+      setError("Failed to load appointments. Please try again.");
+      console.error("Failed to fetch appointments:", err);
+      setAppointments([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredAppointments = appointments.filter((appointment) => {
     const matchesFilter = filter === "all" || appointment.status === filter;
@@ -74,10 +67,12 @@ const VetAppointments = () => {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case "confirmed":
+      case "approved":
         return "#28a745";
       case "pending":
         return "#ffc107";
+      case "completed":
+        return "#17a2b8";
       case "cancelled":
         return "#dc3545";
       default:
@@ -87,16 +82,40 @@ const VetAppointments = () => {
 
   const getStatusIcon = (status) => {
     switch (status) {
-      case "confirmed":
+      case "approved":
         return faCheckCircle;
       case "pending":
         return faClock;
+      case "completed":
+        return faCheckCircle;
       case "cancelled":
         return faTimesCircle;
       default:
         return faClock;
     }
   };
+
+  if (loading) {
+    return (
+      <div className="vet-appointments">
+        <div className="loading-spinner">
+          <FontAwesomeIcon icon={faSpinner} spin />
+          <span>Loading appointments...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="vet-appointments">
+        <div className="error-message">
+          <FontAwesomeIcon icon={faExclamationTriangle} />
+          <span>{error}</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="vet-appointments">
@@ -132,16 +151,22 @@ const VetAppointments = () => {
               All ({appointments.length})
             </button>
             <button
-              className={`filter-btn ${filter === "confirmed" ? "active" : ""}`}
-              onClick={() => setFilter("confirmed")}
-            >
-              Confirmed ({appointments.filter(a => a.status === "confirmed").length})
-            </button>
-            <button
               className={`filter-btn ${filter === "pending" ? "active" : ""}`}
               onClick={() => setFilter("pending")}
             >
               Pending ({appointments.filter(a => a.status === "pending").length})
+            </button>
+            <button
+              className={`filter-btn ${filter === "approved" ? "active" : ""}`}
+              onClick={() => setFilter("approved")}
+            >
+              Approved ({appointments.filter(a => a.status === "approved").length})
+            </button>
+            <button
+              className={`filter-btn ${filter === "completed" ? "active" : ""}`}
+              onClick={() => setFilter("completed")}
+            >
+              Completed ({appointments.filter(a => a.status === "completed").length})
             </button>
             <button
               className={`filter-btn ${filter === "cancelled" ? "active" : ""}`}
@@ -232,7 +257,7 @@ const VetAppointments = () => {
         <div className="summary-card">
           <h3>Today's Schedule</h3>
           <div className="today-count">
-            {appointments.filter(a => a.date === "2026-03-28").length} appointments
+            {appointments.filter(a => a.date === new Date().toISOString().split('T')[0]).length} appointments
           </div>
         </div>
         <div className="summary-card">
@@ -244,7 +269,7 @@ const VetAppointments = () => {
         <div className="summary-card">
           <h3>Completion Rate</h3>
           <div className="completion-rate">
-            {Math.round((appointments.filter(a => a.status === "confirmed").length / appointments.length) * 100)}%
+            {appointments.length > 0 ? Math.round((appointments.filter(a => a.status === "completed").length / appointments.length) * 100) : 0}%
           </div>
         </div>
       </div>

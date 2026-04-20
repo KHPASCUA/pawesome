@@ -11,6 +11,7 @@ import {
   faPlus,
   faSearch,
   faFilter,
+  faTimesCircle,
 } from "@fortawesome/free-solid-svg-icons";
 import { boardingApi } from "../../api/boardings";
 import "./HotelBooking.css";
@@ -161,6 +162,30 @@ const HotelBooking = () => {
     }
   };
 
+  const handleConfirm = async (id) => {
+    try {
+      await boardingApi.confirmBoarding(id);
+      setSuccessMessage("Reservation confirmed successfully!");
+      fetchReservations();
+      fetchTodayActivity();
+    } catch (err) {
+      setError(err.message || "Failed to confirm reservation");
+    }
+  };
+
+  const handleCancel = async (id) => {
+    if (!window.confirm("Are you sure you want to cancel this reservation?")) return;
+    try {
+      await boardingApi.cancelBoarding(id);
+      setSuccessMessage("Reservation cancelled successfully!");
+      fetchReservations();
+      fetchCurrentBoarders();
+      fetchTodayActivity();
+    } catch (err) {
+      setError(err.message || "Failed to cancel reservation");
+    }
+  };
+
   const getStatusBadge = (status) => {
     const badges = {
       pending: "status-pending",
@@ -239,6 +264,14 @@ const HotelBooking = () => {
                       </span>
                     </td>
                     <td>
+                      {res.status === "pending" && (
+                        <button
+                          className="btn-confirm"
+                          onClick={() => handleConfirm(res.id)}
+                        >
+                          <FontAwesomeIcon icon={faCheckCircle} /> Confirm
+                        </button>
+                      )}
                       {res.status === "confirmed" && (
                         <button
                           className="btn-checkin"
@@ -253,6 +286,14 @@ const HotelBooking = () => {
                           onClick={() => handleCheckOut(res.id)}
                         >
                           <FontAwesomeIcon icon={faSignOutAlt} /> Check Out
+                        </button>
+                      )}
+                      {(res.status === "pending" || res.status === "confirmed") && (
+                        <button
+                          className="btn-cancel"
+                          onClick={() => handleCancel(res.id)}
+                        >
+                          <FontAwesomeIcon icon={faTimesCircle} /> Cancel
                         </button>
                       )}
                     </td>

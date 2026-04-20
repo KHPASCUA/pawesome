@@ -1,52 +1,120 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faPaw,
+  faCalendarAlt,
+  faHotel,
+  faStethoscope,
+  faSpinner,
+  faExclamationTriangle,
+  faPlus,
+  faEdit,
+  faTrash,
+  faEye,
+  faHistory,
+  faSyringe,
+  faMoneyBillWave,
+} from "@fortawesome/free-solid-svg-icons";
+import { apiRequest } from "../../api/client";
 import "./CustomerPets.css";
 
 const CustomerPets = () => {
   const name = localStorage.getItem("name") || "Customer";
   const [search, setSearch] = useState("");
-  const [pets, setPets] = useState([
-    {
-      id: 1,
-      name: "Max",
-      type: "Dog",
-      breed: "Golden Retriever",
-      age: "3 years",
-      birthDate: "2023-02-20",
-      weight: "75 lbs",
-      lastCheckup: "2026-02-15",
-      health: "Healthy",
-      photo: null,
-      history: ["2026-02-15: Annual checkup - Healthy"],
-      vaccinations: ["Rabies", "DHPP", "Bordetella"],
-      nextAppointment: "2026-03-15",
-      medications: ["Heartgard Plus"],
-      diet: "Premium dry food, 2 cups daily",
-      notes: "Loves playing fetch, friendly with other dogs"
-    },
-    {
-      id: 2,
-      name: "Bella",
-      type: "Dog",
-      breed: "Beagle",
-      age: "2 years",
-      birthDate: "2024-01-20",
-      weight: "25 lbs",
-      lastCheckup: "2026-01-20",
-      health: "Healthy",
-      photo: null,
-      history: ["2026-01-20: Vaccination - Healthy"],
-      vaccinations: ["Rabies", "DHPP", "Leptospirosis"],
-      nextAppointment: "2026-02-28",
-      medications: ["Flea & Tick Prevention"],
-      diet: "Weight management formula, 1.5 cups daily",
-      notes: "Very active, loves long walks"
-    },
-  ]);
+  const [pets, setPets] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [appointments, setAppointments] = useState([]);
+  const [boardings, setBoardings] = useState([]);
 
   const [editingPet, setEditingPet] = useState(null);
   const [historyPet, setHistoryPet] = useState(null);
   const [newPetModal, setNewPetModal] = useState(false);
   const [selectedPet, setSelectedPet] = useState(null);
+
+  // Fetch pets from API on mount
+  useEffect(() => {
+    fetchPets();
+    fetchAppointments();
+    fetchBoardings();
+  }, []);
+
+  const fetchPets = async () => {
+    try {
+      setLoading(true);
+      const data = await apiRequest("/customer/pets");
+      const petsData = Array.isArray(data) ? data : (data.pets || []);
+      // Transform API data to component format
+      const transformedPets = petsData.map(pet => ({
+        id: pet.id,
+        name: pet.name,
+        type: pet.species || 'Unknown',
+        breed: pet.breed || 'Unknown',
+        age: pet.age ? `${pet.age} years` : 'Unknown',
+        birthDate: pet.birth_date || '',
+        weight: pet.weight || 'Unknown',
+        lastCheckup: pet.last_checkup || '',
+        health: pet.health_status || 'Healthy',
+        photo: null,
+        history: [],
+        vaccinations: pet.vaccinations || [],
+        nextAppointment: pet.next_appointment || '',
+        medications: pet.medications || [],
+        diet: pet.diet || '',
+        notes: pet.notes || ''
+      }));
+      setPets(transformedPets);
+      setError("");
+    } catch (err) {
+      console.error("Failed to fetch pets:", err);
+      setError("Failed to load pets. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchAppointments = async () => {
+    try {
+      const data = await apiRequest("/customer/appointments");
+      setAppointments(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error("Failed to fetch appointments:", err);
+    }
+  };
+
+  const fetchBoardings = async () => {
+    try {
+      const data = await apiRequest("/customer/boardings");
+      setBoardings(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error("Failed to fetch boardings:", err);
+    }
+  };
+
+  // Get pet history from appointments and boardings
+  const getPetHistory = (petId) => {
+    const petAppointments = appointments.filter(apt => apt.pet_id === petId);
+    const petBoardings = boardings.filter(board => board.pet_id === petId);
+    
+    const history = [
+      ...petAppointments.map(apt => ({
+        type: 'appointment',
+        date: apt.scheduled_at,
+        title: apt.service?.name || 'Appointment',
+        status: apt.status,
+        notes: apt.notes || ''
+      })),
+      ...petBoardings.map(board => ({
+        type: 'boarding',
+        date: board.check_in,
+        title: 'Hotel Stay',
+        status: board.status,
+        notes: `Check-out: ${board.check_out || 'Pending'}`
+      }))
+    ].sort((a, b) => new Date(b.date) - new Date(a.date));
+    
+    return history;
+  };
 
   const handlePhotoUpload = (e, petId) => {
     const file = e.target.files[0];
@@ -63,29 +131,53 @@ const CustomerPets = () => {
     setEditingPet(null);
   };
 
-  const handleAddPet = (e) => {
+  const handleAddPet = async (e) => {
     e.preventDefault();
     const form = e.target;
-    const newPet = {
-      id: pets.length + 1,
+    
+    const petData = {
       name: form.name.value,
-      type: form.type.value,
+      species: form.type.value,
       breed: form.breed.value,
-      age: form.age.value,
-      birthDate: form.birthDate.value,
-      weight: form.weight.value,
-      lastCheckup: form.lastCheckup.value,
-      health: form.health.value,
-      photo: null,
-      history: [],
-      vaccinations: [],
-      nextAppointment: "",
-      medications: [],
-      diet: "",
-      notes: ""
+      age: parseInt(form.age.value) || 0,
     };
-    setPets([...pets, newPet]);
-    setNewPetModal(false);
+
+    try {
+      setLoading(true);
+      const response = await apiRequest("/customer/pets", {
+        method: "POST",
+        body: JSON.stringify(petData),
+      });
+      
+      // Add new pet to list
+      const newPet = {
+        id: response.id,
+        name: response.name,
+        type: response.species || 'Unknown',
+        breed: response.breed || 'Unknown',
+        age: response.age ? `${response.age} years` : 'Unknown',
+        birthDate: response.birth_date || '',
+        weight: response.weight || 'Unknown',
+        lastCheckup: '',
+        health: 'Healthy',
+        photo: null,
+        history: [],
+        vaccinations: [],
+        nextAppointment: '',
+        medications: [],
+        diet: '',
+        notes: ''
+      };
+      
+      setPets([...pets, newPet]);
+      setNewPetModal(false);
+      setError("");
+    } catch (err) {
+      console.error("Failed to add pet:", err);
+      setError(err.message || "Failed to add pet. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const filteredPets = pets.filter((pet) =>
@@ -116,7 +208,7 @@ const CustomerPets = () => {
       {/* Header Section */}
       <div className="pets-header">
         <div className="header-content">
-          <h1>🐾 My Pets</h1>
+          <h1><FontAwesomeIcon icon={faPaw} /> My Pets</h1>
           <p>Manage your beloved companions and their health records</p>
         </div>
         <div className="header-stats">
@@ -131,6 +223,13 @@ const CustomerPets = () => {
         </div>
       </div>
 
+      {/* Error Message */}
+      {error && (
+        <div className="error-message">
+          <FontAwesomeIcon icon={faExclamationTriangle} /> {error}
+        </div>
+      )}
+
       {/* Search and Actions */}
       <div className="pets-actions">
         <div className="search-container">
@@ -140,14 +239,23 @@ const CustomerPets = () => {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="search-bar"
+            disabled={loading}
           />
-          <span className="search-icon">🔍</span>
+          <FontAwesomeIcon icon={faPaw} className="search-icon" />
         </div>
-        <button className="add-pet-btn" onClick={() => setNewPetModal(true)}>
-          <span className="btn-icon">+</span>
+        <button className="add-pet-btn" onClick={() => setNewPetModal(true)} disabled={loading}>
+          <FontAwesomeIcon icon={faPlus} />
           Add New Pet
         </button>
       </div>
+
+      {/* Loading State */}
+      {loading && (
+        <div className="loading-container">
+          <FontAwesomeIcon icon={faSpinner} spin />
+          <span>Loading pets...</span>
+        </div>
+      )}
 
       {/* Pet Cards Grid */}
       <div className="pets-grid">
@@ -163,7 +271,7 @@ const CustomerPets = () => {
                   />
                 ) : (
                   <div className="pet-photo-placeholder">
-                    <span className="pet-icon">{getPetIcon(pet.type)}</span>
+                    {getPetIcon(pet.type)}
                   </div>
                 )}
                 <div className={`health-indicator ${getHealthStatusColor(pet.health)}`}></div>
@@ -198,20 +306,14 @@ const CustomerPets = () => {
 
             <div className="pet-actions">
               <button className="action-btn primary" onClick={() => setSelectedPet(pet)}>
-                View Details
+                <FontAwesomeIcon icon={faEye} /> View
               </button>
               <button className="action-btn secondary" onClick={() => setEditingPet(pet)}>
-                Edit
+                <FontAwesomeIcon icon={faEdit} /> Edit
               </button>
-              <label className="action-btn upload">
-                Photo
-                <input
-                  type="file"
-                  accept="image/*"
-                  hidden
-                  onChange={(e) => handlePhotoUpload(e, pet.id)}
-                />
-              </label>
+              <button className="action-btn info" onClick={() => setHistoryPet(pet)}>
+                <FontAwesomeIcon icon={faHistory} /> History
+              </button>
             </div>
           </div>
         ))}
@@ -230,7 +332,7 @@ const CustomerPets = () => {
                       alt={`${selectedPet.name}`}
                     />
                   ) : (
-                    <span className="pet-icon-large">{getPetIcon(selectedPet.type)}</span>
+                    <FontAwesomeIcon icon={faPaw} size="2x" />
                   )}
                 </div>
                 <div>
@@ -307,10 +409,10 @@ const CustomerPets = () => {
 
               <div className="modal-actions">
                 <button className="action-btn primary" onClick={() => setHistoryPet(selectedPet)}>
-                  Medical History
+                  <FontAwesomeIcon icon={faHistory} /> View History
                 </button>
-                <button className="action-btn secondary" onClick={() => setEditingPet(selectedPet)}>
-                  Edit Pet
+                <button className="action-btn secondary" onClick={() => { setSelectedPet(null); setEditingPet(selectedPet); }}>
+                  <FontAwesomeIcon icon={faEdit} /> Edit Pet
                 </button>
               </div>
             </div>
@@ -426,24 +528,45 @@ const CustomerPets = () => {
       {/* Medical History Modal */}
       {historyPet && (
         <div className="modal-overlay">
-          <div className="modal">
+          <div className="modal history-modal">
             <div className="modal-header">
-              <h3>{historyPet.name} - Medical History</h3>
+              <h3><FontAwesomeIcon icon={faHistory} /> {historyPet.name} - Complete History</h3>
               <button className="close-modal-btn" onClick={() => setHistoryPet(null)}>×</button>
             </div>
-            <div className="medical-history">
-              {historyPet.history.length > 0 ? (
-                <ul className="history-list">
-                  {historyPet.history.map((entry, idx) => (
-                    <li key={idx} className="history-item">
-                      <span className="history-date">{entry.split(':')[0]}</span>
-                      <span className="history-text">{entry.split(':')[1]}</span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="no-history">No medical history available</p>
-              )}
+            <div className="modal-content">
+              {(() => {
+                const history = getPetHistory(historyPet.id);
+                return history.length > 0 ? (
+                  <div className="history-timeline">
+                    {history.map((entry, idx) => (
+                      <div key={idx} className={`timeline-item ${entry.type}`}>
+                        <div className="timeline-icon">
+                          {entry.type === 'appointment' && <FontAwesomeIcon icon={faCalendarAlt} />}
+                          {entry.type === 'boarding' && <FontAwesomeIcon icon={faHotel} />}
+                        </div>
+                        <div className="timeline-content">
+                          <div className="timeline-header">
+                            <span className="timeline-date">
+                              {new Date(entry.date).toLocaleDateString()}
+                            </span>
+                            <span className={`timeline-badge ${entry.status}`}>
+                              {entry.status}
+                            </span>
+                          </div>
+                          <h4 className="timeline-title">{entry.title}</h4>
+                          {entry.notes && <p className="timeline-notes">{entry.notes}</p>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="no-history">
+                    <FontAwesomeIcon icon={faHistory} size="2x" />
+                    <p>No history available for {historyPet.name}</p>
+                    <small>Appointments and hotel stays will appear here</small>
+                  </div>
+                );
+              })()}
             </div>
           </div>
         </div>

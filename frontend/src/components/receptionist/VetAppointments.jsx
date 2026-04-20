@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faStethoscope,
@@ -17,7 +17,11 @@ import {
   faSyringe,
   faHeartbeat,
   faPhone,
+  faSpinner,
+  faExclamationTriangle,
+  faCheck,
 } from "@fortawesome/free-solid-svg-icons";
+import { apiRequest } from "../../api/client";
 import "./VetAppointments.css";
 
 const VetAppointments = () => {
@@ -25,96 +29,136 @@ const VetAppointments = () => {
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterDoctor, setFilterDoctor] = useState("all");
   const [selectedAppointment, setSelectedAppointment] = useState(null);
+  const [appointments, setAppointments] = useState([]);
+  const [veterinarians, setVeterinarians] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [actionLoading, setActionLoading] = useState(false);
+  const [selectedVet, setSelectedVet] = useState("");
 
-  const vetAppointments = [
-    {
-      id: "VET-001",
-      petName: "Buddy",
-      petType: "Dog",
-      breed: "Golden Retriever",
-      owner: "John Smith",
-      ownerPhone: "+1-234-567-8901",
-      doctor: "Dr. Sarah Johnson",
-      appointmentDate: "2026-04-05",
-      appointmentTime: "10:00 AM",
-      duration: "30 mins",
-      service: "Regular Checkup",
-      status: "confirmed",
-      urgency: "low",
-      notes: "Annual vaccination due",
-      previousVisit: "2025-10-15",
-    },
-    {
-      id: "VET-002",
-      petName: "Luna",
-      petType: "Cat",
-      breed: "Persian",
-      owner: "Emily Davis",
-      ownerPhone: "+1-234-567-8902",
-      doctor: "Dr. Michael Chen",
-      appointmentDate: "2026-04-05",
-      appointmentTime: "11:30 AM",
-      duration: "45 mins",
-      service: "Dental Cleaning",
-      status: "confirmed",
-      urgency: "medium",
-      notes: "Patient has dental issues",
-      previousVisit: "2026-01-20",
-    },
-    {
-      id: "VET-003",
-      petName: "Max",
-      petType: "Dog",
-      breed: "German Shepherd",
-      owner: "Robert Wilson",
-      ownerPhone: "+1-234-567-8903",
-      doctor: "Dr. Sarah Johnson",
-      appointmentDate: "2026-04-05",
-      appointmentTime: "2:00 PM",
-      duration: "60 mins",
-      service: "Surgery Consultation",
-      status: "pending",
-      urgency: "high",
-      notes: "Possible ACL tear - needs evaluation",
-      previousVisit: "2026-03-28",
-    },
-    {
-      id: "VET-004",
-      petName: "Whiskers",
-      petType: "Cat",
-      breed: "Siamese",
-      owner: "Jessica Brown",
-      ownerPhone: "+1-234-567-8904",
-      doctor: "Dr. Michael Chen",
-      appointmentDate: "2026-04-06",
-      appointmentTime: "9:00 AM",
-      duration: "30 mins",
-      service: "Vaccination",
-      status: "confirmed",
-      urgency: "low",
-      notes: "Kitten vaccination series",
-      previousVisit: "2026-03-01",
-    },
-    {
-      id: "VET-005",
-      petName: "Charlie",
-      petType: "Rabbit",
-      breed: "Holland Lop",
-      owner: "David Martinez",
-      ownerPhone: "+1-234-567-8905",
-      doctor: "Dr. Lisa Anderson",
-      appointmentDate: "2026-04-06",
-      appointmentTime: "10:30 AM",
-      duration: "20 mins",
-      service: "Nail Trimming",
-      status: "completed",
-      urgency: "low",
-      notes: "Regular maintenance",
-      previousVisit: "2026-02-15",
-    },
-  ];
+  // Fetch appointments and veterinarians on mount
+  useEffect(() => {
+    fetchAppointments();
+    fetchVeterinarians();
+  }, []);
 
-  const doctors = ["Dr. Sarah Johnson", "Dr. Michael Chen", "Dr. Lisa Anderson"];
+  const fetchAppointments = async () => {
+    try {
+      setLoading(true);
+      const data = await apiRequest("/receptionist/appointment/list");
+      const appointmentsData = Array.isArray(data) ? data : [];
+      
+      const transformedAppointments = appointmentsData.map(apt => ({
+        id: `APT-${String(apt.id).padStart(3, '0')}`,
+        rawId: apt.id,
+        petName: apt.pet?.name || 'Unknown Pet',
+        petType: apt.pet?.species || 'Pet',
+        breed: apt.pet?.breed || 'Unknown',
+        owner: apt.customer?.name || 'Unknown Customer',
+        ownerPhone: apt.customer?.phone || 'No phone',
+        doctor: apt.veterinarian?.name || 'Unassigned',
+        veterinarianId: apt.veterinarian_id,
+        appointmentDate: new Date(apt.scheduled_at).toISOString().split('T')[0],
+        appointmentTime: new Date(apt.scheduled_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        duration: "30 mins",
+        service: apt.service?.name || 'Service',
+        status: apt.status || 'pending',
+        notes: apt.notes || '',
+        price: apt.price || 0,
+      }));
+      
+      setAppointments(transformedAppointments);
+      setError("");
+    } catch (err) {
+      console.error("Failed to fetch appointments:", err);
+      setError("Failed to load appointments. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchVeterinarians = async () => {
+    try {
+      const data = await apiRequest("/receptionist/veterinarians/available");
+      setVeterinarians(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error("Failed to fetch veterinarians:", err);
+    }
+  };
+
+  // Approve appointment and assign veterinarian
+  const handleApprove = async (appointmentId, veterinarianId) => {
+    if (!veterinarianId) {
+      setError("Please select a veterinarian to approve this appointment");
+      return;
+    }
+    
+    try {
+      setActionLoading(true);
+      await apiRequest(`/receptionist/appointments/${appointmentId}/approve`, {
+        method: "POST",
+        body: JSON.stringify({ veterinarian_id: veterinarianId }),
+      });
+      
+      await fetchAppointments();
+      setSelectedAppointment(null);
+      setSelectedVet("");
+      setError("");
+    } catch (err) {
+      console.error("Failed to approve appointment:", err);
+      setError(err.message || "Failed to approve appointment");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Cancel appointment
+  const handleCancel = async (appointmentId, reason = "Cancelled by receptionist") => {
+    if (!window.confirm("Are you sure you want to cancel this appointment?")) {
+      return;
+    }
+    
+    try {
+      setActionLoading(true);
+      await apiRequest(`/receptionist/appointments/${appointmentId}/cancel`, {
+        method: "POST",
+        body: JSON.stringify({ reason }),
+      });
+      
+      await fetchAppointments();
+      setSelectedAppointment(null);
+      setError("");
+    } catch (err) {
+      console.error("Failed to cancel appointment:", err);
+      setError(err.message || "Failed to cancel appointment");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Reschedule appointment
+  const handleReschedule = async (appointmentId, newDateTime) => {
+    try {
+      setActionLoading(true);
+      await apiRequest(`/receptionist/appointments/${appointmentId}/reschedule`, {
+        method: "POST",
+        body: JSON.stringify({ scheduled_at: newDateTime }),
+      });
+      
+      await fetchAppointments();
+      setSelectedAppointment(null);
+      setError("");
+    } catch (err) {
+      console.error("Failed to reschedule appointment:", err);
+      setError(err.message || "Failed to reschedule appointment");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const vetAppointments = appointments;
+
+  const doctors = ["all", ...veterinarians.map(v => v.name)];
 
   const filteredAppointments = vetAppointments.filter(appointment => {
     const matchesSearch = 
@@ -130,7 +174,7 @@ const VetAppointments = () => {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case "confirmed":
+      case "approved":
         return "info";
       case "pending":
         return "warning";
@@ -138,8 +182,6 @@ const VetAppointments = () => {
         return "success";
       case "cancelled":
         return "danger";
-      case "no-show":
-        return "secondary";
       default:
         return "secondary";
     }
@@ -147,15 +189,13 @@ const VetAppointments = () => {
 
   const getStatusIcon = (status) => {
     switch (status) {
-      case "confirmed":
-        return faClock;
+      case "approved":
+        return faCheckCircle;
       case "pending":
         return faClock;
       case "completed":
         return faCheckCircle;
       case "cancelled":
-        return faTimesCircle;
-      case "no-show":
         return faTimesCircle;
       default:
         return faClock;
@@ -219,8 +259,17 @@ const VetAppointments = () => {
             <FontAwesomeIcon icon={faClock} />
           </div>
           <div className="card-content">
-            <h3>{vetAppointments.filter(a => a.status === 'confirmed').length}</h3>
-            <p>Confirmed</p>
+            <h3>{vetAppointments.filter(a => a.status === 'pending').length}</h3>
+            <p>Pending</p>
+          </div>
+        </div>
+        <div className="summary-card">
+          <div className="card-icon">
+            <FontAwesomeIcon icon={faCheckCircle} />
+          </div>
+          <div className="card-content">
+            <h3>{vetAppointments.filter(a => a.status === 'approved').length}</h3>
+            <p>Approved</p>
           </div>
         </div>
         <div className="summary-card">
@@ -234,11 +283,11 @@ const VetAppointments = () => {
         </div>
         <div className="summary-card">
           <div className="card-icon">
-            <FontAwesomeIcon icon={faStethoscope} />
+            <FontAwesomeIcon icon={faCheckCircle} />
           </div>
           <div className="card-content">
-            <h3>{vetAppointments.filter(a => a.urgency === 'high').length}</h3>
-            <p>High Priority</p>
+            <h3>{vetAppointments.filter(a => a.status === 'completed').length}</h3>
+            <p>Completed</p>
           </div>
         </div>
       </div>
@@ -262,11 +311,10 @@ const VetAppointments = () => {
               onChange={(e) => setFilterStatus(e.target.value)}
             >
               <option value="all">All Status</option>
-              <option value="confirmed">Confirmed</option>
               <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
               <option value="completed">Completed</option>
               <option value="cancelled">Cancelled</option>
-              <option value="no-show">No Show</option>
             </select>
           </div>
           <div className="filter-dropdown">
@@ -361,19 +409,32 @@ const VetAppointments = () => {
                   </span>
                 </td>
                 <td className="actions">
-                  <button
+                  {appointment.status === 'pending' && (
+                    <button 
+                      className="action-btn approve-btn" 
+                      title="Approve & Assign Vet"
+                      onClick={() => setSelectedAppointment(appointment)}
+                    >
+                      <FontAwesomeIcon icon={faCheck} />
+                    </button>
+                  )}
+                  <button 
                     className="action-btn view-btn"
                     onClick={() => setSelectedAppointment(appointment)}
                     title="View Details"
                   >
                     <FontAwesomeIcon icon={faEdit} />
                   </button>
-                  <button className="action-btn edit-btn" title="Edit">
-                    <FontAwesomeIcon icon={faEdit} />
-                  </button>
-                  <button className="action-btn delete-btn" title="Cancel">
-                    <FontAwesomeIcon icon={faTrash} />
-                  </button>
+                  {(appointment.status === 'pending' || appointment.status === 'approved') && (
+                    <button 
+                      className="action-btn delete-btn" 
+                      title="Cancel"
+                      onClick={() => handleCancel(appointment.rawId)}
+                      disabled={actionLoading}
+                    >
+                      <FontAwesomeIcon icon={faTrash} />
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}

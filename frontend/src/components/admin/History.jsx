@@ -47,214 +47,115 @@ const History = () => {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedLog, setSelectedLog] = useState(null);
 
-  // Mock data structure ready for backend connection
-  const mockHistoryData = [
-    {
-      id: 1,
-      category: "transaction",
-      subcategory: "payment",
-      user_id: 5,
-      user_name: "Dr. Sarah Johnson",
-      user_role: "veterinary",
-      user_email: "sarah@pawesome.com",
-      account_id: 1,
-      account_name: "Main Clinic Account",
-      action: "Payment received for consultation",
-      description: "Customer payment for pet consultation - Golden Retriever",
-      amount: 150.00,
-      currency: "PHP",
-      reference_id: "PAY-2026-001",
-      status: "completed",
-      ip_address: "192.168.1.100",
-      created_at: "2026-04-12T14:30:00Z",
-      metadata: {
-        customer_name: "John Smith",
-        pet_name: "Max",
-        pet_type: "Dog",
-        service_type: "Consultation"
-      }
-    },
-    {
-      id: 2,
-      category: "transaction",
-      subcategory: "sale",
-      user_id: 8,
-      user_name: "Mike Chen",
-      user_role: "cashier",
-      user_email: "mike@pawesome.com",
-      account_id: 1,
-      account_name: "Main Clinic Account",
-      action: "Product sale completed",
-      description: "Sale of pet food and accessories",
-      amount: 75.50,
-      currency: "PHP",
-      reference_id: "SALE-2026-042",
-      status: "completed",
-      ip_address: "192.168.1.101",
-      created_at: "2026-04-12T13:45:00Z",
-      metadata: {
-        items: [
-          { name: "Premium Dog Food", quantity: 2, price: 25.00 },
-          { name: "Pet Toy", quantity: 1, price: 25.50 }
-        ]
-      }
-    },
-    {
-      id: 3,
-      category: "editing",
-      subcategory: "profile",
-      user_id: 3,
-      user_name: "Emily Davis",
-      user_role: "receptionist",
-      user_email: "emily@pawesome.com",
-      account_id: 1,
-      account_name: "Main Clinic Account",
-      action: "Profile updated",
-      description: "Updated customer profile information",
-      reference_id: "CUST-0042",
-      status: "completed",
-      ip_address: "192.168.1.102",
-      created_at: "2026-04-12T12:20:00Z",
-      metadata: {
-        changed_fields: ["phone", "address", "emergency_contact"],
-        old_values: { phone: "555-0123", address: "123 Old St" },
-        new_values: { phone: "555-0124", address: "123 New St" }
-      }
-    },
-    {
-      id: 4,
-      category: "editing",
-      subcategory: "medical_record",
-      user_id: 2,
-      user_name: "Dr. James Wilson",
-      user_role: "veterinary",
-      user_email: "james@pawesome.com",
-      account_id: 1,
-      account_name: "Main Clinic Account",
-      action: "Medical record updated",
-      description: "Updated vaccination records for patient",
-      reference_id: "MED-0089",
-      status: "completed",
-      ip_address: "192.168.1.103",
-      created_at: "2026-04-12T11:15:00Z",
-      metadata: {
-        pet_name: "Bella",
-        pet_type: "Cat",
-        vaccination_type: "Rabies",
-        next_due: "2027-04-12"
-      }
-    },
-    {
-      id: 5,
-      category: "login",
-      subcategory: "staff_login",
-      user_id: 1,
-      user_name: "Admin User",
-      user_role: "admin",
-      user_email: "admin@pawesome.com",
-      account_id: 1,
-      account_name: "Main Clinic Account",
-      action: "Staff login successful",
-      description: "Admin logged into system",
-      reference_id: "LOGIN-001",
-      status: "completed",
-      ip_address: "192.168.1.105",
-      created_at: "2026-04-12T09:00:00Z",
-      metadata: {
-        login_method: "password",
-        user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-        session_duration: "2h 30m"
-      }
-    },
-    {
-      id: 6,
-      category: "transaction",
-      subcategory: "refund",
-      user_id: 8,
-      user_name: "Mike Chen",
-      user_role: "cashier",
-      user_email: "mike@pawesome.com",
-      account_id: 1,
-      account_name: "Main Clinic Account",
-      action: "Refund processed",
-      description: "Refund for cancelled appointment",
-      amount: -50.00,
-      currency: "PHP",
-      reference_id: "REF-2026-003",
-      status: "completed",
-      ip_address: "192.168.1.101",
-      created_at: "2026-04-12T10:30:00Z",
-      metadata: {
-        original_transaction_id: "PAY-2026-099",
-        refund_reason: "Appointment cancelled"
-      }
-    },
-    {
-      id: 7,
-      category: "editing",
-      subcategory: "appointment",
-      user_id: 3,
-      user_name: "Emily Davis",
-      user_role: "receptionist",
-      user_email: "emily@pawesome.com",
-      account_id: 1,
-      account_name: "Main Clinic Account",
-      action: "Appointment rescheduled",
-      description: "Customer appointment rescheduled to new time",
-      reference_id: "APT-2026-156",
-      status: "completed",
-      ip_address: "192.168.1.102",
-      created_at: "2026-04-12T08:45:00Z",
-      metadata: {
-        customer_name: "Alice Johnson",
-        pet_name: "Luna",
-        old_datetime: "2026-04-12T14:00:00Z",
-        new_datetime: "2026-04-13T10:00:00Z"
-      }
-    },
-    {
-      id: 8,
-      category: "login",
-      subcategory: "staff_login",
-      user_id: 2,
-      user_name: "Dr. James Wilson",
-      user_role: "veterinary",
-      user_email: "james@pawesome.com",
-      account_id: 2,
-      account_name: "Branch Office Account",
-      action: "Staff login successful",
-      description: "Veterinary staff logged into branch system",
-      reference_id: "LOGIN-002",
-      status: "completed",
-      ip_address: "192.168.2.105",
-      created_at: "2026-04-12T08:00:00Z",
-      metadata: {
-        login_method: "password",
-        user_agent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
-        session_duration: "4h 15m"
-      }
-    }
-  ];
-
-  // Fetch history logs from database (ready for backend connection)
+  // Fetch history logs from multiple sources
   const fetchHistoryLogs = async () => {
     try {
       setLoading(true);
       setError("");
       
-      // TODO: Replace with actual API call
-      // const data = await apiRequest("/admin/history");
+      // Fetch from multiple endpoints to build history
+      const [chatbotLogs, inventoryLogs, salesData, appointmentsData] = await Promise.allSettled([
+        apiRequest("/admin/chatbot/logs").catch(() => []),
+        apiRequest("/inventory/logs").catch(() => []),
+        apiRequest("/cashier/transactions").catch(() => []),
+        apiRequest("/admin/appointments").catch(() => [])
+      ]);
       
-      // Using mock data for now
-      setTimeout(() => {
-        setHistoryLogs(Array.isArray(mockHistoryData) ? mockHistoryData : []);
-        setLoading(false);
-      }, 1000);
+      const historyEntries = [];
+      let idCounter = 1;
       
+      // Process chatbot logs
+      if (chatbotLogs.status === 'fulfilled' && Array.isArray(chatbotLogs.value)) {
+        chatbotLogs.value.forEach(log => {
+          historyEntries.push({
+            id: idCounter++,
+            category: "editing",
+            subcategory: "chatbot",
+            user_name: log.user?.name || "Customer",
+            user_role: log.user?.role || "customer",
+            action: "Chatbot interaction",
+            description: log.message?.substring(0, 100) || "Chat message",
+            reference_id: `CHAT-${log.id}`,
+            status: "completed",
+            created_at: log.created_at,
+            metadata: { session_id: log.session_id }
+          });
+        });
+      }
+      
+      // Process inventory logs
+      if (inventoryLogs.status === 'fulfilled' && Array.isArray(inventoryLogs.value)) {
+        inventoryLogs.value.forEach(log => {
+          historyEntries.push({
+            id: idCounter++,
+            category: "editing",
+            subcategory: "inventory",
+            user_name: log.user?.name || "Inventory Staff",
+            user_role: "inventory",
+            action: `Inventory ${log.action}`,
+            description: `${log.inventory_item?.name || 'Item'} - ${log.quantity} units`,
+            reference_id: `INV-${log.id}`,
+            status: "completed",
+            created_at: log.created_at,
+            metadata: { item_id: log.inventory_item_id }
+          });
+        });
+      }
+      
+      // Process sales transactions
+      if (salesData.status === 'fulfilled') {
+        const sales = Array.isArray(salesData.value) ? salesData.value : (salesData.value?.transactions || []);
+        sales.forEach(sale => {
+          historyEntries.push({
+            id: idCounter++,
+            category: "transaction",
+            subcategory: "sale",
+            user_name: sale.cashier?.name || "Cashier",
+            user_role: "cashier",
+            action: "Sale completed",
+            description: `Transaction #${sale.id}`,
+            amount: parseFloat(sale.amount) || 0,
+            currency: "PHP",
+            reference_id: `SALE-${sale.id}`,
+            status: "completed",
+            created_at: sale.created_at,
+            metadata: { type: sale.type }
+          });
+        });
+      }
+      
+      // Process appointments
+      if (appointmentsData.status === 'fulfilled') {
+        const appointments = Array.isArray(appointmentsData.value) ? appointmentsData.value : [];
+        appointments.slice(0, 20).forEach(apt => {
+          historyEntries.push({
+            id: idCounter++,
+            category: "editing",
+            subcategory: "appointment",
+            user_name: apt.customer?.name || "Customer",
+            user_role: "customer",
+            action: `Appointment ${apt.status}`,
+            description: `${apt.service?.name || 'Service'} for ${apt.pet?.name || 'Pet'}`,
+            reference_id: `APT-${apt.id}`,
+            status: apt.status,
+            created_at: apt.scheduled_at || apt.created_at,
+            metadata: { pet_name: apt.pet?.name, service: apt.service?.name }
+          });
+        });
+      }
+      
+      // Sort by date descending
+      historyEntries.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      
+      setHistoryLogs(historyEntries);
+      
+      if (historyEntries.length === 0) {
+        setError("No history data available. Please ensure you have permission to access logs.");
+      }
     } catch (err) {
       setError(err.message || "Failed to fetch history logs");
       console.error("Fetch history logs error:", err);
-      setHistoryLogs([]); // Set empty array on error
+      setHistoryLogs([]);
     } finally {
       setLoading(false);
     }

@@ -1,51 +1,16 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
+import { posApi } from "../../api/pos";
 import "./CashierPOS.css";
 import "./CashierPOS_Enhanced.css";
 
 const categories = [
-  { id: "all", label: "All Products", icon: "🐾" },
+  { id: "all", label: "All Items", icon: "🐾" },
   { id: "food", label: "Food", icon: "🍖" },
   { id: "accessories", label: "Accessories", icon: "🦴" },
   { id: "grooming", label: "Grooming", icon: "✂️" },
   { id: "toys", label: "Toys", icon: "🎾" },
   { id: "health", label: "Health", icon: "💊" },
-];
-
-const products = [
-  // Food Category
-  { id: 1, name: "Premium Dog Food", price: 1200, category: "food", inStock: true, discount: 10, rating: 4.5, reviews: 128 },
-  { id: 2, name: "Cat Kibble", price: 950, category: "food", inStock: true, discount: 0, rating: 4.2, reviews: 89 },
-  { id: 3, name: "Puppy Starter Kit", price: 850, category: "food", inStock: true, discount: 15, rating: 4.8, reviews: 203 },
-  { id: 4, name: "Senior Cat Food", price: 1100, category: "food", inStock: false, discount: 0, rating: 4.6, reviews: 156 },
-  { id: 5, name: "Organic Pet Food", price: 1500, category: "food", inStock: true, discount: 20, rating: 4.9, reviews: 67 },
-  
-  // Accessories Category
-  { id: 6, name: "Leash & Collar Set", price: 450, category: "accessories", inStock: true, discount: 5, rating: 4.3, reviews: 234 },
-  { id: 7, name: "Pet Bed", price: 800, category: "accessories", inStock: true, discount: 10, rating: 4.7, reviews: 189 },
-  { id: 8, name: "Water Fountain", price: 1200, category: "accessories", inStock: true, discount: 0, rating: 4.4, reviews: 145 },
-  { id: 9, name: "Pet Carrier", price: 950, category: "accessories", inStock: false, discount: 0, rating: 4.6, reviews: 98 },
-  { id: 10, name: "GPS Tracker", price: 650, category: "accessories", inStock: true, discount: 15, rating: 4.1, reviews: 76 },
-  
-  // Grooming Category
-  { id: 11, name: "Shampoo", price: 300, category: "grooming", inStock: true, discount: 0, rating: 4.5, reviews: 312 },
-  { id: 12, name: "Brush", price: 200, category: "grooming", inStock: true, discount: 10, rating: 4.2, reviews: 267 },
-  { id: 13, name: "Nail Clippers", price: 150, category: "grooming", inStock: true, discount: 0, rating: 4.0, reviews: 198 },
-  { id: 14, name: "Grooming Kit", price: 450, category: "grooming", inStock: true, discount: 20, rating: 4.8, reviews: 423 },
-  { id: 15, name: "Pet Wipes", price: 120, category: "grooming", inStock: true, discount: 5, rating: 4.3, reviews: 156 },
-  
-  // Toys Category
-  { id: 16, name: "Interactive Ball", price: 250, category: "toys", inStock: true, discount: 10, rating: 4.6, reviews: 289 },
-  { id: 17, name: "Chew Toy Set", price: 180, category: "toys", inStock: true, discount: 0, rating: 4.4, reviews: 167 },
-  { id: 18, name: "Cat Tower", price: 1200, category: "toys", inStock: false, discount: 0, rating: 4.7, reviews: 345 },
-  { id: 19, name: "Puzzle Feeder", price: 350, category: "toys", inStock: true, discount: 15, rating: 4.5, reviews: 234 },
-  { id: 20, name: "Squeaky Toys", price: 120, category: "toys", inStock: true, discount: 0, rating: 4.1, reviews: 145 },
-  
-  // Health Category
-  { id: 21, name: "Vitamins", price: 450, category: "health", inStock: true, discount: 10, rating: 4.6, reviews: 278 },
-  { id: 22, name: "Flea Treatment", price: 280, category: "health", inStock: true, discount: 0, rating: 4.3, reviews: 412 },
-  { id: 23, name: "Dental Care", price: 320, category: "health", inStock: true, discount: 15, rating: 4.4, reviews: 189 },
-  { id: 24, name: "Eye Drops", price: 180, category: "health", inStock: true, discount: 0, rating: 4.2, reviews: 98 },
-  { id: 25, name: "Joint Supplements", price: 520, category: "health", inStock: true, discount: 20, rating: 4.7, reviews: 234 },
+  { id: "service", label: "Services", icon: "🩺" },
 ];
 
 const formatPrice = (value) => `₱${value.toFixed(2)}`;
@@ -57,11 +22,55 @@ const CashierPOS = ({ onCheckout }) => {
   const [customer, setCustomer] = useState("");
   const [voucher, setVoucher] = useState("");
   const [cashReceived, setCashReceived] = useState("");
+  const [products, setProducts] = useState([]);
+  const [services, setServices] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState(null);
+  const [receipt, setReceipt] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("cash");
+
+  // Load products and services on mount
+  useEffect(() => {
+    loadItems();
+  }, []);
+
+  const loadItems = async () => {
+    try {
+      setLoading(true);
+      setError("");
+      const [productsData, servicesData] = await Promise.all([
+        posApi.getPOSProducts(),
+        posApi.getPOSServices(),
+      ]);
+      setProducts(productsData || []);
+      setServices(servicesData || []);
+    } catch (err) {
+      setError("Failed to load products and services");
+      console.error("POS load error:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const allItems = useMemo(() => {
+    const productItems = products.map(p => ({ ...p, itemType: "product" }));
+    const serviceItems = services.map(s => ({ ...s, itemType: "service" }));
+    return [...productItems, ...serviceItems];
+  }, [products, services]);
 
   const filteredProducts = useMemo(() => {
-    if (activeCategory === "all") return products;
-    return products.filter((product) => product.category === activeCategory);
-  }, [activeCategory]);
+    let items = allItems;
+    if (activeCategory !== "all") {
+      items = items.filter((item) => item.category === activeCategory || (activeCategory === "service" && item.itemType === "service"));
+    }
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      items = items.filter((item) => item.name.toLowerCase().includes(query));
+    }
+    return items;
+  }, [allItems, activeCategory, searchQuery]);
 
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const tax = subtotal * 0.12;
@@ -95,22 +104,54 @@ const CashierPOS = ({ onCheckout }) => {
     setOrderType("Walk-in");
   };
 
-  const handleCheckout = () => {
+  const handleCheckout = async () => {
     if (cart.length === 0) return;
-    const transaction = {
-      id: Date.now(),
-      items: cart,
-      subtotal,
-      tax,
-      discount,
-      total: totalAmount,
-      orderType,
-      customer: customer || "Walk-in",
-      createdAt: new Date().toISOString(),
-    };
-
-    if (onCheckout) onCheckout(transaction);
-    clearOrder();
+    
+    try {
+      setLoading(true);
+      setError("");
+      
+      const items = cart.map(item => ({
+        item_type: item.itemType || "product",
+        item_id: item.itemType === "product" ? item.id : null,
+        service_id: item.itemType === "service" ? item.id : null,
+        item_name: item.name,
+        quantity: item.quantity,
+        unit_price: item.price,
+        discount_amount: item.discount || 0,
+      }));
+      
+      const transactionData = {
+        customer_name: customer || null,
+        items: items,
+        payment_method: paymentMethod,
+        cash_received: paymentMethod === "cash" ? parseFloat(cashReceived) : totalAmount,
+        discount_code: voucher || null,
+        notes: orderType ? `Order Type: ${orderType}` : null,
+      };
+      
+      const result = await posApi.processTransaction(transactionData);
+      
+      if (result.success) {
+        setSuccess("Transaction completed successfully!");
+        setReceipt(result.receipt);
+        if (onCheckout) onCheckout(result.transaction);
+        
+        // Auto-clear after showing success
+        setTimeout(() => {
+          clearOrder();
+          setSuccess(null);
+          setReceipt(null);
+        }, 5000);
+      } else {
+        setError(result.message || "Transaction failed");
+      }
+    } catch (err) {
+      setError(err.message || "Failed to process transaction");
+      console.error("Checkout error:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -138,20 +179,36 @@ const CashierPOS = ({ onCheckout }) => {
             <h2>Pet Store Products</h2>
           </div>
           <div className="pos-search-bar">
-            <input type="search" placeholder="Search products..." />
+            <input 
+              type="search" 
+              placeholder="Search products & services..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
           </div>
+          {loading && <div className="loading-indicator">Loading...</div>}
+          {error && <div className="error-message">{error}</div>}
+          {success && <div className="success-message">{success}</div>}
         </div>
 
         <div className="pos-product-grid">
           {filteredProducts.map((product) => (
-            <article className="product-card" key={product.id}>
-              <div className="product-thumb" />
+            <article className={`product-card ${product.itemType === "service" ? "service-item" : ""}`} key={`${product.itemType}-${product.id}`}>
+              <div className="product-thumb">
+                {product.itemType === "service" && <span className="service-badge">SVC</span>}
+              </div>
               <div className="product-card-body">
                 <strong>{product.name}</strong>
                 <span>{formatPrice(product.price)}</span>
+                {product.stock !== undefined && <small className="stock-info">Stock: {product.stock}</small>}
               </div>
-              <button type="button" className="product-add" onClick={() => addToCart(product)}>
-                Add
+              <button 
+                type="button" 
+                className="product-add" 
+                onClick={() => addToCart(product)}
+                disabled={product.stock !== undefined && product.stock <= 0}
+              >
+                {product.stock !== undefined && product.stock <= 0 ? "Out of Stock" : "Add"}
               </button>
             </article>
           ))}
@@ -269,14 +326,34 @@ const CashierPOS = ({ onCheckout }) => {
             />
           </label>
 
+          <div className="payment-method">
+            <label>Payment Method</label>
+            <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
+              <option value="cash">💵 Cash</option>
+              <option value="credit_card">💳 Credit Card</option>
+              <option value="debit_card">💳 Debit Card</option>
+              <option value="gcash">📱 GCash</option>
+              <option value="maya">📱 Maya</option>
+            </select>
+          </div>
+
           <button 
             type="button" 
             className="checkout-button" 
             onClick={handleCheckout} 
-            disabled={cart.length === 0 || !cashReceived || parseFloat(cashReceived) < totalAmount}
+            disabled={cart.length === 0 || loading || (paymentMethod === "cash" && (!cashReceived || parseFloat(cashReceived) < totalAmount))}
           >
-            Process Transaction
+            {loading ? "Processing..." : "Process Transaction"}
           </button>
+
+          {receipt && (
+            <div className="receipt-preview">
+              <h4>🧾 Receipt Preview</h4>
+              <p><strong>Transaction #:</strong> {receipt.transaction_number}</p>
+              <p><strong>Total:</strong> ₱{receipt.total.toFixed(2)}</p>
+              <p><strong>Change:</strong> ₱{receipt.payment.change.toFixed(2)}</p>
+            </div>
+          )}
         </div>
       </aside>
     </div>

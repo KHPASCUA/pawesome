@@ -70,7 +70,7 @@ const Login = () => {
       const response = await apiRequest("/auth/login", {
         method: "POST",
         body: JSON.stringify({
-          email: formData.username.includes('@') ? formData.username : formData.username + '@example.com',
+          login: formData.username.trim(),
           password: formData.password,
         }),
       });
@@ -92,9 +92,11 @@ const Login = () => {
       // Redirect to role-based dashboard
       navigate(roleRouteMap[response.user.role] || "/dashboard");
     } catch (error) {
+      console.error("Login error:", error);
+      const errorMsg = error.message || "Invalid username or password";
       setErrors({ 
-        username: "Invalid username or password",
-        password: "Invalid username or password"
+        username: errorMsg,
+        password: errorMsg
       });
     } finally {
       setIsSubmitting(false);
@@ -177,7 +179,7 @@ const Login = () => {
                   />
                   <label htmlFor="rememberMe">Remember me</label>
                 </div>
-                <a href="#forgot-password" className="forgot-password">Forgot password?</a>
+                <Link to="/forgot-password" className="forgot-password">Forgot password?</Link>
               </div>
             </div>
 

@@ -4,8 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
@@ -63,14 +66,16 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => 'User registered successfully',
-            'user' => $user
+            'user' => $user,
+            'token' => $apiToken,
         ], 201);
     }
 
     public function login(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'email' => 'required|string|email',
+            'login' => 'sometimes|string',
+            'email' => 'sometimes|string|email',
             'password' => 'required|string',
         ]);
 
@@ -78,7 +83,19 @@ class AuthController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $user = User::where('email', $request->email)->first();
+        $login = $request->input('login', $request->input('email'));
+
+        if (!$login) {
+            return response()->json([
+                'errors' => [
+                    'login' => ['Username or email is required'],
+                ],
+            ], 422);
+        }
+
+        $user = User::where('email', $login)
+            ->orWhere('username', $login)
+            ->first();
 
         if (!$user || !Hash::check($request->password, $user->password)) {
             return response()->json(['message' => 'Invalid credentials'], 401);
@@ -186,8 +203,78 @@ class AuthController extends Controller
         ]);
     }
 
+    public function forgotPassword(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'email' => 'required|string|email|exists:users,email',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $token = Str::random(64);
+        $hashedToken = Hash::make($token);
+
+        $table = config('auth.passwords.users.table');
+        DB::table($table)->where('email', $request->email)->delete();
+        DB::table($table)->insert([
+            'email' => $request->email,
+            'token' => $hashedToken,
+            'created_at' => now(),
+        ]);
+
+        return response()->json([
+            'message' => 'Password reset token generated successfully',
+            'reset_token' => $token,
+        ]);
+    }
+
+    public function resetPassword(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'email' => 'required|string|email|exists:users,email',
+            'token' => 'required|string',
+            'new_password' => 'required|string|min:8|confirmed',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $table = config('auth.passwords.users.table');
+        $resetRecord = DB::table($table)->where('email', $request->email)->first();
+
+        if (!$resetRecord || !Hash::check($request->token, $resetRecord->token)) {
+            return response()->json(['message' => 'Invalid or expired reset token'], 422);
+        }
+
+        $expiresAt = Carbon::parse($resetRecord->created_at)->addMinutes(config('auth.passwords.users.expire'));
+        if (now()->greaterThan($expiresAt)) {
+            DB::table($table)->where('email', $request->email)->delete();
+            return response()->json(['message' => 'Reset token has expired'], 422);
+        }
+
+        $user = User::where('email', $request->email)->first();
+        $user->update([
+            'password' => Hash::make($request->new_password),
+            'api_token' => null,
+        ]);
+
+        DB::table($table)->where('email', $request->email)->delete();
+
+        return response()->json([
+            'message' => 'Password reset successfully',
+        ]);
+    }
+
     public function logout(Request $request)
     {
+        $user = $request->user();
+        if ($user) {
+            $user->update(['api_token' => null]);
+        }
+
         return response()->json(['message' => 'Logout successful']);
     }
 

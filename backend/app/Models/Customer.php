@@ -14,5 +14,11 @@ class Customer extends Model
         'email',
         'phone',
         'address',
+        'telegram_chat_id',
+        'notification_preferences',
+    ];
+
+    protected $casts = [
+        'notification_preferences' => 'array',
     ];
 }

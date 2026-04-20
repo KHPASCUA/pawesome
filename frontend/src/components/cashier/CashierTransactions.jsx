@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faSearch,
@@ -10,101 +10,100 @@ import {
   faCreditCard,
   faMoneyBillWave,
   faCalendarAlt,
-  faUser,
   faShoppingCart,
   faEye,
+  faSpinner,
 } from "@fortawesome/free-solid-svg-icons";
 import "./CashierTransactions.css";
 import { formatCurrency } from "../../utils/currency";
+import { posApi } from "../../api/pos";
 
 const CashierTransactions = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [selectedTransaction, setSelectedTransaction] = useState(null);
+  const [transactions, setTransactions] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [pagination, setPagination] = useState({
+    current_page: 1,
+    last_page: 1,
+    total: 0,
+  });
 
-  const transactions = [
-    {
-      id: "TRX-001",
-      customer: "John Smith",
-      email: "john.smith@email.com",
-      amount: 125.5,
-      items: 3,
-      payment: "Credit Card",
-      paymentMethod: "visa",
-      date: "2026-04-01",
-      time: "10:23 AM",
-      status: "completed",
-      products: [
-        { name: "Premium Dog Food", quantity: 2, price: 45 },
-        { name: "Cat Toy Bundle", quantity: 1, price: 35.5 },
-      ],
-    },
-    {
-      id: "TRX-002",
-      customer: "Sarah Johnson",
-      email: "sarah.j@email.com",
-      amount: 89.25,
-      items: 2,
-      payment: "Cash",
-      paymentMethod: "cash",
-      date: "2026-04-01",
-      time: "10:45 AM",
-      status: "completed",
-      products: [
-        { name: "Pet Shampoo", quantity: 1, price: 25 },
-        { name: "Dog Leash", quantity: 1, price: 64.25 },
-      ],
-    },
-    {
-      id: "TRX-003",
-      customer: "Mike Davis",
-      email: "mike.davis@email.com",
-      amount: 234.8,
-      items: 5,
-      payment: "Credit Card",
-      paymentMethod: "mastercard",
-      date: "2026-04-01",
-      time: "11:02 AM",
-      status: "completed",
-      products: [
-        { name: "Cat Food Premium", quantity: 3, price: 89.4 },
-        { name: "Pet Bed Large", quantity: 1, price: 120 },
-        { name: "Water Bowl", quantity: 1, price: 25.4 },
-      ],
-    },
-    {
-      id: "TRX-004",
-      customer: "Emma Wilson",
-      email: "emma.w@email.com",
-      amount: 67.99,
-      items: 1,
-      payment: "Credit Card",
-      paymentMethod: "amex",
-      date: "2026-04-01",
-      time: "11:30 AM",
-      status: "pending",
-      products: [
-        { name: "Grooming Service Package", quantity: 1, price: 67.99 },
-      ],
-    },
-    {
-      id: "TRX-005",
-      customer: "Robert Brown",
-      email: "robert.b@email.com",
-      amount: 156.75,
-      items: 4,
-      payment: "Cash",
-      paymentMethod: "cash",
-      date: "2026-04-01",
-      time: "12:15 PM",
-      status: "completed",
-      products: [
-        { name: "Bird Cage Medium", quantity: 1, price: 89.99 },
-        { name: "Bird Food Premium", quantity: 2, price: 33.38 },
-        { name: "Bird Toys Set", quantity: 1, price: 33.5 },
-      ],
-    },
-  ];
+  useEffect(() => {
+    loadTransactions(pagination.current_page);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterStatus]);
+
+  const loadTransactions = async (page = 1) => {
+    try {
+      setLoading(true);
+      setError("");
+      const params = { per_page: 20, page };
+      if (filterStatus !== "all") {
+        params.status = filterStatus;
+      }
+      const response = await posApi.getTransactions(params);
+      
+      const transformedData = (response.data || []).map(sale => ({
+        id: sale.transaction_number || `TRX-${sale.id}`,
+        sale_id: sale.id,
+        customer: sale.customer?.name || "Walk-in",
+        email: sale.customer?.email || "",
+        amount: parseFloat(sale.total_amount || sale.amount || 0),
+        items: sale.items?.length || 0,
+        payment: sale.payments?.[0]?.payment_method || "Cash",
+        paymentMethod: mapPaymentMethod(sale.payments?.[0]?.payment_method),
+        date: new Date(sale.created_at).toISOString().split('T')[0],
+        time: new Date(sale.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        status: sale.status,
+        products: (sale.items || []).map(item => ({
+          name: item.item_name,
+          quantity: item.quantity,
+          price: parseFloat(item.total_price),
+        })),
+        raw_data: sale, 
+      }));
+      
+      setTransactions(transformedData);
+      setPagination({
+        current_page: response.current_page || 1,
+        last_page: response.last_page || 1,
+        total: response.total || transformedData.length,
+      });
+    } catch (err) {
+      setError("Failed to load transactions");
+      console.error("Load transactions error:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const mapPaymentMethod = (method) => {
+    const map = {
+      'cash': 'cash',
+      'credit_card': 'visa',
+      'debit_card': 'mastercard',
+      'gcash': 'amex',
+      'maya': 'amex',
+    };
+    return map[method] || 'cash';
+  };
+
+  const handleVoidTransaction = async (id, reason) => {
+    try {
+      setLoading(true);
+      const result = await posApi.voidTransaction(id, reason);
+      if (result.success) {
+        await loadTransactions(pagination.current_page);
+      }
+    } catch (err) {
+      setError("Failed to void transaction");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredTransactions = transactions.filter((transaction) => {
     const matchesSearch = 
@@ -184,6 +183,15 @@ const CashierTransactions = () => {
         </div>
       </div>
 
+      {loading && (
+        <div className="loading-overlay">
+          <FontAwesomeIcon icon={faSpinner} spin />
+          <span>Loading transactions...</span>
+        </div>
+      )}
+      
+      {error && <div className="error-banner">{error}</div>}
+
       <div className="transactions-table-container">
         <table className="transactions-table">
           <thead>
@@ -243,7 +251,15 @@ const CashierTransactions = () => {
                   <button className="action-btn edit-btn" title="Edit">
                     <FontAwesomeIcon icon={faEdit} />
                   </button>
-                  <button className="action-btn delete-btn" title="Delete">
+                  <button 
+                    className="action-btn delete-btn" 
+                    title="Void"
+                    onClick={() => {
+                      const reason = prompt("Enter reason for voiding:");
+                      if (reason) handleVoidTransaction(transaction.sale_id, reason);
+                    }}
+                    disabled={transaction.status === 'cancelled'}
+                  >
                     <FontAwesomeIcon icon={faTrash} />
                   </button>
                 </td>

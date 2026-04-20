@@ -128,7 +128,7 @@ class PortalController extends Controller
             'customer_id' => $cust->id,
             'pet_id' => $data['pet_id'],
             'service_id' => $data['service_id'],
-            'status' => 'scheduled',
+            'status' => 'pending',
             'scheduled_at' => $data['scheduled_at'],
             'price' => Service::find($data['service_id'])->price ?? 0,
         ]);

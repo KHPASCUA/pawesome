@@ -21,6 +21,7 @@ class Boarding extends Model
         'payment_status',
         'notes',
         'special_requests',
+        'reminder_sent_at',
         'emergency_contact',
         'emergency_phone',
         'confirmed_at',
@@ -34,6 +35,7 @@ class Boarding extends Model
         'actual_check_in' => 'datetime',
         'actual_check_out' => 'datetime',
         'confirmed_at' => 'datetime',
+        'reminder_sent_at' => 'datetime',
         'total_amount' => 'decimal:2',
     ];
 

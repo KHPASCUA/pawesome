@@ -183,19 +183,19 @@ const InventoryDashboard = () => {
 
               <article className="panel quick-stat-panel">
                 <div className="metric-card accent">
-                  <h3>78%</h3>
-                  <p>Warehouse Capacity</p>
-                  <small>+3% from last week</small>
+                  <h3>{dashboardData?.expiring_soon || 0}</h3>
+                  <p>Expiring Soon</p>
+                  <small>Within 30 days</small>
                 </div>
 
                 <div className="metric-card">
-                  <h3>23</h3>
+                  <h3>{dashboardData?.low_stock_items || 0}</h3>
                   <p>Low Stock Alerts</p>
                 </div>
 
                 <div className="metric-card">
-                  <h3>12</h3>
-                  <p>Pending Orders</p>
+                  <h3>{dashboardData?.inventory_changes_today || 0}</h3>
+                  <p>Changes Today</p>
                 </div>
               </article>
             </section>
@@ -212,47 +212,24 @@ const InventoryDashboard = () => {
                 </div>
 
                 <div className="stock-categories">
-                  <div className="stock-category-item">
-                    <div className="category-icon">
-                      <FontAwesomeIcon icon={faBox} />
+                  {(dashboardData?.critical_items || []).slice(0, 3).map((item, idx) => (
+                    <div key={idx} className="stock-category-item">
+                      <div className="category-icon">
+                        <FontAwesomeIcon icon={faBox} />
+                      </div>
+                      <div className="category-info">
+                        <h4>{item.name}</h4>
+                        <p>{item.stock} units remaining</p>
+                      </div>
+                      <div className="category-status">
+                        <div className={`status-indicator ${item.stock === 0 ? 'danger' : item.stock <= item.reorder_level ? 'warning' : 'good'}`}></div>
+                        <span>{item.stock === 0 ? 'Out of Stock' : item.stock <= item.reorder_level ? 'Low Stock' : 'In Stock'}</span>
+                      </div>
                     </div>
-                    <div className="category-info">
-                      <h4>Pet Food</h4>
-                      <p>342 products</p>
-                    </div>
-                    <div className="category-status">
-                      <div className="status-indicator good"></div>
-                      <span>In Stock</span>
-                    </div>
-                  </div>
-                  
-                  <div className="stock-category-item">
-                    <div className="category-icon">
-                      <FontAwesomeIcon icon={faWarehouse} />
-                    </div>
-                    <div className="category-info">
-                      <h4>Accessories</h4>
-                      <p>156 products</p>
-                    </div>
-                    <div className="category-status">
-                      <div className="status-indicator warning"></div>
-                      <span>Low Stock</span>
-                    </div>
-                  </div>
-                  
-                  <div className="stock-category-item">
-                    <div className="category-icon">
-                      <FontAwesomeIcon icon={faTruck} />
-                    </div>
-                    <div className="category-info">
-                      <h4>Toys</h4>
-                      <p>89 products</p>
-                    </div>
-                    <div className="category-status">
-                      <div className="status-indicator good"></div>
-                      <span>In Stock</span>
-                    </div>
-                  </div>
+                  ))}
+                  {(dashboardData?.critical_items || []).length === 0 && (
+                    <p className="no-data">No critical stock items</p>
+                  )}
                 </div>
               </div>
 
@@ -268,20 +245,19 @@ const InventoryDashboard = () => {
                 
                 <div className="inventory-metrics">
                   <div className="status-card success">
-                    <strong>1,247</strong>
+                    <strong>{dashboardData?.total_items || 0}</strong>
                     <p>Total Products</p>
-                    <small>+45 new items</small>
+                    <small>{dashboardData?.out_of_stock_items || 0} out of stock</small>
                   </div>
                   <div className="status-card warning">
-                    <strong>23</strong>
+                    <strong>{dashboardData?.low_stock_items || 0}</strong>
                     <p>Low Stock Items</p>
                     <small>Need attention</small>
                   </div>
                 </div>
                 
-                <div className="mini-chart-placeholder">
-                  <FontAwesomeIcon icon={faArrowUp} />
-                  <span>Stock Movement Trend</span>
+                <div className="inventory-summary">
+                  <p>Total stock value: {formatCurrency(dashboardData?.total_stock_value || 0)}</p>
                 </div>
               </div>
             </section>
