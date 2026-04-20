@@ -166,21 +166,21 @@ class POSController extends Controller
      */
     public function getProducts()
     {
-        $products = InventoryItem::where('quantity', '>', 0)
-            ->where('status', 'active')
-            ->select('id', 'name', 'price', 'quantity', 'category', 'description')
-            ->orderBy('category')
+        $products = InventoryItem::where('stock', '>', 0)
+            ->select('id', 'sku', 'name', 'price', 'stock', 'description')
             ->orderBy('name')
             ->get()
             ->map(function ($item) {
                 return [
                     'id' => $item->id,
+                    'sku' => $item->sku,
                     'name' => $item->name,
                     'price' => (float) $item->price,
-                    'stock' => $item->quantity,
-                    'category' => $item->category,
+                    'stock' => $item->stock,
+                    'category' => $this->getCategoryFromSku($item->sku),
                     'description' => $item->description,
                     'type' => 'product',
+                    'inStock' => $item->stock > 0,
                 ];
             });
 
@@ -188,13 +188,26 @@ class POSController extends Controller
     }
 
     /**
+     * Helper to get category from SKU
+     */
+    private function getCategoryFromSku($sku)
+    {
+        if (str_contains($sku, 'FOOD')) return 'Food';
+        if (str_contains($sku, 'TREAT')) return 'Treats';
+        if (str_contains($sku, 'SHAMPOO')) return 'Grooming';
+        if (str_contains($sku, 'LEASH') || str_contains($sku, 'COLLAR')) return 'Accessories';
+        if (str_contains($sku, 'TOY')) return 'Toys';
+        if (str_contains($sku, 'VACCINE') || str_contains($sku, 'WORMER')) return 'Medical';
+        if (str_contains($sku, 'PADS')) return 'Supplies';
+        return 'General';
+    }
+
+    /**
      * Get available services for POS
      */
     public function getServices()
     {
-        $services = Service::where('status', 'active')
-            ->select('id', 'name', 'price', 'category', 'description', 'duration')
-            ->orderBy('category')
+        $services = Service::select('id', 'name', 'price', 'description')
             ->orderBy('name')
             ->get()
             ->map(function ($service) {
@@ -202,10 +215,10 @@ class POSController extends Controller
                     'id' => $service->id,
                     'name' => $service->name,
                     'price' => (float) $service->price,
-                    'category' => $service->category,
+                    'category' => 'Services',
                     'description' => $service->description,
-                    'duration' => $service->duration,
                     'type' => 'service',
+                    'inStock' => true,
                 ];
             });
 
