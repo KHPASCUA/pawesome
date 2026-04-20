@@ -386,16 +386,12 @@
   min-height: 2.8rem;
 }
 
-.product-card-body span,
 .product-card-body .product-price {
   font-size: 1.25rem;
   font-weight: 700;
-  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: #3b82f6;
   display: block;
-  margin: 0.25rem 0;
+  margin: 0.5rem 0;
 }
 
 .stock-info {
