@@ -2,6 +2,7 @@ import React, { useMemo, useState, useEffect } from "react";
 import { posApi } from "../../api/pos";
 import "./CashierPOS.css";
 import "./CashierPOS_Enhanced.css";
+import "./CashierPOS_Polished.css";
 
 const categories = [
   { id: "all", label: "All Items", icon: "🐾" },
