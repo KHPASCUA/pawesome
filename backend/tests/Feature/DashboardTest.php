@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 use App\Models\User;
 use App\Models\Appointment;
@@ -36,7 +37,7 @@ class DashboardTest extends TestCase
         return ['Authorization' => 'Bearer ' . $user->api_token];
     }
 
-    /** @test */
+    #[Test]
     public function veterinary_dashboard_returns_expected_data_structure(): void
     {
         $vet = $this->createUserWithRole('veterinary');
@@ -45,7 +46,7 @@ class DashboardTest extends TestCase
         $today = Carbon::today();
         Appointment::factory()->count(3)->create([
             'scheduled_at' => $today,
-            'status' => 'scheduled'
+            'status' => 'pending'
         ]);
         Pet::factory()->count(5)->create();
 
@@ -65,7 +66,7 @@ class DashboardTest extends TestCase
             ]);
     }
 
-    /** @test */
+    #[Test]
     public function receptionist_dashboard_returns_expected_data_structure(): void
     {
         $receptionist = $this->createUserWithRole('receptionist');
@@ -73,7 +74,7 @@ class DashboardTest extends TestCase
         $today = Carbon::today();
         Appointment::factory()->count(2)->create([
             'scheduled_at' => $today,
-            'status' => 'confirmed'
+            'status' => 'approved'
         ]);
         Customer::factory()->count(3)->create();
         Pet::factory()->count(4)->create();
@@ -95,7 +96,7 @@ class DashboardTest extends TestCase
             ]);
     }
 
-    /** @test */
+    #[Test]
     public function inventory_dashboard_returns_expected_data_structure(): void
     {
         $inventory = $this->createUserWithRole('inventory');
@@ -120,7 +121,7 @@ class DashboardTest extends TestCase
             ]);
     }
 
-    /** @test */
+    #[Test]
     public function cashier_dashboard_returns_expected_data_structure(): void
     {
         $cashier = $this->createUserWithRole('cashier');
@@ -144,7 +145,7 @@ class DashboardTest extends TestCase
             ]);
     }
 
-    /** @test */
+    #[Test]
     public function manager_dashboard_returns_expected_data_structure(): void
     {
         $manager = $this->createUserWithRole('manager');
@@ -168,7 +169,7 @@ class DashboardTest extends TestCase
             ]);
     }
 
-    /** @test */
+    #[Test]
     public function customer_dashboard_returns_expected_data_structure(): void
     {
         $user = $this->createUserWithRole('customer');
@@ -176,7 +177,7 @@ class DashboardTest extends TestCase
         
         Appointment::factory()->count(2)->create([
             'customer_id' => $customer->id,
-            'status' => 'scheduled'
+            'status' => 'pending'
         ]);
         Pet::factory()->count(2)->create(['customer_id' => $customer->id]);
 
@@ -194,7 +195,7 @@ class DashboardTest extends TestCase
             ]);
     }
 
-    /** @test */
+    #[Test]
     public function admin_can_access_chatbot_logs(): void
     {
         $admin = $this->createUserWithRole('admin');
@@ -205,7 +206,7 @@ class DashboardTest extends TestCase
         $response->assertStatus(200);
     }
 
-    /** @test */
+    #[Test]
     public function unauthorized_users_cannot_access_dashboards(): void
     {
         $customer = $this->createUserWithRole('customer');

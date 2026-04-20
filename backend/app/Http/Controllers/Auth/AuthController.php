@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\LoginLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
@@ -52,8 +53,13 @@ class AuthController extends Controller
         $user = User::where('email', $request->email)->first();
 
         if (! $user || ! Hash::check($request->password, $user->password)) {
+            // Log failed login attempt
+            LoginLog::logLogin(null, $request->email, 'failed', 'Invalid credentials');
             return response()->json(['message' => 'Invalid credentials'], 401);
         }
+
+        // Log successful login
+        LoginLog::logLogin($user->id, $request->email, 'success');
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
@@ -93,6 +99,13 @@ class AuthController extends Controller
 
     public function logout(Request $request)
     {
+        $user = $request->user();
+        
+        // Log logout
+        if ($user) {
+            LoginLog::logLogout($user->id, $user->email);
+        }
+        
         $request->user()->currentAccessToken()->delete();
         return response()->json(['message' => 'Logged out successfully']);
     }

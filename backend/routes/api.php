@@ -8,6 +8,8 @@ use App\Http\Controllers\Admin\CustomersController;
 use App\Http\Controllers\Admin\ChatbotController;
 use App\Http\Controllers\Admin\ChatbotFaqController;
 use App\Http\Controllers\Admin\ReportsController;
+use App\Http\Controllers\Admin\ActivityLogController;
+use App\Http\Controllers\Admin\LoginLogController;
 use App\Http\Controllers\ChatbotController as SharedChatbotController;
 use App\Http\Controllers\ChatbotWorkflowController;
 use App\Http\Controllers\Customer\PortalController;
@@ -24,6 +26,8 @@ use App\Http\Controllers\BoardingController;
 use App\Http\Controllers\HotelRoomController;
 use App\Http\Controllers\TelegramBotController;
 use App\Http\Controllers\AppointmentController;
+use App\Http\Controllers\AttendanceController;
+use App\Http\Controllers\PayrollController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('auth')->group(function () {
@@ -32,7 +36,7 @@ Route::prefix('auth')->group(function () {
     Route::post('password/forgot', [AuthController::class, 'forgotPassword']);
     Route::post('password/reset', [AuthController::class, 'resetPassword']);
 
-    Route::middleware('auth:api')->group(function () {
+    Route::middleware('auth.api')->group(function () {
         Route::get('me', [AuthController::class, 'me']);
         Route::put('profile', [AuthController::class, 'updateProfile']);
         Route::post('change-password', [AuthController::class, 'changePassword']);
@@ -41,7 +45,7 @@ Route::prefix('auth')->group(function () {
     });
 });
 
-Route::middleware(['auth:api', 'role:admin'])->prefix('admin')->group(function () {
+Route::middleware(['auth.api', 'role:admin'])->prefix('admin')->group(function () {
     Route::get('dashboard', [DashboardController::class, 'overview']);
 
     Route::get('users', [UserController::class, 'index']);
@@ -84,6 +88,20 @@ Route::middleware(['auth:api', 'role:admin'])->prefix('admin')->group(function (
 
     Route::get('reports/summary', [ReportsController::class, 'summary']);
 
+    // Activity Logs
+    Route::get('activity-logs', [ActivityLogController::class, 'index']);
+    Route::get('activity-logs/statistics', [ActivityLogController::class, 'statistics']);
+    Route::get('activity-logs/filters', [ActivityLogController::class, 'filters']);
+    Route::get('activity-logs/{id}', [ActivityLogController::class, 'show']);
+    Route::get('activity-logs/user/{userId}', [ActivityLogController::class, 'userLogs']);
+
+    // Login Logs
+    Route::get('login-logs', [LoginLogController::class, 'index']);
+    Route::get('login-logs/statistics', [LoginLogController::class, 'statistics']);
+    Route::get('login-logs/recent', [LoginLogController::class, 'recent']);
+    Route::get('login-logs/user/{userId}', [LoginLogController::class, 'userLogs']);
+    Route::get('login-logs/user/{userId}/sessions', [LoginLogController::class, 'userSessions']);
+
     // Notifications
     Route::get('notifications', [NotificationController::class, 'index']);
     Route::get('notifications/unread', [NotificationController::class, 'unread']);
@@ -91,7 +109,7 @@ Route::middleware(['auth:api', 'role:admin'])->prefix('admin')->group(function (
     Route::post('notifications/mark-all-read', [NotificationController::class, 'markAllAsRead']);
 });
 
-Route::middleware(['auth:api'])->prefix('chatbot')->group(function () {
+Route::middleware(['auth.api'])->prefix('chatbot')->group(function () {
     Route::get('welcome', [SharedChatbotController::class, 'welcome']);
     Route::post('message', [SharedChatbotController::class, 'message']);
     Route::get('workflow/booking-options', [ChatbotWorkflowController::class, 'bookingOptions']);
@@ -104,7 +122,7 @@ Route::middleware(['auth:api'])->prefix('chatbot')->group(function () {
     Route::post('workflow/hotel-bookings', [ChatbotWorkflowController::class, 'createHotelBooking']);
 });
 
-Route::middleware(['auth:api', 'role:customer'])->prefix('customer')->group(function () {
+Route::middleware(['auth.api', 'role:customer'])->prefix('customer')->group(function () {
     Route::get('overview', [PortalController::class, 'overview']);
     Route::get('pets', [PortalController::class, 'pets']);
     Route::post('pets', [PortalController::class, 'addPet']);
@@ -116,7 +134,7 @@ Route::middleware(['auth:api', 'role:customer'])->prefix('customer')->group(func
     Route::post('chatbot', [PortalController::class, 'chatbot']);
 });
 
-Route::middleware(['auth:api', 'role:cashier'])->prefix('cashier')->group(function () {
+Route::middleware(['auth.api', 'role:cashier'])->prefix('cashier')->group(function () {
     Route::get('dashboard', [CashierDashboardController::class, 'overview']);
     Route::get('sales', [CashierDashboardController::class, 'sales']);
     Route::get('transactions', [CashierDashboardController::class, 'transactions']);
@@ -131,7 +149,7 @@ Route::middleware(['auth:api', 'role:cashier'])->prefix('cashier')->group(functi
     Route::get('pos/invoice/{id}', [POSController::class, 'downloadInvoice']);
 });
 
-Route::middleware(['auth:api', 'role:receptionist'])->prefix('receptionist')->group(function () {
+Route::middleware(['auth.api', 'role:receptionist'])->prefix('receptionist')->group(function () {
     Route::get('dashboard', [ReceptionistDashboardController::class, 'overview']);
     Route::get('appointments', [ReceptionistDashboardController::class, 'appointments']);
     Route::get('customers', [ReceptionistDashboardController::class, 'customers']);
@@ -148,18 +166,50 @@ Route::middleware(['auth:api', 'role:receptionist'])->prefix('receptionist')->gr
     Route::get('veterinarians/{id}/schedule', [AppointmentController::class, 'veterinarianSchedule']);
 });
 
-Route::middleware(['auth:api', 'role:inventory'])->prefix('inventory')->group(function () {
+Route::middleware(['auth.api', 'role:inventory'])->prefix('inventory')->group(function () {
     Route::get('dashboard', [InventoryDashboardController::class, 'overview']);
     Route::get('items', [InventoryDashboardController::class, 'items']);
     Route::get('logs', [InventoryDashboardController::class, 'logs']);
 });
 
-Route::middleware(['auth:api', 'role:manager'])->prefix('manager')->group(function () {
+Route::middleware(['auth.api', 'role:manager'])->prefix('manager')->group(function () {
     Route::get('dashboard', [ManagerDashboardController::class, 'overview']);
     Route::get('staff', [ManagerDashboardController::class, 'staff']);
 });
 
-Route::middleware(['auth:api', 'role:veterinary'])->prefix('veterinary')->group(function () {
+// Attendance Routes (Admin and Manager)
+Route::middleware(['auth.api', 'role:admin,manager'])->prefix('attendance')->group(function () {
+    Route::get('/', [AttendanceController::class, 'index']);
+    Route::post('/', [AttendanceController::class, 'store']);
+    Route::get('/today', [AttendanceController::class, 'today']);
+    Route::get('/statistics', [AttendanceController::class, 'statistics']);
+    Route::get('/export', [AttendanceController::class, 'export']);
+    Route::get('/{id}', [AttendanceController::class, 'show']);
+    Route::put('/{id}', [AttendanceController::class, 'update']);
+    Route::delete('/{id}', [AttendanceController::class, 'destroy']);
+});
+
+// Payroll Routes (Admin and Manager)
+Route::middleware(['auth.api', 'role:admin,manager'])->prefix('payroll')->group(function () {
+    Route::get('/', [PayrollController::class, 'index']);
+    Route::post('/', [PayrollController::class, 'store']);
+    Route::post('/generate', [PayrollController::class, 'generateForPeriod']);
+    Route::get('/summary', [PayrollController::class, 'summary']);
+    Route::get('/{id}', [PayrollController::class, 'show']);
+    Route::put('/{id}', [PayrollController::class, 'update']);
+    Route::delete('/{id}', [PayrollController::class, 'destroy']);
+    Route::post('/{id}/process', [PayrollController::class, 'processPayment']);
+    Route::get('/{id}/payslip', [PayrollController::class, 'payslip']);
+});
+
+// Employee self-service routes
+Route::middleware(['auth.api'])->group(function () {
+    Route::post('/attendance/check-in', [AttendanceController::class, 'checkIn']);
+    Route::post('/attendance/check-out', [AttendanceController::class, 'checkOut']);
+    Route::get('/my-payroll', [PayrollController::class, 'myPayroll']);
+});
+
+Route::middleware(['auth.api', 'role:veterinary'])->prefix('veterinary')->group(function () {
     Route::get('dashboard', [VeterinaryDashboardController::class, 'overview']);
     Route::get('appointments', [VeterinaryDashboardController::class, 'appointments']);
     Route::get('appointments/{id}', [VeterinaryDashboardController::class, 'appointment']);
@@ -186,7 +236,7 @@ Route::middleware(['auth:api', 'role:veterinary'])->prefix('veterinary')->group(
 });
 
 // Notification Routes (available to all authenticated users)
-Route::middleware(['auth:api'])->prefix('notifications')->group(function () {
+Route::middleware(['auth.api'])->prefix('notifications')->group(function () {
     Route::get('/', [NotificationController::class, 'index']);
     Route::get('/unread-count', [NotificationController::class, 'unreadCount']);
     Route::post('/{id}/read', [NotificationController::class, 'markAsRead']);
@@ -195,12 +245,12 @@ Route::middleware(['auth:api'])->prefix('notifications')->group(function () {
     Route::delete('/{id}', [NotificationController::class, 'destroy']);
 });
 
-Route::middleware(['auth:api', 'role:admin'])->prefix('notifications')->group(function () {
+Route::middleware(['auth.api', 'role:admin'])->prefix('notifications')->group(function () {
     Route::post('/', [NotificationController::class, 'store']);
 });
 
 // Hotel Room Management Routes (Admin/Manager only)
-Route::middleware(['auth:api', 'role:admin,manager'])->prefix('hotel-rooms')->group(function () {
+Route::middleware(['auth.api', 'role:admin,manager'])->prefix('hotel-rooms')->group(function () {
     Route::get('/', [HotelRoomController::class, 'index']);
     Route::post('/', [HotelRoomController::class, 'store']);
     Route::get('/{id}', [HotelRoomController::class, 'show']);
@@ -210,7 +260,7 @@ Route::middleware(['auth:api', 'role:admin,manager'])->prefix('hotel-rooms')->gr
 });
 
 // Boarding/Hotel Reservation Routes (Receptionist, Admin, Manager)
-Route::middleware(['auth:api', 'role:receptionist,admin,manager'])->prefix('boardings')->group(function () {
+Route::middleware(['auth.api', 'role:receptionist,admin,manager'])->prefix('boardings')->group(function () {
     Route::get('/', [BoardingController::class, 'index']);
     Route::post('/', [BoardingController::class, 'store']);
     Route::get('/available-rooms', [BoardingController::class, 'availableRooms']);
@@ -227,7 +277,7 @@ Route::middleware(['auth:api', 'role:receptionist,admin,manager'])->prefix('boar
 });
 
 // Customer Boarding Routes (View own reservations, create new)
-Route::middleware(['auth:api', 'role:customer'])->prefix('customer/boardings')->group(function () {
+Route::middleware(['auth.api', 'role:customer'])->prefix('customer/boardings')->group(function () {
     Route::get('/', [BoardingController::class, 'index']);
     Route::post('/', [BoardingController::class, 'store']);
     Route::get('/available-rooms', [BoardingController::class, 'availableRooms']);
@@ -236,7 +286,7 @@ Route::middleware(['auth:api', 'role:customer'])->prefix('customer/boardings')->
 });
 
 // Vet Boarding Routes (View current boarders for emergency access)
-Route::middleware(['auth:api', 'role:veterinary'])->prefix('veterinary/boardings')->group(function () {
+Route::middleware(['auth.api', 'role:veterinary'])->prefix('veterinary/boardings')->group(function () {
     Route::get('/current-boarders', [BoardingController::class, 'currentBoarders']);
     Route::get('/{id}', [BoardingController::class, 'show']);
 });
@@ -245,7 +295,8 @@ Route::middleware(['auth:api', 'role:veterinary'])->prefix('veterinary/boardings
 Route::post('/telegram/webhook', [TelegramBotController::class, 'webhook']);
 
 // Telegram Admin Routes (setup webhooks)
-Route::middleware(['auth:api', 'role:admin'])->prefix('admin/telegram')->group(function () {
+Route::middleware(['auth.api', 'role:admin'])->prefix('admin/telegram')->group(function () {
     Route::post('/set-webhook', [TelegramBotController::class, 'setWebhook']);
     Route::post('/remove-webhook', [TelegramBotController::class, 'removeWebhook']);
+    Route::get('/webhook-info', [TelegramBotController::class, 'getWebhookInfo']);
 });

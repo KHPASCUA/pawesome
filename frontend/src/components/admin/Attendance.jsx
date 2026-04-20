@@ -1,44 +1,96 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import "./Attendance.css";
+import { attendanceApi } from "../../api/attendance";
 
 const Attendance = () => {
   const [search, setSearch] = useState("");
-  const [records, setRecords] = useState([
-    { id: 1, employee: "Mike Chen", date: "2026-02-23", checkIn: "08:30 AM", checkOut: "05:30 PM", status: "Present" },
-    { id: 2, employee: "Emily Davis", date: "2026-02-23", checkIn: "08:00 AM", checkOut: "05:00 PM", status: "Present" },
-    { id: 3, employee: "James Wilson", date: "2026-02-23", checkIn: "09:00 AM", checkOut: "-", status: "Working" },
-  ]);
+  const [records, setRecords] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
 
   const [showModal, setShowModal] = useState(false);
   const [formData, setFormData] = useState({
-    employee: "",
-    date: "",
-    checkIn: "",
-    checkOut: "",
-    status: "Present",
+    user_id: "",
+    date: selectedDate,
+    check_in: "",
+    check_out: "",
+    status: "present",
+    notes: "",
   });
 
-  const filteredRecords = records.filter(
-    (rec) =>
-      rec.employee.toLowerCase().includes(search.toLowerCase()) ||
-      rec.date.includes(search) ||
-      rec.status.toLowerCase().includes(search.toLowerCase())
-  );
+  // Load attendance data
+  useEffect(() => {
+    const loadAttendance = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const params = { date: selectedDate };
+        if (search) {
+          params.search = search;
+        }
+        const response = await attendanceApi.getAll(params);
+        if (response.success) {
+          const transformedData = response.data.map(record => ({
+            id: record.id,
+            employee: record.user?.name || 'Unknown',
+            employeeId: record.user?.id,
+            date: record.date,
+            checkIn: record.check_in ? new Date(`2000-01-01T${record.check_in}`).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '-',
+            checkOut: record.check_out ? new Date(`2000-01-01T${record.check_out}`).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '-',
+            status: record.status.charAt(0).toUpperCase() + record.status.slice(1),
+            rawStatus: record.status,
+          }));
+          setRecords(transformedData);
+        }
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadAttendance();
+  }, [selectedDate, search]);
+
+  const filteredRecords = records;
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSave = () => {
-    const newRecord = {
-      id: records.length + 1,
-      ...formData,
-    };
-    setRecords([...records, newRecord]);
-    setShowModal(false);
-    setFormData({ employee: "", date: "", checkIn: "", checkOut: "", status: "Present" });
+  const handleSave = async () => {
+    try {
+      const response = await attendanceApi.create(formData);
+      if (response.success) {
+        const record = response.data;
+        const newRecord = {
+          id: record.id,
+          employee: record.user?.name || 'Unknown',
+          employeeId: record.user?.id,
+          date: record.date,
+          checkIn: record.check_in ? new Date(`2000-01-01T${record.check_in}`).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '-',
+          checkOut: record.check_out ? new Date(`2000-01-01T${record.check_out}`).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '-',
+          status: record.status.charAt(0).toUpperCase() + record.status.slice(1),
+          rawStatus: record.status,
+        };
+        setRecords([...records, newRecord]);
+        setShowModal(false);
+        setFormData({ user_id: "", date: selectedDate, check_in: "", check_out: "", status: "present", notes: "" });
+      }
+    } catch (err) {
+      alert(err.message);
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="attendance">
+        <div className="loading">Loading attendance data...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="attendance">
@@ -46,8 +98,14 @@ const Attendance = () => {
         <h2>Attendance Tracking</h2>
         <div className="actions">
           <input
+            type="date"
+            value={selectedDate}
+            onChange={(e) => setSelectedDate(e.target.value)}
+            className="date-picker"
+          />
+          <input
             type="text"
-            placeholder="Search by employee, date, or status..."
+            placeholder="Search by employee..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="search-bar"

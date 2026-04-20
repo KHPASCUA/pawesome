@@ -297,10 +297,10 @@ class AppointmentController extends Controller
             $updateData['service_id'] = $request->service_id;
             $updateData['price'] = \App\Models\Service::find($request->service_id)->price ?? $appointment->price;
         }
-        
-        if ($request->has('scheduled_at')) {
-            $updateData['scheduled_at'] = $request->scheduled_at;
-        }
+
+        return response()->json($appointment);
+    }
+
     public function availableVeterinarians()
     {
         $vets = User::whereIn('role', ['veterinary', 'vet'])

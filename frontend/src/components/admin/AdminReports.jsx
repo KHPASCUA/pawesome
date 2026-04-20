@@ -2,6 +2,15 @@ import React, { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { apiRequest } from "../../api/client";
 import { formatCurrency } from "../../utils/currency";
+import ReportFilters from "../shared/ReportFilters";
+import {
+  exportToCSV,
+  exportToPDF,
+  exportToExcel,
+  filterByDateRange,
+  filterByStatus,
+  getDateRangePreset,
+} from "../../utils/reportExport";
 import "./AdminReports.css";
 
 const AdminReports = () => {
@@ -11,6 +20,18 @@ const AdminReports = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  // Filter states
+  const [searchTerm, setSearchTerm] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [roleFilter, setRoleFilter] = useState("all");
+
+  // Raw data storage
+  const [rawTransactions, setRawTransactions] = useState([]);
+  const [rawAppointments, setRawAppointments] = useState([]);
+  const [rawUsers, setRawUsers] = useState([]);
+
   useEffect(() => {
     const path = location.pathname;
     if (path === "/admin" || path === "/admin/reports") {
@@ -18,22 +39,134 @@ const AdminReports = () => {
     }
   }, [location.pathname]);
 
+  // Set default date range to current month
   useEffect(() => {
-    const fetchReportData = async () => {
-      try {
-        setLoading(true);
-        const data = await apiRequest("/admin/reports/summary");
-        setReportData(data);
-        setError("");
-      } catch (err) {
-        setError(err.message || "Failed to load report data");
-      } finally {
-        setLoading(false);
-      }
-    };
+    const { startDate: defaultStart, endDate: defaultEnd } = getDateRangePreset("month");
+    setStartDate(defaultStart);
+    setEndDate(defaultEnd);
+  }, []);
 
+  useEffect(() => {
     fetchReportData();
   }, []);
+
+  const fetchReportData = async () => {
+    try {
+      setLoading(true);
+      const data = await apiRequest("/admin/reports/summary");
+      setReportData(data);
+
+      // Store raw data for filtering
+      setRawTransactions(data.transactions || []);
+      setRawAppointments(data.appointments || []);
+      setRawUsers(data.users || []);
+
+      setError("");
+    } catch (err) {
+      setError(err.message || "Failed to load report data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Apply filters to data
+  const getFilteredData = () => {
+    let filtered = {
+      transactions: rawTransactions,
+      appointments: rawAppointments,
+      users: rawUsers,
+    };
+
+    // Apply date range filter
+    if (startDate || endDate) {
+      filtered.transactions = filterByDateRange(filtered.transactions, "date", startDate, endDate);
+      filtered.appointments = filterByDateRange(filtered.appointments, "date", startDate, endDate);
+    }
+
+    // Apply status filter
+    if (statusFilter !== "all") {
+      filtered.transactions = filterByStatus(filtered.transactions, "status", statusFilter);
+      filtered.appointments = filterByStatus(filtered.appointments, "status", statusFilter);
+    }
+
+    // Apply role filter
+    if (roleFilter !== "all") {
+      filtered.users = filtered.users.filter((u) => u.role === roleFilter);
+    }
+
+    // Apply search
+    if (searchTerm) {
+      const search = searchTerm.toLowerCase();
+      filtered.transactions = filtered.transactions.filter(
+        (t) =>
+          t.id?.toLowerCase().includes(search) ||
+          t.customer?.toLowerCase().includes(search) ||
+          t.type?.toLowerCase().includes(search)
+      );
+      filtered.appointments = filtered.appointments.filter(
+        (a) =>
+          a.id?.toLowerCase().includes(search) ||
+          a.customer?.toLowerCase().includes(search) ||
+          a.service?.toLowerCase().includes(search)
+      );
+    }
+
+    return filtered;
+  };
+
+  const handleDateChange = (key, value) => {
+    if (key === "startDate") setStartDate(value);
+    if (key === "endDate") setEndDate(value);
+  };
+
+  const handleClearFilters = () => {
+    setSearchTerm("");
+    setStatusFilter("all");
+    setRoleFilter("all");
+    const { startDate: defaultStart, endDate: defaultEnd } = getDateRangePreset("month");
+    setStartDate(defaultStart);
+    setEndDate(defaultEnd);
+  };
+
+  // Export handlers
+  const handleExportCSV = () => {
+    const filtered = getFilteredData();
+    const columns = [
+      { key: "id", label: "ID" },
+      { key: "customer", label: "Customer" },
+      { key: "type", label: "Type" },
+      { key: "date", label: "Date" },
+      { key: "amount", label: "Amount", format: "currency" },
+      { key: "status", label: "Status" },
+    ];
+    exportToCSV(filtered.transactions, columns, "admin-transactions-report");
+  };
+
+  const handleExportPDF = () => {
+    const filtered = getFilteredData();
+    const columns = [
+      { key: "id", label: "ID" },
+      { key: "customer", label: "Customer" },
+      { key: "type", label: "Type" },
+      { key: "date", label: "Date", format: "date" },
+      { key: "amount", label: "Amount", format: "currency" },
+      { key: "status", label: "Status" },
+    ];
+    exportToPDF(filtered.transactions, columns, "Admin Transactions Report", "admin-transactions-report");
+  };
+
+  const handleExportExcel = () => {
+    const filtered = getFilteredData();
+    const columns = [
+      { key: "id", label: "ID" },
+      { key: "customer", label: "Customer" },
+      { key: "type", label: "Type" },
+      { key: "date", label: "Date" },
+      { key: "amount", label: "Amount", format: "currency" },
+      { key: "status", label: "Status" },
+    ];
+    exportToExcel(filtered.transactions, columns, "admin-transactions-report");
+  };
 
   const formatPercentage = (value) => {
     return `${Number(value || 0).toFixed(1)}%`;
@@ -401,6 +534,9 @@ const AdminReports = () => {
     }
   };
 
+  // Get filtered data for display
+  const filteredData = getFilteredData();
+
   return (
     <div className="admin-reports-page">
       <div className="reports-header">
@@ -408,11 +544,41 @@ const AdminReports = () => {
           <h1 className="page-title">Admin Reports</h1>
           <p className="page-subtitle">Live business metrics and activity trends from the backend</p>
         </div>
-        <div className="header-actions">
-          <button className="export-btn">Export Report</button>
-          <button className="refresh-btn">Refresh Data</button>
-        </div>
       </div>
+
+      <ReportFilters
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        startDate={startDate}
+        endDate={endDate}
+        onDateChange={handleDateChange}
+        statusFilter={statusFilter}
+        onStatusChange={setStatusFilter}
+        statusOptions={[
+          { value: "completed", label: "Completed" },
+          { value: "pending", label: "Pending" },
+          { value: "cancelled", label: "Cancelled" },
+          { value: "in-progress", label: "In Progress" },
+        ]}
+        roleFilter={roleFilter}
+        onRoleChange={setRoleFilter}
+        roleOptions={[
+          { value: "admin", label: "Admin" },
+          { value: "manager", label: "Manager" },
+          { value: "cashier", label: "Cashier" },
+          { value: "receptionist", label: "Receptionist" },
+          { value: "veterinary", label: "Veterinary" },
+          { value: "customer", label: "Customer" },
+        ]}
+        onExportCSV={handleExportCSV}
+        onExportPDF={handleExportPDF}
+        onExportExcel={handleExportExcel}
+        loading={loading}
+        onRefresh={fetchReportData}
+        onClearFilters={handleClearFilters}
+        showRole={true}
+        searchPlaceholder="Search transactions, customers, or services..."
+      />
       
       <div className="reports-navigation">
         <nav className="nav-tabs">

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faMoneyBillWave,
@@ -21,14 +21,78 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import "./AdminPayroll.css";
 import { formatCurrency } from "../../utils/currency";
+import { payrollApi } from "../../api/payroll";
 
 const AdminPayroll = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterDepartment, setFilterDepartment] = useState("all");
   const [selectedPayroll, setSelectedPayroll] = useState(null);
+  const [payrollData, setPayrollData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [summary, setSummary] = useState({
+    totalEmployees: 0,
+    totalSalary: 0,
+    totalBonus: 0,
+    totalDeductions: 0,
+    totalNetPay: 0,
+    paidCount: 0,
+    pendingCount: 0,
+    processingCount: 0,
+  });
 
-  const payrollData = [
+  // Load payroll data
+  useEffect(() => {
+    const loadPayroll = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const params = {};
+        if (searchTerm) params.search = searchTerm;
+        if (filterStatus !== "all") params.status = filterStatus;
+        if (filterDepartment !== "all") params.department = filterDepartment;
+
+        const response = await payrollApi.getAll(params);
+        if (response.success) {
+          const transformedData = response.data.map(payroll => ({
+            id: payroll.payroll_id,
+            employee: payroll.user?.name || 'Unknown',
+            employeeId: `EMP${String(payroll.user?.id || 0).padStart(3, '0')}`,
+            department: payroll.department || 'Unassigned',
+            position: payroll.position || 'Staff',
+            salary: payroll.base_salary,
+            bonus: payroll.bonus,
+            deductions: payroll.sss_contribution + payroll.philhealth_contribution + payroll.pagibig_contribution + payroll.tax_deduction + payroll.deductions,
+            netPay: payroll.net_pay,
+            payPeriod: payroll.pay_period_label,
+            status: payroll.status,
+            paymentDate: payroll.payment_date,
+          }));
+          setPayrollData(transformedData);
+          setSummary(response.summary || {
+            totalEmployees: transformedData.length,
+            totalSalary: transformedData.reduce((sum, emp) => sum + emp.salary, 0),
+            totalBonus: transformedData.reduce((sum, emp) => sum + emp.bonus, 0),
+            totalDeductions: transformedData.reduce((sum, emp) => sum + emp.deductions, 0),
+            totalNetPay: transformedData.reduce((sum, emp) => sum + emp.netPay, 0),
+            paidCount: transformedData.filter(emp => emp.status === 'paid').length,
+            pendingCount: transformedData.filter(emp => emp.status === 'pending').length,
+            processingCount: transformedData.filter(emp => emp.status === 'processing').length,
+          });
+        }
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadPayroll();
+  }, [searchTerm, filterStatus, filterDepartment]);
+
+  // Fallback mock data for demo
+  const mockPayrollData = [
     {
       id: "PAY-001",
       employee: "John Smith",
@@ -101,16 +165,7 @@ const AdminPayroll = () => {
     },
   ];
 
-  const payrollSummary = {
-    totalEmployees: payrollData.length,
-    totalSalary: payrollData.reduce((sum, emp) => sum + emp.salary, 0),
-    totalBonus: payrollData.reduce((sum, emp) => sum + emp.bonus, 0),
-    totalDeductions: payrollData.reduce((sum, emp) => sum + emp.deductions, 0),
-    totalNetPay: payrollData.reduce((sum, emp) => sum + emp.netPay, 0),
-    paidCount: payrollData.filter(emp => emp.status === 'paid').length,
-    pendingCount: payrollData.filter(emp => emp.status === 'pending').length,
-    processingCount: payrollData.filter(emp => emp.status === 'processing').length,
-  };
+  const payrollSummary = summary;
 
   const filteredPayroll = payrollData.filter(payroll => {
     const matchesSearch = 

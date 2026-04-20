@@ -15,6 +15,7 @@ import {
   faDollarSign,
   faFileInvoiceDollar,
   faRobot,
+  faCog,
 } from "@fortawesome/free-solid-svg-icons";
 import "./AdminSidebar.css";
 
@@ -164,6 +165,18 @@ const AdminSidebar = ({ collapsed, onToggleCollapse }) => {
       </nav>
 
       <div className="sidebar-footer">
+        <ul className="nav-list footer-nav">
+          <li className="nav-item">
+            <NavLink
+              to="/admin/settings"
+              className="nav-link"
+              title="Settings"
+            >
+              <FontAwesomeIcon icon={faCog} />
+              {!collapsed && <span>Settings</span>}
+            </NavLink>
+          </li>
+        </ul>
         <button className="logout-btn" onClick={handleLogout} title="Logout">
           <FontAwesomeIcon icon={faSignOutAlt} />
           {!collapsed && <span>Logout</span>}

@@ -17,6 +17,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->use([\App\Http\Middleware\Cors::class]);
         $middleware->alias([
             'role' => \App\Http\Middleware\EnsureRole::class,
+            'auth.api' => \App\Http\Middleware\ApiTokenAuth::class,
         ]);
         $middleware->redirectGuestsTo(function (Request $request) {
             return $request->is('api/*') ? null : '/login';

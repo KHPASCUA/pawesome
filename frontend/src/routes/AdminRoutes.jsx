@@ -1,51 +1,60 @@
-import React from "react";
+import React, { Suspense, lazy } from "react";
 import { Routes, Route } from "react-router-dom";
 import ProtectedRoute from "../components/ProtectedRoute";
 
-// Core admin modules
-import AdminDashboard from "../components/admin/AdminDashboard";
-import AdminReports from "../components/admin/AdminReports";
-import ManageUsers from "../components/admin/ManageUsers";
-import CreateUser from "../components/admin/CreateUser";
-import History from "../components/admin/History";
-import Attendance from "../components/admin/Attendance";
-import AdminProfile from "../components/admin/AdminProfile";
-import ChatbotLogs from "../components/admin/ChatbotLogs";
+// Core admin modules - lazy loaded
+const AdminDashboard = lazy(() => import("../components/admin/AdminDashboard"));
+const AdminReports = lazy(() => import("../components/admin/AdminReports"));
+const ManageUsers = lazy(() => import("../components/admin/ManageUsers"));
+const CreateUser = lazy(() => import("../components/admin/CreateUser"));
+const History = lazy(() => import("../components/admin/History"));
+const Attendance = lazy(() => import("../components/admin/Attendance"));
+const AdminProfile = lazy(() => import("../components/admin/AdminProfile"));
+const ChatbotLogs = lazy(() => import("../components/admin/ChatbotLogs"));
+const AdminSettings = lazy(() => import("../components/admin/AdminSettings"));
 
-// Payroll modules
-import AdminPayroll from "../components/admin/AdminPayroll";
-import EmployeeSalaryManagement from "../components/admin/EmployeeSalaryManagement";
-import PayrollReports from "../components/admin/PayrollReports";
+// Payroll modules - lazy loaded
+const AdminPayroll = lazy(() => import("../components/admin/AdminPayroll"));
+const EmployeeSalaryManagement = lazy(() => import("../components/admin/EmployeeSalaryManagement"));
+const PayrollReports = lazy(() => import("../components/admin/PayrollReports"));
+
+// Loading fallback component
+const RouteLoading = () => (
+  <div style={{ padding: "20px", textAlign: "center" }}>Loading...</div>
+);
 
 const AdminRoutes = () => (
-  <Routes>
-    <Route
-      path="/*"
-      element={
-        <ProtectedRoute>
-          <AdminDashboard />
-        </ProtectedRoute>
-      }
-    >
-      {/* Default index route → dashboard overview */}
-      <Route index element={<AdminReports />} />
+  <Suspense fallback={<RouteLoading />}>
+    <Routes>
+      <Route
+        path="/*"
+        element={
+          <ProtectedRoute>
+            <AdminDashboard />
+          </ProtectedRoute>
+        }
+      >
+        {/* Default index route → dashboard overview */}
+        <Route index element={<AdminReports />} />
 
-      {/* Core admin routes */}
-      <Route path="profile" element={<AdminProfile />} />
-      <Route path="users" element={<ManageUsers />} />
-      <Route path="users/create" element={<CreateUser />} />
-      <Route path="reports" element={<AdminReports />}>
-        <Route path="attendance" element={<Attendance />} /> {/* nested */}
+        {/* Core admin routes */}
+        <Route path="profile" element={<AdminProfile />} />
+        <Route path="users" element={<ManageUsers />} />
+        <Route path="users/create" element={<CreateUser />} />
+        <Route path="reports" element={<AdminReports />}>
+          <Route path="attendance" element={<Attendance />} /> {/* nested */}
+        </Route>
+        <Route path="history" element={<History />} />
+        <Route path="chatbot" element={<ChatbotLogs />} />
+        <Route path="settings" element={<AdminSettings />} />
+
+        {/* Payroll routes */}
+        <Route path="payroll" element={<AdminPayroll />} />
+        <Route path="payroll/salaries" element={<EmployeeSalaryManagement />} />
+        <Route path="payroll/reports" element={<PayrollReports />} />
       </Route>
-      <Route path="history" element={<History />} />
-      <Route path="chatbot" element={<ChatbotLogs />} />
-
-      {/* Payroll routes */}
-      <Route path="payroll" element={<AdminPayroll />} />
-      <Route path="payroll/salaries" element={<EmployeeSalaryManagement />} />
-      <Route path="payroll/reports" element={<PayrollReports />} />
-    </Route>
-  </Routes>
+    </Routes>
+  </Suspense>
 );
 
 export default AdminRoutes;

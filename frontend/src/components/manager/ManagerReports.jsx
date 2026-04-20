@@ -1,101 +1,396 @@
-import React, { useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faUsers,
+  faMoneyBillWave,
+  faChartLine,
+  faUserCheck,
+  faUserTimes,
+  faCalendarAlt,
+} from "@fortawesome/free-solid-svg-icons";
+import { apiRequest } from "../../api/client";
+import { formatCurrency } from "../../utils/currency";
+import ReportFilters from "../shared/ReportFilters";
+import {
+  exportToCSV,
+  exportToPDF,
+  exportToExcel,
+  filterByDateRange,
+  filterByStatus,
+  getDateRangePreset,
+} from "../../utils/reportExport";
 import "./ManagerReports.css";
 
-const ManagerReports = ({ staff = [], revenue = [] }) => {
-  // Staff activity summary
-  const activeStaff = staff.filter(s => s.active).length;
-  const inactiveStaff = staff.length - activeStaff;
+const ManagerReports = () => {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  // Revenue summary
+  // Filter states
+  const [searchTerm, setSearchTerm] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [roleFilter, setRoleFilter] = useState("all");
+
+  // Data states
+  const [staff, setStaff] = useState([]);
+  const [revenue, setRevenue] = useState([]);
+  const [transactions, setTransactions] = useState([]);
+
+  // Set default date range to current month
+  useEffect(() => {
+    const { startDate: defaultStart, endDate: defaultEnd } = getDateRangePreset("month");
+    setStartDate(defaultStart);
+    setEndDate(defaultEnd);
+  }, []);
+
+  useEffect(() => {
+    fetchReportData();
+  }, []);
+
+  const fetchReportData = async () => {
+    try {
+      setLoading(true);
+      // Fetch data from APIs
+      const staffData = await apiRequest("/admin/users");
+      const revenueData = await apiRequest("/admin/reports/summary");
+      const transactionsData = await apiRequest("/cashier/transactions");
+
+      setStaff(Array.isArray(staffData) ? staffData : staffData.users || []);
+      setRevenue(revenueData.revenue || []);
+      setTransactions(
+        Array.isArray(transactionsData) ? transactionsData : transactionsData.transactions || []
+      );
+
+      setError("");
+    } catch (err) {
+      console.error("Failed to fetch manager reports:", err);
+      setError("Failed to load report data. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Apply filters
+  const filteredStaff = useMemo(() => {
+    let filtered = [...staff];
+
+    if (searchTerm) {
+      const search = searchTerm.toLowerCase();
+      filtered = filtered.filter(
+        (s) =>
+          s.name?.toLowerCase().includes(search) ||
+          s.email?.toLowerCase().includes(search) ||
+          s.role?.toLowerCase().includes(search)
+      );
+    }
+
+    if (roleFilter !== "all") {
+      filtered = filtered.filter((s) => s.role === roleFilter);
+    }
+
+    if (statusFilter !== "all") {
+      filtered = filtered.filter((s) => (s.active ? "active" : "inactive") === statusFilter);
+    }
+
+    return filtered;
+  }, [staff, searchTerm, roleFilter, statusFilter]);
+
+  const filteredTransactions = useMemo(() => {
+    let filtered = [...transactions];
+
+    if (startDate || endDate) {
+      filtered = filterByDateRange(filtered, "created_at", startDate, endDate);
+    }
+
+    return filtered;
+  }, [transactions, startDate, endDate]);
+
+  // Calculate summaries
+  const activeStaff = filteredStaff.filter((s) => s.active).length;
+  const inactiveStaff = filteredStaff.length - activeStaff;
+
   const totalRevenue = useMemo(() => {
-    return revenue.reduce((sum, r) => sum + r.amount, 0);
-  }, [revenue]);
+    return filteredTransactions.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
+  }, [filteredTransactions]);
 
   const monthlyRevenue = useMemo(() => {
     const summary = {};
-    revenue.forEach(r => {
-      const month = new Date(r.date).toLocaleString("default", { month: "short" });
-      summary[month] = (summary[month] || 0) + r.amount;
+    filteredTransactions.forEach((t) => {
+      if (t.created_at) {
+        const month = new Date(t.created_at).toLocaleString("default", { month: "short", year: "2-digit" });
+        summary[month] = (summary[month] || 0) + (parseFloat(t.amount) || 0);
+      }
     });
     return summary;
-  }, [revenue]);
+  }, [filteredTransactions]);
+
+  // Role distribution
+  const roleDistribution = useMemo(() => {
+    const dist = {};
+    filteredStaff.forEach((s) => {
+      dist[s.role] = (dist[s.role] || 0) + 1;
+    });
+    return dist;
+  }, [filteredStaff]);
+
+  const handleDateChange = (key, value) => {
+    if (key === "startDate") setStartDate(value);
+    if (key === "endDate") setEndDate(value);
+  };
+
+  const handleClearFilters = () => {
+    setSearchTerm("");
+    setStatusFilter("all");
+    setRoleFilter("all");
+    const { startDate: defaultStart, endDate: defaultEnd } = getDateRangePreset("month");
+    setStartDate(defaultStart);
+    setEndDate(defaultEnd);
+  };
+
+  // Export handlers
+  const handleExportCSV = () => {
+    const columns = [
+      { key: "id", label: "ID" },
+      { key: "name", label: "Name" },
+      { key: "email", label: "Email" },
+      { key: "role", label: "Role" },
+      { key: "active", label: "Status" },
+      { key: "created_at", label: "Joined Date" },
+    ];
+    exportToCSV(filteredStaff, columns, "manager-staff-report");
+  };
+
+  const handleExportPDF = () => {
+    const columns = [
+      { key: "name", label: "Name" },
+      { key: "email", label: "Email" },
+      { key: "role", label: "Role" },
+      { key: "active", label: "Status" },
+    ];
+    exportToPDF(filteredStaff, columns, "Staff Report", "manager-staff-report");
+  };
+
+  const handleExportExcel = () => {
+    const columns = [
+      { key: "id", label: "ID" },
+      { key: "name", label: "Name" },
+      { key: "email", label: "Email" },
+      { key: "role", label: "Role" },
+      { key: "active", label: "Status" },
+    ];
+    exportToExcel(filteredStaff, columns, "manager-staff-report");
+  };
 
   return (
     <div className="manager-reports">
-      <div className="reports-container">
-        {/* Header */}
-        <div className="reports-header">
-          <h1 className="reports-title">Manager Reports</h1>
-          <p className="reports-subtitle">Business analytics and insights</p>
+      <div className="reports-header">
+        <div className="header-content">
+          <h1>Manager Reports</h1>
+          <p>Business analytics, staff overview, and revenue insights</p>
         </div>
+      </div>
 
-        {/* Stats Grid */}
-        <div className="stats-grid">
-          <div className="stat-card">
-            <div className="stat-value">{staff.length}</div>
+      <ReportFilters
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        startDate={startDate}
+        endDate={endDate}
+        onDateChange={handleDateChange}
+        statusFilter={statusFilter}
+        onStatusChange={setStatusFilter}
+        statusOptions={[
+          { value: "active", label: "Active" },
+          { value: "inactive", label: "Inactive" },
+        ]}
+        roleFilter={roleFilter}
+        onRoleChange={setRoleFilter}
+        roleOptions={[
+          { value: "admin", label: "Admin" },
+          { value: "manager", label: "Manager" },
+          { value: "cashier", label: "Cashier" },
+          { value: "receptionist", label: "Receptionist" },
+          { value: "veterinary", label: "Veterinary" },
+          { value: "customer", label: "Customer" },
+        ]}
+        onExportCSV={handleExportCSV}
+        onExportPDF={handleExportPDF}
+        onExportExcel={handleExportExcel}
+        loading={loading}
+        onRefresh={fetchReportData}
+        onClearFilters={handleClearFilters}
+        showRole={true}
+        searchPlaceholder="Search staff by name, email, or role..."
+      />
+
+      {/* Stats Grid */}
+      <div className="stats-grid">
+        <div className="stat-card primary">
+          <div className="stat-icon">
+            <FontAwesomeIcon icon={faUsers} />
+          </div>
+          <div className="stat-content">
+            <div className="stat-value">{filteredStaff.length}</div>
             <div className="stat-label">Total Staff</div>
           </div>
-          
-          <div className="stat-card">
+        </div>
+
+        <div className="stat-card success">
+          <div className="stat-icon">
+            <FontAwesomeIcon icon={faUserCheck} />
+          </div>
+          <div className="stat-content">
             <div className="stat-value">{activeStaff}</div>
             <div className="stat-label">Active Staff</div>
           </div>
-          
-          <div className="stat-card">
+        </div>
+
+        <div className="stat-card warning">
+          <div className="stat-icon">
+            <FontAwesomeIcon icon={faUserTimes} />
+          </div>
+          <div className="stat-content">
             <div className="stat-value">{inactiveStaff}</div>
             <div className="stat-label">Inactive Staff</div>
           </div>
-          
-          <div className="stat-card">
-            <div className="stat-value">{Object.keys(monthlyRevenue).length}</div>
-            <div className="stat-label">Active Months</div>
+        </div>
+
+        <div className="stat-card revenue">
+          <div className="stat-icon">
+            <FontAwesomeIcon icon={faMoneyBillWave} />
+          </div>
+          <div className="stat-content">
+            <div className="stat-value">{formatCurrency(totalRevenue)}</div>
+            <div className="stat-label">Revenue</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Revenue Summary */}
+      <div className="revenue-summary-section">
+        <h3>
+          <FontAwesomeIcon icon={faChartLine} />
+          Revenue Summary
+        </h3>
+        <div className="total-revenue-card">
+          <div className="revenue-icon">
+            <FontAwesomeIcon icon={faMoneyBillWave} />
+          </div>
+          <div className="revenue-info">
+            <span className="revenue-label">Total Revenue</span>
+            <span className="revenue-value">{formatCurrency(totalRevenue)}</span>
+            <span className="revenue-period">For selected period</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Two Column Layout */}
+      <div className="reports-columns">
+        {/* Monthly Revenue */}
+        <div className="reports-panel">
+          <h3>
+            <FontAwesomeIcon icon={faCalendarAlt} />
+            Monthly Revenue
+          </h3>
+          <div className="revenue-list">
+            {Object.entries(monthlyRevenue).length === 0 ? (
+              <p className="no-data">No revenue data available</p>
+            ) : (
+              Object.entries(monthlyRevenue)
+                .sort()
+                .map(([month, amount]) => (
+                  <div key={month} className="revenue-item">
+                    <span className="month">{month}</span>
+                    <span className="amount">{formatCurrency(amount)}</span>
+                    <div className="progress-bar">
+                      <div
+                        className="progress-fill"
+                        style={{
+                          width: `${Math.min(
+                            (amount / Math.max(...Object.values(monthlyRevenue))) * 100,
+                            100
+                          )}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))
+            )}
           </div>
         </div>
 
-        {/* Total Revenue */}
-        <div className="total-revenue">
-          <div className="total-revenue-label">Total Revenue</div>
-          <div className="total-revenue-amount">₱{totalRevenue.toLocaleString()}</div>
-        </div>
-
-        {/* Staff Section */}
-        <div className="reports-section">
-          <h2 className="section-title">Staff Overview</h2>
-          <div className="staff-grid">
-            <div className="staff-item">
-              <div className="staff-number">{staff.length}</div>
-              <div className="staff-label">Total Staff</div>
-            </div>
-            
-            <div className="staff-item">
-              <div className="staff-number">{activeStaff}</div>
-              <div className="staff-label">Active</div>
-            </div>
-            
-            <div className="staff-item">
-              <div className="staff-number">{inactiveStaff}</div>
-              <div className="staff-label">Inactive</div>
-            </div>
+        {/* Role Distribution */}
+        <div className="reports-panel">
+          <h3>
+            <FontAwesomeIcon icon={faUsers} />
+            Role Distribution
+          </h3>
+          <div className="role-distribution">
+            {Object.entries(roleDistribution).length === 0 ? (
+              <p className="no-data">No staff data available</p>
+            ) : (
+              Object.entries(roleDistribution)
+                .sort(([, a], [, b]) => b - a)
+                .map(([role, count]) => (
+                  <div key={role} className="role-item">
+                    <span className="role-name">{role}</span>
+                    <span className="role-count">{count}</span>
+                    <div className="progress-bar">
+                      <div
+                        className="progress-fill"
+                        style={{
+                          width: `${Math.min(
+                            (count / Math.max(...Object.values(roleDistribution))) * 100,
+                            100
+                          )}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))
+            )}
           </div>
         </div>
+      </div>
 
-        {/* Revenue Section */}
-        <div className="reports-section">
-          <h2 className="section-title">Revenue Details</h2>
-          <table className="revenue-table">
+      {/* Staff Table */}
+      <div className="staff-table-section">
+        <h3>Staff Overview</h3>
+        <div className="table-container">
+          <table className="staff-table">
             <thead>
               <tr>
-                <th>Month</th>
-                <th>Revenue</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Joined</th>
               </tr>
             </thead>
             <tbody>
-              {Object.entries(monthlyRevenue).map(([month, amount]) => (
-                <tr key={month}>
-                  <td>{month}</td>
-                  <td>₱{amount.toLocaleString()}</td>
+              {filteredStaff.length === 0 ? (
+                <tr>
+                  <td colSpan="5" className="no-data">
+                    No staff found matching your filters
+                  </td>
                 </tr>
-              ))}
+              ) : (
+                filteredStaff.map((s) => (
+                  <tr key={s.id}>
+                    <td>{s.name}</td>
+                    <td>{s.email}</td>
+                    <td>
+                      <span className="role-badge">{s.role}</span>
+                    </td>
+                    <td>
+                      <span className={`status-badge ${s.active ? "active" : "inactive"}`}>
+                        {s.active ? "Active" : "Inactive"}
+                      </span>
+                    </td>
+                    <td>{s.created_at ? new Date(s.created_at).toLocaleDateString() : "N/A"}</td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\User;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -11,6 +12,20 @@ class EnsureRole
     public function handle(Request $request, Closure $next, string ...$roles): Response
     {
         $user = $request->user();
+
+        // If no user from auth guard, try to authenticate via Bearer token
+        if (!$user) {
+            $token = $request->bearerToken();
+            if ($token) {
+                $user = User::where('api_token', $token)->first();
+                if ($user) {
+                    // Set the user on the request for downstream use
+                    $request->setUserResolver(function () use ($user) {
+                        return $user;
+                    });
+                }
+            }
+        }
 
         if (!$user) {
             return response()->json(['message' => 'Unauthenticated.'], 401);

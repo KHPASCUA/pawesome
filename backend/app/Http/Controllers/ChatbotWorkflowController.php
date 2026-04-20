@@ -56,7 +56,7 @@ class ChatbotWorkflowController extends Controller
             'customer_id' => $customer->id,
             'pet_id' => $pet->id,
             'service_id' => $service->id,
-            'status' => 'scheduled',
+            'status' => 'pending',
             'scheduled_at' => $data['scheduled_at'],
             'price' => $service->price ?? 0,
         ]);

@@ -12,6 +12,15 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { apiRequest } from "../../api/client";
 import { formatCurrency } from "../../utils/currency";
+import ReportFilters from "../shared/ReportFilters";
+import {
+  exportToCSV,
+  exportToPDF,
+  exportToExcel,
+  filterByDateRange,
+  filterByStatus,
+  getDateRangePreset,
+} from "../../utils/reportExport";
 import "./VetReports.css";
 
 const VetReports = () => {

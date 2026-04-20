@@ -20,6 +20,11 @@ import {
 import './Reports.css';
 import { formatCurrency } from "../../utils/currency";
 import { apiRequest } from "../../api/client";
+import {
+  exportToCSV,
+  exportToPDF,
+  exportToExcel,
+} from "../../utils/reportExport";
 
 const Reports = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -148,6 +153,48 @@ const Reports = () => {
     setSelectedTransaction(null);
   };
 
+  // Export handlers
+  const handleExportCSV = () => {
+    const columns = [
+      { key: "id", label: "Transaction ID" },
+      { key: "type", label: "Type" },
+      { key: "customer", label: "Customer" },
+      { key: "pet", label: "Pet" },
+      { key: "date", label: "Date" },
+      { key: "time", label: "Time" },
+      { key: "amount", label: "Amount", format: "currency" },
+      { key: "status", label: "Status" },
+    ];
+    exportToCSV(filteredTransactions, columns, "receptionist-transactions-report");
+  };
+
+  const handleExportPDF = () => {
+    const columns = [
+      { key: "id", label: "ID" },
+      { key: "type", label: "Type" },
+      { key: "customer", label: "Customer" },
+      { key: "pet", label: "Pet" },
+      { key: "date", label: "Date" },
+      { key: "amount", label: "Amount", format: "currency" },
+      { key: "status", label: "Status" },
+    ];
+    exportToPDF(filteredTransactions, columns, "Receptionist Transactions Report", "receptionist-transactions-report");
+  };
+
+  const handleExportExcel = () => {
+    const columns = [
+      { key: "id", label: "Transaction ID" },
+      { key: "type", label: "Type" },
+      { key: "customer", label: "Customer" },
+      { key: "pet", label: "Pet" },
+      { key: "date", label: "Date" },
+      { key: "time", label: "Time" },
+      { key: "amount", label: "Amount", format: "currency" },
+      { key: "status", label: "Status" },
+    ];
+    exportToExcel(filteredTransactions, columns, "receptionist-transactions-report");
+  };
+
   return (
     <div className="reports-container">
       {/* Header Section */}
@@ -158,10 +205,17 @@ const Reports = () => {
             <p>Comprehensive view of all transactions and operations</p>
           </div>
           <div className="header-actions">
-            <button className="action-btn export-btn">
-              <FontAwesomeIcon icon={faDownload} /> Export
-            </button>
-            <button className="action-btn print-btn">
+            <div className="export-dropdown">
+              <button className="action-btn export-btn">
+                <FontAwesomeIcon icon={faDownload} /> Export
+              </button>
+              <div className="export-options">
+                <button onClick={handleExportCSV}>Export CSV</button>
+                <button onClick={handleExportPDF}>Export PDF</button>
+                <button onClick={handleExportExcel}>Export Excel</button>
+              </div>
+            </div>
+            <button className="action-btn print-btn" onClick={() => window.print()}>
               <FontAwesomeIcon icon={faPrint} /> Print
             </button>
           </div>

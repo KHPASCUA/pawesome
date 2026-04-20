@@ -1,22 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { NavLink } from "react-router-dom";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import {
-  faUsers,
-  faSearch,
-  faFilter,
-  faEdit,
-  faTrash,
-  faToggleOn,
-  faToggleOff,
-  faPlus,
-  faSpinner,
-  faExclamationTriangle,
-  faCheckCircle,
-  faTimesCircle,
-  faEye,
-  faEyeSlash,
-} from "@fortawesome/free-solid-svg-icons";
 import { apiRequest } from "../../api/client";
 import "./ManageUsers.css";
 
@@ -50,7 +33,6 @@ const ManageUsers = () => {
       setUsers(data || []);
     } catch (err) {
       setError(err.message || "Failed to fetch users");
-      console.error("Fetch users error:", err);
     } finally {
       setLoading(false);
     }
@@ -137,7 +119,6 @@ const ManageUsers = () => {
       closeModal();
     } catch (err) {
       showError(err.message || "Failed to update user");
-      console.error("Update user error:", err);
     } finally {
       setProcessing(false);
     }
@@ -162,7 +143,6 @@ const ManageUsers = () => {
       closeModal();
     } catch (err) {
       showError(err.message || "Failed to delete user");
-      console.error("Delete user error:", err);
     } finally {
       setProcessing(false);
     }
@@ -185,7 +165,6 @@ const ManageUsers = () => {
       showSuccess(`User ${user.is_active ? "deactivated" : "activated"} successfully`);
     } catch (err) {
       showError(err.message || "Failed to toggle user status");
-      console.error("Toggle status error:", err);
     }
   };
 

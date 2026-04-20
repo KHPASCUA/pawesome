@@ -1,86 +1,495 @@
-import React, { useState } from "react";
-import "./CashierReports.css";
+import React, { useState, useEffect } from "react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faChartLine,
+  faMoneyBillWave,
+  faShoppingCart,
+  faUsers,
+  faBox,
+  faExchangeAlt,
+  faCalendar,
+  faArrowUp,
+  faArrowDown,
+} from "@fortawesome/free-solid-svg-icons";
+import { apiRequest } from "../../api/client";
 import { formatCurrency } from "../../utils/currency";
-
-const reportItems = [
-  { id: "daily", title: "Daily Sales", subtitle: "Today's sales summary for the cashier shift." },
-  { id: "weekly", title: "Weekly Revenue", subtitle: "Performance across the current week." },
-  { id: "monthly", title: "Monthly Report", subtitle: "Revenue and order trends this month." },
-  { id: "transactions", title: "Transactions", subtitle: "Detailed transaction log and order history." },
-  { id: "top-items", title: "Top Items", subtitle: "Best selling products and categories." },
-  { id: "refunds", title: "Refunds", subtitle: "Refunds, returns, and adjustments." },
-  { id: "customer", title: "Customer Activity", subtitle: "Customer visits, loyalty and order frequency." },
-  { id: "inventory", title: "Inventory Alerts", subtitle: "Stock levels and low inventory warnings." },
-];
-
-const summaries = {
-  daily: { value: formatCurrency(3420), label: "Today's total sales" },
-  weekly: { value: formatCurrency(22480), label: "This week's revenue" },
-  monthly: { value: formatCurrency(89740), label: "This month's total" },
-  transactions: { value: "124", label: "Total transactions" },
-  "top-items": { value: "12", label: "Best selling items" },
-  refunds: { value: formatCurrency(520), label: "Refunds processed" },
-  customer: { value: "63", label: "Active customers" },
-  inventory: { value: "8", label: "Restock alerts" },
-};
+import ReportFilters from "../shared/ReportFilters";
+import {
+  exportToCSV,
+  exportToPDF,
+  exportToExcel,
+  filterByDateRange,
+  filterByStatus,
+  getDateRangePreset,
+} from "../../utils/reportExport";
+import "./CashierReports.css";
 
 const CashierReports = () => {
-  const [activeReport, setActiveReport] = useState("daily");
-  const activeSummary = summaries[activeReport];
+  const [activeTab, setActiveTab] = useState("sales");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  // Filter states
+  const [searchTerm, setSearchTerm] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [paymentTypeFilter, setPaymentTypeFilter] = useState("all");
+
+  // Raw data storage
+  const [rawTransactions, setRawTransactions] = useState([]);
+  const [rawSales, setRawSales] = useState([]);
+  const [rawRefunds, setRawRefunds] = useState([]);
+  const [rawTopItems, setRawTopItems] = useState([]);
+  const [summaryData, setSummaryData] = useState({
+    totalSales: 0,
+    totalTransactions: 0,
+    todaySales: 0,
+    todayTransactions: 0,
+    refunds: 0,
+    averageOrderValue: 0,
+  });
+
+  // Set default date range to current day
+  useEffect(() => {
+    const { startDate: defaultStart, endDate: defaultEnd } = getDateRangePreset("today");
+    setStartDate(defaultStart);
+    setEndDate(defaultEnd);
+  }, []);
+
+  useEffect(() => {
+    fetchReportData();
+  }, []);
+
+  const fetchReportData = async () => {
+    try {
+      setLoading(true);
+      // Fetch sales and transactions data
+      const salesData = await apiRequest("/cashier/transactions");
+      const itemsData = await apiRequest("/pos/items");
+
+      const sales = Array.isArray(salesData) ? salesData : salesData.transactions || salesData.sales || [];
+      const items = Array.isArray(itemsData) ? itemsData : itemsData.items || [];
+
+      // Transform and store raw data
+      const transformedSales = sales.map((sale) => ({
+        id: `TXN-${sale.id}`,
+        originalId: sale.id,
+        customer: sale.customer?.name || "Walk-in Customer",
+        amount: parseFloat(sale.amount) || 0,
+        type: sale.type || "sale",
+        status: sale.status || "completed",
+        paymentMethod: sale.payment_method || "cash",
+        date: sale.created_at ? sale.created_at.split("T")[0] : new Date().toISOString().split("T")[0],
+        time: sale.created_at
+          ? new Date(sale.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+          : "",
+        items: sale.items || [],
+      }));
+
+      setRawTransactions(transformedSales);
+      setRawSales(transformedSales.filter((s) => s.type === "sale"));
+      setRawRefunds(transformedSales.filter((s) => s.type === "refund"));
+
+      // Calculate top items
+      const itemCounts = {};
+      transformedSales.forEach((sale) => {
+        sale.items?.forEach((item) => {
+          const name = item.name || "Unknown Item";
+          itemCounts[name] = (itemCounts[name] || 0) + (item.quantity || 1);
+        });
+      });
+
+      const topItems = Object.entries(itemCounts)
+        .map(([name, count]) => ({ name, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 10);
+
+      setRawTopItems(topItems);
+
+      // Calculate summary data
+      const today = new Date().toISOString().split("T")[0];
+      const todaySales = transformedSales.filter((s) => s.date === today && s.type === "sale");
+      const totalSales = transformedSales.filter((s) => s.type === "sale");
+      const refunds = transformedSales.filter((s) => s.type === "refund");
+
+      setSummaryData({
+        totalSales: totalSales.reduce((sum, s) => sum + s.amount, 0),
+        totalTransactions: totalSales.length,
+        todaySales: todaySales.reduce((sum, s) => sum + s.amount, 0),
+        todayTransactions: todaySales.length,
+        refunds: refunds.reduce((sum, s) => sum + s.amount, 0),
+        averageOrderValue:
+          totalSales.length > 0 ? totalSales.reduce((sum, s) => sum + s.amount, 0) / totalSales.length : 0,
+      });
+
+      setError("");
+    } catch (err) {
+      console.error("Failed to fetch report data:", err);
+      setError("Failed to load report data. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Apply filters to data
+  const getFilteredData = () => {
+    let filtered = [...rawTransactions];
+
+    // Apply date range filter
+    if (startDate || endDate) {
+      filtered = filterByDateRange(filtered, "date", startDate, endDate);
+    }
+
+    // Apply status filter
+    if (statusFilter !== "all") {
+      filtered = filterByStatus(filtered, "status", statusFilter);
+    }
+
+    // Apply payment type filter
+    if (paymentTypeFilter !== "all") {
+      filtered = filtered.filter((t) => t.paymentMethod === paymentTypeFilter);
+    }
+
+    // Apply search
+    if (searchTerm) {
+      const search = searchTerm.toLowerCase();
+      filtered = filtered.filter(
+        (t) =>
+          t.id?.toLowerCase().includes(search) ||
+          t.customer?.toLowerCase().includes(search) ||
+          t.type?.toLowerCase().includes(search)
+      );
+    }
+
+    return filtered;
+  };
+
+  const handleDateChange = (key, value) => {
+    if (key === "startDate") setStartDate(value);
+    if (key === "endDate") setEndDate(value);
+  };
+
+  const handleClearFilters = () => {
+    setSearchTerm("");
+    setStatusFilter("all");
+    setPaymentTypeFilter("all");
+    const { startDate: defaultStart, endDate: defaultEnd } = getDateRangePreset("today");
+    setStartDate(defaultStart);
+    setEndDate(defaultEnd);
+  };
+
+  // Export handlers
+  const handleExportCSV = () => {
+    const filtered = getFilteredData();
+    const columns = [
+      { key: "id", label: "Transaction ID" },
+      { key: "customer", label: "Customer" },
+      { key: "date", label: "Date" },
+      { key: "time", label: "Time" },
+      { key: "type", label: "Type" },
+      { key: "paymentMethod", label: "Payment Method" },
+      { key: "amount", label: "Amount", format: "currency" },
+      { key: "status", label: "Status" },
+    ];
+    exportToCSV(filtered, columns, "cashier-transactions-report");
+  };
+
+  const handleExportPDF = () => {
+    const filtered = getFilteredData();
+    const columns = [
+      { key: "id", label: "Transaction ID" },
+      { key: "customer", label: "Customer" },
+      { key: "date", label: "Date", format: "date" },
+      { key: "type", label: "Type" },
+      { key: "paymentMethod", label: "Payment" },
+      { key: "amount", label: "Amount", format: "currency" },
+      { key: "status", label: "Status" },
+    ];
+    exportToPDF(filtered, columns, "Cashier Transactions Report", "cashier-transactions-report");
+  };
+
+  const handleExportExcel = () => {
+    const filtered = getFilteredData();
+    const columns = [
+      { key: "id", label: "Transaction ID" },
+      { key: "customer", label: "Customer" },
+      { key: "date", label: "Date" },
+      { key: "type", label: "Type" },
+      { key: "paymentMethod", label: "Payment Method" },
+      { key: "amount", label: "Amount", format: "currency" },
+      { key: "status", label: "Status" },
+    ];
+    exportToExcel(filtered, columns, "cashier-transactions-report");
+  };
+
+  const getFilteredSales = () => getFilteredData().filter((t) => t.type === "sale");
+  const getFilteredRefunds = () => getFilteredData().filter((t) => t.type === "refund");
+
+  const renderSalesSummary = () => (
+    <div className="sales-summary">
+      <div className="summary-cards">
+        <div className="summary-card primary">
+          <div className="card-icon">
+            <FontAwesomeIcon icon={faMoneyBillWave} />
+          </div>
+          <div className="card-content">
+            <div className="card-value">{formatCurrency(summaryData.todaySales)}</div>
+            <div className="card-label">Today's Sales</div>
+            <div className="card-sublabel">{summaryData.todayTransactions} transactions</div>
+          </div>
+        </div>
+
+        <div className="summary-card secondary">
+          <div className="card-icon">
+            <FontAwesomeIcon icon={faChartLine} />
+          </div>
+          <div className="card-content">
+            <div className="card-value">{formatCurrency(summaryData.totalSales)}</div>
+            <div className="card-label">Total Sales</div>
+            <div className="card-sublabel">{summaryData.totalTransactions} transactions</div>
+          </div>
+        </div>
+
+        <div className="summary-card tertiary">
+          <div className="card-icon">
+            <FontAwesomeIcon icon={faShoppingCart} />
+          </div>
+          <div className="card-content">
+            <div className="card-value">{formatCurrency(summaryData.averageOrderValue)}</div>
+            <div className="card-label">Average Order</div>
+            <div className="card-sublabel">Per transaction</div>
+          </div>
+        </div>
+
+        <div className="summary-card warning">
+          <div className="card-icon">
+            <FontAwesomeIcon icon={faExchangeAlt} />
+          </div>
+          <div className="card-content">
+            <div className="card-value">{formatCurrency(summaryData.refunds)}</div>
+            <div className="card-label">Refunds</div>
+            <div className="card-sublabel">Total processed</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderTransactionsList = () => {
+    const filtered = getFilteredData();
+
+    return (
+      <div className="transactions-list">
+        <div className="list-header">
+          <h3>Transaction History</h3>
+          <span className="count-badge">{filtered.length} records</span>
+        </div>
+        <div className="transactions-table-container">
+          <table className="transactions-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Customer</th>
+                <th>Date & Time</th>
+                <th>Type</th>
+                <th>Payment</th>
+                <th>Amount</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.length === 0 ? (
+                <tr>
+                  <td colSpan="7" className="no-data">
+                    No transactions found matching your filters
+                  </td>
+                </tr>
+              ) : (
+                filtered.map((transaction) => (
+                  <tr key={transaction.id}>
+                    <td className="transaction-id">{transaction.id}</td>
+                    <td>{transaction.customer}</td>
+                    <td>
+                      <div className="date-time">
+                        <span className="date">{transaction.date}</span>
+                        <span className="time">{transaction.time}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <span className={`type-badge ${transaction.type}`}>{transaction.type}</span>
+                    </td>
+                    <td className="payment-method">{transaction.paymentMethod}</td>
+                    <td className={`amount ${transaction.type === "refund" ? "negative" : ""}`}>
+                      {transaction.type === "refund" ? "-" : ""}
+                      {formatCurrency(transaction.amount)}
+                    </td>
+                    <td>
+                      <span className={`status-badge ${transaction.status}`}>{transaction.status}</span>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  };
+
+  const renderTopItems = () => (
+    <div className="top-items-section">
+      <h3>Top Selling Items</h3>
+      <div className="items-list">
+        {rawTopItems.length === 0 ? (
+          <p className="no-data">No sales data available</p>
+        ) : (
+          rawTopItems.map((item, index) => (
+            <div key={item.name} className="top-item-row">
+              <div className="item-rank">#{index + 1}</div>
+              <div className="item-info">
+                <span className="item-name">{item.name}</span>
+              </div>
+              <div className="item-stats">
+                <span className="item-count">{item.count} sold</span>
+                <div className="progress-bar">
+                  <div
+                    className="progress-fill"
+                    style={{ width: `${(item.count / (rawTopItems[0]?.count || 1)) * 100}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+
+  const renderActiveTab = () => {
+    switch (activeTab) {
+      case "sales":
+        return (
+          <>
+            {renderSalesSummary()}
+            {renderTransactionsList()}
+          </>
+        );
+      case "transactions":
+        return renderTransactionsList();
+      case "items":
+        return renderTopItems();
+      case "refunds":
+        return (
+          <div className="refunds-section">
+            <div className="refunds-summary">
+              <h3>Refund Summary</h3>
+              <div className="refund-stats">
+                <div className="stat-box">
+                  <span className="stat-value">{formatCurrency(summaryData.refunds)}</span>
+                  <span className="stat-label">Total Refunds</span>
+                </div>
+                <div className="stat-box">
+                  <span className="stat-value">{getFilteredRefunds().length}</span>
+                  <span className="stat-label">Refund Count</span>
+                </div>
+              </div>
+            </div>
+            {renderTransactionsList()}
+          </div>
+        );
+      default:
+        return renderSalesSummary();
+    }
+  };
 
   return (
-    <section className="cashier-reports-page">
-      <aside className="reports-menu-panel">
-        <div className="reports-menu-header">
-          <div>
-            <p className="small-label">Reports</p>
-            <h2>Cashier Insights</h2>
-          </div>
+    <div className="cashier-reports-page">
+      <div className="reports-header">
+        <div className="header-content">
+          <h1>Cashier Reports</h1>
+          <p>Sales analytics, transactions, and performance metrics</p>
         </div>
+      </div>
 
-        <div className="reports-menu-list">
-          {reportItems.map((item) => (
-            <button
-              key={item.id}
-              className={item.id === activeReport ? "report-item active" : "report-item"}
-              onClick={() => setActiveReport(item.id)}
-            >
-              <span className="report-item-title">{item.title}</span>
-              <span className="report-item-subtitle">{item.subtitle}</span>
+      <ReportFilters
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        startDate={startDate}
+        endDate={endDate}
+        onDateChange={handleDateChange}
+        statusFilter={statusFilter}
+        onStatusChange={setStatusFilter}
+        statusOptions={[
+          { value: "completed", label: "Completed" },
+          { value: "pending", label: "Pending" },
+          { value: "cancelled", label: "Cancelled" },
+        ]}
+        serviceTypeFilter={paymentTypeFilter}
+        onServiceTypeChange={setPaymentTypeFilter}
+        serviceTypeOptions={[
+          { value: "cash", label: "Cash" },
+          { value: "card", label: "Card" },
+          { value: "gcash", label: "GCash" },
+          { value: "maya", label: "Maya" },
+        ]}
+        onExportCSV={handleExportCSV}
+        onExportPDF={handleExportPDF}
+        onExportExcel={handleExportExcel}
+        loading={loading}
+        onRefresh={fetchReportData}
+        onClearFilters={handleClearFilters}
+        showServiceType={true}
+        showRole={false}
+        searchPlaceholder="Search transactions by ID, customer, or type..."
+      />
+
+      <div className="reports-navigation">
+        <nav className="nav-tabs">
+          <button className={`nav-tab ${activeTab === "sales" ? "active" : ""}`} onClick={() => setActiveTab("sales")}>
+            <FontAwesomeIcon icon={faChartLine} />
+            Sales Summary
+          </button>
+          <button
+            className={`nav-tab ${activeTab === "transactions" ? "active" : ""}`}
+            onClick={() => setActiveTab("transactions")}
+          >
+            <FontAwesomeIcon icon={faExchangeAlt} />
+            Transactions
+          </button>
+          <button className={`nav-tab ${activeTab === "items" ? "active" : ""}`} onClick={() => setActiveTab("items")}>
+            <FontAwesomeIcon icon={faBox} />
+            Top Items
+          </button>
+          <button
+            className={`nav-tab ${activeTab === "refunds" ? "active" : ""}`}
+            onClick={() => setActiveTab("refunds")}
+          >
+            <FontAwesomeIcon icon={faArrowDown} />
+            Refunds
+          </button>
+        </nav>
+      </div>
+
+      <div className="reports-content">
+        {loading ? (
+          <div className="loading-state">
+            <div className="loading-spinner"></div>
+            <span>Loading report data...</span>
+          </div>
+        ) : error ? (
+          <div className="error-state">
+            <div className="error-icon"></div>
+            <div className="error-message">{error}</div>
+            <button className="retry-btn" onClick={fetchReportData}>
+              Retry
             </button>
-          ))}
-        </div>
-      </aside>
-
-      <main className="reports-content-panel">
-        <div className="reports-overview-card">
-          <div>
-            <p className="small-label">Active report</p>
-            <h3>{reportItems.find((item) => item.id === activeReport)?.title}</h3>
-            <p className="overview-note">{reportItems.find((item) => item.id === activeReport)?.subtitle}</p>
           </div>
-          <div className="overview-metric">
-            <span>{activeSummary.value}</span>
-            <p>{activeSummary.label}</p>
-          </div>
-        </div>
-
-        <div className="reports-grid">
-          <div className="report-card">
-            <h4>Summary</h4>
-            <p>Review the selected report and use the details below to act faster. The summary updates instantly when you switch reports.</p>
-          </div>
-          <div className="report-card report-stat-card">
-            <h4>Current Status</h4>
-            <ul>
-              <li><strong>Updated</strong> 5 minutes ago</li>
-              <li><strong>Orders</strong> {activeReport === "transactions" ? "124" : "86"}</li>
-              <li><strong>Conversion</strong> 74%</li>
-            </ul>
-          </div>
-        </div>
-      </main>
-    </section>
+        ) : (
+          <div className="report-content">{renderActiveTab()}</div>
+        )}
+      </div>
+    </div>
   );
 };
 

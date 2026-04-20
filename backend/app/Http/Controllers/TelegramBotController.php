@@ -13,6 +13,7 @@ class TelegramBotController extends Controller
 {
     private string $botToken;
     private string $apiUrl;
+    private ?string $webhookSecret;
 
     public function __construct(
         private readonly ChatbotService $chatbotService,
@@ -21,17 +22,34 @@ class TelegramBotController extends Controller
         $this->apiUrl = $this->botToken !== ''
             ? "https://api.telegram.org/bot{$this->botToken}"
             : '';
+        $this->webhookSecret = config('services.telegram.webhook_secret');
     }
 
     /**
      * Handle incoming webhook from Telegram
+     * Supports optional secret token verification for security
      */
     public function webhook(Request $request): JsonResponse
     {
+        // Verify webhook secret token if configured
+        if ($this->webhookSecret) {
+            $headerToken = $request->header('X-Telegram-Bot-Api-Secret-Token');
+            if ($headerToken !== $this->webhookSecret) {
+                Log::warning('Telegram webhook rejected: invalid secret token', [
+                    'ip' => $request->ip(),
+                    'header_token' => $headerToken ? 'present' : 'missing',
+                ]);
+                return response()->json(['ok' => false, 'error' => 'Unauthorized'], 401);
+            }
+        }
+
         $update = $request->all();
 
-        // Log for debugging
-        Log::info('Telegram webhook received', ['update' => $update]);
+        // Log for debugging (limit size)
+        Log::info('Telegram webhook received', [
+            'update_id' => $update['update_id'] ?? null,
+            'type' => $this->getUpdateType($update),
+        ]);
 
         // Check if it's a message or callback query
         if (isset($update['message'])) {
@@ -41,6 +59,21 @@ class TelegramBotController extends Controller
         }
 
         return response()->json(['ok' => true]);
+    }
+
+    /**
+     * Get the type of update for logging
+     */
+    private function getUpdateType(array $update): string
+    {
+        return match (true) {
+            isset($update['message']) => 'message',
+            isset($update['callback_query']) => 'callback_query',
+            isset($update['edited_message']) => 'edited_message',
+            isset($update['channel_post']) => 'channel_post',
+            isset($update['my_chat_member']) => 'my_chat_member',
+            default => 'unknown',
+        };
     }
 
     /**
@@ -438,18 +471,58 @@ class TelegramBotController extends Controller
     }
 
     /**
-     * Set webhook URL
+     * Set webhook URL with optional secret token
      */
     public function setWebhook(): JsonResponse
     {
         $webhookUrl = config('services.telegram.webhook_url');
 
-        try {
-            $response = Http::post("{$this->apiUrl}/setWebhook", [
-                'url' => $webhookUrl,
-            ]);
+        if (empty($webhookUrl)) {
+            return response()->json([
+                'error' => 'Webhook URL not configured. Set TELEGRAM_WEBHOOK_URL in .env',
+            ], 400);
+        }
 
-            return response()->json($response->json());
+        $params = ['url' => $webhookUrl];
+
+        // Add secret token for webhook verification if configured
+        if ($this->webhookSecret) {
+            $params['secret_token'] = $this->webhookSecret;
+        }
+
+        try {
+            $response = Http::post("{$this->apiUrl}/setWebhook", $params);
+            $result = $response->json();
+
+            return response()->json([
+                'success' => $result['ok'] ?? false,
+                'description' => $result['description'] ?? null,
+                'webhook_url' => $webhookUrl,
+                'secret_token_set' => !empty($this->webhookSecret),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Get webhook info for debugging
+     */
+    public function getWebhookInfo(): JsonResponse
+    {
+        try {
+            $response = Http::post("{$this->apiUrl}/getWebhookInfo");
+            $result = $response->json();
+
+            return response()->json([
+                'success' => $result['ok'] ?? false,
+                'result' => $result['result'] ?? null,
+                'bot_configured' => !empty($this->botToken),
+                'webhook_url_configured' => !empty(config('services.telegram.webhook_url')),
+                'secret_token_configured' => !empty($this->webhookSecret),
+            ]);
         } catch (\Exception $e) {
             return response()->json([
                 'error' => $e->getMessage(),

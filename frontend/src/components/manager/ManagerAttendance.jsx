@@ -48,11 +48,13 @@ import {
   faXmark,
 } from "@fortawesome/free-solid-svg-icons";
 import { formatCurrency } from "../../utils/currency";
+import { attendanceApi } from "../../api/attendance";
 
 const ManagerAttendance = () => {
   // State management
   const [attendance, setAttendance] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedDepartment, setSelectedDepartment] = useState("all");
   const [selectedStatus, setSelectedStatus] = useState("all");
@@ -69,221 +71,69 @@ const ManagerAttendance = () => {
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [viewMode, setViewMode] = useState("day"); // day, week, month
   const [refreshing, setRefreshing] = useState(false);
+  const [departments, setDepartments] = useState([]);
 
-  // Mock attendance data ready for backend integration
-  const mockAttendanceData = [
-    {
-      id: 1,
-      employeeId: "EMP001",
-      name: "Dr. Sarah Johnson",
-      email: "sarah.johnson@pawesome.com",
-      department: "Veterinary",
-      role: "Senior Veterinarian",
-      date: "2024-04-13",
-      checkIn: "08:30",
-      checkOut: "17:45",
-      breakTime: "01:00",
-      totalHours: "08:15",
-      status: "present",
-      overtime: "00:15",
-      late: false,
-      earlyLeave: false,
-      location: "Main Office",
-      notes: "Regular workday",
-      approvedBy: "Manager",
-      salaryRate: 45.00,
-      dailyEarnings: 368.75,
-    },
-    {
-      id: 2,
-      employeeId: "EMP002",
-      name: "Michael Chen",
-      email: "michael.chen@pawesome.com",
-      department: "Customer Service",
-      role: "Customer Service Manager",
-      date: "2024-04-13",
-      checkIn: "09:15",
-      checkOut: "18:30",
-      breakTime: "01:00",
-      totalHours: "08:15",
-      status: "present",
-      overtime: "00:15",
-      late: true,
-      earlyLeave: false,
-      location: "Main Office",
-      notes: "Late arrival - traffic",
-      approvedBy: "Manager",
-      salaryRate: 25.00,
-      dailyEarnings: 206.25,
-    },
-    {
-      id: 3,
-      employeeId: "EMP003",
-      name: "Emily Rodriguez",
-      email: "emily.rodriguez@pawesome.com",
-      department: "Inventory",
-      role: "Inventory Manager",
-      date: "2024-04-13",
-      checkIn: "07:45",
-      checkOut: "16:30",
-      breakTime: "00:45",
-      totalHours: "08:00",
-      status: "present",
-      overtime: "00:00",
-      late: false,
-      earlyLeave: true,
-      location: "Warehouse",
-      notes: "Early leave - personal",
-      approvedBy: "Manager",
-      salaryRate: 28.00,
-      dailyEarnings: 224.00,
-    },
-    {
-      id: 4,
-      employeeId: "EMP004",
-      name: "James Wilson",
-      email: "james.wilson@pawesome.com",
-      department: "Cashier",
-      role: "Senior Cashier",
-      date: "2024-04-13",
-      checkIn: null,
-      checkOut: null,
-      breakTime: null,
-      totalHours: "00:00",
-      status: "absent",
-      overtime: "00:00",
-      late: false,
-      earlyLeave: false,
-      location: null,
-      notes: "Sick leave",
-      approvedBy: "HR",
-      salaryRate: 18.00,
-      dailyEarnings: 0.00,
-    },
-    {
-      id: 5,
-      employeeId: "EMP005",
-      name: "Dr. Robert Kim",
-      email: "robert.kim@pawesome.com",
-      department: "Veterinary",
-      role: "Veterinary Technician",
-      date: "2024-04-13",
-      checkIn: "08:00",
-      checkOut: "17:00",
-      breakTime: "01:00",
-      totalHours: "08:00",
-      status: "present",
-      overtime: "00:00",
-      late: false,
-      earlyLeave: false,
-      location: "Main Office",
-      notes: "Regular workday",
-      approvedBy: "Manager",
-      salaryRate: 32.00,
-      dailyEarnings: 256.00,
-    },
-    {
-      id: 6,
-      employeeId: "EMP006",
-      name: "Lisa Anderson",
-      email: "lisa.anderson@pawesome.com",
-      department: "Customer Service",
-      role: "Customer Service Rep",
-      date: "2024-04-13",
-      checkIn: "08:45",
-      checkOut: "17:15",
-      breakTime: "01:00",
-      totalHours: "07:30",
-      status: "present",
-      overtime: "00:00",
-      late: true,
-      earlyLeave: false,
-      location: "Main Office",
-      notes: "Late arrival",
-      approvedBy: "Manager",
-      salaryRate: 20.00,
-      dailyEarnings: 150.00,
-    },
-    {
-      id: 7,
-      employeeId: "EMP007",
-      name: "Carlos Martinez",
-      email: "carlos.martinez@pawesome.com",
-      department: "Inventory",
-      role: "Inventory Staff",
-      date: "2024-04-13",
-      checkIn: "07:30",
-      checkOut: "16:00",
-      breakTime: "00:30",
-      totalHours: "08:00",
-      status: "present",
-      overtime: "00:00",
-      late: false,
-      earlyLeave: true,
-      location: "Warehouse",
-      notes: "Early leave - approved",
-      approvedBy: "Manager",
-      salaryRate: 22.00,
-      dailyEarnings: 176.00,
-    },
-    {
-      id: 8,
-      employeeId: "EMP008",
-      name: "Jennifer Taylor",
-      email: "jennifer.taylor@pawesome.com",
-      department: "Cashier",
-      role: "Cashier",
-      date: "2024-04-13",
-      checkIn: "09:00",
-      checkOut: "18:00",
-      breakTime: "01:00",
-      totalHours: "08:00",
-      status: "present",
-      overtime: "00:00",
-      late: true,
-      earlyLeave: false,
-      location: "Main Office",
-      notes: "Late arrival",
-      approvedBy: "Manager",
-      salaryRate: 18.00,
-      dailyEarnings: 144.00,
-    },
-  ];
-
-  // API endpoints for backend integration
-  const API_ENDPOINTS = {
-    GET_ATTENDANCE: '/api/attendance',
-    CREATE_ATTENDANCE: '/api/attendance',
-    UPDATE_ATTENDANCE: '/api/attendance/:id',
-    DELETE_ATTENDANCE: '/api/attendance/:id',
-    GET_EMPLOYEES: '/api/employees',
-    EXPORT_ATTENDANCE: '/api/attendance/export',
-    BULK_UPDATE: '/api/attendance/bulk',
-  };
-
-  // Load attendance data
+  // Load attendance data from API
   useEffect(() => {
     const loadAttendance = async () => {
       setLoading(true);
+      setError(null);
       try {
-        // Simulate API call - replace with actual API call
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        const params = { date: selectedDate };
+        if (selectedDepartment !== "all") {
+          params.department = selectedDepartment;
+        }
+        if (selectedStatus !== "all") {
+          params.status = selectedStatus;
+        }
+        if (searchTerm) {
+          params.search = searchTerm;
+        }
+
+        const response = await attendanceApi.getAll(params);
         
-        // Actual API call would be:
-        // const response = await fetch(`${API_ENDPOINTS.GET_ATTENDANCE}?date=${selectedDate}`);
-        // const data = await response.json();
-        // setAttendance(data);
-        
-        setAttendance(mockAttendanceData);
+        if (response.success) {
+          // Transform API data to match component structure
+          const transformedData = response.data.map(record => ({
+            id: record.id,
+            employeeId: record.user?.id ? `EMP${String(record.user.id).padStart(3, '0')}` : 'N/A',
+            name: record.user?.name || 'Unknown',
+            email: record.user?.email || '',
+            department: record.user?.department || 'Unassigned',
+            role: record.user?.role || 'Staff',
+            date: record.date,
+            checkIn: record.check_in,
+            checkOut: record.check_out,
+            breakTime: record.break_time,
+            totalHours: record.total_hours ? String(record.total_hours).replace('.', ':') : '00:00',
+            status: record.status,
+            overtime: record.overtime_hours ? String(record.overtime_hours).replace('.', ':') : '00:00',
+            late: record.is_late,
+            earlyLeave: record.is_early_leave,
+            location: record.location,
+            notes: record.notes,
+            approvedBy: record.approver?.name || 'System',
+            salaryRate: record.salary_rate,
+            dailyEarnings: record.daily_earnings,
+          }));
+          setAttendance(transformedData);
+          
+          // Extract unique departments
+          const uniqueDepts = [...new Set(transformedData.map(r => r.department))].filter(Boolean);
+          setDepartments(uniqueDepts);
+        } else {
+          setError('Failed to load attendance data');
+        }
       } catch (error) {
         console.error('Failed to load attendance:', error);
+        setError(error.message || 'Failed to load attendance data');
       } finally {
         setLoading(false);
       }
     };
 
     loadAttendance();
-  }, [selectedDate]);
+  }, [selectedDate, selectedDepartment, selectedStatus, searchTerm]);
 
   // Filter and sort attendance
   const filteredAndSortedAttendance = useMemo(() => {
@@ -334,12 +184,7 @@ const ManagerAttendance = () => {
     currentPage * itemsPerPage
   );
 
-  // Get unique departments and statuses for filters
-  const departments = useMemo(() => {
-    const depts = [...new Set(attendance.map(record => record.department))];
-    return depts.sort();
-  }, [attendance]);
-
+  // Get unique statuses for filters
   const statuses = useMemo(() => {
     const statusList = [...new Set(attendance.map(record => record.status))];
     return statusList.sort();
