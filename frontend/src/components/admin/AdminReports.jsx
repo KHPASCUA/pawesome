@@ -46,6 +46,15 @@ const AdminReports = () => {
     setEndDate(defaultEnd);
   }, []);
 
+  // Quick date range selector
+  const handleQuickDateRange = (preset) => {
+    const { startDate: start, endDate: end } = getDateRangePreset(preset);
+    setStartDate(start);
+    setEndDate(end);
+    // Auto refresh data when date range changes
+    setTimeout(() => fetchReportData(), 100);
+  };
+
   useEffect(() => {
     fetchReportData();
   }, []);
@@ -170,6 +179,11 @@ const AdminReports = () => {
 
   const formatPercentage = (value) => {
     return `${Number(value || 0).toFixed(1)}%`;
+  };
+
+  const calculateGrowth = (current, previous) => {
+    if (!previous || previous === 0) return 0;
+    return ((current - previous) / previous * 100).toFixed(1);
   };
 
   const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -580,61 +594,109 @@ const AdminReports = () => {
         searchPlaceholder="Search transactions, customers, or services..."
       />
       
+      {/* Quick Date Range Selector */}
+      <div className="quick-filters-bar">
+        <div className="quick-filters-label">Quick Select:</div>
+        <div className="quick-filters">
+          <button 
+            className={`quick-filter-btn ${startDate === getDateRangePreset('today').startDate ? 'active' : ''}`}
+            onClick={() => handleQuickDateRange('today')}
+          >
+            Today
+          </button>
+          <button 
+            className={`quick-filter-btn ${startDate === getDateRangePreset('week').startDate ? 'active' : ''}`}
+            onClick={() => handleQuickDateRange('week')}
+          >
+            This Week
+          </button>
+          <button 
+            className={`quick-filter-btn ${startDate === getDateRangePreset('month').startDate ? 'active' : ''}`}
+            onClick={() => handleQuickDateRange('month')}
+          >
+            This Month
+          </button>
+          <button 
+            className={`quick-filter-btn ${startDate === getDateRangePreset('quarter').startDate ? 'active' : ''}`}
+            onClick={() => handleQuickDateRange('quarter')}
+          >
+            This Quarter
+          </button>
+          <button 
+            className={`quick-filter-btn ${startDate === getDateRangePreset('year').startDate ? 'active' : ''}`}
+            onClick={() => handleQuickDateRange('year')}
+          >
+            This Year
+          </button>
+        </div>
+      </div>
+
       <div className="reports-navigation">
         <nav className="nav-tabs">
           <button
             className={`nav-tab ${activeTab === "overview" ? "active" : ""}`}
             onClick={() => setActiveTab("overview")}
           >
-            Overview
+            <span className="tab-icon">📊</span> Overview
           </button>
           <button
             className={`nav-tab ${activeTab === "cashier" ? "active" : ""}`}
             onClick={() => setActiveTab("cashier")}
           >
-            Cashier
+            <span className="tab-icon">💰</span> Cashier
           </button>
           <button
             className={`nav-tab ${activeTab === "inventory" ? "active" : ""}`}
             onClick={() => setActiveTab("inventory")}
           >
-            Inventory
+            <span className="tab-icon">📦</span> Inventory
           </button>
           <button
             className={`nav-tab ${activeTab === "reception" ? "active" : ""}`}
             onClick={() => setActiveTab("reception")}
           >
-            Reception
+            <span className="tab-icon">📅</span> Reception
           </button>
           <button
             className={`nav-tab ${activeTab === "veterinary" ? "active" : ""}`}
             onClick={() => setActiveTab("veterinary")}
           >
-            Veterinary
+            <span className="tab-icon">🩺</span> Veterinary
           </button>
           <button
             className={`nav-tab ${activeTab === "customers" ? "active" : ""}`}
             onClick={() => setActiveTab("customers")}
           >
-            Customers
+            <span className="tab-icon">👥</span> Customers
           </button>
         </nav>
       </div>
 
       <div className="reports-content">
         {loading ? (
-          <div className="loading-state">
-            <div className="loading-spinner"></div>
-            <span>Loading live report metrics...</span>
+          <div className="loading-state enhanced">
+            <div className="loading-spinner animated"></div>
+            <span className="loading-text">Loading live report metrics...</span>
+            <div className="loading-subtext">Fetching data from {activeTab} module</div>
           </div>
         ) : error ? (
-          <div className="error-state">
-            <div className="error-icon"></div>
+          <div className="error-state enhanced">
+            <div className="error-icon">⚠️</div>
             <div className="error-message">{error}</div>
-            <button className="retry-btn">Retry</button>
+            <button className="retry-btn" onClick={fetchReportData}>
+              🔄 Retry Loading
+            </button>
           </div>
         ) : (
-          <div className="report-content">{renderActiveTab()}</div>
+          <div className={`report-content ${activeTab}`}>
+            <div className="last-updated">
+              Last updated: {new Date().toLocaleTimeString()}
+              <button className="refresh-mini" onClick={fetchReportData} title="Refresh data">
+                🔄
+              </button>
+            </div>
+            {renderActiveTab()}
+          </div>
         )}
       </div>
     </div>
