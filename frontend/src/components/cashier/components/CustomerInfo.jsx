@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { apiRequest } from '../../../api/client';
 
 const CustomerInfo = ({ 
   orderType, 
@@ -10,20 +11,35 @@ const CustomerInfo = ({
 }) => {
   const [showCustomerSearch, setShowCustomerSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [customers, setCustomers] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-  const mockCustomers = [
-    { id: 1, name: 'Sarah Johnson', phone: '09123456789', email: 'sarah@email.com', pets: ['Max', 'Luna'] },
-    { id: 2, name: 'Mike Chen', phone: '09987654321', email: 'mike@email.com', pets: ['Buddy'] },
-    { id: 3, name: 'Emma Wilson', phone: '09112223344', email: 'emma@email.com', pets: ['Whiskers', 'Mittens', 'Shadow'] },
-    { id: 4, name: 'John Smith', phone: '09133445566', email: 'john@email.com', pets: ['Rocky'] },
-    { id: 5, name: 'Lisa Brown', phone: '09155667788', email: 'lisa@email.com', pets: ['Bella', 'Daisy'] },
-  ];
+  // Fetch customers from API when search query changes
+  useEffect(() => {
+    const searchCustomers = async () => {
+      if (!searchQuery || searchQuery.length < 2) {
+        setCustomers([]);
+        return;
+      }
+      
+      setLoading(true);
+      try {
+        // Using receptionist customers endpoint with search
+        const data = await apiRequest(`/receptionist/customers?q=${encodeURIComponent(searchQuery)}`);
+        setCustomers(data.customers || []);
+      } catch (err) {
+        console.error('Failed to search customers:', err);
+        setCustomers([]);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const filteredCustomers = mockCustomers.filter(customer =>
-    customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    customer.phone.includes(searchQuery) ||
-    customer.pets.some(pet => pet.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+    const timeoutId = setTimeout(searchCustomers, 300);
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery]);
+
+  const filteredCustomers = customers;
 
   const handleCustomerSelect = (customer) => {
     onCustomerChange(customer.name);
@@ -94,6 +110,10 @@ const CustomerInfo = ({
                 autoFocus
               />
               <div className="customer-search-results">
+                {loading && <div className="search-loading">Searching...</div>}
+                {!loading && filteredCustomers.length === 0 && searchQuery.length >= 2 && (
+                  <div className="no-results">No customers found</div>
+                )}
                 {filteredCustomers.map(customer => (
                   <div 
                     key={customer.id}
@@ -103,7 +123,7 @@ const CustomerInfo = ({
                     <div className="customer-result-info">
                       <span className="customer-result-name">{customer.name}</span>
                       <span className="customer-result-phone">{customer.phone}</span>
-                      <span className="customer-result-pets">🐾 {customer.pets.join(', ')}</span>
+                      <span className="customer-result-pets">🐾 {customer.pets?.map(p => p.name).join(', ') || 'No pets'}</span>
                     </div>
                   </div>
                 ))}

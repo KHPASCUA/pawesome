@@ -1,4 +1,3 @@
-
 <?php
 
 namespace App\Http\Controllers;
@@ -18,8 +17,10 @@ class TelegramBotController extends Controller
     public function __construct(
         private readonly ChatbotService $chatbotService,
     ) {
-        $this->botToken = config('services.telegram.bot_token');
-        $this->apiUrl = "https://api.telegram.org/bot{$this->botToken}";
+        $this->botToken = config('services.telegram.bot_token') ?? '';
+        $this->apiUrl = $this->botToken !== ''
+            ? "https://api.telegram.org/bot{$this->botToken}"
+            : '';
     }
 
     /**

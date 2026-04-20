@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
   faChartLine, 
@@ -13,31 +13,44 @@ import {
   faDownload,
   faPrint,
   faEye,
-  faTimes
+  faTimes,
+  faSpinner,
+  faExclamationTriangle
 } from '@fortawesome/free-solid-svg-icons';
 import './Reports.css';
 import { formatCurrency } from "../../utils/currency";
+import { apiRequest } from "../../api/client";
 
 const Reports = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState("all");
   const [selectedTransaction, setSelectedTransaction] = useState(null);
+  const [transactions, setTransactions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  // Sample transaction data
-  const transactions = [
-    { id: "TRX-001", type: "check-in", customer: "John Smith", pet: "Max", date: "2024-01-15", time: "09:30 AM", amount: 500, status: "completed" },
-    { id: "TRX-002", type: "vet-appointment", customer: "Emily Davis", pet: "Luna", date: "2024-01-15", time: "10:15 AM", amount: 1200, status: "completed" },
-    { id: "TRX-003", type: "hotel-booking", customer: "Robert Wilson", pet: "Charlie", date: "2024-01-15", time: "11:00 AM", amount: 800, status: "pending" },
-    { id: "TRX-004", type: "grooming", customer: "Sarah Johnson", pet: "Bella", date: "2024-01-15", time: "02:30 PM", amount: 600, status: "completed" },
-    { id: "TRX-005", type: "check-out", customer: "Michael Brown", pet: "Rocky", date: "2024-01-15", time: "03:45 PM", amount: 0, status: "completed" },
-    { id: "TRX-006", type: "check-in", customer: "Jessica Martinez", pet: "Daisy", date: "2024-01-16", time: "08:00 AM", amount: 500, status: "completed" },
-    { id: "TRX-007", type: "vet-appointment", customer: "David Lee", pet: "Milo", date: "2024-01-16", time: "09:30 AM", amount: 1500, status: "scheduled" },
-    { id: "TRX-008", type: "hotel-booking", customer: "Amanda White", pet: "Coco", date: "2024-01-16", time: "10:00 AM", amount: 1200, status: "confirmed" },
-    { id: "TRX-009", type: "grooming", customer: "Christopher Garcia", pet: "Buddy", date: "2024-01-16", time: "01:00 PM", amount: 700, status: "in-progress" },
-    { id: "TRX-010", type: "check-out", customer: "Lisa Rodriguez", pet: "Lucky", date: "2024-01-16", time: "04:00 PM", amount: 0, status: "completed" }
-  ];
+  // Fetch transactions from API
+  useEffect(() => {
+    const fetchTransactions = async () => {
+      try {
+        setLoading(true);
+        // Note: Using cashier endpoint - may need backend to add /receptionist/transactions
+        // or give receptionists access to cashier transactions
+        const data = await apiRequest("/cashier/transactions");
+        setTransactions(data.transactions || []);
+        setError("");
+      } catch (err) {
+        console.error("Failed to fetch transactions:", err);
+        setError("Failed to load transactions");
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  // Calculate statistics
+    fetchTransactions();
+  }, []);
+
+  // Calculate statistics from live data
   const stats = {
     totalTransactions: transactions.length,
     totalRevenue: transactions.filter(t => t.amount > 0).reduce((sum, t) => sum + t.amount, 0),
@@ -48,6 +61,28 @@ const Reports = () => {
     groomingSessions: transactions.filter(t => t.type === "grooming").length,
     completedTransactions: transactions.filter(t => t.status === "completed").length
   };
+
+  if (loading) {
+    return (
+      <div className="reports-container">
+        <div className="loading-spinner">
+          <FontAwesomeIcon icon={faSpinner} spin />
+          <span>Loading reports...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="reports-container">
+        <div className="error-message">
+          <FontAwesomeIcon icon={faExclamationTriangle} />
+          <span>{error}</span>
+        </div>
+      </div>
+    );
+  }
 
   // Filter transactions based on search and filter
   const filteredTransactions = transactions.filter(transaction => {
@@ -262,7 +297,7 @@ const Reports = () => {
         </table>
       </div>
 
-      {filteredTransactions.length === 0 && (
+      {filteredTransactions.length === 0 && !loading && (
         <div className="no-results">
           <FontAwesomeIcon icon={faSearch} />
           <h3>No transactions found</h3>

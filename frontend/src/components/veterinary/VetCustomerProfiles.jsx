@@ -13,43 +13,7 @@ import { apiRequest } from "../../api/client";
 import "./VetCustomerProfiles.css";
 
 const VetCustomerProfiles = () => {
-  const [customers, setCustomers] = useState([
-    {
-      id: 1,
-      name: "John Smith",
-      email: "john.smith@example.com",
-      phone: "+1-555-0123",
-      address: "123 Main St, City, State 12345",
-    },
-    {
-      id: 2,
-      name: "Sarah Johnson",
-      email: "sarah.j@example.com",
-      phone: "+1-555-0124",
-      address: "456 Oak Ave, City, State 12345",
-    },
-    {
-      id: 3,
-      name: "Mike Davis",
-      email: "mike.davis@example.com",
-      phone: "+1-555-0125",
-      address: "789 Pine Rd, City, State 12345",
-    },
-    {
-      id: 4,
-      name: "Emily Wilson",
-      email: "emily.w@example.com",
-      phone: "+1-555-0126",
-      address: "321 Elm St, City, State 12345",
-    },
-    {
-      id: 5,
-      name: "Robert Brown",
-      email: "robert.b@example.com",
-      phone: "+1-555-0127",
-      address: "654 Maple Dr, City, State 12345",
-    }
-  ]);
+  const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
@@ -62,7 +26,9 @@ const VetCustomerProfiles = () => {
     try {
       setLoading(true);
       // Try to fetch from API first
-      const data = await apiRequest("/veterinary/customers");
+      // Using patients endpoint (vets work with pets, not customers directly)
+      // May need backend to add /veterinary/customers if customer lookup is required
+      const data = await apiRequest("/veterinary/patients");
       setCustomers(data.customers || []);
       setError("");
     } catch (err) {

@@ -168,13 +168,13 @@ const VetDashboard = () => {
 
               <article className="panel quick-stat-panel">
                 <div className="metric-card accent">
-                  <h3>95%</h3>
+                  <h3>{dashboardData?.patient_satisfaction || 0}%</h3>
                   <p>Patient Satisfaction</p>
                   <small>Based on recent feedback</small>
                 </div>
 
                 <div className="metric-card">
-                  <h3>24h</h3>
+                  <h3>{dashboardData?.avg_response_time || "0m"}</h3>
                   <p>Average Response Time</p>
                 </div>
               </article>
@@ -317,11 +317,11 @@ const VetDashboard = () => {
                 </div>
                 <div className="activity-metrics">
                   <div className="status-card success">
-                    <strong>12</strong>
+                    <strong>{dashboardData?.checkups_today || 0}</strong>
                     <p>Checkups completed today</p>
                   </div>
                   <div className="status-card info">
-                    <strong>3</strong>
+                    <strong>{dashboardData?.vaccinations_today || 0}</strong>
                     <p>Vaccinations administered</p>
                   </div>
                 </div>
