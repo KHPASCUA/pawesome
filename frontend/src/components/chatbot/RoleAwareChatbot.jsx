@@ -478,7 +478,7 @@ const RoleAwareChatbot = ({
                   >
                     {workflowState.options.services.map((service) => (
                       <option key={service.id} value={service.id}>
-                        {service.name} (${Number(service.price || 0).toFixed(2)})
+                        {service.name} (₱{Number(service.price || 0).toFixed(2)})
                       </option>
                     ))}
                   </select>
@@ -615,7 +615,7 @@ const RoleAwareChatbot = ({
                         <strong>{item.name}</strong>
                         <span>SKU: {item.sku}</span>
                         <span>Stock: {item.stock}</span>
-                        <span>Price: ${Number(item.price || 0).toFixed(2)}</span>
+                        <span>Price: ₱{Number(item.price || 0).toFixed(2)}</span>
                       </>
                     )}
                   </div>
