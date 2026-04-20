@@ -337,22 +337,72 @@ const History = () => {
     showSuccess("History data refreshed");
   };
 
+  // Calculate stats
+  const stats = {
+    total: filteredHistoryLogs.length,
+    transactions: filteredHistoryLogs.filter(l => l.category === 'transaction').length,
+    editing: filteredHistoryLogs.filter(l => l.category === 'editing').length,
+    logins: filteredHistoryLogs.filter(l => l.category === 'login').length,
+    today: filteredHistoryLogs.filter(l => new Date(l.created_at).toDateString() === new Date().toDateString()).length
+  };
+
   return (
     <div className="admin-history">
-      <div className="section-header">
+      <div className="section-header enhanced">
         <div className="header-left">
           <h2>
-            <FontAwesomeIcon icon={faHistory} /> System History
+            <FontAwesomeIcon icon={faHistory} className="header-icon" /> 
+            System History
+            <span className="history-badge">{stats.total} entries</span>
           </h2>
           <p>View transactions, editing activities, and staff login history across all accounts</p>
         </div>
         <div className="header-actions">
-          <button className="action-btn" onClick={refreshData} title="Refresh">
+          <button className="action-btn refresh" onClick={refreshData} title="Refresh">
             <FontAwesomeIcon icon={faRefresh} /> Refresh
           </button>
-          <button className="action-btn" onClick={exportHistory} title="Export">
+          <button className="action-btn export" onClick={exportHistory} title="Export">
             <FontAwesomeIcon icon={faDownload} /> Export
           </button>
+        </div>
+      </div>
+
+      {/* Stats Summary Cards */}
+      <div className="history-stats-grid">
+        <div className="stat-card total">
+          <div className="stat-icon">📊</div>
+          <div className="stat-info">
+            <div className="stat-value">{stats.total}</div>
+            <div className="stat-label">Total Activities</div>
+          </div>
+        </div>
+        <div className="stat-card transactions">
+          <div className="stat-icon">💰</div>
+          <div className="stat-info">
+            <div className="stat-value">{stats.transactions}</div>
+            <div className="stat-label">Transactions</div>
+          </div>
+        </div>
+        <div className="stat-card editing">
+          <div className="stat-icon">✏️</div>
+          <div className="stat-info">
+            <div className="stat-value">{stats.editing}</div>
+            <div className="stat-label">Editing Activities</div>
+          </div>
+        </div>
+        <div className="stat-card logins">
+          <div className="stat-icon">🔐</div>
+          <div className="stat-info">
+            <div className="stat-value">{stats.logins}</div>
+            <div className="stat-label">Staff Logins</div>
+          </div>
+        </div>
+        <div className="stat-card today">
+          <div className="stat-icon">📅</div>
+          <div className="stat-info">
+            <div className="stat-value">{stats.today}</div>
+            <div className="stat-label">Today's Activities</div>
+          </div>
         </div>
       </div>
 
