@@ -382,11 +382,8 @@
   font-weight: 600;
   color: #0f172a;
   line-height: 1.4;
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  word-break: break-word;
+  display: block;
+  min-height: 2.8rem;
 }
 
 .product-card-body span,
