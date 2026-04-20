@@ -63,14 +63,14 @@ const AdminProfile = () => {
         })
       });
       
-      if (response.user && response.user.api_token) {
+      if (response.user && response.token) {
         console.log("Auto-login successful, storing token");
-        localStorage.setItem("token", response.user.api_token);
+        localStorage.setItem("token", response.token);
         localStorage.setItem("role", response.user.role);
         localStorage.setItem("name", response.user.name);
         localStorage.setItem("username", response.user.username);
         localStorage.setItem("email", response.user.email);
-        return response.user.api_token;
+        return response.token;
       }
     } catch (err) {
       console.error("Auto-login failed:", err);
@@ -220,9 +220,9 @@ const AdminProfile = () => {
       
       console.log("Login response:", response);
       
-      if (response.user && response.user.api_token) {
+      if (response.user && response.token) {
         console.log("Token received, storing in localStorage");
-        localStorage.setItem("token", response.user.api_token);
+        localStorage.setItem("token", response.token);
         localStorage.setItem("role", response.user.role);
         localStorage.setItem("name", response.user.name);
         localStorage.setItem("username", response.user.username);
