@@ -3,13 +3,8 @@ import { posApi } from "../../api/pos";
 import "./CashierPOS_Polished.css";
 
 const categories = [
-  { id: "all", label: "All Items", icon: "" },
-  { id: "food", label: "Food", icon: "" },
-  { id: "accessories", label: "Accessories", icon: "" },
-  { id: "grooming", label: "Grooming", icon: "" },
-  { id: "toys", label: "Toys", icon: "" },
-  { id: "health", label: "Health", icon: "" },
-  { id: "service", label: "Services", icon: "" },
+  { id: "all", label: "All Items", icon: "🐾" },
+  { id: "food", label: "Food", icon: "🍖" },
   { id: "accessories", label: "Accessories", icon: "🦴" },
   { id: "grooming", label: "Grooming", icon: "✂️" },
   { id: "toys", label: "Toys", icon: "🎾" },
