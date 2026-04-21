@@ -122,10 +122,6 @@ const Login = () => {
 
           <form className="login-form" onSubmit={handleLogin}>
             <div className="form-section">
-              <div className="section-header">
-                <span className="section-icon">🔐</span>
-                <h3>Sign In</h3>
-              </div>
               
               <div className="form-group">
                 <label htmlFor="username">Username *</label>
