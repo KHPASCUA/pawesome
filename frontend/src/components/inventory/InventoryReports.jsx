@@ -8,8 +8,9 @@ import {
   faTags,
   faTruck,
 } from "@fortawesome/free-solid-svg-icons";
-import { inventoryItems, inventoryHistory } from "./inventoryData";
+import { inventoryItems as demoInventoryItems, inventoryHistory as demoInventoryHistory } from "./inventoryData";
 import ReportFilters from "../shared/ReportFilters";
+import { inventoryApi } from "../../api/inventory";
 import {
   exportToCSV,
   exportToPDF,
@@ -20,6 +21,9 @@ import "./InventoryReports.css";
 
 const InventoryReports = () => {
   const [loading, setLoading] = useState(false);
+  const [usingDemoData, setUsingDemoData] = useState(false);
+  const [apiItems, setApiItems] = useState([]);
+  const [apiHistory, setApiHistory] = useState([]);
 
   // Filter states
   const [searchTerm, setSearchTerm] = useState("");
@@ -27,6 +31,46 @@ const InventoryReports = () => {
   const [endDate, setEndDate] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+
+  // Fetch data from API
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const [itemsResponse, historyResponse] = await Promise.all([
+          inventoryApi.getItems(),
+          inventoryApi.getStockHistory()
+        ]);
+        
+        const items = itemsResponse.items || itemsResponse.data || [];
+        const history = historyResponse.history || historyResponse.data || [];
+        
+        if (items.length > 0) {
+          setApiItems(items);
+          setApiHistory(history);
+          setUsingDemoData(false);
+        } else {
+          // Fallback to demo data
+          setApiItems(demoInventoryItems);
+          setApiHistory(demoInventoryHistory);
+          setUsingDemoData(true);
+        }
+      } catch (err) {
+        console.error("Failed to fetch inventory data:", err);
+        setApiItems(demoInventoryItems);
+        setApiHistory(demoInventoryHistory);
+        setUsingDemoData(true);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchData();
+  }, []);
+
+  // Use API data or fallback to demo
+  const inventoryItems = apiItems.length > 0 ? apiItems : demoInventoryItems;
+  const inventoryHistory = apiHistory.length > 0 ? apiHistory : demoInventoryHistory;
 
   // Set default date range to current month
   useEffect(() => {
