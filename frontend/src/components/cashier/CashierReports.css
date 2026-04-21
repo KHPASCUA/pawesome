@@ -343,8 +343,140 @@
   box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
 }
 
+/* Analytics Row - Payment & Trend Charts */
+.analytics-row {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+.payment-breakdown-card,
+.daily-trend-card {
+  background: white;
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.payment-breakdown-card h4,
+.daily-trend-card h4 {
+  margin: 0 0 1.25rem 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1f2937;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Payment Method Bars */
+.payment-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.payment-bar-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.payment-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 140px;
+  font-size: 0.9rem;
+  color: #4b5563;
+}
+
+.payment-icon {
+  font-size: 1.2rem;
+}
+
+.payment-amount {
+  margin-left: auto;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.payment-bar-container {
+  flex: 1;
+  height: 8px;
+  background: #e5e7eb;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.payment-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.5s ease;
+}
+
+.payment-percentage {
+  min-width: 50px;
+  text-align: right;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #6b7280;
+}
+
+/* Daily Trend Chart */
+.trend-chart {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-around;
+  height: 150px;
+  gap: 0.5rem;
+}
+
+.trend-bar-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+}
+
+.trend-bar-container {
+  width: 100%;
+  height: 120px;
+  background: #e5e7eb;
+  border-radius: 8px 8px 0 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.trend-bar-fill {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(to top, #3b82f6, #8b5cf6);
+  border-radius: 8px 8px 0 0;
+  transition: height 0.5s ease;
+}
+
+.trend-day {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #6b7280;
+}
+
+.trend-value {
+  font-size: 0.75rem;
+  color: #9ca3af;
+}
+
 @media (max-width: 1100px) {
   .cashier-reports-page {
+    grid-template-columns: 1fr;
+  }
+
+  .analytics-row {
     grid-template-columns: 1fr;
   }
 }

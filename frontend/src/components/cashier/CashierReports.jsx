@@ -270,6 +270,99 @@ const CashierReports = () => {
   const getFilteredSales = () => getFilteredData().filter((t) => t.type === "sale");
   const getFilteredRefunds = () => getFilteredData().filter((t) => t.type === "refund");
 
+  // Calculate payment method breakdown
+  const getPaymentBreakdown = () => {
+    const breakdown = {};
+    rawTransactions.forEach(t => {
+      const method = t.paymentMethod || 'cash';
+      breakdown[method] = (breakdown[method] || 0) + (t.amount || 0);
+    });
+    return breakdown;
+  };
+
+  // Calculate daily sales trend (mock data for demo)
+  const getDailyTrend = () => {
+    return [
+      { day: 'Mon', sales: 1250 },
+      { day: 'Tue', sales: 1890 },
+      { day: 'Wed', sales: 1540 },
+      { day: 'Thu', sales: 2100 },
+      { day: 'Fri', sales: 2450 },
+      { day: 'Sat', sales: 3200 },
+      { day: 'Sun', sales: 2800 },
+    ];
+  };
+
+  const renderPaymentBreakdown = () => {
+    const breakdown = getPaymentBreakdown();
+    const total = Object.values(breakdown).reduce((a, b) => a + b, 0) || 1;
+    const methods = [
+      { key: 'cash', label: 'Cash', color: '#22c55e', icon: '💵' },
+      { key: 'card', label: 'Card', color: '#3b82f6', icon: '💳' },
+      { key: 'gcash', label: 'GCash', color: '#8b5cf6', icon: '📱' },
+      { key: 'maya', label: 'Maya', color: '#f59e0b', icon: '🟢' },
+    ];
+
+    return (
+      <div className="payment-breakdown-card">
+        <h4>💳 Payment Methods</h4>
+        <div className="payment-bars">
+          {methods.map(method => {
+            const amount = breakdown[method.key] || 0;
+            const percentage = total > 0 ? (amount / total) * 100 : 0;
+            return (
+              <div key={method.key} className="payment-bar-item">
+                <div className="payment-label">
+                  <span className="payment-icon">{method.icon}</span>
+                  <span>{method.label}</span>
+                  <span className="payment-amount">{formatCurrency(amount)}</span>
+                </div>
+                <div className="payment-bar-container">
+                  <div
+                    className="payment-bar-fill"
+                    style={{
+                      width: `${percentage}%`,
+                      background: method.color,
+                    }}
+                  />
+                </div>
+                <span className="payment-percentage">{percentage.toFixed(1)}%</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  const renderDailyTrend = () => {
+    const trend = getDailyTrend();
+    const maxSales = Math.max(...trend.map(t => t.sales));
+
+    return (
+      <div className="daily-trend-card">
+        <h4>📈 Weekly Sales Trend</h4>
+        <div className="trend-chart">
+          {trend.map((day, index) => {
+            const height = maxSales > 0 ? (day.sales / maxSales) * 100 : 0;
+            return (
+              <div key={day.day} className="trend-bar-wrapper">
+                <div className="trend-bar-container">
+                  <div
+                    className="trend-bar-fill"
+                    style={{ height: `${height}%` }}
+                  />
+                </div>
+                <span className="trend-day">{day.day}</span>
+                <span className="trend-value">₱{(day.sales / 1000).toFixed(1)}k</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
   const renderSalesSummary = () => (
     <div className="sales-summary">
       <div className="summary-cards">
@@ -316,6 +409,11 @@ const CashierReports = () => {
             <div className="card-sublabel">Total processed</div>
           </div>
         </div>
+      </div>
+
+      <div className="analytics-row">
+        {renderPaymentBreakdown()}
+        {renderDailyTrend()}
       </div>
     </div>
   );
