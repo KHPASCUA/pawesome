@@ -14,7 +14,7 @@ import {
   faEye,
   faSpinner,
 } from "@fortawesome/free-solid-svg-icons";
-import "./CashierTransactions.css";
+import "./CashierTransactions_Polished.css";
 import { formatCurrency } from "../../utils/currency";
 import { posApi } from "../../api/pos";
 
