@@ -1,8 +1,8 @@
-﻿/* Admin Sidebar Styles - Baby Blue & Pink Theme */
+﻿/* Admin Sidebar Styles - #FFC8DD Theme */
 
 .admin-sidebar {
   width: 240px;
-  background: linear-gradient(135deg, #ADD8E6 0%, #FFC0CB 100%);
+  background: #FFAFCC;
   color: #000000 !important;
   padding: 0;
   position: fixed;
@@ -13,7 +13,7 @@
   transition: width 0.3s ease;
   display: flex;
   flex-direction: column;
-  box-shadow: 2px 0 10px rgba(173, 216, 230, 0.3);
+  box-shadow: 2px 0 10px rgba(255, 175, 204, 0.3);
 }
 
 /* Force all sidebar text to be black */
@@ -95,14 +95,14 @@
 }
 
 .nav-item a:hover {
-  background: rgba(173, 216, 230, 0.2);
+  background: rgba(255, 175, 204, 0.2);
   color: #000000 !important;
 }
 
 .nav-item a.active {
-  background: rgba(173, 216, 230, 0.3);
+  background: #ffffff;
   color: #000000 !important;
-  border-left: 4px solid #ADD8E6;
+  border-left: 4px solid #FF99B8;
   font-weight: 700;
 }
 
@@ -122,7 +122,7 @@
 }
 
 .nav-dropdown-header:hover {
-  background: rgba(173, 216, 230, 0.2);
+  background: rgba(255, 175, 204, 0.2);
   color: #000000 !important;
 }
 
@@ -179,14 +179,14 @@
 }
 
 .nav-subitem a:hover {
-  background: rgba(173, 216, 230, 0.15);
+  background: rgba(255, 175, 204, 0.15);
   color: #000000 !important;
 }
 
 .nav-subitem a.active {
-  background: rgba(173, 216, 230, 0.25);
+  background: #ffffff;
   color: #000000 !important;
-  border-left: 4px solid #ADD8E6;
+  border-left: 4px solid #FF99B8;
   font-weight: 600;
 }
 
