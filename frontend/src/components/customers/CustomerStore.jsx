@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import "./CustomerStore_Polished.css";
+import { posApi } from "../../api/pos";
 
 // Rich demo data for presentation - will be replaced with API data when available
 const storeData = {
@@ -65,8 +66,105 @@ export default function CustomerStore() {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [showQuickView, setShowQuickView] = useState(false);
   const [orderHistory, setOrderHistory] = useState([]);
+  
+  // API-connected products state
+  const [apiProducts, setApiProducts] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [usingDemoData, setUsingDemoData] = useState(false);
 
-  const filteredProducts = category === "Wishlist" ? [] : storeData[category]
+  // Fetch products from API (same source as POS)
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        setLoading(true);
+        const response = await posApi.getProducts();
+        const products = response.products || [];
+        
+        if (products.length > 0) {
+          // Transform API products to store format with categories
+          const categorized = categorizeProducts(products);
+          setApiProducts(categorized);
+          setUsingDemoData(false);
+        } else {
+          // Fall back to demo data
+          setApiProducts(storeData);
+          setUsingDemoData(true);
+        }
+      } catch (err) {
+        console.error("Failed to fetch products from API:", err);
+        setApiProducts(storeData);
+        setUsingDemoData(true);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchProducts();
+  }, []);
+
+  // Categorize API products (same categories as POS)
+  const categorizeProducts = (products) => {
+    const categories = {
+      Food: [],
+      Accessories: [],
+      Grooming: [],
+      Toys: [],
+      Health: []
+    };
+    
+    products.forEach(product => {
+      const item = {
+        id: product.id,
+        name: product.name,
+        price: product.price,
+        image: getProductEmoji(product.name, product.category),
+        rating: 4.5,
+        reviews: Math.floor(Math.random() * 200) + 50,
+        inStock: product.inStock || product.stock > 0,
+        stock: product.stock || 0,
+        discount: 0,
+        sku: product.sku,
+        description: product.description
+      };
+      
+      // Map to category
+      const cat = product.category?.toLowerCase() || '';
+      if (cat.includes('food') || cat.includes('treat')) categories.Food.push(item);
+      else if (cat.includes('accessory') || cat.includes('collar') || cat.includes('bed')) categories.Accessories.push(item);
+      else if (cat.includes('groom') || cat.includes('shampoo') || cat.includes('brush')) categories.Grooming.push(item);
+      else if (cat.includes('toy') || cat.includes('ball') || cat.includes('chew')) categories.Toys.push(item);
+      else if (cat.includes('health') || cat.includes('vitamin') || cat.includes('medical')) categories.Health.push(item);
+      else categories.Food.push(item); // Default
+    });
+    
+    return categories;
+  };
+
+  // Get emoji based on product name/category
+  const getProductEmoji = (name, category) => {
+    const nameLower = name.toLowerCase();
+    const catLower = (category || '').toLowerCase();
+    
+    if (nameLower.includes('dog') || nameLower.includes('puppy')) return '🦴';
+    if (nameLower.includes('cat') || nameLower.includes('kitten')) return '🐟';
+    if (nameLower.includes('food')) return '🍖';
+    if (nameLower.includes('shampoo') || nameLower.includes('groom')) return '🧴';
+    if (nameLower.includes('toy') || nameLower.includes('ball')) return '🎾';
+    if (nameLower.includes('bed')) return '🛏️';
+    if (nameLower.includes('collar') || nameLower.includes('leash')) return '🦮';
+    if (nameLower.includes('vitamin') || nameLower.includes('health')) return '💊';
+    if (catLower.includes('food')) return '🦴';
+    if (catLower.includes('accessory')) return '📦';
+    if (catLower.includes('grooming')) return '✂️';
+    if (catLower.includes('toy')) return '🧸';
+    if (catLower.includes('health')) return '🏥';
+    return '📦';
+  };
+
+  // Use API products if available, otherwise demo data
+  const currentStoreData = apiProducts && Object.keys(apiProducts).length > 0 ? apiProducts : storeData;
+
+  const filteredProducts = category === "Wishlist" ? [] : currentStoreData[category]
     .filter(product => 
       product.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
       product.price >= priceRange.min &&
