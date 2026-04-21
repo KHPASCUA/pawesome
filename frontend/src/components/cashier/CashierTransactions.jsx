@@ -17,8 +17,10 @@ import {
 import "./CashierTransactions_Polished.css";
 import { formatCurrency } from "../../utils/currency";
 import { posApi } from "../../api/pos";
+import { useNavigate } from "react-router-dom";
 
 const CashierTransactions = () => {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [selectedTransaction, setSelectedTransaction] = useState(null);
@@ -150,7 +152,7 @@ const CashierTransactions = () => {
           <p>View and manage all customer transactions</p>
         </div>
         <div className="header-actions">
-          <button className="primary-btn">
+          <button className="primary-btn" onClick={() => navigate('/cashier/pos')}>
             <FontAwesomeIcon icon={faPlus} />
             New Transaction
           </button>
@@ -248,7 +250,11 @@ const CashierTransactions = () => {
                   >
                     <FontAwesomeIcon icon={faEye} />
                   </button>
-                  <button className="action-btn edit-btn" title="Edit">
+                  <button 
+                    className="action-btn edit-btn" 
+                    title="Edit"
+                    onClick={() => alert('Edit feature coming soon!')}
+                  >
                     <FontAwesomeIcon icon={faEdit} />
                   </button>
                   <button 
@@ -268,6 +274,35 @@ const CashierTransactions = () => {
           </tbody>
         </table>
       </div>
+
+      {/* Pagination */}
+      {pagination.last_page > 1 && (
+        <div className="pagination">
+          <button 
+            className="page-btn" 
+            disabled={pagination.current_page === 1}
+            onClick={() => loadTransactions(pagination.current_page - 1)}
+          >
+            Previous
+          </button>
+          {Array.from({ length: pagination.last_page }, (_, i) => i + 1).map(page => (
+            <button
+              key={page}
+              className={`page-btn ${pagination.current_page === page ? 'active' : ''}`}
+              onClick={() => loadTransactions(page)}
+            >
+              {page}
+            </button>
+          ))}
+          <button 
+            className="page-btn" 
+            disabled={pagination.current_page === pagination.last_page}
+            onClick={() => loadTransactions(pagination.current_page + 1)}
+          >
+            Next
+          </button>
+        </div>
+      )}
 
       {selectedTransaction && (
         <div className="transaction-modal-overlay" onClick={() => setSelectedTransaction(null)}>

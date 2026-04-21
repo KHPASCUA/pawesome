@@ -249,6 +249,29 @@
   background: #bfdbfe;
 }
 
+.action-btn.edit {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.action-btn.edit:hover {
+  background: #fde68a;
+}
+
+.action-btn.delete {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.action-btn.delete:hover {
+  background: #fecaca;
+}
+
+.action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* Loading State */
 .loading-overlay {
   display: flex;
@@ -312,9 +335,14 @@
   transition: all 0.2s ease;
 }
 
-.page-btn:hover {
+.page-btn:hover:not(:disabled) {
   background: #f8f9fa;
   border-color: #dee2e6;
+}
+
+.page-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .page-btn.active {
