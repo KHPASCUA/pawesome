@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import "./CustomerBookings.css";
+import "./CustomerBookings_Polished.css";
 import { formatCurrency } from "../../utils/currency";
 
 const CustomerBookings = () => {
@@ -70,20 +70,21 @@ const CustomerBookings = () => {
   };
 
   const bookingTypes = [
-    { id: 'Hotel', icon: '', title: 'Hotel Stay', description: 'Comfortable boarding for your pet' },
-    { id: 'Vet', icon: '', title: 'Veterinary', description: 'Health checkups and treatments' },
-    { id: 'Groom', icon: '', title: 'Grooming', description: 'Professional grooming services' }
+    { id: 'Hotel', icon: '🏨', title: 'Hotel Stay', description: 'Comfortable boarding for your pet' },
+    { id: 'Vet', icon: '🏥', title: 'Veterinary', description: 'Health checkups and treatments' },
+    { id: 'Groom', icon: '✂️', title: 'Grooming', description: 'Professional grooming services' }
   ];
 
   return (
     <div className="customer-bookings">
       <div className="bookings-header">
         <div className="header-content">
-          <h3>📅 My Bookings</h3>
+          <h1>📅 My Bookings</h1>
           <p>Manage your pet's appointments and reservations</p>
         </div>
       </div>
 
+      <div className="bookings-content">
       {/* Booking type cards */}
       <div className="booking-types-grid">
         {bookingTypes.map((type) => (
@@ -92,11 +93,9 @@ const CustomerBookings = () => {
             className="booking-type-card"
             onClick={() => handleSelect(type.id)}
           >
-            <div className="card-icon">{type.icon}</div>
-            <div className="card-content">
-              <h4>{type.title}</h4>
-              <p>{type.description}</p>
-            </div>
+            <div className="booking-icon">{type.icon}</div>
+            <h3>{type.title}</h3>
+            <p>{type.description}</p>
           </div>
         ))}
       </div>
@@ -122,6 +121,7 @@ const CustomerBookings = () => {
             <span className="booking-status pending">Pending</span>
           </div>
         </div>
+      </div>
       </div>
 
       {/* Enhanced Modal */}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import "./CustomerStore.css";
+import "./CustomerStore_Polished.css";
 
 const storeData = {
   Food: [

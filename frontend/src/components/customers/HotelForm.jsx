@@ -13,7 +13,7 @@ import {
   faInfoCircle,
 } from "@fortawesome/free-solid-svg-icons";
 import { boardingApi } from "../../api/boardings";
-import "./HotelForm.css";
+import "./HotelForm_Polished.css";
 
 const HotelForm = () => {
   const [activeTab, setActiveTab] = useState("book"); // book, my-bookings
