@@ -28,7 +28,11 @@ const LandingPage = () => {
           <div className="hero-text">
             <h1>Give Your Pet the Ultimate Care Experience</h1>
             <p>Professional veterinary services, luxury pet boarding, and personalized care all in one place. Your furry friend deserves the best.</p>
-                      </div>
+            <div className="hero-buttons">
+              <Link to="/login" className="btn btn-primary">Login</Link>
+              <Link to="/register" className="btn btn-secondary">Register</Link>
+            </div>
+          </div>
                   </div>
       </section>
 
