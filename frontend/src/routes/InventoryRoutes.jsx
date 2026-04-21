@@ -5,7 +5,7 @@ import InventoryDashboard from "../components/inventory/InventoryDashboard";
 import InventoryProducts from "../components/inventory/InventoryProducts";
 import InventoryStock from "../components/inventory/InventoryStock";
 import InventoryReports from "../components/inventory/InventoryReports";
-import InventoryHistory from "../components/inventory/InventoryHistory";
+import InventoryHistory from "../components/inventory/InventoryHistory_Polished";
 import InventoryProfile from "../components/inventory/InventoryProfile";
 
 const InventoryRoutes = () => (
