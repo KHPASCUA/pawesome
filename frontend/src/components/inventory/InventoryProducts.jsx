@@ -42,28 +42,28 @@ const InventoryProducts = () => {
     status: "In stock"
   });
 
-  // Fetch items from API
-  const fetchItems = async () => {
+  // Fetch items from API - ONLY use demo on complete API failure
+  const fetchItems = async (showLoading = true) => {
     try {
-      setLoading(true);
+      if (showLoading) setLoading(true);
+      
       const response = await inventoryApi.getItems();
       const apiItems = response.items || response.data || [];
       
-      if (apiItems.length > 0) {
-        setItems(apiItems);
-        setUsingDemoData(false);
-      } else {
-        setItems(demoInventoryItems);
-        setUsingDemoData(true);
-      }
+      // Use API data even if empty (that's real data state)
+      setItems(apiItems);
+      setUsingDemoData(false);
       setError("");
+      return true; // Success
     } catch (err) {
-      console.error("Failed to fetch inventory:", err);
+      console.error("API fetch failed, using demo fallback:", err);
+      // Only use demo data on API failure
       setItems(demoInventoryItems);
       setUsingDemoData(true);
       setError("");
+      return false; // Failed
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   };
 
@@ -161,12 +161,19 @@ const InventoryProducts = () => {
   const handleBulkDelete = async () => {
     if (!window.confirm(`Delete ${selectedItems.length} selected items?`)) return;
     
+    if (usingDemoData) {
+      // Demo mode: simulate bulk delete locally
+      setItems(prev => prev.filter(item => !selectedItems.includes(item.id)));
+      setSelectedItems([]);
+      return;
+    }
+    
     try {
       await Promise.all(selectedItems.map(id => inventoryApi.deleteItem(id)));
       setSelectedItems([]);
-      await fetchItems();
+      await fetchItems(false);
     } catch (err) {
-      alert("Failed to delete some items. Please try again.");
+      alert("Failed to delete some items. Please check your connection and try again.");
     }
   };
 
@@ -222,24 +229,43 @@ const InventoryProducts = () => {
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this item?")) return;
     
+    if (usingDemoData) {
+      // Demo mode: simulate delete locally
+      setItems(prev => prev.filter(item => item.id !== id));
+      return;
+    }
+    
     try {
       await inventoryApi.deleteItem(id);
-      await fetchItems(); // Refresh list
+      await fetchItems(false); // Refresh without full loading
     } catch (err) {
       console.error("Failed to delete:", err);
-      alert("Failed to delete item. Please try again.");
+      alert("Failed to delete item. Please check your connection and try again.");
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    try {
-      const data = {
-        ...formData,
-        quantity: parseInt(formData.quantity) || 0,
-        price: parseFloat(formData.price) || 0
-      };
+    
+    const data = {
+      ...formData,
+      quantity: parseInt(formData.quantity) || 0,
+      price: parseFloat(formData.price) || 0
+    };
 
+    if (usingDemoData) {
+      // Demo mode: simulate save locally
+      if (editingItem) {
+        setItems(prev => prev.map(item => item.id === editingItem.id ? { ...data, id: item.id } : item));
+      } else {
+        const newId = Math.max(...items.map(i => i.id), 0) + 1;
+        setItems(prev => [...prev, { ...data, id: newId }]);
+      }
+      setShowModal(false);
+      return;
+    }
+    
+    try {
       if (editingItem) {
         await inventoryApi.updateItem(editingItem.id, data);
       } else {
@@ -247,10 +273,10 @@ const InventoryProducts = () => {
       }
       
       setShowModal(false);
-      await fetchItems(); // Refresh list
+      await fetchItems(false); // Refresh without full loading
     } catch (err) {
       console.error("Failed to save:", err);
-      alert("Failed to save item. Please try again.");
+      alert("Failed to save item. Please check your connection and try again.");
     }
   };
 

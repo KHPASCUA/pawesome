@@ -93,15 +93,17 @@ const AdvancedInventoryDashboard = () => {
     try {
       setLoading(true);
       const response = await inventoryApi.getDashboard({ period: timeRange });
-      if (response && response.total_items !== undefined) {
+      // Use API data if response exists (even if empty) - only use demo on API failure
+      if (response) {
         setDashboardData(response);
         setUsingDemoData(false);
       } else {
+        // API returned null/undefined - use demo
         setDashboardData(demoData);
         setUsingDemoData(true);
       }
     } catch (err) {
-      console.error("Dashboard fetch error:", err);
+      console.error("Dashboard API fetch failed, using demo fallback:", err);
       setDashboardData(demoData);
       setUsingDemoData(true);
     } finally {
