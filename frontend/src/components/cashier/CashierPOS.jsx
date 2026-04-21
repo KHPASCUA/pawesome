@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useEffect } from "react";
+import { inventoryApi } from "../../api/inventory";
 import { posApi } from "../../api/pos";
 import "./CashierPOS_Polished.css";
 
@@ -30,7 +31,7 @@ const CashierPOS = ({ onCheckout }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("cash");
 
-  // Load products and services on mount
+  // Load products from Inventory API (shared with Customer Store & Inventory Dashboard)
   useEffect(() => {
     loadItems();
   }, []);
@@ -39,15 +40,33 @@ const CashierPOS = ({ onCheckout }) => {
     try {
       setLoading(true);
       setError("");
-      const [productsData, servicesData] = await Promise.all([
-        posApi.getPOSProducts(),
-        posApi.getPOSServices(),
-      ]);
-      setProducts(productsData || []);
-      setServices(servicesData || []);
+      const response = await inventoryApi.getItems();
+      const items = response.items || response.data || [];
+      
+      // Separate products and services based on category/type
+      const productItems = items.filter(item => 
+        item.type === 'product' || !item.type || item.category !== 'service'
+      );
+      const serviceItems = items.filter(item => 
+        item.type === 'service' || item.category === 'service'
+      );
+      
+      setProducts(productItems.length > 0 ? productItems : items);
+      setServices(serviceItems);
     } catch (err) {
       setError("Failed to load products and services");
       console.error("POS load error:", err);
+      // Fallback demo data
+      setProducts([
+        { id: 1, name: "Classic Crispy Burger", price: 150, category: "food", inStock: true, stock: 50 },
+        { id: 2, name: "Chocolate Milkshake", price: 85, category: "beverages", inStock: true, stock: 30 },
+        { id: 3, name: "Spicy Chicken Sandwich", price: 180, category: "food", inStock: true, stock: 25 },
+        { id: 4, name: "Garden Salad", price: 120, category: "food", inStock: true, stock: 20 },
+      ]);
+      setServices([
+        { id: 101, name: "Pet Grooming", price: 500, category: "service" },
+        { id: 102, name: "Vet Checkup", price: 800, category: "service" },
+      ]);
     } finally {
       setLoading(false);
     }

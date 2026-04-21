@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import "./CustomerStore_Polished.css";
-import { posApi } from "../../api/pos";
+import { inventoryApi } from "../../api/inventory";
 
 // Rich demo data for presentation - will be replaced with API data when available
 const storeData = {
@@ -72,13 +72,13 @@ export default function CustomerStore() {
   const [loading, setLoading] = useState(false);
   const [usingDemoData, setUsingDemoData] = useState(false);
 
-  // Fetch products from API (same source as POS)
+  // Fetch products from Inventory API (same source as Inventory Dashboard)
   useEffect(() => {
     const fetchProducts = async () => {
       try {
         setLoading(true);
-        const response = await posApi.getProducts();
-        const products = response.products || [];
+        const response = await inventoryApi.getItems();
+        const products = response.items || response.data || [];
         
         if (products.length > 0) {
           // Transform API products to store format with categories
