@@ -57,6 +57,14 @@ const CashierReports = () => {
     setEndDate(defaultEnd);
   }, []);
 
+  // Quick date range selector
+  const handleQuickDateRange = (preset) => {
+    const { startDate: start, endDate: end } = getDateRangePreset(preset);
+    setStartDate(start);
+    setEndDate(end);
+    setTimeout(() => fetchReportData(), 100);
+  };
+
   useEffect(() => {
     fetchReportData();
   }, []);
@@ -177,6 +185,13 @@ const CashierReports = () => {
     const { startDate: defaultStart, endDate: defaultEnd } = getDateRangePreset("today");
     setStartDate(defaultStart);
     setEndDate(defaultEnd);
+  };
+
+  const getDateRangeLabel = () => {
+    if (startDate === getDateRangePreset('today').startDate) return 'Today';
+    if (startDate === getDateRangePreset('week').startDate) return 'This Week';
+    if (startDate === getDateRangePreset('month').startDate) return 'This Month';
+    return 'Custom';
   };
 
   // Export handlers
@@ -444,49 +459,80 @@ const CashierReports = () => {
         searchPlaceholder="Search transactions by ID, customer, or type..."
       />
 
+      {/* Quick Date Range Selector */}
+      <div className="quick-filters-bar">
+        <div className="quick-filters-label">📅 Quick Select:</div>
+        <div className="quick-filters">
+          <button 
+            className={`quick-filter-btn ${getDateRangeLabel() === 'Today' ? 'active' : ''}`}
+            onClick={() => handleQuickDateRange('today')}
+          >
+            Today
+          </button>
+          <button 
+            className={`quick-filter-btn ${getDateRangeLabel() === 'This Week' ? 'active' : ''}`}
+            onClick={() => handleQuickDateRange('week')}
+          >
+            This Week
+          </button>
+          <button 
+            className={`quick-filter-btn ${getDateRangeLabel() === 'This Month' ? 'active' : ''}`}
+            onClick={() => handleQuickDateRange('month')}
+          >
+            This Month
+          </button>
+        </div>
+        <div className="current-range">Current: <strong>{getDateRangeLabel()}</strong></div>
+      </div>
+
       <div className="reports-navigation">
         <nav className="nav-tabs">
           <button className={`nav-tab ${activeTab === "sales" ? "active" : ""}`} onClick={() => setActiveTab("sales")}>
-            <FontAwesomeIcon icon={faChartLine} />
-            Sales Summary
+            <span className="tab-icon">📊</span> Sales Summary
           </button>
           <button
             className={`nav-tab ${activeTab === "transactions" ? "active" : ""}`}
             onClick={() => setActiveTab("transactions")}
           >
-            <FontAwesomeIcon icon={faExchangeAlt} />
-            Transactions
+            <span className="tab-icon">💳</span> Transactions
           </button>
           <button className={`nav-tab ${activeTab === "items" ? "active" : ""}`} onClick={() => setActiveTab("items")}>
-            <FontAwesomeIcon icon={faBox} />
-            Top Items
+            <span className="tab-icon">🏆</span> Top Items
           </button>
           <button
             className={`nav-tab ${activeTab === "refunds" ? "active" : ""}`}
             onClick={() => setActiveTab("refunds")}
           >
-            <FontAwesomeIcon icon={faArrowDown} />
-            Refunds
+            <span className="tab-icon">↩️</span> Refunds
           </button>
         </nav>
       </div>
 
       <div className="reports-content">
         {loading ? (
-          <div className="loading-state">
-            <div className="loading-spinner"></div>
-            <span>Loading report data...</span>
+          <div className="loading-state enhanced">
+            <div className="loading-spinner animated"></div>
+            <span className="loading-text">Loading cashier report data...</span>
+            <div className="loading-subtext">Fetching {activeTab} data from server</div>
           </div>
         ) : error ? (
-          <div className="error-state">
-            <div className="error-icon"></div>
+          <div className="error-state enhanced">
+            <div className="error-icon">⚠️</div>
             <div className="error-message">{error}</div>
             <button className="retry-btn" onClick={fetchReportData}>
-              Retry
+              🔄 Retry Loading
             </button>
           </div>
         ) : (
-          <div className="report-content">{renderActiveTab()}</div>
+          <div className={`report-content ${activeTab}`}>
+            <div className="last-updated">
+              Last updated: {new Date().toLocaleTimeString()}
+              <button className="refresh-mini" onClick={fetchReportData} title="Refresh data">
+                🔄
+              </button>
+            </div>
+            {renderActiveTab()}
+          </div>
         )}
       </div>
     </div>
