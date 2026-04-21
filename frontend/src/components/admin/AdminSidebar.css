@@ -190,16 +190,6 @@
   font-weight: 600;
 }
 
-.nav-item a.active::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 4px;
-  background: #ffd700;
-}
-
 .nav-item svg {
   font-size: 1.1rem;
   width: 20px;
@@ -341,26 +331,6 @@
   }
 }
 
-/* Active state animations */
-.nav-item a {
-  position: relative;
-  overflow: hidden;
-}
-
-.nav-item a::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 0;
-  background: #ffd700;
-  transition: width 0.3s ease;
-}
-
-.nav-item a.active::before {
-  width: 4px;
-}
 
 /* Icon styling */
 .nav-item svg,
