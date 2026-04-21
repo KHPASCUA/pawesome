@@ -530,63 +530,191 @@ const InventoryProducts = () => {
         </div>
       )}
 
-      {/* Add/Edit Modal */}
+      {/* Add/Edit Modal - Professional */}
       {showModal && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-content modal-lg" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>{editingItem ? "✏️ Edit Product" : "➕ Add New Product"}</h3>
-              <button className="btn-close" onClick={() => setShowModal(false)}>×</button>
-            </div>
-            <form onSubmit={handleSubmit}>
-              <div className="form-grid">
-                <div className="form-group">
-                  <label>Product Name *</label>
-                  <input type="text" name="name" value={formData.name} onChange={handleChange} required />
+              <div className="modal-title">
+                <div className="modal-icon">
+                  {editingItem ? "✏️" : "➕"}
                 </div>
-                <div className="form-group">
-                  <label>SKU *</label>
-                  <input type="text" name="sku" value={formData.sku} onChange={handleChange} required />
-                </div>
-                <div className="form-group">
-                  <label>Brand</label>
-                  <input type="text" name="brand" value={formData.brand} onChange={handleChange} />
-                </div>
-                <div className="form-group">
-                  <label>Supplier</label>
-                  <input type="text" name="supplier" value={formData.supplier} onChange={handleChange} />
-                </div>
-                <div className="form-group">
-                  <label>Category</label>
-                  <input type="text" name="category" value={formData.category} onChange={handleChange} />
-                </div>
-                <div className="form-group">
-                  <label>Status</label>
-                  <select name="status" value={formData.status} onChange={handleChange}>
-                    <option value="In stock">In stock</option>
-                    <option value="Low stock">Low stock</option>
-                    <option value="Out of stock">Out of stock</option>
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label>Quantity *</label>
-                  <input type="number" name="quantity" value={formData.quantity} onChange={handleChange} required />
-                </div>
-                <div className="form-group">
-                  <label>Price *</label>
-                  <input type="number" step="0.01" name="price" value={formData.price} onChange={handleChange} required />
-                </div>
-                <div className="form-group full-width">
-                  <label>Expiration Date</label>
-                  <input type="date" name="expiration" value={formData.expiration} onChange={handleChange} />
+                <div>
+                  <h3>{editingItem ? "Edit Product" : "Add New Product"}</h3>
+                  <p>{editingItem ? "Update product information" : "Create a new inventory item"}</p>
                 </div>
               </div>
+              <button className="btn-close" onClick={() => setShowModal(false)}>×</button>
+            </div>
+            
+            <form onSubmit={handleSubmit}>
+              <div className="modal-body">
+                {/* Basic Info Section */}
+                <div className="form-section">
+                  <div className="section-header">
+                    <span className="section-icon">📋</span>
+                    <h4>Basic Information</h4>
+                  </div>
+                  <div className="form-grid">
+                    <div className="form-group">
+                      <label>
+                        Product Name <span className="required">*</span>
+                      </label>
+                      <input 
+                        type="text" 
+                        name="name" 
+                        value={formData.name} 
+                        onChange={handleChange} 
+                        placeholder="Enter product name"
+                        required 
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>
+                        SKU <span className="required">*</span>
+                        <small className="hint">Unique product code</small>
+                      </label>
+                      <input 
+                        type="text" 
+                        name="sku" 
+                        value={formData.sku} 
+                        onChange={handleChange} 
+                        placeholder="e.g., PRD-001"
+                        required 
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Category</label>
+                      <select name="category" value={formData.category} onChange={handleChange}>
+                        <option value="">Select category</option>
+                        <option value="Food">Food</option>
+                        <option value="Beverages">Beverages</option>
+                        <option value="Pet Supplies">Pet Supplies</option>
+                        <option value="Grooming">Grooming</option>
+                        <option value="Toys">Toys</option>
+                        <option value="Health">Health</option>
+                        <option value="Accessories">Accessories</option>
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label>Brand</label>
+                      <input 
+                        type="text" 
+                        name="brand" 
+                        value={formData.brand} 
+                        onChange={handleChange} 
+                        placeholder="Brand name"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Inventory Section */}
+                <div className="form-section">
+                  <div className="section-header">
+                    <span className="section-icon">📦</span>
+                    <h4>Inventory Details</h4>
+                  </div>
+                  <div className="form-grid inventory-grid">
+                    <div className="form-group">
+                      <label>
+                        Quantity <span className="required">*</span>
+                      </label>
+                      <div className="input-with-icon">
+                        <input 
+                          type="number" 
+                          name="quantity" 
+                          value={formData.quantity} 
+                          onChange={handleChange} 
+                          min="0"
+                          placeholder="0"
+                          required 
+                        />
+                        <span className="input-suffix">units</span>
+                      </div>
+                    </div>
+                    <div className="form-group">
+                      <label>
+                        Price <span className="required">*</span>
+                      </label>
+                      <div className="input-with-icon">
+                        <span className="input-prefix">₱</span>
+                        <input 
+                          type="number" 
+                          step="0.01" 
+                          name="price" 
+                          value={formData.price} 
+                          onChange={handleChange} 
+                          min="0"
+                          placeholder="0.00"
+                          required 
+                        />
+                      </div>
+                    </div>
+                    <div className="form-group">
+                      <label>Status</label>
+                      <div className="status-options">
+                        {[
+                          { value: "In stock", label: "In Stock", color: "#10b981" },
+                          { value: "Low stock", label: "Low Stock", color: "#f59e0b" },
+                          { value: "Out of stock", label: "Out of Stock", color: "#ef4444" },
+                        ].map((status) => (
+                          <button
+                            key={status.value}
+                            type="button"
+                            className={`status-option ${formData.status === status.value ? "active" : ""}`}
+                            style={{ 
+                              borderColor: status.color,
+                              background: formData.status === status.value ? `${status.color}20` : "white",
+                              color: formData.status === status.value ? status.color : "#64748b"
+                            }}
+                            onClick={() => setFormData(prev => ({ ...prev, status: status.value }))}
+                          >
+                            <span className="status-dot" style={{ background: status.color }}></span>
+                            {status.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="form-group">
+                      <label>Expiration Date</label>
+                      <input 
+                        type="date" 
+                        name="expiration" 
+                        value={formData.expiration} 
+                        onChange={handleChange}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Supplier Section */}
+                <div className="form-section">
+                  <div className="section-header">
+                    <span className="section-icon">🚚</span>
+                    <h4>Supplier Information</h4>
+                  </div>
+                  <div className="form-grid">
+                    <div className="form-group full-width">
+                      <label>Supplier</label>
+                      <input 
+                        type="text" 
+                        name="supplier" 
+                        value={formData.supplier} 
+                        onChange={handleChange} 
+                        placeholder="Supplier company name"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <div className="modal-actions">
                 <button type="button" className="btn-secondary" onClick={() => setShowModal(false)}>
                   Cancel
                 </button>
-                <button type="submit" className="btn-primary">
-                  {editingItem ? "Update Product" : "Add Product"}
+                <button type="submit" className="btn-primary btn-lg">
+                  {editingItem ? "💾 Update Product" : "➕ Add Product"}
                 </button>
               </div>
             </form>
