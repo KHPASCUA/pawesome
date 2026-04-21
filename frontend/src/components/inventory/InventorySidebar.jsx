@@ -44,6 +44,7 @@ const InventorySidebar = ({ collapsed, onToggleCollapse }) => {
             <NavLink
               to="/inventory"
               className={({ isActive }) => (isActive ? "active" : "")}
+              end
               title="Dashboard"
             >
               <FontAwesomeIcon icon={faHome} />

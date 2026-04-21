@@ -41,6 +41,7 @@ const VeterinarySidebar = ({ collapsed, onToggleCollapse }) => {
             <NavLink
               to="/veterinary"
               className={({ isActive }) => (isActive ? "active" : "")}
+              end
               title="Dashboard"
             >
               <FontAwesomeIcon icon={faHome} />

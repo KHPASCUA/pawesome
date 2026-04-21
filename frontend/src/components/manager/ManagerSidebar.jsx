@@ -44,6 +44,7 @@ const ManagerSidebar = ({ collapsed, onToggleCollapse }) => {
             <NavLink
               to="/manager"
               className={({ isActive }) => (isActive ? "active" : "")}
+              end
               title="Dashboard"
             >
               <FontAwesomeIcon icon={faHome} />
@@ -86,7 +87,7 @@ const ManagerSidebar = ({ collapsed, onToggleCollapse }) => {
           
           <li className="nav-item">
             <NavLink
-              to="/manager/attendance"
+              to="/manager/attendance-history"
               className={({ isActive }) => (isActive ? "active" : "")}
               title="Attendance History"
             >
@@ -97,12 +98,12 @@ const ManagerSidebar = ({ collapsed, onToggleCollapse }) => {
           
           <li className="nav-item">
             <NavLink
-              to="/manager/reports"
+              to="/manager/analytics"
               className={({ isActive }) => (isActive ? "active" : "")}
-              title="Reports"
+              title="Analytics"
             >
               <FontAwesomeIcon icon={faChartBar} />
-              {!collapsed && <span>Reports</span>}
+              {!collapsed && <span>Analytics</span>}
             </NavLink>
           </li>
 

@@ -1,8 +1,8 @@
-/* Inventory Sidebar Styles - Baby Blue & Pink Theme */
+/* Inventory Sidebar Styles - #FFAFCC Theme */
 
 .inventory-sidebar {
   width: 260px;
-  background: linear-gradient(135deg, #ADD8E6 0%, #FFC0CB 100%);
+  background: #FFAFCC;
   color: #000000 !important;
   padding: 0;
   position: fixed;
@@ -13,7 +13,7 @@
   transition: width 0.3s ease;
   display: flex;
   flex-direction: column;
-  box-shadow: 2px 0 10px rgba(173, 216, 230, 0.3);
+  box-shadow: 2px 0 10px rgba(255, 175, 204, 0.3);
 }
 
 /* Force all sidebar text to be black */
@@ -87,23 +87,25 @@
   align-items: center;
   gap: 1rem;
   padding: 0.875rem 1.25rem;
-  color: rgba(255,255,255,0.8);
+  color: #000000 !important;
   text-decoration: none;
   transition: all 0.3s ease;
   border-radius: 0;
   position: relative;
-  font-weight: 500;
+  font-weight: 600;
+  background: transparent;
 }
 
 .nav-item a:hover {
-  background: rgba(255,255,255,0.1);
-  color: white;
+  background: rgba(255, 175, 204, 0.2);
+  color: #000000 !important;
 }
 
-.nav-item a.active {
-  background: rgba(255,255,255,0.15);
-  color: white;
-  border-left: 4px solid #ffeaa7;
+.inventory-sidebar .nav-item a.active {
+  background: #ffffff !important;
+  color: #000000 !important;
+  border-left: 4px solid #FF99B8 !important;
+  font-weight: 700 !important;
 }
 
 .nav-item a svg {
