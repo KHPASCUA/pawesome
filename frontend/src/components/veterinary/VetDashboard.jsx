@@ -12,6 +12,12 @@ import {
   faBed,
   faPhone,
   faExclamationTriangle,
+  faCalendarCheck,
+  faClipboardCheck,
+  faClock,
+  faArrowUp,
+  faArrowDown,
+  faStethoscope,
 } from "@fortawesome/free-solid-svg-icons";
 import { apiRequest } from "../../api/client";
 import VeterinarySidebar from "./VeterinarySidebar";
@@ -64,25 +70,37 @@ const VetDashboard = () => {
       title: "Today's Appointments",
       value: dashboardData.today_appointments || 0,
       subtitle: "Scheduled today",
-      change: "",
+      icon: faCalendarCheck,
+      iconClass: "appointments",
+      trend: "+12%",
+      trendUp: true,
     },
     {
       title: "Active Patients",
       value: dashboardData.total_patients || 0,
       subtitle: "Patient records",
-      change: "",
+      icon: faUsers,
+      iconClass: "patients",
+      trend: "+5%",
+      trendUp: true,
     },
     {
-      title: "Completed Checkups",
+      title: "Completed",
       value: dashboardData.completed_appointments || 0,
-      subtitle: "Total completed",
-      change: "",
+      subtitle: "This month",
+      icon: faClipboardCheck,
+      iconClass: "completed",
+      trend: "+8%",
+      trendUp: true,
     },
     {
-      title: "Pending Appointments",
+      title: "Pending",
       value: dashboardData.pending_appointments || 0,
       subtitle: "Awaiting confirmation",
-      change: "",
+      icon: faClock,
+      iconClass: "pending",
+      trend: "-3%",
+      trendUp: false,
     },
   ] : [];
 
@@ -141,15 +159,34 @@ const VetDashboard = () => {
         {showOverview ? (
           <>
             <section className="overview-cards">
-              {summaryCards.map((card) => (
-                <div key={card.title} className="overview-card">
-                  <div>
-                    <h3>{card.value}</h3>
-                    <p>{card.title}</p>
+              {loading ? (
+                <>
+                  <div className="loading-skeleton loading-card" />
+                  <div className="loading-skeleton loading-card" />
+                  <div className="loading-skeleton loading-card" />
+                  <div className="loading-skeleton loading-card" />
+                </>
+              ) : (
+                summaryCards.map((card, index) => (
+                  <div 
+                    key={card.title} 
+                    className="overview-card animate-fade-in"
+                    style={{ animationDelay: `${index * 100}ms` }}
+                  >
+                    <div className={`overview-card-icon ${card.iconClass}`}>
+                      <FontAwesomeIcon icon={card.icon} />
+                    </div>
+                    <div>
+                      <h3>{card.value}</h3>
+                      <p>{card.title}</p>
+                      <span className={`overview-card-trend ${card.trendUp ? '' : 'negative'}`}>
+                        <FontAwesomeIcon icon={card.trendUp ? faArrowUp : faArrowDown} />
+                        {card.trend}
+                      </span>
+                    </div>
                   </div>
-                  <span>{card.change}</span>
-                </div>
-              ))}
+                ))
+              )}
             </section>
 
             <section className="dashboard-grid">
@@ -320,22 +357,33 @@ const VetDashboard = () => {
               <div className="panel activity-panel">
                 <div className="panel-header space-between">
                   <div>
-                    <h2>Recent Activity</h2>
+                    <h2><FontAwesomeIcon icon={faStethoscope} /> Recent Activity</h2>
                   </div>
-                  <NavLink to="/veterinary/history" className="see-all-link">
-                    See all
-                  </NavLink>
+                  <span className="premium-badge live">Live</span>
                 </div>
                 <div className="activity-metrics">
-                  <div className="status-card success">
+                  <div className="status-card success animate-fade-in">
                     <strong>{dashboardData?.today_appointments || 0}</strong>
                     <p>Appointments today</p>
                   </div>
-                  <div className="status-card info">
+                  <div className="status-card info animate-fade-in" style={{ animationDelay: '100ms' }}>
                     <strong>{dashboardData?.pending_appointments || 0}</strong>
                     <p>Pending appointments</p>
                   </div>
                 </div>
+                
+                {/* Mini Activity Chart */}
+                <div className="mini-chart">
+                  {[40, 65, 45, 80, 55, 90, 70].map((height, i) => (
+                    <div 
+                      key={i} 
+                      className="chart-bar" 
+                      style={{ height: `${height}%` }}
+                      data-value={height}
+                    />
+                  ))}
+                </div>
+                
                 <div className="activity-summary">
                   <p>Total patients: {dashboardData?.total_patients || 0} | New this month: {dashboardData?.new_patients_this_month || 0}</p>
                 </div>

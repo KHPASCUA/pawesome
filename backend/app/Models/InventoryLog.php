@@ -13,6 +13,7 @@ class InventoryLog extends Model
         'inventory_item_id',
         'delta',
         'reason',
+        'reference_type',
     ];
 
     public function inventoryItem()

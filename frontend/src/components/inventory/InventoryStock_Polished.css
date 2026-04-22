@@ -76,14 +76,15 @@
   gap: 12px;
   padding: 16px;
   background: white;
-  border-radius: 16px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 .stat-card .stat-icon {
   width: 44px;
   height: 44px;
-  border-radius: 12px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -91,27 +92,58 @@
 }
 
 .stat-card.total .stat-icon {
-  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+  background: #dbeafe;
+}
+
+.stat-card.total .stat-icon svg,
+.stat-card.total .stat-icon img {
+  color: #2563eb;
+  filter: none;
 }
 
 .stat-card.quantity .stat-icon {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  background: #dcfce7;
+}
+
+.stat-card.quantity .stat-icon svg,
+.stat-card.quantity .stat-icon img {
+  color: #16a34a;
 }
 
 .stat-card.value .stat-icon {
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  background: #fef3c7;
+}
+
+.stat-card.value .stat-icon svg,
+.stat-card.value .stat-icon img {
+  color: #d97706;
 }
 
 .stat-card.low .stat-icon {
-  background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+  background: #ffedd5;
+}
+
+.stat-card.low .stat-icon svg,
+.stat-card.low .stat-icon img {
+  color: #ea580c;
 }
 
 .stat-card.out .stat-icon {
-  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  background: #fee2e2;
+}
+
+.stat-card.out .stat-icon svg,
+.stat-card.out .stat-icon img {
+  color: #dc2626;
 }
 
 .stat-card.expiring .stat-icon {
-  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  background: #e0e7ff;
+}
+
+.stat-card.expiring .stat-icon svg,
+.stat-card.expiring .stat-icon img {
+  color: #7c3aed;
 }
 
 .stat-info {
@@ -120,14 +152,16 @@
 }
 
 .stat-value {
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 700;
-  color: #1e293b;
+  color: #111827;
+  line-height: 1.2;
 }
 
 .stat-label {
   font-size: 12px;
-  color: #64748b;
+  color: #6b7280;
+  font-weight: 500;
 }
 
 /* Filters */
@@ -207,7 +241,8 @@
 /* Table Container */
 .stock-table-container {
   background: white;
-  border-radius: 16px;
+  border-radius: 8px;
+  border: 2px solid #d1d5db;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   overflow: hidden;
 }
@@ -215,19 +250,33 @@
 /* Table */
 .stock-table.polished {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
 }
 
 .stock-table.polished th {
-  padding: 14px 16px;
+  padding: 12px 14px;
   text-align: left;
-  font-size: 12px;
-  font-weight: 600;
-  color: #64748b;
+  font-size: 10px;
+  font-weight: 700;
+  color: #374151;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  background: #f8fafc;
-  border-bottom: 1px solid #e2e8f0;
+  letter-spacing: 0.8px;
+  background: #f3f4f6;
+  border-bottom: 2px solid #d1d5db;
+  border-right: 1px solid #e5e7eb;
+}
+
+.stock-table.polished th:last-child {
+  border-right: none;
+}
+
+.stock-table.polished th:first-child {
+  border-top-left-radius: 6px;
+}
+
+.stock-table.polished th:last-child {
+  border-top-right-radius: 6px;
 }
 
 .stock-table.polished th.numeric {
@@ -235,14 +284,23 @@
 }
 
 .stock-table.polished td {
-  padding: 16px;
-  font-size: 14px;
-  color: #475569;
-  border-bottom: 1px solid #f1f5f9;
+  padding: 14px;
+  font-size: 13px;
+  color: #374151;
+  border-bottom: 1px solid #e5e7eb;
+  border-right: 1px solid #e5e7eb;
+}
+
+.stock-table.polished td:last-child {
+  border-right: none;
+}
+
+.stock-table.polished tbody tr:nth-child(even) {
+  background: #f9fafb;
 }
 
 .stock-table.polished tbody tr:hover {
-  background: #f8fafc;
+  background: #f3f4f6;
 }
 
 .stock-table.polished tbody tr.status-low {
@@ -251,6 +309,18 @@
 
 .stock-table.polished tbody tr.status-out {
   background: #fef2f2;
+}
+
+.stock-table.polished tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.stock-table.polished tbody tr:last-child td:first-child {
+  border-bottom-left-radius: 6px;
+}
+
+.stock-table.polished tbody tr:last-child td:last-child {
+  border-bottom-right-radius: 6px;
 }
 
 /* Product Cell */

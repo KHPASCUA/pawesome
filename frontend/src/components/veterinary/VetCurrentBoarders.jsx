@@ -63,7 +63,9 @@ const VetCurrentBoarders = () => {
     return (
       <div className="vet-current-boarders">
         <div className="loading-spinner">
-          <FontAwesomeIcon icon={faSpinner} spin />
+          <div className="spinner-icon">
+            <FontAwesomeIcon icon={faSpinner} className="spin-animation" />
+          </div>
           <span>Loading current boarders...</span>
         </div>
       </div>
@@ -116,7 +118,7 @@ const VetCurrentBoarders = () => {
       ) : (
         <div className="boarders-grid">
           {filteredBoarders.map((boarder) => (
-            <div key={boarder.id} className="boarder-card">
+            <div key={boarder.id} className="boarder-card animate-fade-in">
               <div className="boarder-header">
                 <div className="pet-icon">
                   <FontAwesomeIcon icon={faPaw} />

@@ -38,7 +38,7 @@ class DemoDataSeeder extends Seeder
             'customer_id' => $cust->id,
             'pet_id' => $pet->id,
             'service_id' => $groom->id,
-            'status' => 'scheduled',
+            'status' => 'pending',
             'scheduled_at' => now()->addHours(2),
             'price' => 50,
         ]);
@@ -52,8 +52,20 @@ class DemoDataSeeder extends Seeder
         ]);
 
         // sales
-        Sale::create(['amount' => 120, 'type' => 'appointment']);
-        Sale::create(['amount' => 200, 'type' => 'boarding']);
+        Sale::create([
+            'amount' => 120, 
+            'type' => 'appointment',
+            'transaction_number' => 'TXN-' . strtoupper(Str::random(8)),
+            'status' => 'completed',
+            'total_amount' => 120
+        ]);
+        Sale::create([
+            'amount' => 200, 
+            'type' => 'boarding',
+            'transaction_number' => 'TXN-' . strtoupper(Str::random(8)),
+            'status' => 'completed',
+            'total_amount' => 200
+        ]);
 
         // inventory
         $item = InventoryItem::updateOrCreate(['sku' => 'FOOD-001'], [

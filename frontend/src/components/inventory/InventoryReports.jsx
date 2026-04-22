@@ -444,17 +444,17 @@ const InventoryReports = () => {
             <tbody>
               {filteredItems.map((item) => (
                 <tr key={item.id}>
-                  <td>{item.id}</td>
-                  <td>{item.name}</td>
-                  <td>{item.sku}</td>
-                  <td>{item.category}</td>
+                  <td><span className="id-code">{item.id}</span></td>
+                  <td><span className="product-name">{item.name}</span></td>
+                  <td><span className="sku-code">{item.sku}</span></td>
+                  <td><span className="category-badge">{item.category}</span></td>
                   <td>{item.brand}</td>
                   <td>{item.supplier}</td>
-                  <td className={`stock-cell ${item.quantity <= 10 ? "low" : ""}`}>{item.quantity}</td>
-                  <td>₱{item.price.toFixed(2)}</td>
-                  <td>₱{(item.quantity * item.price).toFixed(2)}</td>
+                  <td className="numeric"><span className={`quantity ${item.quantity <= 10 ? "low" : ""}`}>{item.quantity}</span></td>
+                  <td className="numeric">₱{item.price.toFixed(2)}</td>
+                  <td className="numeric">₱{(item.quantity * item.price).toFixed(2)}</td>
                   <td>
-                    <span className={`status-badge ${item.status?.toLowerCase().replace(" ", "-")}`}>
+                    <span className={`status-badge ${item.status?.toLowerCase().replace(/\s/g, "-")}`}>
                       {item.status}
                     </span>
                   </td>

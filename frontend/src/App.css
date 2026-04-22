@@ -1,5 +1,41 @@
 /* Pink Theme for Landing Page - Matching Login Design */
 
+/* Force disable manager overlays that bleed across pages */
+.manager-staff::before,
+.manager-attendance::before {
+  display: none !important;
+}
+
+/* Kill inventory dashboard overlay and fix padding */
+.inventory-main::before,
+.inventory-main::after,
+.dashboard-content::before,
+.dashboard-content::after,
+.inventory-dashboard::before,
+.inventory-dashboard::after {
+  display: none !important;
+}
+
+.inventory-main,
+.dashboard-content,
+.inventory-dashboard {
+  background: #f9fafb !important;
+}
+
+.inventory-main {
+  min-height: auto !important;
+  padding: 80px 24px 24px !important;
+  background: #f9fafb !important;
+}
+
+/* Prevent manager-main from affecting inventory pages */
+.inventory-dashboard .manager-main {
+  all: unset;
+  display: block;
+  padding: 80px 24px 24px !important;
+  background: #f9fafb !important;
+}
+
 .App {
   text-align: center;
   min-height: 100vh;

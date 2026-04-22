@@ -1,4 +1,6 @@
-/* Veterinary Sidebar Styles - Baby Blue & Pink Theme */
+/* =============================================
+   Veterinary Sidebar - Baby Blue & Pink Theme
+   ============================================= */
 
 .veterinary-sidebar {
   width: 240px;
@@ -23,6 +25,18 @@
 
 .veterinary-sidebar.collapsed {
   width: 80px;
+}
+
+/* Premium glassmorphism overlay */
+.veterinary-sidebar::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(180deg, rgba(255,255,255,0.1) 0%, transparent 50%);
+  pointer-events: none;
 }
 
 /* Sidebar Header */
@@ -252,27 +266,6 @@
     justify-content: flex-start;
     padding: 0.75rem 1rem;
   }
-}
-
-/* Active state animations */
-.nav-item a {
-  position: relative;
-  overflow: hidden;
-}
-
-.nav-item a::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 0;
-  background: #ffd700;
-  transition: width 0.3s ease;
-}
-
-.nav-item a.active::before {
-  width: 4px;
 }
 
 /* Icon styling */

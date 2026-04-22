@@ -73,6 +73,13 @@ const InventoryDashboard = () => {
 
     if (showOverview) {
       fetchDashboardData();
+      
+      // Auto-refresh every 30 seconds for live data
+      const interval = setInterval(() => {
+        fetchDashboardData();
+      }, 30000);
+      
+      return () => clearInterval(interval);
     }
   }, [showOverview]);
 

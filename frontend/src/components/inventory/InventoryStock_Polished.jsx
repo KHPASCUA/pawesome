@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { inventoryItems as demoItems } from "./inventoryData";
 import { inventoryApi } from "../../api/inventory";
 import { formatCurrency } from "../../utils/currency";
+import { exportToCSV } from "../../utils/reportExport";
 import "./InventoryStock_Polished.css";
 
 const InventoryStock = () => {
@@ -78,6 +79,22 @@ const InventoryStock = () => {
     });
   }, [items, search, filterStatus]);
 
+  // Export to CSV
+  const handleExportCSV = () => {
+    const columns = [
+      { key: "name", label: "Product Name" },
+      { key: "sku", label: "SKU" },
+      { key: "brand", label: "Brand" },
+      { key: "supplier", label: "Supplier" },
+      { key: "category", label: "Category" },
+      { key: "quantity", label: "Stock Level" },
+      { key: "price", label: "Price" },
+      { key: "status", label: "Status" },
+      { key: "expiration", label: "Expiration" },
+    ];
+    exportToCSV(filteredItems, columns, "stock-management");
+  };
+
   // Get status badge
   const getStatusBadge = (quantity) => {
     if (quantity === 0) {
@@ -143,8 +160,8 @@ const InventoryStock = () => {
           {usingDemoData && <span className="demo-badge">Demo Mode</span>}
         </div>
         <div className="header-actions">
-          <button className="btn-export" onClick={() => alert("Export coming soon!")}>
-            📥 Export
+          <button className="btn-export" onClick={handleExportCSV}>
+            📥 Export CSV
           </button>
         </div>
       </div>

@@ -7,6 +7,13 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* AGGRESSIVE: Kill ALL overlays and pseudo-elements across the app */
+*::before,
+*::after {
+  background: none !important;
+  background-image: none !important;
+}
+
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;

@@ -274,7 +274,7 @@ class InventoryController extends Controller
     }
 
     /**
-     * Get stock movement history
+     * Get stock movement history for a specific item
      */
     public function stockHistory($id)
     {
@@ -287,6 +287,43 @@ class InventoryController extends Controller
         return response()->json([
             'item' => $item,
             'history' => $logs,
+        ]);
+    }
+
+    /**
+     * Get all stock history (for history page)
+     */
+    public function getHistory(Request $request)
+    {
+        $query = InventoryLog::with('inventoryItem')->latest();
+
+        // Filter by item
+        if ($request->has('item_id')) {
+            $query->where('inventory_item_id', $request->item_id);
+        }
+
+        // Filter by action type
+        if ($request->has('action')) {
+            $query->where('reference_type', $request->action);
+        }
+
+        // Filter by date range
+        if ($request->has('startDate')) {
+            $query->whereDate('created_at', '>=', $request->startDate);
+        }
+        if ($request->has('endDate')) {
+            $query->whereDate('created_at', '<=', $request->endDate);
+        }
+
+        $history = $query->paginate($request->per_page ?? 50);
+
+        return response()->json([
+            'history' => $history->items(),
+            'meta' => [
+                'current_page' => $history->currentPage(),
+                'total' => $history->total(),
+                'per_page' => $history->perPage(),
+            ],
         ]);
     }
 

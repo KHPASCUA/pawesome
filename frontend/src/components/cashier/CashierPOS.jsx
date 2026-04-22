@@ -32,8 +32,15 @@ const CashierPOS = ({ onCheckout }) => {
   const [paymentMethod, setPaymentMethod] = useState("cash");
 
   // Load products from Inventory API (shared with Customer Store & Inventory Dashboard)
+  // Auto-refresh every 30 seconds for live data
   useEffect(() => {
     loadItems();
+    
+    const interval = setInterval(() => {
+      loadItems();
+    }, 30000); // Refresh every 30 seconds
+    
+    return () => clearInterval(interval);
   }, []);
 
   const loadItems = async () => {
@@ -56,16 +63,22 @@ const CashierPOS = ({ onCheckout }) => {
     } catch (err) {
       setError("Failed to load products and services");
       console.error("POS load error:", err);
-      // Fallback demo data
+      // Fallback demo data - Pet store items only (₱ Philippine Peso)
       setProducts([
-        { id: 1, name: "Classic Crispy Burger", price: 150, category: "food", inStock: true, stock: 50 },
-        { id: 2, name: "Chocolate Milkshake", price: 85, category: "beverages", inStock: true, stock: 30 },
-        { id: 3, name: "Spicy Chicken Sandwich", price: 180, category: "food", inStock: true, stock: 25 },
-        { id: 4, name: "Garden Salad", price: 120, category: "food", inStock: true, stock: 20 },
+        { id: 1, name: "Premium Dog Food 5kg", price: 1200, category: "Food", inStock: true, stock: 50, sku: "PDF-5KG-001", description: "High-quality nutrition for adult dogs" },
+        { id: 2, name: "Cat Kibble 2kg", price: 850, category: "Food", inStock: true, stock: 30, sku: "CK-2KG-002", description: "Balanced diet for cats" },
+        { id: 3, name: "Leather Dog Collar", price: 450, category: "Accessories", inStock: true, stock: 25, sku: "LDC-003", description: "Durable leather collar with metal buckle" },
+        { id: 4, name: "Pet Shampoo 500ml", price: 280, category: "Grooming", inStock: true, stock: 40, sku: "PS-500-004", description: "Gentle cleansing formula for pets" },
+        { id: 5, name: "Squeaky Toy Set", price: 180, category: "Toys", inStock: true, stock: 60, sku: "STS-005", description: "3-piece fun toy set for dogs" },
+        { id: 6, name: "Pet Carrier Small", price: 950, category: "Accessories", inStock: false, stock: 0, sku: "PCS-006", description: "Comfortable travel carrier for small pets" },
+        { id: 7, name: "Flea Treatment", price: 380, category: "Health", inStock: true, stock: 35, sku: "FT-007", description: "Monthly flea and tick prevention" },
+        { id: 8, name: "Puppy Starter Kit", price: 750, category: "Food", inStock: true, stock: 20, sku: "PSK-008", description: "Complete nutrition kit for puppies" },
       ]);
       setServices([
-        { id: 101, name: "Pet Grooming", price: 500, category: "service" },
-        { id: 102, name: "Vet Checkup", price: 800, category: "service" },
+        { id: 101, name: "Full Grooming Service", price: 650, category: "Services", description: "Bath, haircut, nail trim, ear cleaning" },
+        { id: 102, name: "Vet Consultation", price: 500, category: "Services", description: "Basic health check and consultation" },
+        { id: 103, name: "Pet Boarding (Daily)", price: 450, category: "Services", description: "Day care and overnight boarding" },
+        { id: 104, name: "Vaccination", price: 350, category: "Services", description: "Core vaccines for dogs/cats" },
       ]);
     } finally {
       setLoading(false);

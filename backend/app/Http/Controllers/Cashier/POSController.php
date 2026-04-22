@@ -98,7 +98,7 @@ class POSController extends Controller
                 if ($item['item_type'] === 'product' && !empty($item['item_id'])) {
                     $product = InventoryItem::find($item['item_id']);
                     if ($product) {
-                        $product->decrement('quantity', $item['quantity']);
+                        $product->decrement('stock', $item['quantity']);
                     }
                 }
             }
@@ -298,7 +298,7 @@ class POSController extends Controller
                 if ($item->item_type === 'product' && $item->product_id) {
                     $product = InventoryItem::find($item->product_id);
                     if ($product) {
-                        $product->increment('quantity', $item->quantity);
+                        $product->increment('stock', $item->quantity);
                     }
                 }
             }

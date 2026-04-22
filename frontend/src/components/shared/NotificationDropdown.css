@@ -10,18 +10,22 @@
   height: 46px;
   display: grid;
   place-items: center;
-  background: #fff;
-  color: #102a43;
-  border: none;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(8px);
+  color: #0d9488;
+  border: 1px solid rgba(255, 255, 255, 0.5);
   border-radius: 999px;
   cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: all 0.3s ease;
   font-size: 1rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
 }
 
 .notification-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 12px 24px rgba(59, 130, 246, 0.16);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px rgba(13, 148, 136, 0.2);
+  background: rgba(255, 255, 255, 1);
+  color: #0f766e;
 }
 
 .dark .notification-btn,
@@ -70,10 +74,11 @@
   min-width: 320px;
   max-width: 360px;
   max-height: 400px;
-  background: #fff;
-  border: 1px solid rgba(173, 216, 230, 0.3);
-  border-radius: 16px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 20px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(255, 255, 255, 0.5) inset;
   z-index: 9999;
   display: flex;
   flex-direction: column;
@@ -87,9 +92,9 @@
   right: 20px;
   width: 12px;
   height: 12px;
-  background: #fff;
-  border-left: 1px solid rgba(173, 216, 230, 0.3);
-  border-top: 1px solid rgba(173, 216, 230, 0.3);
+  background: rgba(255, 255, 255, 0.95);
+  border-left: 1px solid rgba(255, 255, 255, 0.5);
+  border-top: 1px solid rgba(255, 255, 255, 0.5);
   transform: rotate(45deg);
 }
 
@@ -123,8 +128,8 @@
   align-items: center;
   justify-content: space-between;
   padding: 16px 20px;
-  border-bottom: 1px solid rgba(173, 216, 230, 0.2);
-  background: linear-gradient(135deg, rgba(173, 216, 230, 0.1) 0%, rgba(255, 192, 203, 0.1) 100%);
+  border-bottom: 1px solid rgba(13, 148, 136, 0.1);
+  background: linear-gradient(135deg, rgba(13, 148, 136, 0.05) 0%, rgba(20, 184, 166, 0.08) 100%);
 }
 
 .dark .notification-header,
@@ -143,7 +148,10 @@
   margin: 0;
   font-size: 1rem;
   font-weight: 600;
-  color: #102a43;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .dark .notification-header h3,
@@ -167,17 +175,18 @@
   height: 28px;
   display: grid;
   place-items: center;
-  background: transparent;
-  border: none;
-  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(226, 232, 240, 0.5);
+  border-radius: 8px;
   cursor: pointer;
   color: #64748b;
   transition: all 0.2s ease;
 }
 
 .notification-actions button:hover {
-  background: rgba(173, 216, 230, 0.2);
-  color: #102a43;
+  background: rgba(13, 148, 136, 0.1);
+  color: #0d9488;
+  border-color: rgba(13, 148, 136, 0.3);
 }
 
 .dark .notification-actions button:hover,
@@ -188,8 +197,9 @@
 .receptionist-dashboard.dark .notification-actions button:hover,
 .vet-dashboard.dark .notification-actions button:hover,
 .manager-dashboard.dark .notification-actions button:hover {
-  background: rgba(255, 192, 203, 0.1);
+  background: rgba(20, 184, 166, 0.08);
   color: #e2e8f0;
+  border-color: rgba(20, 184, 166, 0.3);
 }
 
 /* Notification List */
@@ -229,7 +239,7 @@
 }
 
 .notification-item:hover {
-  background: rgba(173, 216, 230, 0.1);
+  background: rgba(13, 148, 136, 0.05);
 }
 
 .dark .notification-item:hover,
@@ -240,11 +250,11 @@
 .receptionist-dashboard.dark .notification-item:hover,
 .vet-dashboard.dark .notification-item:hover,
 .manager-dashboard.dark .notification-item:hover {
-  background: rgba(255, 192, 203, 0.05);
+  background: rgba(20, 184, 166, 0.08);
 }
 
 .notification-item.unread {
-  background: rgba(59, 130, 246, 0.05);
+  background: rgba(13, 148, 136, 0.08);
 }
 
 .dark .notification-item.unread,
@@ -255,7 +265,7 @@
 .receptionist-dashboard.dark .notification-item.unread,
 .vet-dashboard.dark .notification-item.unread,
 .manager-dashboard.dark .notification-item.unread {
-  background: rgba(59, 130, 246, 0.1);
+  background: rgba(13, 148, 136, 0.12);
 }
 
 .notification-dot {

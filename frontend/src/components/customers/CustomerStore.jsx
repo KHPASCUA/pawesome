@@ -48,6 +48,13 @@ const storeData = {
     { id: 25, name: "Joint Supplements", price: 520, image: "🦴", rating: 4.7, reviews: 234, inStock: true, discount: 20 },
     { id: 34, name: "First Aid Kit", price: 650, image: "🏥", rating: 4.5, reviews: 156, inStock: true, discount: 8 },
     { id: 35, name: "Probiotics", price: 380, image: "🧬", rating: 4.4, reviews: 289, inStock: true, discount: 0 }
+  ],
+  Services: [
+    { id: 101, name: "Full Grooming Service", price: 650, image: "✂️", rating: 4.8, reviews: 523, inStock: true, discount: 0 },
+    { id: 102, name: "Vet Consultation", price: 500, image: "🩺", rating: 4.7, reviews: 312, inStock: true, discount: 0 },
+    { id: 103, name: "Pet Boarding (Daily)", price: 450, image: "🏨", rating: 4.5, reviews: 245, inStock: true, discount: 10 },
+    { id: 104, name: "Vaccination", price: 350, image: "💉", rating: 4.6, reviews: 189, inStock: true, discount: 0 },
+    { id: 105, name: "Dog Training Session", price: 800, image: "🎓", rating: 4.9, reviews: 156, inStock: true, discount: 15 }
   ]
 };
 
@@ -99,7 +106,14 @@ export default function CustomerStore() {
       }
     };
     
+    // Auto-refresh every 30 seconds for live inventory updates
     fetchProducts();
+    
+    const interval = setInterval(() => {
+      fetchProducts();
+    }, 30000);
+    
+    return () => clearInterval(interval);
   }, []);
 
   // Categorize API products (same categories as POS)
@@ -109,7 +123,8 @@ export default function CustomerStore() {
       Accessories: [],
       Grooming: [],
       Toys: [],
-      Health: []
+      Health: [],
+      Services: []
     };
     
     products.forEach(product => {
@@ -134,6 +149,7 @@ export default function CustomerStore() {
       else if (cat.includes('groom') || cat.includes('shampoo') || cat.includes('brush')) categories.Grooming.push(item);
       else if (cat.includes('toy') || cat.includes('ball') || cat.includes('chew')) categories.Toys.push(item);
       else if (cat.includes('health') || cat.includes('vitamin') || cat.includes('medical')) categories.Health.push(item);
+      else if (cat.includes('service') || cat.includes('grooming service') || cat.includes('consultation') || cat.includes('boarding')) categories.Services.push(item);
       else categories.Food.push(item); // Default
     });
     

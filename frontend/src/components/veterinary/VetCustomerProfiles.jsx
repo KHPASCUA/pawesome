@@ -61,7 +61,9 @@ const VetCustomerProfiles = () => {
     return (
       <div className="vet-customer-profiles">
         <div className="loading-spinner">
-          <FontAwesomeIcon icon={faSpinner} spin />
+          <div className="spinner-icon">
+            <FontAwesomeIcon icon={faSpinner} className="spin-animation" />
+          </div>
           <span>Loading customers...</span>
         </div>
       </div>

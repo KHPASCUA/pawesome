@@ -29,7 +29,7 @@
 }
 
 .vaccination-modal label svg {
-  color: #2563eb;
+  color: #0d9488;
 }
 
 .vaccination-modal input,
@@ -47,8 +47,8 @@
 .vaccination-modal select:focus,
 .vaccination-modal textarea:focus {
   outline: none;
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  border-color: #0d9488;
+  box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.1);
 }
 
 .vaccination-modal textarea {
@@ -76,10 +76,10 @@
   display: flex;
   gap: 24px;
   padding: 12px 16px;
-  background: #eff6ff;
+  background: #f0fdfa;
   border-radius: 8px;
   font-size: 0.9rem;
-  color: #1e40af;
+  color: #0f766e;
   margin-bottom: 20px;
 }
 
@@ -95,11 +95,12 @@
   align-items: center;
   gap: 8px;
   padding: 12px 16px;
-  background: #fee2e2;
-  color: #dc2626;
+  background: rgba(254, 226, 226, 0.9);
+  color: #991b1b;
   border-radius: 8px;
   margin-bottom: 20px;
   font-size: 0.9rem;
+  border: 1px solid rgba(254, 202, 202, 0.5);
 }
 
 /* Datalist styling for vaccine suggestions */

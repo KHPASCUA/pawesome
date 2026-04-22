@@ -54,39 +54,46 @@ const AdvancedInventoryDashboard = () => {
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
 
-  // Demo data for fallback
+  // Demo data for fallback - Pet store items only (₱ Philippine Peso)
   const demoData = {
-    total_items: 156,
-    low_stock_items: 12,
-    out_of_stock_items: 3,
-    total_stock_value: 125840.50,
-    inventory_turnover: 4.2,
-    avg_days_in_stock: 18,
+    total_items: 48,
+    low_stock_items: 5,
+    out_of_stock_items: 2,
+    total_stock_value: 45280.50,
+    inventory_turnover: 3.8,
+    avg_days_in_stock: 12,
     top_moving_products: [
-      { name: "Classic Crispy Burger", sold: 245, revenue: 1715.50 },
-      { name: "Chocolate Milkshake", sold: 189, revenue: 1417.50 },
-      { name: "Spicy Chicken Sandwich", sold: 167, revenue: 1252.50 },
+      { name: "Premium Dog Food 5kg", sold: 45, revenue: 54000.00 },
+      { name: "Cat Kibble 2kg", sold: 38, revenue: 32300.00 },
+      { name: "Pet Grooming Service", sold: 52, revenue: 33800.00 },
     ],
     stock_trend: {
       labels: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
-      in_stock: [142, 138, 145, 140, 148, 152, 156],
-      low_stock: [8, 12, 10, 11, 9, 8, 12],
-      out_of_stock: [2, 3, 2, 3, 2, 2, 3],
+      in_stock: [42, 40, 45, 43, 46, 48, 48],
+      low_stock: [5, 8, 6, 7, 5, 5, 5],
+      out_of_stock: [2, 2, 1, 2, 1, 2, 2],
     },
     category_distribution: {
-      labels: ["Burgers", "Drinks", "Sides", "Desserts", "Chicken"],
-      values: [35, 42, 28, 18, 33],
+      labels: ["Food", "Accessories", "Grooming", "Toys", "Health", "Services"],
+      values: [18, 12, 8, 5, 3, 2],
     },
     recent_movements: [
-      { id: 1, type: "in", item: "Classic Crispy Burger", quantity: 50, date: "2024-04-21 09:30", user: "John Doe" },
-      { id: 2, type: "out", item: "Chocolate Milkshake", quantity: 12, date: "2024-04-21 10:15", user: "Sarah Smith" },
-      { id: 3, type: "adjust", item: "Spicy Chicken", quantity: -3, date: "2024-04-21 11:00", user: "Mike Johnson" },
-      { id: 4, type: "in", item: "Garden Salad", quantity: 25, date: "2024-04-21 14:20", user: "John Doe" },
+      { id: 1, type: "in", item: "Premium Dog Food 5kg", quantity: 24, date: "2024-04-21 09:30", user: "Admin" },
+      { id: 2, type: "out", item: "Cat Kibble 2kg", quantity: 5, date: "2024-04-21 10:15", user: "Cashier" },
+      { id: 3, type: "adjust", item: "Leather Dog Collar", quantity: -2, date: "2024-04-21 11:00", user: "Manager" },
+      { id: 4, type: "in", item: "Pet Shampoo 500ml", quantity: 30, date: "2024-04-21 14:20", user: "Admin" },
     ],
   };
 
+  // Auto-refresh every 30 seconds for live data
   useEffect(() => {
     fetchDashboardData();
+    
+    const interval = setInterval(() => {
+      fetchDashboardData();
+    }, 30000);
+    
+    return () => clearInterval(interval);
   }, [timeRange]);
 
   const fetchDashboardData = async () => {

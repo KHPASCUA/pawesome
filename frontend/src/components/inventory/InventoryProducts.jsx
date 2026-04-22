@@ -67,8 +67,15 @@ const InventoryProducts = () => {
     }
   };
 
+  // Fetch items on mount and auto-refresh every 30 seconds for live data
   useEffect(() => {
     fetchItems();
+    
+    const interval = setInterval(() => {
+      fetchItems(false); // Silent refresh without loading spinner
+    }, 30000);
+    
+    return () => clearInterval(interval);
   }, []);
 
   // Get unique values for filters
@@ -294,8 +301,8 @@ const InventoryProducts = () => {
       {/* Header */}
       <div className="products-header">
         <div className="header-title">
-          <h2>Products Management</h2>
-          <p>Advanced inventory control with bulk operations</p>
+          <h2>Inventory Details</h2>
+          <p>Manage your products, stock levels, and suppliers</p>
           {usingDemoData && <span className="demo-badge">Demo Mode</span>}
         </div>
         <div className="header-actions">
@@ -409,32 +416,44 @@ const InventoryProducts = () => {
           <thead>
             <tr>
               <th className="checkbox-col">
-                <input 
-                  type="checkbox" 
+                <input
+                  type="checkbox"
                   checked={selectedItems.length === paginatedItems.length && paginatedItems.length > 0}
                   onChange={handleSelectAll}
                 />
               </th>
-              <th onClick={() => handleSort("name")} className="sortable">
+              <th onClick={() => handleSort("id")} className="sortable id-col">
+                ID {renderSortIcon("id")}
+              </th>
+              <th onClick={() => handleSort("name")} className="sortable product-col">
                 Product {renderSortIcon("name")}
               </th>
-              <th onClick={() => handleSort("sku")} className="sortable">
+              <th onClick={() => handleSort("sku")} className="sortable sku-col">
                 SKU {renderSortIcon("sku")}
               </th>
-              <th onClick={() => handleSort("brand")} className="sortable">
-                Brand {renderSortIcon("brand")}
-              </th>
-              <th onClick={() => handleSort("category")} className="sortable">
+              <th onClick={() => handleSort("category")} className="sortable category-col">
                 Category {renderSortIcon("category")}
               </th>
-              <th onClick={() => handleSort("quantity")} className="sortable numeric">
-                Qty {renderSortIcon("quantity")}
+              <th onClick={() => handleSort("brand")} className="sortable brand-col">
+                Brand {renderSortIcon("brand")}
               </th>
-              <th onClick={() => handleSort("price")} className="sortable numeric">
+              <th onClick={() => handleSort("supplier")} className="sortable supplier-col">
+                Supplier {renderSortIcon("supplier")}
+              </th>
+              <th onClick={() => handleSort("quantity")} className="sortable numeric stock-col">
+                Stock {renderSortIcon("quantity")}
+              </th>
+              <th onClick={() => handleSort("price")} className="sortable numeric price-col">
                 Price {renderSortIcon("price")}
               </th>
-              <th onClick={() => handleSort("status")} className="sortable">
+              <th className="numeric value-col">
+                Value
+              </th>
+              <th onClick={() => handleSort("status")} className="sortable status-col">
                 Status {renderSortIcon("status")}
+              </th>
+              <th onClick={() => handleSort("expiration")} className="sortable expiration-col">
+                Expiration {renderSortIcon("expiration")}
               </th>
               <th className="actions-col">Actions</th>
             </tr>
@@ -443,36 +462,41 @@ const InventoryProducts = () => {
             {paginatedItems.map((item) => (
               <tr key={item.id} className={selectedItems.includes(item.id) ? "selected" : ""}>
                 <td className="checkbox-col">
-                  <input 
-                    type="checkbox" 
+                  <input
+                    type="checkbox"
                     checked={selectedItems.includes(item.id)}
                     onChange={() => handleSelectItem(item.id)}
                   />
                 </td>
+                <td className="id-col">
+                  <span className="id-code">{item.id}</span>
+                </td>
                 <td className="product-cell">
                   <div className="product-info">
                     <span className="product-name">{item.name}</span>
-                    {item.expiration && (
-                      <span className="product-meta">Exp: {item.expiration}</span>
-                    )}
                   </div>
                 </td>
-                <td><code className="sku-code">{item.sku}</code></td>
-                <td>{item.brand || "-"}</td>
-                <td>
+                <td className="sku-col"><code className="sku-code">{item.sku}</code></td>
+                <td className="category-col">
                   <span className="category-badge">{item.category || "Uncategorized"}</span>
                 </td>
-                <td className="numeric">
+                <td className="brand-col">{item.brand || "-"}</td>
+                <td className="supplier-col">{item.supplier || "-"}</td>
+                <td className="numeric stock-col">
                   <span className={`quantity ${item.quantity < 10 ? "low" : ""}`}>
                     {item.quantity}
                   </span>
                 </td>
-                <td className="numeric">{formatCurrency(item.price)}</td>
-                <td>
+                <td className="numeric price-col">{formatCurrency(item.price)}</td>
+                <td className="numeric value-col">
+                  {formatCurrency(item.quantity * item.price)}
+                </td>
+                <td className="status-col">
                   <span className={`status-badge ${(item.status || "").toLowerCase().replace(/\s/g, "-")}`}>
                     {item.status || "Unknown"}
                   </span>
                 </td>
+                <td className="expiration-col">{item.expiration || "-"}</td>
                 <td className="actions-col">
                   <button className="btn-icon" onClick={() => handleEdit(item)} title="Edit">
                     ✏️

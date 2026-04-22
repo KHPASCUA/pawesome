@@ -1,8 +1,11 @@
-/* Vet Appointments Page Styles */
+/* =============================================
+   Vet Appointments - PREMIUM EDITION
+   Glassmorphism • Gradients • Premium Interactions
+   ============================================= */
 
 .vet-appointments {
-  padding: 2rem;
-  background: #f8f9fa;
+  padding: 32px;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
   min-height: calc(100vh - 80px);
 }
 
@@ -10,46 +13,72 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 2rem;
-  padding-bottom: 1rem;
-  border-bottom: 2px solid #e9ecef;
+  margin-bottom: 32px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid #e2e8f0;
 }
 
 .header-content h2 {
-  margin: 0 0 0.5rem 0;
-  color: #333;
-  font-size: 1.8rem;
-  font-weight: 600;
+  margin: 0 0 8px 0;
+  color: #0f172a;
+  font-size: 1.75rem;
+  font-weight: 700;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 12px;
+  letter-spacing: -0.5px;
+}
+
+.header-content h2::before {
+  content: '';
+  width: 4px;
+  height: 28px;
+  background: linear-gradient(180deg, #0d9488 0%, #14b8a6 100%);
+  border-radius: 2px;
 }
 
 .header-content p {
   margin: 0;
-  color: #666;
-  font-size: 1rem;
+  color: #64748b;
+  font-size: 0.95rem;
 }
 
 .add-appointment-btn {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #0d9488 0%, #14b8a6 100%);
   color: white;
   border: none;
-  padding: 0.75rem 1.5rem;
-  border-radius: 8px;
-  font-size: 0.9rem;
+  padding: 12px 24px;
+  border-radius: 12px;
+  font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  box-shadow: 0 4px 12px rgba(118, 75, 162, 0.3);
+  gap: 8px;
+  box-shadow: 0 4px 12px rgba(13, 148, 136, 0.3);
+  position: relative;
+  overflow: hidden;
+}
+
+.add-appointment-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  transition: left 0.5s;
 }
 
 .add-appointment-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(118, 75, 162, 0.4);
+  box-shadow: 0 8px 20px rgba(13, 148, 136, 0.4);
+}
+
+.add-appointment-btn:hover::before {
+  left: 100%;
 }
 
 /* Controls Section */
@@ -73,26 +102,29 @@
 
 .search-box svg {
   position: absolute;
-  left: 1rem;
+  left: 16px;
   top: 50%;
   transform: translateY(-50%);
-  color: #666;
+  color: #94a3b8;
   font-size: 1rem;
 }
 
 .search-box input {
   width: 100%;
-  padding: 0.75rem 1rem 0.75rem 2.5rem;
-  border: 2px solid #e9ecef;
-  border-radius: 8px;
-  font-size: 0.9rem;
-  transition: border-color 0.3s ease;
+  padding: 14px 16px 14px 48px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  font-size: 0.95rem;
+  transition: all 0.3s ease;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
 }
 
 .search-box input:focus {
   outline: none;
-  border-color: #764ba2;
-  box-shadow: 0 0 0 3px rgba(118, 75, 162, 0.1);
+  border-color: #0d9488;
+  box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.1), 0 4px 12px rgba(13, 148, 136, 0.15);
 }
 
 .filter-buttons {
@@ -102,26 +134,30 @@
 }
 
 .filter-btn {
-  background: #fff;
-  border: 2px solid #e9ecef;
-  padding: 0.5rem 1rem;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid #e2e8f0;
+  padding: 10px 20px;
   border-radius: 25px;
   font-size: 0.85rem;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.3s ease;
-  color: #666;
+  color: #64748b;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 .filter-btn:hover {
-  border-color: #764ba2;
-  color: #764ba2;
+  border-color: #0d9488;
+  color: #0d9488;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(13, 148, 136, 0.15);
 }
 
 .filter-btn.active {
-  background: #764ba2;
-  border-color: #764ba2;
+  background: linear-gradient(135deg, #0d9488 0%, #14b8a6 100%);
+  border-color: transparent;
   color: white;
+  box-shadow: 0 4px 12px rgba(13, 148, 136, 0.3);
 }
 
 /* Appointments Grid */
@@ -133,17 +169,38 @@
 }
 
 .appointment-card {
-  background: white;
-  border-radius: 12px;
-  padding: 1.5rem;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  transition: all 0.3s ease;
-  border-left: 4px solid #764ba2;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(12px);
+  border-radius: 20px;
+  padding: 24px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 0 0 1px rgba(255, 255, 255, 0.5) inset;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.appointment-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  background: linear-gradient(180deg, #0d9488 0%, #14b8a6 100%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
 }
 
 .appointment-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+  transform: translateY(-4px);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(255, 255, 255, 0.5) inset;
+}
+
+.appointment-card:hover::before {
+  opacity: 1;
 }
 
 .appointment-header {
@@ -156,22 +213,22 @@
 }
 
 .appointment-info h3 {
-  margin: 0 0 0.5rem 0;
-  color: #333;
-  font-size: 1.2rem;
-  font-weight: 600;
+  margin: 0 0 8px 0;
+  color: #0f172a;
+  font-size: 1.1rem;
+  font-weight: 700;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 8px;
 }
 
 .appointment-info p {
   margin: 0;
-  color: #666;
+  color: #64748b;
   font-size: 0.9rem;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 8px;
 }
 
 .appointment-status {
@@ -199,7 +256,7 @@
 }
 
 .detail-item svg {
-  color: #764ba2;
+  color: #0d9488;
   font-size: 1.1rem;
   margin-top: 0.2rem;
   flex-shrink: 0;
@@ -244,49 +301,58 @@
 }
 
 .edit-btn {
-  background: #17a2b8;
+  background: linear-gradient(135deg, #0d9488 0%, #14b8a6 100%);
   color: white;
+  border-radius: 10px;
+  font-weight: 600;
 }
 
 .edit-btn:hover {
-  background: #138496;
-  transform: translateY(-1px);
+  background: linear-gradient(135deg, #0f766e 0%, #0d9488 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(13, 148, 136, 0.3);
 }
 
 .delete-btn {
-  background: #6c757d;
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
   color: white;
+  border-radius: 10px;
+  font-weight: 600;
 }
 
 .delete-btn:hover {
-  background: #5a6268;
-  transform: translateY(-1px);
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
 }
 
 /* No Appointments State */
 .no-appointments {
   text-align: center;
-  padding: 3rem;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  padding: 60px 24px;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(12px);
+  border-radius: 20px;
+  border: 2px dashed #e2e8f0;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
 }
 
 .no-appointments svg {
-  font-size: 3rem;
-  color: #ccc;
-  margin-bottom: 1rem;
+  font-size: 4rem;
+  color: #cbd5e1;
+  margin-bottom: 16px;
 }
 
 .no-appointments h3 {
-  margin: 0 0 0.5rem 0;
-  color: #666;
-  font-size: 1.3rem;
+  margin: 0 0 8px 0;
+  color: #475569;
+  font-size: 1.25rem;
+  font-weight: 600;
 }
 
 .no-appointments p {
   margin: 0;
-  color: #999;
+  color: #94a3b8;
   font-size: 1rem;
 }
 
@@ -299,23 +365,28 @@
 }
 
 .summary-card {
-  background: white;
-  padding: 1.5rem;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(12px);
+  padding: 24px;
+  border-radius: 20px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 0 0 1px rgba(255, 255, 255, 0.5) inset;
+  border: 1px solid rgba(255, 255, 255, 0.5);
   text-align: center;
-  transition: transform 0.3s ease;
+  transition: all 0.3s ease;
 }
 
 .summary-card:hover {
-  transform: translateY(-2px);
+  transform: translateY(-4px);
+  box-shadow: 0 12px 20px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(255, 255, 255, 0.5) inset;
 }
 
 .summary-card h3 {
-  margin: 0 0 1rem 0;
-  color: #666;
-  font-size: 1rem;
-  font-weight: 500;
+  margin: 0 0 16px 0;
+  color: #64748b;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .today-count,
@@ -323,8 +394,9 @@
 .completion-rate {
   font-size: 2rem;
   font-weight: 700;
-  color: #764ba2;
-  margin-bottom: 0.5rem;
+  color: #0d9488;
+  margin-bottom: 8px;
+  letter-spacing: -0.5px;
 }
 
 .completion-rate {
@@ -334,12 +406,12 @@
 .completion-rate::after {
   content: "";
   position: absolute;
-  bottom: -0.5rem;
+  bottom: -8px;
   left: 50%;
   transform: translateX(-50%);
   width: 40px;
   height: 4px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #0d9488 0%, #14b8a6 100%);
   border-radius: 2px;
 }
 

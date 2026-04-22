@@ -99,7 +99,9 @@ const VetAppointments = () => {
     return (
       <div className="vet-appointments">
         <div className="loading-spinner">
-          <FontAwesomeIcon icon={faSpinner} spin />
+          <div className="spinner-icon">
+            <FontAwesomeIcon icon={faSpinner} className="spin-animation" />
+          </div>
           <span>Loading appointments...</span>
         </div>
       </div>

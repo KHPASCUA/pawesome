@@ -59,17 +59,26 @@ Route::middleware(['auth.api', 'role:admin'])->prefix('admin')->group(function (
     Route::put('services/{id}', [ServiceController::class, 'update']);
     Route::delete('services/{id}', [ServiceController::class, 'destroy']);
 
-    // Inventory Management
+    // Inventory Management (Admin Routes)
     Route::get('inventory', [InventoryController::class, 'index']);
+    Route::get('inventory/items', [InventoryController::class, 'index']); // Frontend compatibility
     Route::post('inventory', [InventoryController::class, 'store']);
+    Route::post('inventory/items', [InventoryController::class, 'store']); // Frontend compatibility
     Route::get('inventory/{id}', [InventoryController::class, 'show']);
+    Route::get('inventory/items/{id}', [InventoryController::class, 'show']); // Frontend compatibility
     Route::put('inventory/{id}', [InventoryController::class, 'update']);
+    Route::put('inventory/items/{id}', [InventoryController::class, 'update']); // Frontend compatibility
     Route::delete('inventory/{id}', [InventoryController::class, 'destroy']);
+    Route::delete('inventory/items/{id}', [InventoryController::class, 'destroy']); // Frontend compatibility
     Route::post('inventory/{id}/adjust-stock', [InventoryController::class, 'adjustStock']);
+    Route::post('inventory/items/{id}/adjust', [InventoryController::class, 'adjustStock']); // Frontend compatibility
     Route::get('inventory/{id}/history', [InventoryController::class, 'stockHistory']);
+    Route::get('inventory/history', [InventoryController::class, 'getHistory']); // Frontend compatibility
     Route::get('inventory/low-stock', [InventoryController::class, 'lowStock']);
     Route::get('inventory/out-of-stock', [InventoryController::class, 'outOfStock']);
     Route::get('inventory/summary', [InventoryController::class, 'summary']);
+    Route::get('inventory/dashboard', [InventoryController::class, 'summary']); // Frontend compatibility
+    Route::get('inventory/reports', [InventoryController::class, 'index']); // Frontend compatibility
 
     Route::get('customers', [CustomersController::class, 'index']);
     Route::post('customers', [CustomersController::class, 'store']);

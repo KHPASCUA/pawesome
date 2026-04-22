@@ -38,7 +38,7 @@ const VetHistory = () => {
   const fetchHistory = async () => {
     try {
       setLoading(true);
-      const data = await apiRequest("/veterinary/appointments?status=completed,cancelled,no-show");
+      const data = await apiRequest("/veterinary/history?status=completed,cancelled,no-show");
       const appointments = Array.isArray(data) ? data : (data.appointments || []);
       const historyRecords = appointments.map(apt => ({
         id: apt.id,
@@ -169,7 +169,7 @@ const VetHistory = () => {
   return (
     <div className="vet-history">
       <div className="history-header">
-        <h2>Veterinary Transaction History</h2>
+        <h2>Medical History Records</h2>
         <div className="filter-controls">
           <div className="search-input">
             <FontAwesomeIcon icon={faSearch} />
