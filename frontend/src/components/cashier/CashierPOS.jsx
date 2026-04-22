@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { inventoryApi } from "../../api/inventory";
 import { posApi } from "../../api/pos";
+import { sharedProducts, sharedServices } from "../shared/inventorySync";
 import "./CashierPOS_Polished.css";
 
 const categories = [
@@ -63,23 +64,9 @@ const CashierPOS = ({ onCheckout }) => {
     } catch (err) {
       setError("Failed to load products and services");
       console.error("POS load error:", err);
-      // Fallback demo data - Pet store items only (₱ Philippine Peso)
-      setProducts([
-        { id: 1, name: "Premium Dog Food 5kg", price: 1200, category: "Food", inStock: true, stock: 50, sku: "PDF-5KG-001", description: "High-quality nutrition for adult dogs" },
-        { id: 2, name: "Cat Kibble 2kg", price: 850, category: "Food", inStock: true, stock: 30, sku: "CK-2KG-002", description: "Balanced diet for cats" },
-        { id: 3, name: "Leather Dog Collar", price: 450, category: "Accessories", inStock: true, stock: 25, sku: "LDC-003", description: "Durable leather collar with metal buckle" },
-        { id: 4, name: "Pet Shampoo 500ml", price: 280, category: "Grooming", inStock: true, stock: 40, sku: "PS-500-004", description: "Gentle cleansing formula for pets" },
-        { id: 5, name: "Squeaky Toy Set", price: 180, category: "Toys", inStock: true, stock: 60, sku: "STS-005", description: "3-piece fun toy set for dogs" },
-        { id: 6, name: "Pet Carrier Small", price: 950, category: "Accessories", inStock: false, stock: 0, sku: "PCS-006", description: "Comfortable travel carrier for small pets" },
-        { id: 7, name: "Flea Treatment", price: 380, category: "Health", inStock: true, stock: 35, sku: "FT-007", description: "Monthly flea and tick prevention" },
-        { id: 8, name: "Puppy Starter Kit", price: 750, category: "Food", inStock: true, stock: 20, sku: "PSK-008", description: "Complete nutrition kit for puppies" },
-      ]);
-      setServices([
-        { id: 101, name: "Full Grooming Service", price: 650, category: "Services", description: "Bath, haircut, nail trim, ear cleaning" },
-        { id: 102, name: "Vet Consultation", price: 500, category: "Services", description: "Basic health check and consultation" },
-        { id: 103, name: "Pet Boarding (Daily)", price: 450, category: "Services", description: "Day care and overnight boarding" },
-        { id: 104, name: "Vaccination", price: 350, category: "Services", description: "Core vaccines for dogs/cats" },
-      ]);
+      // Fallback demo data - synchronized with CustomerStore and Inventory
+      setProducts(sharedProducts);
+      setServices(sharedServices);
     } finally {
       setLoading(false);
     }

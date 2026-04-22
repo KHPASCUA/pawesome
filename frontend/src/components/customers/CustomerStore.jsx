@@ -1,62 +1,10 @@
 import React, { useState, useEffect } from "react";
 import "./CustomerStore_Polished.css";
 import { inventoryApi } from "../../api/inventory";
+import { sharedProducts, sharedServices, categorizeProducts } from "../shared/inventorySync";
 
-// Rich demo data for presentation - will be replaced with API data when available
-const storeData = {
-  Food: [
-    { id: 1, name: "Premium Dog Food 5kg", price: 1200, image: "🦴", rating: 4.5, reviews: 128, inStock: true, discount: 10 },
-    { id: 2, name: "Cat Kibble 2kg", price: 950, image: "🐟", rating: 4.2, reviews: 89, inStock: true, discount: 0 },
-    { id: 3, name: "Puppy Starter Kit", price: 850, image: "🍼", rating: 4.8, reviews: 203, inStock: true, discount: 15 },
-    { id: 4, name: "Senior Cat Food", price: 1100, image: "🐱", rating: 4.6, reviews: 156, inStock: false, discount: 0 },
-    { id: 5, name: "Organic Pet Food", price: 1500, image: "🌿", rating: 4.9, reviews: 67, inStock: true, discount: 20 },
-    { id: 26, name: "Grain-Free Dog Food", price: 1350, image: "🥩", rating: 4.7, reviews: 234, inStock: true, discount: 5 },
-    { id: 27, name: "Kitten Milk Formula", price: 450, image: "🥛", rating: 4.4, reviews: 112, inStock: true, discount: 0 }
-  ],
-  Accessories: [
-    { id: 6, name: "Leash & Collar Set", price: 450, image: "🦮", rating: 4.3, reviews: 234, inStock: true, discount: 5 },
-    { id: 7, name: "Pet Bed Large", price: 800, image: "🛏️", rating: 4.7, reviews: 189, inStock: true, discount: 10 },
-    { id: 8, name: "Water Fountain", price: 1200, image: "💧", rating: 4.4, reviews: 145, inStock: true, discount: 0 },
-    { id: 9, name: "Pet Carrier", price: 950, image: "🧳", rating: 4.6, reviews: 98, inStock: false, discount: 0 },
-    { id: 10, name: "GPS Tracker", price: 650, image: "📍", rating: 4.1, reviews: 76, inStock: true, discount: 15 },
-    { id: 28, name: "Automatic Feeder", price: 1800, image: "🥣", rating: 4.5, reviews: 267, inStock: true, discount: 8 },
-    { id: 29, name: "Pet Camera", price: 2200, image: "📹", rating: 4.3, reviews: 145, inStock: true, discount: 12 }
-  ],
-  Grooming: [
-    { id: 11, name: "Pet Shampoo 500ml", price: 300, image: "🧴", rating: 4.5, reviews: 312, inStock: true, discount: 0 },
-    { id: 12, name: "Slicker Brush", price: 200, image: "🪮", rating: 4.2, reviews: 267, inStock: true, discount: 10 },
-    { id: 13, name: "Nail Clippers", price: 150, image: "✂️", rating: 4.0, reviews: 198, inStock: true, discount: 0 },
-    { id: 14, name: "Complete Grooming Kit", price: 450, image: "🎁", rating: 4.8, reviews: 423, inStock: true, discount: 20 },
-    { id: 15, name: "Pet Wipes 100pc", price: 120, image: "🧻", rating: 4.3, reviews: 156, inStock: true, discount: 5 },
-    { id: 30, name: "Electric Trimmer", price: 850, image: "🔌", rating: 4.6, reviews: 189, inStock: true, discount: 10 },
-    { id: 31, name: "De-shedding Tool", price: 380, image: "🪒", rating: 4.4, reviews: 234, inStock: true, discount: 0 }
-  ],
-  Toys: [
-    { id: 16, name: "Interactive Ball", price: 250, image: "⚽", rating: 4.6, reviews: 289, inStock: true, discount: 10 },
-    { id: 17, name: "Chew Toy Set", price: 180, image: "🦴", rating: 4.4, reviews: 167, inStock: true, discount: 0 },
-    { id: 18, name: "Cat Tower Deluxe", price: 2500, image: "🏰", rating: 4.7, reviews: 345, inStock: false, discount: 0 },
-    { id: 19, name: "Puzzle Feeder", price: 350, image: "🧩", rating: 4.5, reviews: 234, inStock: true, discount: 15 },
-    { id: 20, name: "Squeaky Toys Set", price: 120, image: "🧸", rating: 4.1, reviews: 145, inStock: true, discount: 0 },
-    { id: 32, name: "Laser Pointer", price: 150, image: "🔦", rating: 4.8, reviews: 456, inStock: true, discount: 5 },
-    { id: 33, name: "Rope Tug Toy", price: 180, image: "🪢", rating: 4.3, reviews: 178, inStock: true, discount: 0 }
-  ],
-  Health: [
-    { id: 21, name: "Multivitamins 60ct", price: 450, image: "💊", rating: 4.6, reviews: 278, inStock: true, discount: 10 },
-    { id: 22, name: "Flea Treatment", price: 280, image: "🛡️", rating: 4.3, reviews: 412, inStock: true, discount: 0 },
-    { id: 23, name: "Dental Care Kit", price: 320, image: "🦷", rating: 4.4, reviews: 189, inStock: true, discount: 15 },
-    { id: 24, name: "Eye Drops", price: 180, image: "👁️", rating: 4.2, reviews: 98, inStock: true, discount: 0 },
-    { id: 25, name: "Joint Supplements", price: 520, image: "🦴", rating: 4.7, reviews: 234, inStock: true, discount: 20 },
-    { id: 34, name: "First Aid Kit", price: 650, image: "🏥", rating: 4.5, reviews: 156, inStock: true, discount: 8 },
-    { id: 35, name: "Probiotics", price: 380, image: "🧬", rating: 4.4, reviews: 289, inStock: true, discount: 0 }
-  ],
-  Services: [
-    { id: 101, name: "Full Grooming Service", price: 650, image: "✂️", rating: 4.8, reviews: 523, inStock: true, discount: 0 },
-    { id: 102, name: "Vet Consultation", price: 500, image: "🩺", rating: 4.7, reviews: 312, inStock: true, discount: 0 },
-    { id: 103, name: "Pet Boarding (Daily)", price: 450, image: "🏨", rating: 4.5, reviews: 245, inStock: true, discount: 10 },
-    { id: 104, name: "Vaccination", price: 350, image: "💉", rating: 4.6, reviews: 189, inStock: true, discount: 0 },
-    { id: 105, name: "Dog Training Session", price: 800, image: "🎓", rating: 4.9, reviews: 156, inStock: true, discount: 15 }
-  ]
-};
+// Synchronized demo data - same as CashierPOS and Inventory
+const storeData = categorizeProducts([...sharedProducts, ...sharedServices]);
 
 export default function CustomerStore() {
   const [category, setCategory] = useState("Food");
