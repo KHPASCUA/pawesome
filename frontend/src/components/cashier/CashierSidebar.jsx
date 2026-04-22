@@ -43,6 +43,7 @@ const CashierSidebar = ({ collapsed, onToggleCollapse }) => {
             <NavLink
               to="/cashier"
               className={({ isActive }) => (isActive ? "active" : "")}
+              end
               title="Dashboard"
             >
               <FontAwesomeIcon icon={faHome} />

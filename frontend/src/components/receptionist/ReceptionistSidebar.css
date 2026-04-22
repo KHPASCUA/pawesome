@@ -1,8 +1,8 @@
-/* Receptionist Sidebar Styles - Baby Blue & Pink Theme */
+/* Receptionist Sidebar Styles - #FFAFCC Theme */
 
 .receptionist-sidebar {
   width: 260px;
-  background: linear-gradient(135deg, #ADD8E6 0%, #FFC0CB 100%);
+  background: #FFAFCC;
   color: #000000 !important;
   padding: 0;
   position: fixed;
@@ -13,7 +13,7 @@
   transition: width 0.3s ease;
   display: flex;
   flex-direction: column;
-  box-shadow: 2px 0 10px rgba(173, 216, 230, 0.3);
+  box-shadow: 2px 0 10px rgba(255, 175, 204, 0.3);
 }
 
 /* Force all sidebar text to be black */
@@ -87,23 +87,25 @@
   align-items: center;
   gap: 1rem;
   padding: 0.875rem 1.25rem;
-  color: rgba(255,255,255,0.8);
+  color: #000000 !important;
   text-decoration: none;
   transition: all 0.3s ease;
   border-radius: 0;
   position: relative;
-  font-weight: 500;
+  font-weight: 600;
+  background: transparent;
 }
 
 .nav-item a:hover {
-  background: rgba(255,255,255,0.1);
-  color: white;
+  background: rgba(255, 175, 204, 0.2);
+  color: #000000 !important;
 }
 
 .nav-item a.active {
-  background: rgba(255,255,255,0.15);
-  color: white;
-  border-left: 4px solid #ffeaa7;
+  background: #ffffff;
+  color: #000000 !important;
+  border-left: 4px solid #FF99B8;
+  font-weight: 700;
 }
 
 .nav-item a svg {
@@ -232,9 +234,10 @@
 }
 
 .nav-subitem a.active {
-  background: rgba(255,255,255,0.1);
-  color: white;
-  border-left: 4px solid #ffd700;
+  background: #ffffff;
+  color: #000000 !important;
+  border-left: 4px solid #FF99B8;
+  font-weight: 600;
 }
 
 .nav-subitem a svg {
@@ -249,53 +252,6 @@
   text-overflow: ellipsis;
 }
 
-/* Special background for Vet Appointments */
-.nav-subitem:nth-child(2) a {
-  background: rgba(255, 255, 255, 0.12);
-  border-left: 3px solid #28a745;
-}
-
-.nav-subitem:nth-child(2) a:hover {
-  background: rgba(255, 255, 255, 0.18);
-  border-left: 3px solid #20c997;
-}
-
-.nav-subitem:nth-child(2) a.active {
-  background: rgba(40, 167, 69, 0.15);
-  border-left: 3px solid #28a745;
-}
-
-/* Special background for Hotel Bookings */
-.nav-subitem:nth-child(1) a {
-  background: rgba(255, 255, 255, 0.12);
-  border-left: 3px solid #007bff;
-}
-
-.nav-subitem:nth-child(1) a:hover {
-  background: rgba(255, 255, 255, 0.18);
-  border-left: 3px solid #0056b3;
-}
-
-.nav-subitem:nth-child(1) a.active {
-  background: rgba(0, 123, 255, 0.15);
-  border-left: 3px solid #007bff;
-}
-
-/* Special background for Grooming */
-.nav-subitem:nth-child(3) a {
-  background: rgba(255, 255, 255, 0.12);
-  border-left: 3px solid #6f42c1;
-}
-
-.nav-subitem:nth-child(3) a:hover {
-  background: rgba(255, 255, 255, 0.18);
-  border-left: 3px solid #5a32a3;
-}
-
-.nav-subitem:nth-child(3) a.active {
-  background: rgba(111, 66, 193, 0.15);
-  border-left: 3px solid #6f42c1;
-}
 
 /* Sidebar Footer */
 .sidebar-footer {

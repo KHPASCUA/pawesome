@@ -51,6 +51,7 @@ const ReceptionistSidebar = ({ collapsed, onToggleCollapse }) => {
             <NavLink
               to="/receptionist"
               className={({ isActive }) => (isActive ? "active" : "")}
+              end
               title="Dashboard"
             >
               <FontAwesomeIcon icon={faHome} />
@@ -62,6 +63,7 @@ const ReceptionistSidebar = ({ collapsed, onToggleCollapse }) => {
             <NavLink
               to="/receptionist/bookings"
               className={({ isActive }) => (isActive ? "active" : "")}
+              end
               title="Bookings"
             >
               <FontAwesomeIcon icon={faCalendarAlt} />
