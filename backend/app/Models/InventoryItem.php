@@ -31,6 +31,57 @@ class InventoryItem extends Model
     ];
 
     /**
+     * Valid category values
+     */
+    public const VALID_CATEGORIES = ['Food', 'Accessories', 'Grooming', 'Toys', 'Health', 'Services'];
+
+    /**
+     * Valid status values
+     */
+    public const VALID_STATUSES = ['active', 'inactive', 'discontinued'];
+
+    /**
+     * Boot method for model-level validation
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::saving(function ($item) {
+            // Validate category
+            if (!in_array($item->category, self::VALID_CATEGORIES)) {
+                $item->category = 'Accessories'; // Default fallback
+            }
+
+            // Validate status
+            if (!in_array($item->status, self::VALID_STATUSES)) {
+                $item->status = 'active';
+            }
+
+            // Ensure non-negative values
+            $item->stock = max(0, (int) $item->stock);
+            $item->reorder_level = max(0, (int) $item->reorder_level);
+            $item->price = max(0, (float) $item->price);
+
+            // Auto-generate SKU if empty
+            if (empty($item->sku)) {
+                $item->sku = self::generateSKU($item->category);
+            }
+        });
+    }
+
+    /**
+     * Generate unique SKU
+     */
+    private static function generateSKU(string $category): string
+    {
+        $prefix = strtoupper(substr($category, 0, 3));
+        $random = strtoupper(substr(md5(uniqid()), 0, 4));
+        $timestamp = date('ym');
+        return "{$prefix}-{$random}{$timestamp}";
+    }
+
+    /**
      * Get stock movement logs
      */
     public function logs(): HasMany
@@ -62,7 +113,8 @@ class InventoryItem extends Model
         if (!$this->expiry_date) {
             return false;
         }
-        return $this->expiry_date->diffInDays(now()) <= 30 && $this->expiry_date >= now();
+        $expiry = $this->expiry_date instanceof \Carbon\Carbon ? $this->expiry_date : \Carbon\Carbon::parse($this->expiry_date);
+        return $expiry->diffInDays(now()) <= 30 && $expiry >= now();
     }
 
     /**

@@ -7,7 +7,6 @@ import {
   faHistory,
   faChartBar,
   faSignOutAlt,
-  faUserCircle,
   faBars,
   faUser,
   faBuilding,
@@ -16,11 +15,18 @@ import {
   faFileInvoiceDollar,
   faRobot,
   faCog,
+  faCashRegister,
+  faBox,
+  faUserTie,
+  faStethoscope,
+  faUserFriends,
+  faCalendarCheck,
 } from "@fortawesome/free-solid-svg-icons";
 import "./AdminSidebar.css";
 
 const AdminSidebar = ({ collapsed, onToggleCollapse }) => {
   const [payrollExpanded, setPayrollExpanded] = React.useState(false);
+  const [reportsExpanded, setReportsExpanded] = React.useState(false);
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -151,14 +157,88 @@ const AdminSidebar = ({ collapsed, onToggleCollapse }) => {
           </li>
 
           <li className="nav-item">
-            <NavLink
-              to="/admin/reports"
-              className="nav-link"
+            <div
+              className="nav-dropdown-header"
+              onClick={() => !collapsed && setReportsExpanded(!reportsExpanded)}
               title="Reports"
             >
               <FontAwesomeIcon icon={faChartBar} />
               {!collapsed && <span>Reports</span>}
-            </NavLink>
+            </div>
+            {!collapsed && (
+              <ul className={`nav-sublist ${reportsExpanded ? 'expanded' : ''}`}>
+                <li className="nav-subitem">
+                  <NavLink
+                    to="/admin/reports"
+                    className="nav-link"
+                    title="All Reports Overview"
+                  >
+                    <FontAwesomeIcon icon={faChartBar} />
+                    <span>Overview</span>
+                  </NavLink>
+                </li>
+                <li className="nav-subitem">
+                  <NavLink
+                    to="/admin/reports/cashier"
+                    className="nav-link"
+                    title="Cashier Reports"
+                  >
+                    <FontAwesomeIcon icon={faCashRegister} />
+                    <span>Cashier</span>
+                  </NavLink>
+                </li>
+                <li className="nav-subitem">
+                  <NavLink
+                    to="/admin/reports/inventory"
+                    className="nav-link"
+                    title="Inventory Reports"
+                  >
+                    <FontAwesomeIcon icon={faBox} />
+                    <span>Inventory</span>
+                  </NavLink>
+                </li>
+                <li className="nav-subitem">
+                  <NavLink
+                    to="/admin/reports/manager"
+                    className="nav-link"
+                    title="Manager Reports"
+                  >
+                    <FontAwesomeIcon icon={faUserTie} />
+                    <span>Manager</span>
+                  </NavLink>
+                </li>
+                <li className="nav-subitem">
+                  <NavLink
+                    to="/admin/reports/veterinary"
+                    className="nav-link"
+                    title="Veterinary Reports"
+                  >
+                    <FontAwesomeIcon icon={faStethoscope} />
+                    <span>Veterinary</span>
+                  </NavLink>
+                </li>
+                <li className="nav-subitem">
+                  <NavLink
+                    to="/admin/reports/customers"
+                    className="nav-link"
+                    title="Customer Reports"
+                  >
+                    <FontAwesomeIcon icon={faUserFriends} />
+                    <span>Customers</span>
+                  </NavLink>
+                </li>
+                <li className="nav-subitem">
+                  <NavLink
+                    to="/admin/reports/reception"
+                    className="nav-link"
+                    title="Reception Reports"
+                  >
+                    <FontAwesomeIcon icon={faCalendarCheck} />
+                    <span>Reception</span>
+                  </NavLink>
+                </li>
+              </ul>
+            )}
           </li>
 
           </ul>

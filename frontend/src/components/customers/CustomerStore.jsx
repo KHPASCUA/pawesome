@@ -1,7 +1,62 @@
 import React, { useState, useEffect } from "react";
 import "./CustomerStore_Polished.css";
 import { inventoryApi } from "../../api/inventory";
-import { sharedProducts, sharedServices, categorizeProducts } from "../shared/inventorySync";
+import { sharedProducts, sharedServices } from "../shared/inventorySync";
+
+// Get emoji based on product name/category
+const getProductEmoji = (name, category) => {
+  const nameLower = name.toLowerCase();
+
+  if (nameLower.includes('dog') || nameLower.includes('puppy')) return '🦴';
+  if (nameLower.includes('cat') || nameLower.includes('kitten')) return '🐟';
+  if (nameLower.includes('food')) return '🍖';
+  if (nameLower.includes('shampoo') || nameLower.includes('groom')) return '🧴';
+  if (nameLower.includes('toy') || nameLower.includes('ball')) return '🎾';
+  if (nameLower.includes('bed')) return '🛏️';
+  if (nameLower.includes('collar') || nameLower.includes('leash')) return '🦮';
+  if (nameLower.includes('vitamin') || nameLower.includes('health')) return '💊';
+  if (nameLower.includes('service') || nameLower.includes('boarding')) return '🏨';
+  return '📦';
+};
+
+// Categorize products
+const categorizeProducts = (products) => {
+  const categories = {
+    Food: [],
+    Accessories: [],
+    Grooming: [],
+    Toys: [],
+    Health: [],
+    Services: []
+  };
+
+  products.forEach(product => {
+    const item = {
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      image: getProductEmoji(product.name, product.category),
+      rating: 4.5,
+      reviews: Math.floor(Math.random() * 200) + 50,
+      inStock: product.inStock || product.stock > 0,
+      stock: product.stock || 0,
+      discount: 0,
+      sku: product.sku,
+      description: product.description
+    };
+
+    const cat = product.category?.toLowerCase() || '';
+    if (cat.includes('food') || cat.includes('treat')) categories.Food.push(item);
+    else if (cat.includes('accessory') || cat.includes('collar') || cat.includes('bed')) categories.Accessories.push(item);
+    else if (cat.includes('groom') || cat.includes('shampoo') || cat.includes('brush')) categories.Grooming.push(item);
+    else if (cat.includes('toy') || cat.includes('ball') || cat.includes('chew')) categories.Toys.push(item);
+    else if (cat.includes('health') || cat.includes('vitamin') || cat.includes('medical')) categories.Health.push(item);
+    else if (cat.includes('service') || cat.includes('boarding')) categories.Services.push(item);
+    else categories.Food.push(item);
+  });
+
+  return categories;
+};
 
 // Synchronized demo data - same as CashierPOS and Inventory
 const storeData = categorizeProducts([...sharedProducts, ...sharedServices]);
@@ -21,36 +76,28 @@ export default function CustomerStore() {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [showQuickView, setShowQuickView] = useState(false);
   const [orderHistory, setOrderHistory] = useState([]);
-  
+
   // API-connected products state
   const [apiProducts, setApiProducts] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [usingDemoData, setUsingDemoData] = useState(false);
 
-  // Fetch products from Inventory API (same source as Inventory Dashboard)
+  // Fetch products from PUBLIC Inventory API (shared with Cashier POS)
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        setLoading(true);
-        const response = await inventoryApi.getItems();
+        const response = await inventoryApi.getPublicItems();
         const products = response.items || response.data || [];
         
         if (products.length > 0) {
           // Transform API products to store format with categories
           const categorized = categorizeProducts(products);
           setApiProducts(categorized);
-          setUsingDemoData(false);
         } else {
           // Fall back to demo data
           setApiProducts(storeData);
-          setUsingDemoData(true);
         }
       } catch (err) {
         console.error("Failed to fetch products from API:", err);
         setApiProducts(storeData);
-        setUsingDemoData(true);
-      } finally {
-        setLoading(false);
       }
     };
     
@@ -62,6 +109,7 @@ export default function CustomerStore() {
     }, 30000);
     
     return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Categorize API products (same categories as POS)
@@ -578,6 +626,48 @@ export default function CustomerStore() {
           )}
 
         </aside>
+
+        {/* Quick View Modal */}
+        {showQuickView && selectedProduct && (
+          <div className="quick-view-modal-overlay" onClick={() => setShowQuickView(false)}>
+            <div className="quick-view-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="quick-view-header">
+                <h2>{selectedProduct.name}</h2>
+                <button className="close-btn" onClick={() => setShowQuickView(false)}>×</button>
+              </div>
+              <div className="quick-view-content">
+                <div className="quick-view-image">{selectedProduct.image}</div>
+                <div className="quick-view-details">
+                  <p className="quick-view-price">₱{selectedProduct.price}</p>
+                  <div className="quick-view-rating">{renderStars(selectedProduct.rating)} ({selectedProduct.reviews} reviews)</div>
+                  <p className="quick-view-sku">SKU: {selectedProduct.sku}</p>
+                  <p className={`quick-view-stock ${selectedProduct.inStock ? 'in-stock' : 'out-of-stock'}`}>
+                    {selectedProduct.inStock ? `In Stock (${selectedProduct.stock} available)` : 'Out of Stock'}
+                  </p>
+                  <p className="quick-view-description">{selectedProduct.description || 'No description available.'}</p>
+                  <div className="quick-view-actions">
+                    <button
+                      className="add-to-cart-btn"
+                      onClick={() => {
+                        addToCart(selectedProduct);
+                        setShowQuickView(false);
+                      }}
+                      disabled={!selectedProduct.inStock}
+                    >
+                      {selectedProduct.inStock ? 'Add to Cart' : 'Out of Stock'}
+                    </button>
+                    <button
+                      className="wishlist-btn"
+                      onClick={() => toggleWishlist(selectedProduct)}
+                    >
+                      {wishlist.find(w => w.id === selectedProduct.id) ? '❤️ In Wishlist' : '🤍 Add to Wishlist'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
     </div>
   </div>
   );

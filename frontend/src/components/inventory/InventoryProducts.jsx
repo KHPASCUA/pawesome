@@ -8,7 +8,6 @@ const InventoryProducts = () => {
   const [search, setSearch] = useState("");
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
   const [usingDemoData, setUsingDemoData] = useState(false);
   
   // Advanced features states
@@ -23,13 +22,10 @@ const InventoryProducts = () => {
   const [itemsPerPage] = useState(10);
   const [selectedItems, setSelectedItems] = useState([]);
   const [showFilters, setShowFilters] = useState(false);
-  const [viewMode, setViewMode] = useState("table"); // table | grid
-  
+
   // Modal states
   const [showModal, setShowModal] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
-  const [showBulkModal, setShowBulkModal] = useState(false);
-  const [bulkAction, setBulkAction] = useState("");
   const [formData, setFormData] = useState({
     name: "",
     sku: "",
@@ -53,14 +49,12 @@ const InventoryProducts = () => {
       // Use API data even if empty (that's real data state)
       setItems(apiItems);
       setUsingDemoData(false);
-      setError("");
       return true; // Success
     } catch (err) {
       console.error("API fetch failed, using demo fallback:", err);
       // Only use demo data on API failure
       setItems(demoInventoryItems);
       setUsingDemoData(true);
-      setError("");
       return false; // Failed
     } finally {
       if (showLoading) setLoading(false);
@@ -246,8 +240,12 @@ const InventoryProducts = () => {
       await inventoryApi.deleteItem(id);
       await fetchItems(false); // Refresh without full loading
     } catch (err) {
-      console.error("Failed to delete:", err);
-      alert("Failed to delete item. Please check your connection and try again.");
+      console.error("API delete failed, falling back to demo mode:", err);
+      
+      // Fallback to demo mode - delete locally
+      setUsingDemoData(true);
+      setItems(prev => prev.filter(item => item.id !== id));
+      alert("Item deleted in DEMO mode (API unavailable). Changes are local only.");
     }
   };
 
@@ -282,8 +280,20 @@ const InventoryProducts = () => {
       setShowModal(false);
       await fetchItems(false); // Refresh without full loading
     } catch (err) {
-      console.error("Failed to save:", err);
-      alert("Failed to save item. Please check your connection and try again.");
+      console.error("API save failed, falling back to demo mode:", err);
+      
+      // Fallback to demo mode - save locally
+      setUsingDemoData(true);
+      
+      if (editingItem) {
+        setItems(prev => prev.map(item => item.id === editingItem.id ? { ...data, id: item.id } : item));
+      } else {
+        const newId = Math.max(...items.map(i => parseInt(i.id) || 0), 0) + 1;
+        setItems(prev => [...prev, { ...data, id: String(newId) }]);
+      }
+      
+      setShowModal(false);
+      alert(`Item ${editingItem ? 'updated' : 'created'} in DEMO mode (API unavailable). Changes are local only.`);
     }
   };
 
@@ -611,13 +621,12 @@ const InventoryProducts = () => {
                       <label>Category</label>
                       <select name="category" value={formData.category} onChange={handleChange}>
                         <option value="">Select category</option>
-                        <option value="Food">Food</option>
-                        <option value="Beverages">Beverages</option>
-                        <option value="Pet Supplies">Pet Supplies</option>
-                        <option value="Grooming">Grooming</option>
-                        <option value="Toys">Toys</option>
-                        <option value="Health">Health</option>
-                        <option value="Accessories">Accessories</option>
+                        <option value="Food">🍖 Food</option>
+                        <option value="Accessories">🦴 Accessories</option>
+                        <option value="Grooming">✂️ Grooming</option>
+                        <option value="Toys">🎾 Toys</option>
+                        <option value="Health">💊 Health</option>
+                        <option value="Services">🩺 Services</option>
                       </select>
                     </div>
                     <div className="form-group">

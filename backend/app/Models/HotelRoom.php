@@ -28,6 +28,55 @@ class HotelRoom extends Model
         'daily_rate' => 'decimal:2',
     ];
 
+    /**
+     * Valid room statuses
+     */
+    public const VALID_STATUSES = ['available', 'occupied', 'maintenance', 'cleaning', 'reserved'];
+
+    /**
+     * Valid room sizes
+     */
+    public const VALID_SIZES = ['small', 'medium', 'large', 'suite'];
+
+    /**
+     * Valid room types
+     */
+    public const VALID_TYPES = ['standard', 'deluxe', 'suite', 'kennel', 'cattery'];
+
+    /**
+     * Boot method for model-level validation
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::saving(function ($room) {
+            // Validate status
+            if (!in_array($room->status, self::VALID_STATUSES)) {
+                $room->status = 'available';
+            }
+
+            // Validate size
+            if (!in_array($room->size, self::VALID_SIZES)) {
+                $room->size = 'medium';
+            }
+
+            // Validate type
+            if (!in_array($room->type, self::VALID_TYPES)) {
+                $room->type = 'standard';
+            }
+
+            // Ensure non-negative daily rate
+            $room->daily_rate = max(0, (float) $room->daily_rate);
+
+            // Ensure positive capacity
+            $room->capacity = max(1, (int) $room->capacity);
+
+            // Trim room_number
+            $room->room_number = trim($room->room_number);
+        });
+    }
+
     public function boardings(): HasMany
     {
         return $this->hasMany(Boarding::class);

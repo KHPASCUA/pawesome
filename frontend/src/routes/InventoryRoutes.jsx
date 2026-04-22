@@ -7,6 +7,7 @@ import InventoryStock from "../components/inventory/InventoryStock_Polished";
 import InventoryReports from "../components/inventory/InventoryReports";
 import InventoryHistory from "../components/inventory/InventoryHistory_Polished";
 import InventoryProfile from "../components/inventory/InventoryProfile";
+import InventoryManagement from "../components/inventory/InventoryManagement";
 
 const InventoryRoutes = () => (
   <Routes>
@@ -21,6 +22,7 @@ const InventoryRoutes = () => (
       <Route index element={<InventoryProducts />} />
       <Route path="products" element={<InventoryProducts />} />
       <Route path="stock" element={<InventoryStock />} />
+      <Route path="management" element={<InventoryManagement />} />
       <Route path="history" element={<InventoryHistory />} />
       <Route path="analytics" element={<InventoryReports />} />
       <Route path="reports" element={<InventoryReports />} />

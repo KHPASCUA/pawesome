@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Models\Pet;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class ReportsController extends Controller
 {
@@ -20,11 +21,21 @@ class ReportsController extends Controller
         $today = Carbon::today();
         $year = Carbon::now()->year;
 
-        $monthlyRevenue = Sale::selectRaw('MONTH(created_at) as month, SUM(amount) as total')
-            ->whereYear('created_at', $year)
-            ->groupBy('month')
-            ->orderByRaw('month')
-            ->get();
+        // Database-agnostic monthly revenue query
+        $dbDriver = DB::getDriverName();
+        if ($dbDriver === 'sqlite') {
+            $monthlyRevenue = Sale::selectRaw('CAST(strftime("%m", created_at) AS INTEGER) as month, SUM(amount) as total')
+                ->whereRaw('strftime("%Y", created_at) = ?', [$year])
+                ->groupBy('month')
+                ->orderBy('month')
+                ->get();
+        } else {
+            $monthlyRevenue = Sale::selectRaw('MONTH(created_at) as month, SUM(amount) as total')
+                ->whereYear('created_at', $year)
+                ->groupBy('month')
+                ->orderByRaw('month')
+                ->get();
+        }
 
         $topServices = Appointment::selectRaw('service_id, COUNT(*) as count')
             ->with('service')
@@ -53,22 +64,26 @@ class ReportsController extends Controller
             });
 
         return response()->json([
-            'total_revenue' => Sale::sum('amount'),
-            'today_revenue' => Sale::whereDate('created_at', $today)->sum('amount'),
-            'total_transactions' => Sale::count(),
-            'today_transactions' => Sale::whereDate('created_at', $today)->count(),
-            'total_customers' => Customer::count(),
-            'new_customers' => Customer::where('created_at', '>=', Carbon::now()->subMonth())->count(),
-            'total_users' => User::count(),
-            'total_appointments' => Appointment::count(),
-            'completed_appointments' => Appointment::where('status', 'completed')->count(),
-            'total_pets' => Pet::count(),
-            'total_inventory_items' => InventoryItem::count(),
-            'low_stock_items' => InventoryItem::whereColumn('stock', '<=', 'reorder_level')->count(),
-            'out_of_stock_items' => InventoryItem::where('stock', 0)->count(),
-            'monthly_revenue' => $monthlyRevenue,
-            'top_services' => $topServices,
-            'top_customers' => $topCustomers,
+            'status' => 'success',
+            'timestamp' => now()->toIso8601String(),
+            'data' => [
+                'total_revenue' => Sale::sum('amount'),
+                'today_revenue' => Sale::whereDate('created_at', $today)->sum('amount'),
+                'total_transactions' => Sale::count(),
+                'today_transactions' => Sale::whereDate('created_at', $today)->count(),
+                'total_customers' => Customer::count(),
+                'new_customers' => Customer::where('created_at', '>=', Carbon::now()->subMonth())->count(),
+                'total_users' => User::count(),
+                'total_appointments' => Appointment::count(),
+                'completed_appointments' => Appointment::where('status', 'completed')->count(),
+                'total_pets' => Pet::count(),
+                'total_inventory_items' => InventoryItem::count(),
+                'low_stock_items' => InventoryItem::whereColumn('stock', '<=', 'reorder_level')->count(),
+                'out_of_stock_items' => InventoryItem::where('stock', 0)->count(),
+                'monthly_revenue' => $monthlyRevenue,
+                'top_services' => $topServices,
+                'top_customers' => $topCustomers,
+            ]
         ]);
     }
 }

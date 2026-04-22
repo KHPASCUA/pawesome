@@ -60,6 +60,9 @@ class InventoryController extends Controller
 
     /**
      * Store a newly created inventory item
+     * 
+     * Supports add_stock parameter for API consistency with update method.
+     * For new items, add_stock=true acts same as setting initial stock.
      */
     public function store(Request $request)
     {
@@ -69,7 +72,9 @@ class InventoryController extends Controller
             'category' => 'required|string|max:50',
             'description' => 'nullable|string',
             'price' => 'required|numeric|min:0',
-            'stock' => 'required|integer|min:0',
+            'stock' => 'nullable|integer|min:0',
+            'quantity' => 'nullable|integer|min:0', // Alternative field name for frontend compatibility
+            'add_stock' => 'nullable|boolean', // For API consistency with update method
             'reorder_level' => 'required|integer|min:0',
             'expiry_date' => 'nullable|date',
             'status' => 'nullable|in:active,inactive,discontinued',
@@ -85,23 +90,26 @@ class InventoryController extends Controller
             $sku = $this->generateSKU($request->category);
         }
 
+        // Use quantity if stock is not provided (frontend compatibility)
+        $stock = $request->has('stock') ? $request->stock : ($request->quantity ?? 0);
+
         $item = InventoryItem::create([
             'name' => $request->name,
             'sku' => $sku,
             'category' => $request->category,
             'description' => $request->description,
             'price' => $request->price,
-            'stock' => $request->stock,
+            'stock' => $stock,
             'reorder_level' => $request->reorder_level,
             'expiry_date' => $request->expiry_date,
             'status' => $request->status ?? 'active',
         ]);
 
         // Log initial stock
-        if ($request->stock > 0) {
+        if ($stock > 0) {
             InventoryLog::create([
                 'inventory_item_id' => $item->id,
-                'delta' => $request->stock,
+                'delta' => $stock,
                 'reason' => 'Initial stock',
                 'reference_type' => 'initial',
             ]);
@@ -110,6 +118,8 @@ class InventoryController extends Controller
         return response()->json([
             'message' => 'Item created successfully',
             'item' => $item,
+            'stock_action' => 'initial', // For consistency with update method
+            'new_stock' => $stock,
         ], 201);
     }
 
@@ -127,6 +137,12 @@ class InventoryController extends Controller
 
     /**
      * Update the specified inventory item
+     * 
+     * STOCK UPDATE BEHAVIOR:
+     * - If item HAS expiry date AND is expired: Replace stock (clear expired inventory)
+     * - If item has NO expiry date: Always add stock (50 + 25 = 75) when add_stock=true
+     * - If item NOT expired: Add stock (50 + 25 = 75) when add_stock=true
+     * - If add_stock=false or not set: Replace stock to specified value
      */
     public function update(Request $request, $id)
     {
@@ -138,7 +154,9 @@ class InventoryController extends Controller
             'category' => 'sometimes|string|max:50',
             'description' => 'nullable|string',
             'price' => 'sometimes|numeric|min:0',
-            'stock' => 'sometimes|integer|min:0',
+            'stock' => 'nullable|integer|min:0',
+            'quantity' => 'nullable|integer|min:0', // Alternative field name for frontend compatibility
+            'add_stock' => 'nullable|boolean', // If true, adds to existing stock (unless expired)
             'reorder_level' => 'sometimes|integer|min:0',
             'expiry_date' => 'nullable|date',
             'status' => 'sometimes|in:active,inactive,discontinued',
@@ -150,27 +168,63 @@ class InventoryController extends Controller
 
         // Track stock change for logging
         $oldStock = $item->stock;
-        $newStock = $request->has('stock') ? $request->stock : $oldStock;
+        $inputStock = $request->has('stock') ? $request->stock : ($request->has('quantity') ? $request->quantity : null);
+        $addStock = $request->boolean('add_stock', false);
 
-        $item->update($request->only([
+        // Check if item has expiry date and is expired
+        $hasExpiry = $item->expiry_date !== null;
+        $isExpired = $hasExpiry && $item->expiry_date < now();
+
+        // Determine new stock value
+        if ($inputStock !== null) {
+            if ($hasExpiry && $isExpired) {
+                // Item HAS expiry AND IS expired: Replace stock (discard old expired stock)
+                $newStock = $inputStock;
+                $adjustmentReason = 'Stock replacement (expired inventory cleared)';
+            } elseif ($addStock) {
+                // Item has NO expiry (or not expired) + add_stock=true: Add to existing stock (e.g., 50 + 25 = 75)
+                $newStock = $oldStock + $inputStock;
+                $adjustmentReason = "Stock addition (+{$inputStock})";
+            } else {
+                // No add_stock flag: Replace stock
+                $newStock = $inputStock;
+                $adjustmentReason = 'Manual stock adjustment';
+            }
+        } else {
+            $newStock = $oldStock;
+            $adjustmentReason = null;
+        }
+
+        $updateData = $request->only([
             'name', 'sku', 'category', 'description', 'price',
-            'stock', 'reorder_level', 'expiry_date', 'status'
-        ]));
+            'reorder_level', 'expiry_date', 'status'
+        ]);
+        $updateData['stock'] = $newStock;
+
+        // If we replaced expired stock, also update expiry date if new one provided
+        if ($isExpired && !$request->has('expiry_date')) {
+            // Keep the item expired unless new expiry is provided
+        }
+
+        $item->update($updateData);
 
         // Log stock adjustment if changed
-        if ($oldStock !== $newStock) {
+        if ($oldStock !== $newStock && $adjustmentReason) {
             $delta = $newStock - $oldStock;
             InventoryLog::create([
                 'inventory_item_id' => $item->id,
                 'delta' => $delta,
-                'reason' => 'Manual stock adjustment',
-                'reference_type' => 'adjustment',
+                'reason' => $adjustmentReason,
+                'reference_type' => $isExpired ? 'expired_replacement' : ($addStock ? 'addition' : 'adjustment'),
             ]);
         }
 
         return response()->json([
-            'message' => 'Item updated successfully',
+            'message' => $isExpired ? 'Item updated (expired stock replaced)' : 'Item updated successfully',
             'item' => $item->fresh(),
+            'stock_action' => $isExpired ? 'replaced_expired' : ($addStock ? 'added' : 'replaced'),
+            'previous_stock' => $oldStock,
+            'new_stock' => $newStock,
         ]);
     }
 

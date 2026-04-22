@@ -25,6 +25,32 @@ class Service extends Model
         'duration' => 'integer',
     ];
 
+    /**
+     * Valid service categories
+     */
+    public const VALID_CATEGORIES = ['Grooming', 'Consultation', 'Vaccination', 'Surgery', 'Dental', 'Boarding', 'Other'];
+
+    /**
+     * Boot method for model-level validation
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::saving(function ($service) {
+            // Validate category
+            if (!in_array($service->category, self::VALID_CATEGORIES)) {
+                $service->category = 'Other';
+            }
+
+            // Ensure non-negative price
+            $service->price = max(0, (float) $service->price);
+
+            // Ensure non-negative duration
+            $service->duration = max(0, (int) $service->duration);
+        });
+    }
+
     public function appointments(): HasMany
     {
         return $this->hasMany(Appointment::class);
@@ -67,7 +93,7 @@ class Service extends Model
      */
     public function getFormattedPrice(): string
     {
-        return '₱' . number_format($this->price, 2);
+        return '₱' . number_format((float) $this->price, 2);
     }
 
     /**

@@ -35,6 +35,19 @@ class Sale extends Model
         'amount' => 'decimal:2',
     ];
 
+    /**
+     * Valid sale statuses
+     */
+    public const VALID_STATUSES = ['pending', 'completed', 'cancelled', 'refunded'];
+
+    /**
+     * Valid sale types
+     */
+    public const VALID_TYPES = ['product', 'service', 'mixed'];
+
+    /**
+     * Boot method for model-level validation
+     */
     protected static function boot()
     {
         parent::boot();
@@ -45,6 +58,30 @@ class Sale extends Model
             }
             // Keep amount in sync with total_amount for backward compatibility
             if (empty($sale->amount) && !empty($sale->total_amount)) {
+                $sale->amount = $sale->total_amount;
+            }
+        });
+
+        static::saving(function ($sale) {
+            // Validate status
+            if (!in_array($sale->status, self::VALID_STATUSES)) {
+                $sale->status = 'pending';
+            }
+
+            // Validate type
+            if (!in_array($sale->type, self::VALID_TYPES)) {
+                $sale->type = 'product';
+            }
+
+            // Ensure non-negative amounts
+            $sale->subtotal = max(0, (float) $sale->subtotal);
+            $sale->tax_amount = max(0, (float) $sale->tax_amount);
+            $sale->discount_amount = max(0, (float) $sale->discount_amount);
+            $sale->total_amount = max(0, (float) $sale->total_amount);
+            $sale->amount = max(0, (float) $sale->amount);
+
+            // Keep amount in sync with total_amount
+            if ($sale->total_amount > 0) {
                 $sale->amount = $sale->total_amount;
             }
         });

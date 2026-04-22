@@ -1,21 +1,33 @@
-/* Reports Styles - Modern Design */
+/* Reports Styles - Premium Design */
 
 .reports-container {
   max-width: 1400px;
   margin: 0 auto;
-  padding: 2rem;
+  padding: 0;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background: #f8fafc;
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #f1f5f9 100%);
   min-height: 100vh;
 }
 
-/* Header Section */
+/* Premium Header Section */
 .reports-header {
-  background: white;
-  border-radius: 16px;
-  padding: 2rem;
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  padding: 40px;
   margin-bottom: 2rem;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+}
+
+.reports-header::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(135deg, transparent 0%, rgba(255,255,255,0.03) 100%);
+  pointer-events: none;
 }
 
 .header-content {
@@ -26,19 +38,25 @@
 }
 
 .header-title h1 {
-  margin: 0 0 0.5rem 0;
-  font-size: 2rem;
-  font-weight: 700;
-  color: #1f2937;
+  margin: 0 0 12px 0;
+  font-size: 2.5rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, #06b6d4 0%, #0891b2 50%, #22d3ee 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  letter-spacing: -0.02em;
 }
 
 .header-title p {
   margin: 0;
-  color: #6b7280;
-  font-size: 1rem;
+  color: #94a3b8;
+  font-size: 1.1rem;
+  font-weight: 400;
+  letter-spacing: 0.02em;
 }
 
 .header-actions {

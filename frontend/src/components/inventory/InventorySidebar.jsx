@@ -11,6 +11,7 @@ import {
   faListCheck,
   faBars,
   faUser,
+  faCog,
 } from "@fortawesome/free-solid-svg-icons";
 import "./InventorySidebar.css";
 
@@ -71,6 +72,17 @@ const InventorySidebar = ({ collapsed, onToggleCollapse }) => {
             >
               <FontAwesomeIcon icon={faListCheck} />
               {!collapsed && <span>Stock Management</span>}
+            </NavLink>
+          </li>
+
+          <li className="nav-item">
+            <NavLink
+              to="/inventory/management"
+              className={({ isActive }) => (isActive ? "active" : "")}
+              title="Inventory Management"
+            >
+              <FontAwesomeIcon icon={faCog} />
+              {!collapsed && <span>Management</span>}
             </NavLink>
           </li>
           
