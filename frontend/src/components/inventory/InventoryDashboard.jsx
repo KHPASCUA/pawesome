@@ -5,11 +5,8 @@ import {
   faMoon,
   faSun,
   faUserCircle,
-  faTruck,
   faCalendarAlt,
   faBox,
-  faWarehouse,
-  faArrowUp,
 } from "@fortawesome/free-solid-svg-icons";
 import InventorySidebar from "./InventorySidebar";
 import RoleAwareChatbot from "../chatbot/RoleAwareChatbot";
@@ -37,9 +34,6 @@ const InventoryDashboard = () => {
   const [theme, setTheme] = useState("light");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [dashboardData, setDashboardData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [usingDemoData, setUsingDemoData] = useState(false);
   const location = useLocation();
 
   const normalizedPath = location.pathname.replace(/\/+$/, "");
@@ -49,25 +43,17 @@ const InventoryDashboard = () => {
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        setLoading(true);
         const data = await apiRequest("/inventory/dashboard");
         if (data && data.total_items !== undefined) {
           setDashboardData(data);
-          setUsingDemoData(false);
         } else {
           // Fallback to demo data if API returns empty
           setDashboardData(demoDashboardData);
-          setUsingDemoData(true);
         }
-        setError("");
       } catch (err) {
         console.error("Inventory dashboard fetch error:", err);
         // Fallback to demo data on error
         setDashboardData(demoDashboardData);
-        setUsingDemoData(true);
-        setError("");
-      } finally {
-        setLoading(false);
       }
     };
 

@@ -8,8 +8,6 @@ import {
   faArrowUp,
   faArrowDown,
   faSync,
-  faSearch,
-  faFilter,
   faDownload,
   faPlus,
   faBell,
@@ -54,39 +52,61 @@ const AdvancedInventoryDashboard = () => {
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
 
-  // Demo data for fallback - Pet store items only (₱ Philippine Peso)
-  const demoData = {
-    total_items: 48,
-    low_stock_items: 5,
-    out_of_stock_items: 2,
-    total_stock_value: 45280.50,
-    inventory_turnover: 3.8,
-    avg_days_in_stock: 12,
-    top_moving_products: [
-      { name: "Premium Dog Food 5kg", sold: 45, revenue: 54000.00 },
-      { name: "Cat Kibble 2kg", sold: 38, revenue: 32300.00 },
-      { name: "Pet Grooming Service", sold: 52, revenue: 33800.00 },
-    ],
-    stock_trend: {
-      labels: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
-      in_stock: [42, 40, 45, 43, 46, 48, 48],
-      low_stock: [5, 8, 6, 7, 5, 5, 5],
-      out_of_stock: [2, 2, 1, 2, 1, 2, 2],
-    },
-    category_distribution: {
-      labels: ["Food", "Accessories", "Grooming", "Toys", "Health", "Services"],
-      values: [18, 12, 8, 5, 3, 2],
-    },
-    recent_movements: [
-      { id: 1, type: "in", item: "Premium Dog Food 5kg", quantity: 24, date: "2024-04-21 09:30", user: "Admin" },
-      { id: 2, type: "out", item: "Cat Kibble 2kg", quantity: 5, date: "2024-04-21 10:15", user: "Cashier" },
-      { id: 3, type: "adjust", item: "Leather Dog Collar", quantity: -2, date: "2024-04-21 11:00", user: "Manager" },
-      { id: 4, type: "in", item: "Pet Shampoo 500ml", quantity: 30, date: "2024-04-21 14:20", user: "Admin" },
-    ],
-  };
-
   // Auto-refresh every 30 seconds for live data
   useEffect(() => {
+    // Demo data for fallback - Pet store items only (₱ Philippine Peso)
+    const demoData = {
+      total_items: 48,
+      low_stock_items: 5,
+      out_of_stock_items: 2,
+      total_stock_value: 45280.50,
+      inventory_turnover: 3.8,
+      avg_days_in_stock: 12,
+      top_moving_products: [
+        { name: "Premium Dog Food 5kg", sold: 45, revenue: 54000.00 },
+        { name: "Cat Kibble 2kg", sold: 38, revenue: 32300.00 },
+        { name: "Pet Grooming Service", sold: 52, revenue: 33800.00 },
+      ],
+      stock_trend: {
+        labels: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+        in_stock: [42, 40, 45, 43, 46, 48, 48],
+        low_stock: [5, 8, 6, 7, 5, 5, 5],
+        out_of_stock: [2, 2, 1, 2, 1, 2, 2],
+      },
+      category_distribution: {
+        labels: ["Food", "Accessories", "Grooming", "Toys", "Health", "Services"],
+        values: [18, 12, 8, 5, 3, 2],
+      },
+      recent_movements: [
+        { id: 1, type: "in", item: "Premium Dog Food 5kg", quantity: 24, date: "2024-04-21 09:30", user: "Admin" },
+        { id: 2, type: "out", item: "Cat Kibble 2kg", quantity: 5, date: "2024-04-21 10:15", user: "Cashier" },
+        { id: 3, type: "adjust", item: "Leather Dog Collar", quantity: -2, date: "2024-04-21 11:00", user: "Manager" },
+        { id: 4, type: "in", item: "Pet Shampoo 500ml", quantity: 30, date: "2024-04-21 14:20", user: "Admin" },
+      ],
+    };
+    
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true);
+        const response = await inventoryApi.getDashboard({ period: timeRange });
+        // Use API data if response exists (even if empty) - only use demo on API failure
+        if (response) {
+          setDashboardData(response);
+          setUsingDemoData(false);
+        } else {
+          // API returned null/undefined - use demo
+          setDashboardData(demoData);
+          setUsingDemoData(true);
+        }
+      } catch (err) {
+        console.error("Dashboard API fetch failed, using demo fallback:", err);
+        setDashboardData(demoData);
+        setUsingDemoData(true);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
     fetchDashboardData();
     
     const interval = setInterval(() => {
@@ -95,28 +115,6 @@ const AdvancedInventoryDashboard = () => {
     
     return () => clearInterval(interval);
   }, [timeRange]);
-
-  const fetchDashboardData = async () => {
-    try {
-      setLoading(true);
-      const response = await inventoryApi.getDashboard({ period: timeRange });
-      // Use API data if response exists (even if empty) - only use demo on API failure
-      if (response) {
-        setDashboardData(response);
-        setUsingDemoData(false);
-      } else {
-        // API returned null/undefined - use demo
-        setDashboardData(demoData);
-        setUsingDemoData(true);
-      }
-    } catch (err) {
-      console.error("Dashboard API fetch failed, using demo fallback:", err);
-      setDashboardData(demoData);
-      setUsingDemoData(true);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // Stock trend chart data
   const stockTrendData = {
