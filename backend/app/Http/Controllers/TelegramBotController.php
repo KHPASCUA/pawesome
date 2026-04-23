@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
-use App\Services\Chatbot\ChatbotService;
+use App\Services\Chatbot\PremiumChatbotService;
+use App\Services\Chatbot\RoleScopeService;
+use App\Services\Chatbot\KnowledgeBaseService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -15,9 +17,13 @@ class TelegramBotController extends Controller
     private string $apiUrl;
     private ?string $webhookSecret;
 
+    private PremiumChatbotService $chatbotService;
+
     public function __construct(
-        private readonly ChatbotService $chatbotService,
+        RoleScopeService $roleScopeService,
+        KnowledgeBaseService $knowledgeBaseService,
     ) {
+        $this->chatbotService = new PremiumChatbotService($roleScopeService, $knowledgeBaseService);
         $this->botToken = config('services.telegram.bot_token') ?? '';
         $this->apiUrl = $this->botToken !== ''
             ? "https://api.telegram.org/bot{$this->botToken}"
@@ -168,7 +174,7 @@ class TelegramBotController extends Controller
         } else {
             $welcome = $this->chatbotService->welcome($user);
             $message = "👋 Welcome back, {$user->name}!\n\n" .
-                $welcome['message'] . "\n\n" .
+                $welcome['reply'] . "\n\n" .
                 "What would you like to do?";
         }
 
@@ -218,7 +224,7 @@ class TelegramBotController extends Controller
             return;
         }
 
-        $response = $this->chatbotService->respond($user, 'hotel booking', 'telegram');
+        $response = $this->chatbotService->respond($user, 'hotel', 'telegram');
 
         $keyboard = [];
         if (isset($response['actions'])) {
