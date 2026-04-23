@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { apiRequest } from "../../api/client";
 import { formatCurrency } from "../../utils/currency";
 import ReportFilters from "../shared/ReportFilters";
@@ -15,6 +15,7 @@ import "./AdminReports.css";
 
 const AdminReports = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("overview");
   const [reportData, setReportData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -177,15 +178,6 @@ const AdminReports = () => {
     exportToExcel(filtered.transactions, columns, "admin-transactions-report");
   };
 
-  const formatPercentage = (value) => {
-    return `${Number(value || 0).toFixed(1)}%`;
-  };
-
-  const calculateGrowth = (current, previous) => {
-    if (!previous || previous === 0) return 0;
-    return ((current - previous) / previous * 100).toFixed(1);
-  };
-
   const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   const monthlyTrend = reportData?.monthly_revenue?.map((item) => ({
     month: monthNames[(item.month ?? 1) - 1] || "N/A",
@@ -281,6 +273,15 @@ const AdminReports = () => {
           <div className="metric-sparkline"></div>
         </div>
       </div>
+
+      <div className="view-full-report">
+        <button
+          className="view-full-btn"
+          onClick={() => navigate('/admin/reports/cashier')}
+        >
+          <span>📊</span> View Full Cashier Report
+        </button>
+      </div>
       
       <div className="services-section">
         <h4 className="subsection-title">Top Services</h4>
@@ -348,6 +349,15 @@ const AdminReports = () => {
           </div>
         </div>
       </div>
+
+      <div className="view-full-report">
+        <button
+          className="view-full-btn"
+          onClick={() => navigate('/admin/reports/inventory')}
+        >
+          <span>📦</span> View Full Inventory Report
+        </button>
+      </div>
     </div>
   );
 
@@ -409,6 +419,15 @@ const AdminReports = () => {
             </div>
           </div>
         </div>
+      </div>
+
+      <div className="view-full-report">
+        <button
+          className="view-full-btn"
+          onClick={() => navigate('/admin/reports/reception')}
+        >
+          <span>📅</span> View Full Reception Report
+        </button>
       </div>
     </div>
   );
@@ -478,6 +497,15 @@ const AdminReports = () => {
           </div>
         </div>
       </div>
+
+      <div className="view-full-report">
+        <button
+          className="view-full-btn"
+          onClick={() => navigate('/admin/reports/veterinary')}
+        >
+          <span>🩺</span> View Full Veterinary Report
+        </button>
+      </div>
     </div>
   );
 
@@ -528,6 +556,79 @@ const AdminReports = () => {
           ))}
         </div>
       </div>
+
+      <div className="view-full-report">
+        <button
+          className="view-full-btn"
+          onClick={() => navigate('/admin/reports/customers')}
+        >
+          <span>👥</span> View Full Customer Report
+        </button>
+      </div>
+    </div>
+  );
+
+  const renderManager = () => (
+    <div className="modern-reports">
+      <h3 className="section-title">Manager Metrics</h3>
+
+      <div className="manager-overview">
+        <div className="manager-stats-grid">
+          <div className="manager-stat-card staff">
+            <div className="manager-stat-header">
+              <span className="manager-stat-title">Total Staff</span>
+              <span className="manager-stat-badge">All roles</span>
+            </div>
+            <div className="manager-stat-value">{reportData?.total_staff || reportData?.total_users || 0}</div>
+            <div className="manager-stat-subtext">Active employees</div>
+          </div>
+
+          <div className="manager-stat-card roles">
+            <div className="manager-stat-header">
+              <span className="manager-stat-title">Role Distribution</span>
+              <span className="manager-stat-badge">Teams</span>
+            </div>
+            <div className="manager-stat-value">{reportData?.active_roles || 6}</div>
+            <div className="manager-stat-subtext">Different roles</div>
+          </div>
+
+          <div className="manager-stat-card revenue">
+            <div className="manager-stat-header">
+              <span className="manager-stat-title">Monthly Revenue</span>
+              <span className="manager-stat-badge">This month</span>
+            </div>
+            <div className="manager-stat-value">{formatCurrency(reportData?.monthly_revenue)}</div>
+            <div className="manager-stat-subtext">Business performance</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="staff-overview">
+        <h4 className="subsection-title">Staff Overview</h4>
+        <div className="staff-summary">
+          <div className="staff-metric active">
+            <span className="staff-count">{reportData?.active_staff || 0}</span>
+            <span className="staff-label">Active Staff</span>
+          </div>
+          <div className="staff-metric on-leave">
+            <span className="staff-count">{reportData?.staff_on_leave || 0}</span>
+            <span className="staff-label">On Leave</span>
+          </div>
+          <div className="staff-metric inactive">
+            <span className="staff-count">{reportData?.inactive_staff || 0}</span>
+            <span className="staff-label">Inactive</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="view-full-report">
+        <button
+          className="view-full-btn"
+          onClick={() => navigate('/admin/reports/manager')}
+        >
+          <span>👔</span> View Full Manager Report
+        </button>
+      </div>
     </div>
   );
 
@@ -543,13 +644,12 @@ const AdminReports = () => {
         return renderVeterinary();
       case "customers":
         return renderCustomers();
+      case "manager":
+        return renderManager();
       default:
         return renderOverview();
     }
   };
-
-  // Get filtered data for display
-  const filteredData = getFilteredData();
 
   return (
     <div className="admin-reports-page">
@@ -557,6 +657,76 @@ const AdminReports = () => {
         <div className="header-content">
           <h1 className="page-title">Admin Reports</h1>
           <p className="page-subtitle">Live business metrics and activity trends from the backend</p>
+        </div>
+      </div>
+
+      {/* Quick Access Cards for Role-Based Reports */}
+      <div className="quick-access-reports">
+        <h3 className="quick-access-title">📂 Role-Based Report Modules</h3>
+        <div className="quick-access-grid">
+          <button 
+            className="quick-access-card cashier"
+            onClick={() => navigate('/admin/reports/cashier')}
+            title="View detailed cashier reports"
+          >
+            <span className="quick-access-icon">💰</span>
+            <span className="quick-access-label">Cashier Reports</span>
+            <span className="quick-access-desc">Sales, transactions & refunds</span>
+          </button>
+          <button 
+            className="quick-access-card inventory"
+            onClick={() => navigate('/admin/reports/inventory')}
+            title="View detailed inventory reports"
+          >
+            <span className="quick-access-icon">📦</span>
+            <span className="quick-access-label">Inventory Reports</span>
+            <span className="quick-access-desc">Stock levels & analytics</span>
+          </button>
+          <button 
+            className="quick-access-card manager"
+            onClick={() => navigate('/admin/reports/manager')}
+            title="View detailed manager reports"
+          >
+            <span className="quick-access-icon">👔</span>
+            <span className="quick-access-label">Manager Reports</span>
+            <span className="quick-access-desc">Staff & business analytics</span>
+          </button>
+          <button 
+            className="quick-access-card veterinary"
+            onClick={() => navigate('/admin/reports/veterinary')}
+            title="View detailed veterinary reports"
+          >
+            <span className="quick-access-icon">🩺</span>
+            <span className="quick-access-label">Veterinary Reports</span>
+            <span className="quick-access-desc">Patient & service metrics</span>
+          </button>
+          <button 
+            className="quick-access-card customers"
+            onClick={() => navigate('/admin/reports/customers')}
+            title="View detailed customer reports"
+          >
+            <span className="quick-access-icon">👥</span>
+            <span className="quick-access-label">Customer Reports</span>
+            <span className="quick-access-desc">Bookings & activity</span>
+          </button>
+          <button 
+            className="quick-access-card reception"
+            onClick={() => navigate('/admin/reports/reception')}
+            title="View detailed reception reports"
+          >
+            <span className="quick-access-icon">📅</span>
+            <span className="quick-access-label">Reception Reports</span>
+            <span className="quick-access-desc">Appointments & operations</span>
+          </button>
+          <button 
+            className="quick-access-card manager"
+            onClick={() => navigate('/admin/reports/manager')}
+            title="View detailed manager reports"
+          >
+            <span className="quick-access-icon">👔</span>
+            <span className="quick-access-label">Manager Reports</span>
+            <span className="quick-access-desc">Staff & business analytics</span>
+          </button>
         </div>
       </div>
 
@@ -668,6 +838,12 @@ const AdminReports = () => {
             onClick={() => setActiveTab("customers")}
           >
             <span className="tab-icon">👥</span> Customers
+          </button>
+          <button
+            className={`nav-tab ${activeTab === "manager" ? "active" : ""}`}
+            onClick={() => setActiveTab("manager")}
+          >
+            <span className="tab-icon">👔</span> Manager
           </button>
         </nav>
       </div>

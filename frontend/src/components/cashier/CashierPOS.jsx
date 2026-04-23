@@ -48,7 +48,8 @@ const CashierPOS = ({ onCheckout }) => {
     try {
       setLoading(true);
       setError("");
-      const response = await inventoryApi.getItems();
+      // Use public endpoint - same data source as Customer Store
+      const response = await inventoryApi.getPublicItems();
       const items = response.items || response.data || [];
       
       // Separate products and services based on category/type
@@ -84,16 +85,10 @@ const CashierPOS = ({ onCheckout }) => {
       items = items.filter((item) => {
         const itemCategory = (item.category || "").toLowerCase();
         const activeCat = activeCategory.toLowerCase();
-        
+
         // Match category or service type
         if (activeCat === "service" && item.itemType === "service") return true;
-        if (itemCategory === activeCat) return true;
-        
-        // Special mappings
-        if (activeCat === "health" && (itemCategory === "medical" || itemCategory === "supplies")) return true;
-        if (activeCat === "food" && itemCategory === "treats") return true;
-        
-        return false;
+        return itemCategory === activeCat;
       });
     }
     if (searchQuery.trim()) {

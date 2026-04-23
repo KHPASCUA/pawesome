@@ -1,162 +1,38 @@
-// Pet store inventory items only (₱ Philippine Peso)
+/**
+ * UNIFIED INVENTORY DATA
+ * 
+ * This file now imports from the centralized inventorySync.js
+ * to ensure all dashboards (Admin, Inventory, Cashier, Customer)
+ * use the SAME demo fallback data.
+ * 
+ * TO ADD NEW ITEMS: Edit /src/components/shared/inventorySync.js
+ */
+
+import { sharedProducts, sharedServices } from '../shared/inventorySync';
+
+// Transform shared products to inventory format (with IDs as strings)
+const transformToInventoryFormat = (item) => ({
+  id: item.sku || `INV-${String(item.id).padStart(3, '0')}`,
+  name: item.name,
+  sku: item.sku,
+  brand: item.brand,
+  supplier: item.supplier,
+  category: item.category,
+  price: item.price,
+  quantity: item.stock,
+  expiration: item.expiration,
+  status: item.stock === 0 ? 'Out of stock' : item.stock <= item.minStock ? 'Low stock' : 'In stock',
+  description: item.description,
+});
+
+// Export unified inventory items (products + services)
 export const inventoryItems = [
-  {
-    id: "INV-001",
-    name: "Premium Dog Food 5kg",
-    sku: "PDF-5KG-001",
-    brand: "Pawsome Premium",
-    supplier: "Pet Nutrition Co.",
-    category: "Food",
-    price: 1200.00,
-    quantity: 50,
-    expiration: "2026-12-10",
-    status: "In stock",
-    description: "High-quality nutrition for adult dogs",
-  },
-  {
-    id: "INV-002",
-    name: "Cat Kibble 2kg",
-    sku: "CK-2KG-002",
-    brand: "Whisker Delight",
-    supplier: "Feline Nutrition Ltd.",
-    category: "Food",
-    price: 850.00,
-    quantity: 30,
-    expiration: "2026-11-05",
-    status: "In stock",
-    description: "Balanced diet for cats",
-  },
-  {
-    id: "INV-003",
-    name: "Leather Dog Collar",
-    sku: "LDC-003",
-    brand: "Pawsome Accessories",
-    supplier: "Pet Style Co.",
-    category: "Accessories",
-    price: 450.00,
-    quantity: 25,
-    expiration: null,
-    status: "In stock",
-    description: "Durable leather collar with metal buckle",
-  },
-  {
-    id: "INV-004",
-    name: "Pet Shampoo 500ml",
-    sku: "PS-500-004",
-    brand: "Fresh & Clean",
-    supplier: "Grooming Essentials",
-    category: "Grooming",
-    price: 280.00,
-    quantity: 40,
-    expiration: "2027-02-12",
-    status: "In stock",
-    description: "Gentle cleansing formula for pets",
-  },
-  {
-    id: "INV-005",
-    name: "Squeaky Toy Set",
-    sku: "STS-005",
-    brand: "PlayTime",
-    supplier: "Pet Toys Inc.",
-    category: "Toys",
-    price: 180.00,
-    quantity: 60,
-    expiration: null,
-    status: "In stock",
-    description: "3-piece fun toy set for dogs",
-  },
-  {
-    id: "INV-006",
-    name: "Pet Carrier Small",
-    sku: "PCS-006",
-    brand: "Travel Paws",
-    supplier: "Pet Travel Co.",
-    category: "Accessories",
-    price: 950.00,
-    quantity: 0,
-    expiration: null,
-    status: "Out of stock",
-    description: "Comfortable travel carrier for small pets",
-  },
-  {
-    id: "INV-007",
-    name: "Flea Treatment",
-    sku: "FT-007",
-    brand: "Guardian",
-    supplier: "Pet Health Solutions",
-    category: "Health",
-    price: 380.00,
-    quantity: 35,
-    expiration: "2027-05-20",
-    status: "In stock",
-    description: "Monthly flea and tick prevention",
-  },
-  {
-    id: "INV-008",
-    name: "Puppy Starter Kit",
-    sku: "PSK-008",
-    brand: "Pawsome Beginnings",
-    supplier: "Pet Nutrition Co.",
-    category: "Food",
-    price: 750.00,
-    quantity: 20,
-    expiration: "2026-10-15",
-    status: "In stock",
-    description: "Complete nutrition kit for puppies",
-  },
-  {
-    id: "INV-009",
-    name: "Pet Bed Medium",
-    sku: "PBM-009",
-    brand: "Cozy Paws",
-    supplier: "Comfort Pet Supplies",
-    category: "Accessories",
-    price: 650.00,
-    quantity: 15,
-    expiration: null,
-    status: "Low stock",
-    description: "Soft cushioned bed for medium pets",
-  },
-  {
-    id: "INV-010",
-    name: "Dental Chew Sticks",
-    sku: "DCS-010",
-    brand: "Oral Care",
-    supplier: "Pet Health Solutions",
-    category: "Health",
-    price: 220.00,
-    quantity: 45,
-    expiration: "2026-09-08",
-    status: "In stock",
-    description: "Dental care treats for dogs",
-  },
-  {
-    id: "INV-011",
-    name: "Full Grooming Service",
-    sku: "SRV-001",
-    brand: "Pawsome Grooming",
-    supplier: "In-House",
-    category: "Services",
-    price: 650.00,
-    quantity: 999,
-    expiration: null,
-    status: "In stock",
-    description: "Bath, haircut, nail trim, ear cleaning",
-  },
-  {
-    id: "INV-012",
-    name: "Vet Consultation",
-    sku: "SRV-002",
-    brand: "Pawsome Vet",
-    supplier: "In-House",
-    category: "Services",
-    price: 500.00,
-    quantity: 999,
-    expiration: null,
-    status: "In stock",
-    description: "Basic health check and consultation",
-  },
+  ...sharedProducts.map(transformToInventoryFormat),
+  ...sharedServices.map(transformToInventoryFormat)
 ];
+
+// Re-export for backward compatibility
+export { sharedProducts, sharedServices };
 
 // Pet store inventory history
 export const inventoryHistory = [

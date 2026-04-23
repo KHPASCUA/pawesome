@@ -102,7 +102,9 @@ class ChatbotService
             'confidence' => $response['confidence'] ?? 1.0,
             'rich_content' => $response['rich_content'] ?? null,
             'metadata' => [
-                'processing_time_ms' => round((microtime(true) - LARAVEL_START) * 1000, 2),
+                'processing_time_ms' => defined('LARAVEL_START') 
+                    ? round((microtime(true) - LARAVEL_START) * 1000, 2)
+                    : 0,
                 'context_used' => !empty($this->gatherLiveContext()),
                 'ai_model' => $this->aiService->isEnabled() ? config('chatbot.ai_model') : null,
                 'channel' => $channel,

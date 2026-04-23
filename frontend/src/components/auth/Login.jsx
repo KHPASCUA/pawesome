@@ -70,7 +70,7 @@ const Login = () => {
       const response = await apiRequest("/auth/login", {
         method: "POST",
         body: JSON.stringify({
-          login: formData.username.trim(),
+          email: formData.username.trim(),
           password: formData.password,
         }),
       });

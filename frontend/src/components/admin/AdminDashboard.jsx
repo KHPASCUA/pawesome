@@ -12,6 +12,7 @@ import {
   faBoxOpen,
   faUserShield,
 } from "@fortawesome/free-solid-svg-icons";
+import { faBars } from "@fortawesome/free-solid-svg-icons/faBars";
 import AdminSidebar from "./AdminSidebar";
 import RoleAwareChatbot from "../chatbot/RoleAwareChatbot";
 import NotificationDropdown from "../shared/NotificationDropdown";
@@ -23,6 +24,7 @@ const AdminDashboard = () => {
   const name = localStorage.getItem("name") || "Admin";
   const [theme, setTheme] = useState("light");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
 
   const [dashboardData, setDashboardData] = useState(null);
@@ -157,15 +159,24 @@ const AdminDashboard = () => {
       };
 
   return (
-    <div className={`admin-dashboard ${theme} ${sidebarCollapsed ? "collapsed" : ""}`}>
+    <div className={`admin-dashboard ${theme} ${sidebarCollapsed ? "collapsed" : ""} ${mobileMenuOpen ? "mobile-open" : ""}`}>
       <AdminSidebar
         collapsed={sidebarCollapsed}
+        mobileOpen={mobileMenuOpen}
         onToggleCollapse={() => setSidebarCollapsed((prev) => !prev)}
+        onMobileMenuToggle={() => setMobileMenuOpen((prev) => !prev)}
       />
 
       <main className="admin-main">
         <header className="admin-navbar top-navbar">
           <div className="navbar-left">
+            <button 
+              className="mobile-menu-toggle"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              aria-label="Toggle mobile menu"
+            >
+              <FontAwesomeIcon icon={faBars} />
+            </button>
             <h1>{pageCopy.title}</h1>
             <p>{pageCopy.subtitle}</p>
           </div>
@@ -206,7 +217,19 @@ const AdminDashboard = () => {
           <>
             {loading ? (
               <div className="loading-container">
-                <div className="loading-spinner">Loading dashboard...</div>
+                <div className="loading-spinner">
+                  <div className="loading-spinner-wrapper">
+                    <div className="loading-spinner-circle primary"></div>
+                    <div className="loading-spinner-circle secondary"></div>
+                    <div className="loading-spinner-circle tertiary"></div>
+                  </div>
+                  <div>Loading dashboard...</div>
+                  <div className="loading-spinner-dots">
+                    <div className="loading-spinner-dot"></div>
+                    <div className="loading-spinner-dot"></div>
+                    <div className="loading-spinner-dot"></div>
+                  </div>
+                </div>
               </div>
             ) : error ? (
               <div className="error-container">

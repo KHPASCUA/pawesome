@@ -39,6 +39,53 @@ class Boarding extends Model
         'total_amount' => 'decimal:2',
     ];
 
+    /**
+     * Valid boarding statuses
+     */
+    public const VALID_STATUSES = ['pending', 'confirmed', 'checked_in', 'checked_out', 'cancelled'];
+
+    /**
+     * Valid payment statuses
+     */
+    public const VALID_PAYMENT_STATUSES = ['pending', 'partial', 'paid', 'refunded'];
+
+    /**
+     * Boot method for model-level validation
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::saving(function ($boarding) {
+            // Validate status
+            if (!in_array($boarding->status, self::VALID_STATUSES)) {
+                $boarding->status = 'pending';
+            }
+
+            // Validate payment status
+            if (!in_array($boarding->payment_status, self::VALID_PAYMENT_STATUSES)) {
+                $boarding->payment_status = 'pending';
+            }
+
+            // Ensure non-negative amount
+            $boarding->total_amount = max(0, (float) $boarding->total_amount);
+
+            // Ensure check_out is after check_in
+            if ($boarding->check_in && $boarding->check_out) {
+                $checkIn = $boarding->check_in instanceof \Carbon\Carbon 
+                    ? $boarding->check_in 
+                    : \Carbon\Carbon::parse($boarding->check_in);
+                $checkOut = $boarding->check_out instanceof \Carbon\Carbon 
+                    ? $boarding->check_out 
+                    : \Carbon\Carbon::parse($boarding->check_out);
+                
+                if ($checkOut->lessThanOrEqualTo($checkIn)) {
+                    $boarding->check_out = $checkIn->copy()->addDay();
+                }
+            }
+        });
+    }
+
     public function pet(): BelongsTo
     {
         return $this->belongsTo(Pet::class);

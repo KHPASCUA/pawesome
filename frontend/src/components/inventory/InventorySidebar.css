@@ -106,6 +106,13 @@
   color: #000000 !important;
   border-left: 4px solid #FF99B8 !important;
   font-weight: 700 !important;
+  box-shadow: 0 2px 8px rgba(255, 175, 204, 0.3) !important;
+}
+
+/* Ensure active state overrides all other styles */
+.inventory-sidebar .nav-item a.active:hover {
+  background: #ffffff !important;
+  color: #000000 !important;
 }
 
 .nav-item a svg {

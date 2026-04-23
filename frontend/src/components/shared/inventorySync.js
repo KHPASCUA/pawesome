@@ -1,6 +1,27 @@
-// Shared pet store inventory data - synchronized across all dashboards
-// Used by: CashierPOS, CustomerStore, Inventory
-// Features: FIFO tracking, expiration dates, stock management
+/**
+ * ╔══════════════════════════════════════════════════════════════════╗
+ * ║           UNIFIED INVENTORY DATA - SINGLE SOURCE OF TRUTH        ║
+ * ╠══════════════════════════════════════════════════════════════════╣
+ * ║  Used by: CashierPOS, CustomerStore, InventoryReports, Admin      ║
+ * ║  Features: FIFO tracking, expiration dates, stock management     ║
+ * ║  Refresh: 30-second auto-refresh for live data                   ║
+ * ╚══════════════════════════════════════════════════════════════════╝
+ *
+ * ┌─────────────────────────────────────────────────────────────────┐
+ * │  HOW TO ADD NEW INVENTORY ITEMS:                                │
+ * │                                                                 │
+ * │  1. Scroll down to sharedProducts array below                  │
+ * │  2. Copy an existing item object (everything inside {})        │
+ * │  3. Paste after the last item (before the ];)                   │
+ * │  4. Update all fields with new product info                     │
+ * │  5. Make sure id is unique (increment by 1)                     │
+ * │  6. Save file - all dashboards will show the new item!         │
+ * │                                                                 │
+ * │  IMPORTANT: If backend API is running, items should be added  │
+ * │  through the Inventory Management UI or API, not here.          │
+ * │  This file is only for DEMO/FALLBACK data when API is offline. │
+ * └─────────────────────────────────────────────────────────────────┘
+ */
 
 export const sharedProducts = [
   { 

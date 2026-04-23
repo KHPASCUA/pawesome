@@ -7,8 +7,8 @@ import {
   faHistory,
   faChartBar,
   faSignOutAlt,
-  faUserCircle,
   faBars,
+  faTimes,
   faUser,
   faBuilding,
   faMoneyBillWave,
@@ -16,11 +16,18 @@ import {
   faFileInvoiceDollar,
   faRobot,
   faCog,
+  faCashRegister,
+  faBox,
+  faUserTie,
+  faStethoscope,
+  faUserFriends,
+  faCalendarCheck,
 } from "@fortawesome/free-solid-svg-icons";
 import "./AdminSidebar.css";
 
-const AdminSidebar = ({ collapsed, onToggleCollapse }) => {
+const AdminSidebar = ({ collapsed, mobileOpen, onToggleCollapse, onMobileMenuToggle }) => {
   const [payrollExpanded, setPayrollExpanded] = React.useState(false);
+  const [reportsExpanded, setReportsExpanded] = React.useState(false);
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -34,10 +41,13 @@ const AdminSidebar = ({ collapsed, onToggleCollapse }) => {
   };
 
   return (
-    <aside className={`admin-sidebar ${collapsed ? "collapsed" : ""}`}>
+    <aside className={`admin-sidebar ${collapsed ? "collapsed" : ""} ${mobileOpen ? "mobile-open" : ""}`}>
       <div className="sidebar-header">
         <button className="collapse-btn" onClick={onToggleCollapse}>
           <FontAwesomeIcon icon={faBars} />
+        </button>
+        <button className="mobile-close-btn" onClick={onMobileMenuToggle}>
+          <FontAwesomeIcon icon={faTimes} />
         </button>
         {!collapsed && (
           <div className="sidebar-logo">
@@ -52,7 +62,7 @@ const AdminSidebar = ({ collapsed, onToggleCollapse }) => {
           <li className="nav-item">
             <NavLink
               to="/admin"
-              className="nav-link"
+              className={({ isActive }) => isActive ? "active" : ""}
               end
               title="Dashboard"
             >
@@ -64,7 +74,8 @@ const AdminSidebar = ({ collapsed, onToggleCollapse }) => {
           <li className="nav-item">
             <NavLink
               to="/admin/users"
-              className="nav-link"
+              className={({ isActive }) => isActive ? "active" : ""}
+              end
               title="Users"
             >
               <FontAwesomeIcon icon={faUsers} />
@@ -75,7 +86,8 @@ const AdminSidebar = ({ collapsed, onToggleCollapse }) => {
           <li className="nav-item">
             <NavLink
               to="/admin/profile"
-              className="nav-link"
+              className={({ isActive }) => isActive ? "active" : ""}
+              end
               title="Profile"
             >
               <FontAwesomeIcon icon={faUser} />
@@ -86,7 +98,8 @@ const AdminSidebar = ({ collapsed, onToggleCollapse }) => {
           <li className="nav-item">
             <NavLink
               to="/admin/chatbot"
-              className="nav-link"
+              className={({ isActive }) => isActive ? "active" : ""}
+              end
               title="Chatbot Logs"
             >
               <FontAwesomeIcon icon={faRobot} />
@@ -108,7 +121,8 @@ const AdminSidebar = ({ collapsed, onToggleCollapse }) => {
                 <li className="nav-subitem">
                   <NavLink
                     to="/admin/payroll"
-                    className="nav-link"
+                    className={({ isActive }) => isActive ? "active" : ""}
+                    end
                     title="Payroll Overview"
                   >
                     <FontAwesomeIcon icon={faMoneyBillWave} />
@@ -118,7 +132,8 @@ const AdminSidebar = ({ collapsed, onToggleCollapse }) => {
                 <li className="nav-subitem">
                   <NavLink
                     to="/admin/payroll/salaries"
-                    className="nav-link"
+                    className={({ isActive }) => isActive ? "active" : ""}
+                    end
                     title="Salary Management"
                   >
                     <FontAwesomeIcon icon={faDollarSign} />
@@ -128,7 +143,8 @@ const AdminSidebar = ({ collapsed, onToggleCollapse }) => {
                 <li className="nav-subitem">
                   <NavLink
                     to="/admin/payroll/reports"
-                    className="nav-link"
+                    className={({ isActive }) => isActive ? "active" : ""}
+                    end
                     title="Payroll Reports"
                   >
                     <FontAwesomeIcon icon={faFileInvoiceDollar} />
@@ -142,7 +158,8 @@ const AdminSidebar = ({ collapsed, onToggleCollapse }) => {
           <li className="nav-item">
             <NavLink
               to="/admin/history"
-              className="nav-link"
+              className={({ isActive }) => isActive ? "active" : ""}
+              end
               title="System History"
             >
               <FontAwesomeIcon icon={faHistory} />
@@ -151,14 +168,95 @@ const AdminSidebar = ({ collapsed, onToggleCollapse }) => {
           </li>
 
           <li className="nav-item">
-            <NavLink
-              to="/admin/reports"
-              className="nav-link"
+            <div
+              className="nav-dropdown-header"
+              onClick={() => !collapsed && setReportsExpanded(!reportsExpanded)}
               title="Reports"
             >
               <FontAwesomeIcon icon={faChartBar} />
               {!collapsed && <span>Reports</span>}
-            </NavLink>
+            </div>
+            {!collapsed && (
+              <ul className={`nav-sublist ${reportsExpanded ? 'expanded' : ''}`}>
+                <li className="nav-subitem">
+                  <NavLink
+                    to="/admin/reports"
+                    className={({ isActive }) => isActive ? "active" : ""}
+                    end
+                    title="All Reports Overview"
+                  >
+                    <FontAwesomeIcon icon={faChartBar} />
+                    <span>Overview</span>
+                  </NavLink>
+                </li>
+                <li className="nav-subitem">
+                  <NavLink
+                    to="/admin/reports/cashier"
+                    className={({ isActive }) => isActive ? "active" : ""}
+                    end
+                    title="Cashier Reports"
+                  >
+                    <FontAwesomeIcon icon={faCashRegister} />
+                    <span>Cashier</span>
+                  </NavLink>
+                </li>
+                <li className="nav-subitem">
+                  <NavLink
+                    to="/admin/reports/inventory"
+                    className={({ isActive }) => isActive ? "active" : ""}
+                    end
+                    title="Inventory Reports"
+                  >
+                    <FontAwesomeIcon icon={faBox} />
+                    <span>Inventory</span>
+                  </NavLink>
+                </li>
+                <li className="nav-subitem">
+                  <NavLink
+                    to="/admin/reports/manager"
+                    className={({ isActive }) => isActive ? "active" : ""}
+                    end
+                    title="Manager Reports"
+                  >
+                    <FontAwesomeIcon icon={faUserTie} />
+                    <span>Manager</span>
+                  </NavLink>
+                </li>
+                <li className="nav-subitem">
+                  <NavLink
+                    to="/admin/reports/veterinary"
+                    className={({ isActive }) => isActive ? "active" : ""}
+                    end
+                    title="Veterinary Reports"
+                  >
+                    <FontAwesomeIcon icon={faStethoscope} />
+                    <span>Veterinary</span>
+                  </NavLink>
+                </li>
+                <li className="nav-subitem">
+                  <NavLink
+                    to="/admin/reports/customers"
+                    className={({ isActive }) => isActive ? "active" : ""}
+                    end
+                    title="Customer Reports"
+                  >
+                    <FontAwesomeIcon icon={faUserFriends} />
+                    <span>Customers</span>
+                  </NavLink>
+                </li>
+                <li className="nav-subitem">
+                  <NavLink
+                    to="/admin/reports/reception"
+                    className={({ isActive }) => isActive ? "active" : ""}
+                    end
+                    title="Reception Reports"
+                  >
+                    <FontAwesomeIcon icon={faCalendarCheck} />
+                    <span>Reception</span>
+                  </NavLink>
+                </li>
+              </ul>
+            )}
           </li>
 
           </ul>

@@ -189,17 +189,32 @@ class POSController extends Controller
 
     /**
      * Helper to get category from SKU
+     * Maps to frontend category names for consistency
      */
     private function getCategoryFromSku($sku)
     {
-        if (str_contains($sku, 'FOOD')) return 'Food';
-        if (str_contains($sku, 'TREAT')) return 'Treats';
-        if (str_contains($sku, 'SHAMPOO')) return 'Grooming';
+        $sku = strtoupper($sku);
+
+        // Health products (mapped to 'Health' for frontend consistency)
+        if (str_contains($sku, 'VACCINE') || str_contains($sku, 'WORMER') || str_contains($sku, 'FLEA')) return 'Health';
+        if (str_contains($sku, 'DCS') || str_contains($sku, 'DENTAL')) return 'Health';
+
+        // Grooming products
+        if (str_contains($sku, 'SHAMPOO') || str_contains($sku, 'GROOM')) return 'Grooming';
+
+        // Toys
+        if (str_contains($sku, 'TOY') || str_contains($sku, 'STS') || str_contains($sku, 'SQUEAKY')) return 'Toys';
+
+        // Accessories (includes supplies like pads, leashes, collars)
         if (str_contains($sku, 'LEASH') || str_contains($sku, 'COLLAR')) return 'Accessories';
-        if (str_contains($sku, 'TOY')) return 'Toys';
-        if (str_contains($sku, 'VACCINE') || str_contains($sku, 'WORMER')) return 'Medical';
-        if (str_contains($sku, 'PADS')) return 'Supplies';
-        return 'General';
+        if (str_contains($sku, 'PADS') || str_contains($sku, 'LDC') || str_contains($sku, 'BED') || str_contains($sku, 'CARRIER')) return 'Accessories';
+
+        // Food (includes treats - all edible nutrition products)
+        if (str_contains($sku, 'FOOD') || str_contains($sku, 'TREAT') || str_contains($sku, 'KIBBLE')) return 'Food';
+        if (str_contains($sku, 'PDF') || str_contains($sku, 'CK') || str_contains($sku, 'PSK')) return 'Food';
+
+        // Default to Accessories for unknown SKUs (was 'General')
+        return 'Accessories';
     }
 
     /**

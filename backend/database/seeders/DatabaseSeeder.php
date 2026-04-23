@@ -17,6 +17,7 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             DemoUsersSeeder::class,
+            InventorySeeder::class, // Comprehensive inventory data for testing
             DemoDataSeeder::class,
             ChatbotFaqSeeder::class,
         ]);

@@ -11,6 +11,7 @@ import {
   faListCheck,
   faBars,
   faUser,
+  faCog,
 } from "@fortawesome/free-solid-svg-icons";
 import "./InventorySidebar.css";
 
@@ -43,7 +44,7 @@ const InventorySidebar = ({ collapsed, onToggleCollapse }) => {
           <li className="nav-item">
             <NavLink
               to="/inventory"
-              className={({ isActive }) => (isActive ? "active" : "")}
+              className={({ isActive }) => isActive ? "active" : ""}
               end
               title="Dashboard"
             >
@@ -55,7 +56,8 @@ const InventorySidebar = ({ collapsed, onToggleCollapse }) => {
           <li className="nav-item">
             <NavLink
               to="/inventory/products"
-              className={({ isActive }) => (isActive ? "active" : "")}
+              className={({ isActive }) => isActive ? "active" : ""}
+              end
               title="Products"
             >
               <FontAwesomeIcon icon={faBoxes} />
@@ -66,18 +68,32 @@ const InventorySidebar = ({ collapsed, onToggleCollapse }) => {
           <li className="nav-item">
             <NavLink
               to="/inventory/stock"
-              className={({ isActive }) => (isActive ? "active" : "")}
+              className={({ isActive }) => isActive ? "active" : ""}
+              end
               title="Stock Management"
             >
               <FontAwesomeIcon icon={faListCheck} />
               {!collapsed && <span>Stock Management</span>}
             </NavLink>
           </li>
+
+          <li className="nav-item">
+            <NavLink
+              to="/inventory/management"
+              className={({ isActive }) => isActive ? "active" : ""}
+              end
+              title="Inventory Management"
+            >
+              <FontAwesomeIcon icon={faCog} />
+              {!collapsed && <span>Management</span>}
+            </NavLink>
+          </li>
           
           <li className="nav-item">
             <NavLink
               to="/inventory/history"
-              className={({ isActive }) => (isActive ? "active" : "")}
+              className={({ isActive }) => isActive ? "active" : ""}
+              end
               title="History"
             >
               <FontAwesomeIcon icon={faHistory} />
@@ -88,7 +104,8 @@ const InventorySidebar = ({ collapsed, onToggleCollapse }) => {
           <li className="nav-item">
             <NavLink
               to="/inventory/reports"
-              className={({ isActive }) => (isActive ? "active" : "")}
+              className={({ isActive }) => isActive ? "active" : ""}
+              end
               title="Reports"
             >
               <FontAwesomeIcon icon={faChartBar} />
@@ -99,7 +116,8 @@ const InventorySidebar = ({ collapsed, onToggleCollapse }) => {
           <li className="nav-item">
             <NavLink
               to="/inventory/profile"
-              className={({ isActive }) => (isActive ? "active" : "")}
+              className={({ isActive }) => isActive ? "active" : ""}
+              end
               title="Profile"
             >
               <FontAwesomeIcon icon={faUser} />

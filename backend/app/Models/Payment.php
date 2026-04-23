@@ -30,6 +30,19 @@ class Payment extends Model
         'paid_at' => 'datetime',
     ];
 
+    /**
+     * Valid payment methods
+     */
+    public const VALID_PAYMENT_METHODS = ['cash', 'credit_card', 'debit_card', 'gcash', 'maya', 'bank_transfer', 'check'];
+
+    /**
+     * Valid payment statuses
+     */
+    public const VALID_STATUSES = ['pending', 'completed', 'failed', 'refunded', 'cancelled'];
+
+    /**
+     * Boot method for model-level validation
+     */
     protected static function boot()
     {
         parent::boot();
@@ -37,6 +50,27 @@ class Payment extends Model
         static::creating(function ($payment) {
             if (empty($payment->payment_number)) {
                 $payment->payment_number = 'PAY-' . strtoupper(uniqid());
+            }
+        });
+
+        static::saving(function ($payment) {
+            // Validate payment method
+            if (!in_array($payment->payment_method, self::VALID_PAYMENT_METHODS)) {
+                $payment->payment_method = 'cash';
+            }
+
+            // Validate status
+            if (!in_array($payment->status, self::VALID_STATUSES)) {
+                $payment->status = 'pending';
+            }
+
+            // Ensure non-negative amounts
+            $payment->amount = max(0, (float) $payment->amount);
+            $payment->change_amount = max(0, (float) $payment->change_amount);
+
+            // Ensure change_amount doesn't exceed amount
+            if ($payment->change_amount > $payment->amount) {
+                $payment->change_amount = $payment->amount;
             }
         });
     }

@@ -71,6 +71,27 @@ export const inventoryApi = {
   },
 
   /**
+   * Retrieves inventory items via PUBLIC endpoint (available to all authenticated users)
+   * Used by Customer Store and Cashier POS for read-only access
+   * @async
+   * @param {Object} [params={}] - Query parameters
+   * @param {string} [params.category] - Filter by category
+   * @param {string} [params.search] - Search query
+   * @param {boolean} [params.in_stock_only] - Only return in-stock items
+   * @returns {Promise<{items: Array, count: number, timestamp: string}>} Public inventory items
+   * @throws {Error} When the request fails
+   */
+  getPublicItems: async (params = {}) => {
+    try {
+      const queryString = buildQueryString(params);
+      return await apiRequest(`/inventory/public/items${queryString}`);
+    } catch (error) {
+      console.error("[InventoryAPI] Failed to fetch public items:", error.message);
+      throw error;
+    }
+  },
+
+  /**
    * Retrieves a single inventory item by ID.
    * @async
    * @param {string|number} id - Inventory item ID
@@ -94,12 +115,13 @@ export const inventoryApi = {
    * @param {string} data.name - Product name
    * @param {string} data.sku - Stock keeping unit
    * @param {string} data.category - Product category
-   * @param {number} data.stock_quantity - Initial stock quantity
+   * @param {number} data.stock - Initial stock quantity (or use 'quantity' for frontend compatibility)
    * @param {number} data.price - Unit price
    * @param {string} [data.brand] - Product brand
    * @param {string} [data.supplier] - Supplier name
    * @param {string} [data.expiration_date] - Expiration date (ISO format)
-   * @returns {Promise<Object>} Created inventory item
+   * @param {boolean} [data.add_stock] - Optional, for API consistency with update method
+   * @returns {Promise<Object>} Created inventory item with stock_action info
    * @throws {Error} When validation fails or request fails
    */
   createItem: async (data) => {
@@ -120,7 +142,12 @@ export const inventoryApi = {
    * @async
    * @param {string|number} id - Inventory item ID
    * @param {Object} data - Updated item data
-   * @returns {Promise<Object>} Updated inventory item
+   * @param {number} [data.stock] - New stock value (replaces by default)
+   * @param {number} [data.quantity] - Alternative to stock field
+   * @param {boolean} [data.add_stock] - If true, ADDS to existing stock (50 + 25 = 75).
+   *                                     Only replaces automatically if item HAS expiry date AND is expired.
+   *                                     Items without expiry always add when this flag is true.
+   * @returns {Promise<Object>} Updated inventory item with stock_action info
    * @throws {Error} When item not found, validation fails, or request fails
    */
   updateItem: async (id, data) => {
@@ -133,6 +160,37 @@ export const inventoryApi = {
       });
     } catch (error) {
       console.error(`[InventoryAPI] Failed to update item ${id}:`, error.message);
+      throw error;
+    }
+  },
+
+  /**
+   * Adds stock to an existing item (50 + 25 = 75).
+   * Only replaces if item HAS expiry date AND is expired.
+   * Items without expiry dates always add stock.
+   * @async
+   * @param {string|number} id - Inventory item ID
+   * @param {number} quantity - Amount to add
+   * @param {string} [reason] - Reason for adding stock
+   * @returns {Promise<Object>} Updated inventory item
+   * @throws {Error} When item not found or request fails
+   */
+  addStock: async (id, quantity, reason = "Stock restock") => {
+    validateId(id, "Item ID");
+    if (typeof quantity !== "number" || quantity <= 0) {
+      throw new Error("Quantity must be a positive number");
+    }
+    try {
+      return await apiRequest(`/inventory/items/${id}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          stock: quantity,
+          add_stock: true, // This tells backend to ADD, not replace
+          reason: reason,
+        }),
+      });
+    } catch (error) {
+      console.error(`[InventoryAPI] Failed to add stock for item ${id}:`, error.message);
       throw error;
     }
   },

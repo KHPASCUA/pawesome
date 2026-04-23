@@ -13,6 +13,14 @@ const AdminProfile = lazy(() => import("../components/admin/AdminProfile"));
 const ChatbotLogs = lazy(() => import("../components/admin/ChatbotLogs"));
 const AdminSettings = lazy(() => import("../components/admin/AdminSettings"));
 
+// Role-based reports - admin can access all
+const CashierReports = lazy(() => import("../components/cashier/CashierReports"));
+const InventoryReports = lazy(() => import("../components/inventory/InventoryReports"));
+const ManagerReports = lazy(() => import("../components/manager/ManagerReports"));
+const VetReports = lazy(() => import("../components/veterinary/VetReports"));
+const CustomerReports = lazy(() => import("../components/customers/CustomerReports"));
+const ReceptionistReports = lazy(() => import("../components/receptionist/Reports"));
+
 // Payroll modules - lazy loaded
 const AdminPayroll = lazy(() => import("../components/admin/AdminPayroll"));
 const EmployeeSalaryManagement = lazy(() => import("../components/admin/EmployeeSalaryManagement"));
@@ -41,9 +49,14 @@ const AdminRoutes = () => (
         <Route path="profile" element={<AdminProfile />} />
         <Route path="users" element={<ManageUsers />} />
         <Route path="users/create" element={<CreateUser />} />
-        <Route path="reports" element={<AdminReports />}>
-          <Route path="attendance" element={<Attendance />} /> {/* nested */}
-        </Route>
+        <Route path="reports" element={<AdminReports />} />
+        <Route path="reports/cashier" element={<CashierReports />} />
+        <Route path="reports/inventory" element={<InventoryReports />} />
+        <Route path="reports/manager" element={<ManagerReports />} />
+        <Route path="reports/veterinary" element={<VetReports />} />
+        <Route path="reports/customers" element={<CustomerReports />} />
+        <Route path="reports/reception" element={<ReceptionistReports />} />
+        <Route path="reports/attendance" element={<Attendance />} />
         <Route path="history" element={<History />} />
         <Route path="chatbot" element={<ChatbotLogs />} />
         <Route path="settings" element={<AdminSettings />} />
