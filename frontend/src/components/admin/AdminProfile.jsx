@@ -35,6 +35,7 @@ const AdminProfile = () => {
     first_name: "",
     middle_name: "",
     last_name: "",
+    suffix: "",
     email: "",
     username: "",
     phone: "",

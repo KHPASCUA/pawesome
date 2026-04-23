@@ -9,6 +9,7 @@ const Register = () => {
     firstName: "",
     middleName: "",
     lastName: "",
+    suffix: "",
     dateOfBirth: "",
     gender: "",
     contactNumber: "",
@@ -148,10 +149,11 @@ const Register = () => {
     try {
       // Prepare registration data for backend
       const registrationData = {
-        name: `${formData.firstName} ${formData.lastName}`.trim(),
+        name: `${formData.firstName} ${formData.lastName}${formData.suffix ? ' ' + formData.suffix : ''}`.trim(),
         first_name: formData.firstName,
         middle_name: formData.middleName,
         last_name: formData.lastName,
+        suffix: formData.suffix,
         email: formData.emailAddress,
         username: formData.username,
         password: formData.password,
@@ -318,6 +320,18 @@ const Register = () => {
                       placeholder="Enter your last name"
                     />
                     {errors.lastName && <span className="error-message">{errors.lastName}</span>}
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="suffix">Suffix</label>
+                    <input
+                      type="text"
+                      id="suffix"
+                      name="suffix"
+                      value={formData.suffix}
+                      onChange={handleChange}
+                      placeholder="Enter suffix (e.g., Jr., Sr., II, III, 10th, etc.)"
+                    />
                   </div>
                 </div>
 
