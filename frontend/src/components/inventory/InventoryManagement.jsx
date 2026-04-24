@@ -50,7 +50,7 @@ const INITIAL_FORM_DATA = {
   category: 'Food',
   price: '',
   stock_quantity: '',
-  min_stock_level: 10,
+  reorder_level: 10,
   brand: '',
   supplier: '',
   description: '',
@@ -516,8 +516,8 @@ const InventoryManagement = () => {
                   <label>Minimum Stock Level</label>
                   <input
                     type="number"
-                    name="min_stock_level"
-                    value={formData.min_stock_level}
+                    name="reorder_level"
+                    value={formData.reorder_level}
                     onChange={handleInputChange}
                     min="0"
                     placeholder="10"
