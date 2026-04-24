@@ -64,16 +64,76 @@ const AdminReports = () => {
     try {
       setLoading(true);
       const data = await apiRequest("/admin/reports/summary");
-      setReportData(data);
+      
+      // Ensure data has all required fields with defaults
+      const reportDataWithDefaults = {
+        ...data,
+        total_revenue: data.total_revenue || 0,
+        total_transactions: data.total_transactions || 0,
+        total_customers: data.total_customers || 0,
+        new_customers: data.new_customers || 0,
+        total_users: data.total_users || 0,
+        today_transactions: data.today_transactions || 0,
+        today_revenue: data.today_revenue || 0,
+        total_pets: data.total_pets || 0,
+        total_appointments: data.total_appointments || 0,
+        completed_appointments: data.completed_appointments || 0,
+        total_inventory_items: data.total_inventory_items || 0,
+        low_stock_items: data.low_stock_items || 0,
+        out_of_stock_items: data.out_of_stock_items || 0,
+        total_staff: data.total_staff || 0,
+        active_staff: data.active_staff || 0,
+        staff_on_leave: data.staff_on_leave || 0,
+        inactive_staff: data.inactive_staff || 0,
+        active_roles: data.active_roles || 6,
+        monthly_revenue_total: data.monthly_revenue || 0,
+        monthly_revenue_trend: data.monthly_revenue || [],
+        top_services: data.top_services || [],
+        top_customers: data.top_customers || [],
+        transactions: data.transactions || [],
+        appointments: data.appointments || [],
+        users: data.users || []
+      };
+      
+      setReportData(reportDataWithDefaults);
 
       // Store raw data for filtering
-      setRawTransactions(data.transactions || []);
-      setRawAppointments(data.appointments || []);
-      setRawUsers(data.users || []);
+      setRawTransactions(reportDataWithDefaults.transactions || []);
+      setRawAppointments(reportDataWithDefaults.appointments || []);
+      setRawUsers(reportDataWithDefaults.users || []);
 
       setError("");
     } catch (err) {
+      console.error("Failed to load report data:", err);
       setError(err.message || "Failed to load report data");
+      // Set default data on error to prevent loading state
+      setReportData({
+        total_revenue: 0,
+        total_transactions: 0,
+        total_customers: 0,
+        new_customers: 0,
+        total_users: 0,
+        today_transactions: 0,
+        today_revenue: 0,
+        total_pets: 0,
+        total_appointments: 0,
+        completed_appointments: 0,
+        total_inventory_items: 0,
+        low_stock_items: 0,
+        out_of_stock_items: 0,
+        total_staff: 0,
+        active_staff: 0,
+        staff_on_leave: 0,
+        inactive_staff: 0,
+        active_roles: 6,
+        monthly_revenue_total: 0,
+        monthly_revenue_trend: [],
+        top_services: [],
+        top_customers: [],
+        transactions: [],
+        appointments: [],
+        users: []
+      });
     } finally {
       setLoading(false);
     }
@@ -179,7 +239,7 @@ const AdminReports = () => {
   };
 
   const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  const monthlyTrend = reportData?.monthly_revenue?.map((item) => ({
+  const monthlyTrend = reportData?.monthly_revenue_trend?.map((item) => ({
     month: monthNames[(item.month ?? 1) - 1] || "N/A",
     revenue: Number(item.total) || 0,
   })) || [];
@@ -597,7 +657,7 @@ const AdminReports = () => {
               <span className="manager-stat-title">Monthly Revenue</span>
               <span className="manager-stat-badge">This month</span>
             </div>
-            <div className="manager-stat-value">{formatCurrency(reportData?.monthly_revenue)}</div>
+            <div className="manager-stat-value">{formatCurrency(reportData?.monthly_revenue_total)}</div>
             <div className="manager-stat-subtext">Business performance</div>
           </div>
         </div>
