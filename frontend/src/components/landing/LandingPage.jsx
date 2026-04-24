@@ -38,24 +38,53 @@ const LandingPage = () => {
 
       <section id="services" className="features">
         <div className="section-header">
-          <h2>Our Services</h2>
-          <p>Comprehensive care solutions for your beloved pets</p>
+          <p>Our Services</p>
         </div>
         <div className="features-grid">
           <div className="feature-card">
             <div className="feature-number">01</div>
-            <h3>Veterinary Care</h3>
-            <p>24/7 professional medical care for your pets</p>
+            <h3>Laboratories</h3>
+            <p>CBC / Blood Chemistry testing for accurate diagnosis</p>
           </div>
           <div className="feature-card">
             <div className="feature-number">02</div>
-            <h3>Luxury Boarding</h3>
-            <p>Comfortable and safe boarding facilities</p>
+            <h3>Vaccination</h3>
+            <p>Complete vaccination programs for disease prevention</p>
           </div>
           <div className="feature-card">
             <div className="feature-number">03</div>
-            <h3>Play & Exercise</h3>
-            <p>Fun activities and exercise programs</p>
+            <h3>Consultation</h3>
+            <p>In-person and online veterinary consultations</p>
+          </div>
+          <div className="feature-card">
+            <div className="feature-number">04</div>
+            <h3>Pet Boarding</h3>
+            <p>Safe and comfortable boarding facilities</p>
+          </div>
+          <div className="feature-card">
+            <div className="feature-number">05</div>
+            <h3>Pet Day Care</h3>
+            <p>Professional daytime care and supervision</p>
+          </div>
+          <div className="feature-card">
+            <div className="feature-number">06</div>
+            <h3>Pet Party Events</h3>
+            <p>Special events and socialization activities</p>
+          </div>
+          <div className="feature-card">
+            <div className="feature-number">07</div>
+            <h3>Grooming</h3>
+            <p>Professional grooming and spa services</p>
+          </div>
+          <div className="feature-card">
+            <div className="feature-number">08</div>
+            <h3>Supplies & Accessories</h3>
+            <p>Premium pet supplies and accessories</p>
+          </div>
+          <div className="feature-card">
+            <div className="feature-number">09</div>
+            <h3>Home Veterinary Service</h3>
+            <p>Professional veterinary care at your doorstep</p>
           </div>
         </div>
       </section>
@@ -63,7 +92,7 @@ const LandingPage = () => {
       <section id="about" className="about">
         <div className="about-content">
           <h2>About Pawesome Retreat</h2>
-          <p>We are a premier pet care facility dedicated to providing exceptional veterinary services, luxury boarding, and personalized care for your beloved companions. Our team of experienced professionals is committed to ensuring your pets receive the highest quality care in a safe, comfortable environment.</p>
+          <p>We are a premier pet care facility offering comprehensive services including Pet Hotel, Grooming, Supplies and Vet Clinic. Our team of experienced professionals provides laboratory services (CBC/Blood Chem), vaccination, in-person and online consultations, pet boarding, day care, party events, grooming, supplies and accessories, and home veterinary service. We are committed to ensuring your pets receive the highest quality care in a safe, comfortable environment.</p>
         </div>
       </section>
 
@@ -71,12 +100,12 @@ const LandingPage = () => {
         <div className="footer-content">
           <div className="footer-section">
             <h3>Pawesome Retreat Inc.</h3>
-            <p>Your trusted partner in pet care</p>
+            <p>Pet Hotel, Grooming, Supplies and Vet Clinic</p>
           </div>
           <div className="footer-section">
             <h4>Contact</h4>
-            <p>Phone: (555) 123-4567</p>
-            <p>Email: info@pawesomeretreat.com</p>
+            <p>Email: pawesomeretreat24@gmail.com</p>
+            <p>Address: Aldana Street San Isidro Village, Las Piñas, Philippines, 1740</p>
           </div>
         </div>
         <div className="footer-bottom">

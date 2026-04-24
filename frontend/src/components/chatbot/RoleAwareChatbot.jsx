@@ -13,7 +13,7 @@ import {
 } from "../../services/chatbotService";
 import "./RoleAwareChatbot.css";
 
-const formatMessage = (text) => text.split("\n");
+const formatMessage = (text) => (text || "").split("\n");
 
 const RoleAwareChatbot = ({
   mode = "widget",
