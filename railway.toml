@@ -1,6 +1,7 @@
 [build]
 builder = "nixpacks"
 buildCommand = "cd backend && composer install --no-dev --optimize-autoloader --no-interaction"
+# Force rebuild for inventory centralization
 
 [build.env]
 PHP_VERSION = "8.2"
