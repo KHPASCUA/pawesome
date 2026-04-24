@@ -1,4 +1,4 @@
-FROM php:8.2-fpm
+FROM php:8.2-apache
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
@@ -9,16 +9,17 @@ RUN apt-get update && apt-get install -y \
     libxml2-dev \
     zip \
     unzip \
+    libapache2-mod-php \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 # Set working directory
-WORKDIR /app
+WORKDIR /var/www/html
 
 # Copy application files
-COPY . /app
+COPY . /var/www/html
 
 # Install PHP dependencies
 RUN composer install --no-dev --optimize-autoloader
@@ -29,11 +30,15 @@ RUN php artisan route:cache
 RUN php artisan view:cache
 
 # Set permissions
-RUN chown -R www-data:www-data /app
-RUN chmod -R 755 /app/storage
+RUN chown -R www-data:www-data /var/www/html
+RUN chmod -R 755 /var/www/html/storage
+
+# Configure Apache
+RUN a2enmod rewrite
+RUN sed -i 's/DocumentRoot \/var\/www\/html/DocumentRoot \/var\/www\/html\/public/g' /etc/apache2/sites-available/000-default.conf
 
 # Expose port
-EXPOSE 9000
+EXPOSE 80
 
-# Start PHP-FPM
-CMD ["php-fpm"]
+# Start Apache
+CMD ["apache2-foreground"]
