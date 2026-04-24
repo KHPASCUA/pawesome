@@ -176,17 +176,18 @@ export default function CustomerStore() {
   // Use API products if available, otherwise demo data
   const currentStoreData = apiProducts && Object.keys(apiProducts).length > 0 ? apiProducts : storeData;
 
-  const filteredProducts = category === "Wishlist" ? [] : currentStoreData[category]
-    .filter(product => 
-      product.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
-      product.price >= priceRange.min &&
-      product.price <= priceRange.max
-    )
+  const filteredProducts = category === "Wishlist" ? [] : (currentStoreData[category] || [])
+    .filter(product => {
+      if (!product || !product.name) return false;
+      return product.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
+        (product.price || 0) >= priceRange.min &&
+        (product.price || 0) <= priceRange.max;
+    })
     .sort((a, b) => {
-      if (sortBy === "name") return a.name.localeCompare(b.name);
-      if (sortBy === "price-low") return a.price - b.price;
-      if (sortBy === "price-high") return b.price - a.price;
-      if (sortBy === "rating") return b.rating - a.rating;
+      if (sortBy === "name") return (a.name || '').localeCompare(b.name || '');
+      if (sortBy === "price-low") return (a.price || 0) - (b.price || 0);
+      if (sortBy === "price-high") return (b.price || 0) - (a.price || 0);
+      if (sortBy === "rating") return (b.rating || 0) - (a.rating || 0);
       return 0;
     });
 

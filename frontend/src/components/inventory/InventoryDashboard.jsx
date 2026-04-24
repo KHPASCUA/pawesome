@@ -100,7 +100,7 @@ const InventoryDashboard = () => {
     action: transaction.action || "Transaction",
     product: transaction.item_name || "Item",
     quantity: transaction.quantity || 0,
-    time: new Date(transaction.created_at).toLocaleDateString(),
+    time: transaction.created_at ? new Date(transaction.created_at).toLocaleDateString() : 'N/A',
     status: transaction.status || "completed",
   })) : [];
 
