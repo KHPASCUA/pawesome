@@ -115,7 +115,7 @@ const InventoryManagement = () => {
           ...item,
           id: item.sku || item.id,
           stock_quantity: item.stock,
-          min_stock_level: item.minStock,
+          reorder_level: item.minStock,
           price: item.price,
           category: item.category,
           status: item.stock === 0 ? 'out_of_stock' : item.stock <= item.minStock ? 'low_stock' : 'in_stock'
@@ -124,7 +124,7 @@ const InventoryManagement = () => {
         setUsingDemoData(true);
         
         // Calculate demo stats
-        const lowStock = demoItems.filter(i => i.stock_quantity > 0 && i.stock_quantity <= i.min_stock_level).length;
+        const lowStock = demoItems.filter(i => i.stock_quantity > 0 && i.stock_quantity <= i.reorder_level).length;
         const outOfStock = demoItems.filter(i => i.stock_quantity === 0).length;
         const totalValue = demoItems.reduce((sum, i) => sum + (i.price * i.stock_quantity), 0);
         
@@ -253,8 +253,8 @@ const InventoryManagement = () => {
     const matchesCategory = categoryFilter === 'all' || item.category === categoryFilter;
     
     const matchesStatus = statusFilter === 'all' || 
-      (statusFilter === 'in_stock' && (item.stock_quantity || item.stock || 0) > (item.min_stock_level || 10)) ||
-      (statusFilter === 'low_stock' && (item.stock_quantity || item.stock || 0) > 0 && (item.stock_quantity || item.stock || 0) <= (item.min_stock_level || 10)) ||
+      (statusFilter === 'in_stock' && (item.stock_quantity || item.stock || 0) > (item.reorder_level || item.min_stock_level || 10)) ||
+      (statusFilter === 'low_stock' && (item.stock_quantity || item.stock || 0) > 0 && (item.stock_quantity || item.stock || 0) <= (item.reorder_level || item.min_stock_level || 10)) ||
       (statusFilter === 'out_of_stock' && (item.stock_quantity || item.stock || 0) === 0);
     
     return matchesSearch && matchesCategory && matchesStatus;
@@ -263,7 +263,7 @@ const InventoryManagement = () => {
   // Get status badge
   const getStatusBadge = (item) => {
     const stock = item.stock_quantity || item.stock || item.quantity || 0;
-    const minStock = item.min_stock_level || item.minStock || 10;
+    const minStock = item.reorder_level || item.min_stock_level || item.minStock || 10;
     
     if (stock === 0) {
       return <span className="status-badge out-of-stock"><FontAwesomeIcon icon={faTimes} /> Out of Stock</span>;
@@ -393,10 +393,10 @@ const InventoryManagement = () => {
                   </td>
                   <td className="price-cell">₱{(item.price || 0).toLocaleString()}</td>
                   <td className="stock-cell">
-                    <span className={`stock-value ${(item.stock_quantity || item.stock || 0) <= (item.min_stock_level || 10) ? 'low' : ''}`}>
+                    <span className={`stock-value ${(item.stock_quantity || item.stock || 0) <= (item.reorder_level || item.min_stock_level || 10) ? 'low' : ''}`}>
                       {item.stock_quantity || item.stock || 0}
                     </span>
-                    <span className="min-stock">/ {item.min_stock_level || item.minStock || 10} min</span>
+                    <span className="min-stock">/ {item.reorder_level || item.min_stock_level || item.minStock || 10} min</span>
                   </td>
                   <td>{getStatusBadge(item)}</td>
                   <td className="location-cell">{item.location || '-'}</td>
