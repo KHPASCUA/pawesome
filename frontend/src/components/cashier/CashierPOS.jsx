@@ -74,8 +74,8 @@ const CashierPOS = ({ onCheckout }) => {
   };
 
   const allItems = useMemo(() => {
-    const productItems = products.map(p => ({ ...p, itemType: "product" }));
-    const serviceItems = services.map(s => ({ ...s, itemType: "service" }));
+    const productItems = products.filter(p => p && p.id).map(p => ({ ...p, itemType: "product" }));
+    const serviceItems = services.filter(s => s && s.id).map(s => ({ ...s, itemType: "service" }));
     return [...productItems, ...serviceItems];
   }, [products, services]);
 
@@ -83,6 +83,7 @@ const CashierPOS = ({ onCheckout }) => {
     let items = allItems;
     if (activeCategory !== "all") {
       items = items.filter((item) => {
+        if (!item) return false;
         const itemCategory = (item.category || "").toLowerCase();
         const activeCat = activeCategory.toLowerCase();
 
@@ -93,7 +94,10 @@ const CashierPOS = ({ onCheckout }) => {
     }
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
-      items = items.filter((item) => item.name.toLowerCase().includes(query));
+      items = items.filter((item) => {
+        if (!item || !item.name) return false;
+        return item.name.toLowerCase().includes(query);
+      });
     }
     return items;
   }, [allItems, activeCategory, searchQuery]);
