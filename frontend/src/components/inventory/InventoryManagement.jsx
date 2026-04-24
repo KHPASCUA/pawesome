@@ -184,7 +184,7 @@ const InventoryManagement = () => {
       category: item.category || 'Food',
       price: item.price || '',
       stock_quantity: item.stock_quantity || item.stock || item.quantity || '',
-      min_stock_level: item.min_stock_level || item.minStock || 10,
+      reorder_level: item.reorder_level || item.min_stock_level || item.minStock || 10,
       brand: item.brand || '',
       supplier: item.supplier || '',
       description: item.description || '',
