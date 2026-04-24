@@ -216,6 +216,46 @@
 }
 
 /* Responsive Design */
+@media (max-width: 1200px) {
+ .cashier-sidebar {
+ width: 220px;
+ }
+ 
+ .sidebar-logo h2 {
+ font-size: 1.25rem;
+ }
+ 
+ .nav-item a {
+ padding: 0.875rem 1.25rem;
+ font-size: 0.875rem;
+ }
+ 
+ .logout-btn {
+ padding: 0.875rem 1.25rem;
+ font-size: 0.875rem;
+ }
+}
+
+@media (max-width: 992px) {
+ .cashier-sidebar {
+ width: 200px;
+ }
+ 
+ .sidebar-logo h2 {
+ font-size: 1.125rem;
+ }
+ 
+ .nav-item a {
+ padding: 0.75rem 1rem;
+ font-size: 0.825rem;
+ }
+ 
+ .logout-btn {
+ padding: 0.75rem 1rem;
+ font-size: 0.825rem;
+ }
+}
+
 @media (max-width: 768px) {
  .cashier-sidebar {
  width: 80px;
@@ -240,5 +280,48 @@
  .logout-btn {
  justify-content: center;
  padding: 1rem;
+ }
+ 
+ .sidebar-logo img {
+ width: 35px;
+ height: 35px;
+ }
+}
+
+@media (max-width: 576px) {
+ .cashier-sidebar {
+ width: 70px;
+ }
+ 
+ .nav-item a {
+ padding: 0.875rem;
+ }
+ 
+ .logout-btn {
+ padding: 0.875rem;
+ }
+ 
+ .sidebar-logo img {
+ width: 30px;
+ height: 30px;
+ }
+}
+
+@media (max-width: 480px) {
+ .cashier-sidebar {
+ width: 60px;
+ }
+ 
+ .nav-item a {
+ padding: 0.75rem;
+ }
+ 
+ .logout-btn {
+ padding: 0.75rem;
+ }
+ 
+ .sidebar-logo img {
+ width: 25px;
+ height: 25px;
  }
 }

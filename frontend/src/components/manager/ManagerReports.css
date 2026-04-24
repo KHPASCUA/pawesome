@@ -176,18 +176,83 @@
   color: #0c4a6e;
 }
 
-/* Responsive Design */
+/* Enhanced Responsive Design */
+@media (max-width: 1200px) {
+  .reports-header {
+    padding: 32px;
+  }
+  
+  .reports-title {
+    font-size: 2.2rem;
+  }
+  
+  .reports-subtitle {
+    font-size: 1rem;
+  }
+  
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.2rem;
+  }
+}
+
+@media (max-width: 1024px) {
+  .reports-header {
+    padding: 24px;
+  }
+  
+  .reports-title {
+    font-size: 1.8rem;
+  }
+  
+  .reports-subtitle {
+    font-size: 0.95rem;
+  }
+  
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+  }
+  
+  .staff-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+  }
+  
+  .revenue-table-container {
+    overflow-x: auto;
+  }
+  
+  .revenue-table {
+    min-width: 700px;
+  }
+}
+
 @media (max-width: 768px) {
   .manager-reports {
     padding: 1rem;
   }
 
+  .reports-header {
+    padding: 20px;
+  }
+  
+  .reports-title {
+    font-size: 1.5rem;
+  }
+  
+  .reports-subtitle {
+    font-size: 0.9rem;
+  }
+
   .stats-grid {
     grid-template-columns: 1fr;
+    gap: 0.8rem;
   }
 
   .staff-grid {
     grid-template-columns: 1fr;
+    gap: 0.8rem;
   }
 
   .revenue-table {
@@ -197,5 +262,64 @@
   .revenue-table th,
   .revenue-table td {
     padding: 0.5rem;
+  }
+  
+  .total-revenue {
+    padding: 1rem;
+  }
+  
+  .total-revenue-amount {
+    font-size: 2rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .manager-reports {
+    padding: 0.75rem;
+  }
+
+  .reports-header {
+    padding: 16px;
+  }
+  
+  .reports-title {
+    font-size: 1.3rem;
+  }
+  
+  .reports-subtitle {
+    font-size: 0.85rem;
+  }
+
+  .stats-grid {
+    gap: 0.6rem;
+  }
+
+  .staff-grid {
+    gap: 0.6rem;
+  }
+
+  .revenue-table {
+    font-size: 0.8rem;
+  }
+
+  .revenue-table th,
+  .revenue-table td {
+    padding: 0.4rem;
+  }
+  
+  .revenue-table {
+    min-width: 600px;
+  }
+  
+  .total-revenue {
+    padding: 0.8rem;
+  }
+  
+  .total-revenue-amount {
+    font-size: 1.5rem;
+  }
+  
+  .total-revenue-label {
+    font-size: 0.8rem;
   }
 }

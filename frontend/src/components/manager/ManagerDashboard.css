@@ -1303,8 +1303,41 @@
     grid-template-columns: 1fr;
   }
   
-  .performance-grid {
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  .dashboard-grid {
+    grid-template-columns: 2fr 1fr;
+  }
+}
+
+@media (max-width: 1024px) {
+  .manager-main {
+    margin-left: 240px;
+    padding: 1.2rem 1.5rem 1.8rem;
+  }
+  
+  .manager-navbar {
+    left: 240px;
+  }
+  
+  .manager-dashboard.collapsed .manager-main {
+    margin-left: 80px;
+  }
+  
+  .manager-dashboard.collapsed .manager-navbar {
+    left: 80px;
+  }
+  
+  .overview-cards {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.2rem;
+  }
+  
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+    gap: 1.2rem;
+  }
+  
+  .analytics-metrics {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 

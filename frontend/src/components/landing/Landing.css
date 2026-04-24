@@ -219,10 +219,12 @@
 }
 
 .section-header p {
-  color: #666666;
-  font-size: 1.2rem;
+  color: #333333;
+  font-size: 2.5rem;
+  font-weight: 700;
   max-width: 600px;
   margin: 0 auto;
+  text-shadow: 2px 2px 4px rgba(255, 255, 255, 0.8);
 }
 
 /* Features Section */
@@ -305,7 +307,7 @@
 }
 
 .about-content p {
-  color: #666666;
+  color: #000000;
   font-size: 1.2rem;
   line-height: 1.6;
   max-width: 800px;
@@ -331,12 +333,12 @@
 
 .footer-section h3,
 .footer-section h4 {
-  color: #FFC8DD;
+  color: #000000;
   margin-bottom: 1rem;
 }
 
 .footer-section p {
-  color: #666666;
+  color: #ffffff;
   line-height: 1.6;
 }
 
