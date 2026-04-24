@@ -94,7 +94,7 @@ const InventoryManagement = () => {
         inventoryApi.getDashboard().catch(() => null)
       ]);
       
-      const fetchedItems = itemsResponse.items || itemsResponse.data || [];
+      const fetchedItems = Array.isArray(itemsResponse) ? itemsResponse : (itemsResponse.items || itemsResponse.data || []);
       
       if (fetchedItems.length > 0) {
         setItems(fetchedItems);
