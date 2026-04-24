@@ -36,7 +36,7 @@ class InventoryItem extends Model
     public const VALID_CATEGORIES = ['Food', 'Accessories', 'Grooming', 'Toys', 'Health', 'Services'];
 
     /**
-     * Valid status values
+     * Valid status values - standardized across system
      */
     public const VALID_STATUSES = ['active', 'inactive', 'discontinued'];
 
