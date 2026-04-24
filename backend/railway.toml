@@ -1,43 +1,6 @@
 [build]
 builder = "nixpacks"
 
-[build.environment]
-NODE_VERSION = "20"
-
 [deploy]
 startCommand = "php artisan serve --host=0.0.0.0 --port=$PORT"
 healthcheckPath = "/api/health"
-healthcheckTimeout = 100
-restartPolicyType = "on_failure"
-restartPolicyMaxRetries = 10
-
-[[services]]
-name = "app"
-source = "."
-[services.environment]
-APP_ENV = "production"
-APP_DEBUG = "false"
-APP_KEY = "${{APP_KEY}}"
-APP_URL = "${{PUBLIC_URL}}"
-DB_CONNECTION = "mysql"
-DB_HOST = "${{RAILWAY_MYSQLHOST}}"
-DB_PORT = "${{RAILWAY_MYSQLPORT}}"
-DB_DATABASE = "${{RAILWAY_MYSQLDATABASE}}"
-DB_USERNAME = "${{RAILWAY_MYSQLUSER}}"
-DB_PASSWORD = "${{RAILWAY_MYSQLPASSWORD}}"
-CACHE_DRIVER = "redis"
-QUEUE_CONNECTION = "redis"
-REDIS_HOST = "${{RAILWAY_REDIS_HOST}}"
-REDIS_PASSWORD = "${{RAILWAY_REDIS_PASSWORD}}"
-REDIS_PORT = "${{RAILWAY_REDIS_PORT}}"
-
-[services.build]
-buildCommand = "composer install --no-dev --optimize-autoloader && php artisan config:cache && php artisan route:cache && php artisan view:cache && php artisan optimize"
-
-[[services]]
-name = "mysql"
-source = "railway/mysql:8.0"
-
-[[services]]
-name = "redis"
-source = "railway/redis:7"
