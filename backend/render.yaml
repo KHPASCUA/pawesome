@@ -1,0 +1,68 @@
+services:
+  # Laravel Backend Service
+  - type: web
+    name: pawesome-backend
+    env: php
+    plan: free
+    buildCommand: composer install --no-dev --optimize-autoloader && php artisan config:cache && php artisan route:cache && php artisan view:cache && php artisan optimize
+    startCommand: php artisan serve --host=0.0.0.0 --port=$PORT
+    healthCheckPath: /api/health
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: false
+      - key: APP_KEY
+        generateValue: true
+      - key: APP_URL
+        value: https://pawesome-backend.onrender.com
+      - key: DB_CONNECTION
+        value: mysql
+      - key: DB_HOST
+        value: mysql
+      - key: DB_PORT
+        value: 3306
+      - key: DB_DATABASE
+        value: pawesome
+      - key: DB_USERNAME
+        value: pawesome
+      - key: DB_PASSWORD
+        generateValue: true
+      - key: CACHE_DRIVER
+        value: redis
+      - key: QUEUE_CONNECTION
+        value: redis
+      - key: REDIS_HOST
+        value: redis
+      - key: REDIS_PORT
+        value: 6379
+
+  # MySQL Database
+  - type: pserv
+    name: mysql
+    env: mysql
+    plan: free
+    databases:
+      - name: pawesome
+        user: pawesome
+    envVars:
+      - key: MYSQL_DATABASE
+        value: pawesome
+      - key: MYSQL_USER
+        value: pawesome
+      - key: MYSQL_PASSWORD
+        generateValue: true
+
+  # Redis Cache
+  - type: pserv
+    name: redis
+    env: redis
+    plan: free
+    envVars:
+      - key: REDIS_PASSWORD
+        generateValue: true
+
+databases:
+  - name: pawesome
+    databaseName: pawesome
+    user: pawesome

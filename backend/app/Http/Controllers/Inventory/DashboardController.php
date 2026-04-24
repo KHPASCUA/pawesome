@@ -90,9 +90,9 @@ class DashboardController extends Controller
         // Log the creation
         InventoryLog::create([
             'inventory_item_id' => $item->id,
-            'type' => 'addition',
-            'quantity' => $item->stock,
-            'notes' => 'Item created via inventory management',
+            'delta' => $item->stock,
+            'reason' => 'Item created via inventory management',
+            'reference_type' => 'creation',
         ]);
 
         return response()->json(['message' => 'Item created successfully', 'item' => $item], 201);
@@ -129,9 +129,9 @@ class DashboardController extends Controller
             $difference = $validated['stock'] - $oldStock;
             InventoryLog::create([
                 'inventory_item_id' => $item->id,
-                'type' => $difference > 0 ? 'addition' : 'reduction',
-                'quantity' => abs($difference),
-                'notes' => 'Stock adjusted via inventory management',
+                'delta' => $difference,
+                'reason' => 'Stock adjusted via inventory management',
+                'reference_type' => $difference > 0 ? 'addition' : 'reduction',
             ]);
         }
 
@@ -145,9 +145,9 @@ class DashboardController extends Controller
         // Log the deletion
         InventoryLog::create([
             'inventory_item_id' => $item->id,
-            'type' => 'reduction',
-            'quantity' => $item->stock,
-            'notes' => 'Item deleted via inventory management',
+            'delta' => -$item->stock,
+            'reason' => 'Item deleted via inventory management',
+            'reference_type' => 'deletion',
         ]);
 
         $item->delete();

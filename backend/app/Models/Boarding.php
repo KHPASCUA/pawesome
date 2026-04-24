@@ -141,6 +141,9 @@ class Boarding extends Model
             'status' => 'confirmed',
             'confirmed_at' => now(),
         ]);
+
+        // Update room status to reserved when booking is confirmed
+        $this->hotelRoom?->update(['status' => 'reserved']);
     }
 
     public function checkIn()
@@ -160,6 +163,17 @@ class Boarding extends Model
             'actual_check_out' => now(),
         ]);
 
-        $this->hotelRoom?->update(['status' => 'available']);
+        // Set room to cleaning after checkout
+        $this->hotelRoom?->update(['status' => 'cleaning']);
+    }
+
+    public function cancel()
+    {
+        $this->update(['status' => 'cancelled']);
+
+        // Release room back to available if it was reserved or occupied
+        if ($this->hotelRoom && in_array($this->hotelRoom->status, ['reserved', 'occupied'])) {
+            $this->hotelRoom->update(['status' => 'available']);
+        }
     }
 }

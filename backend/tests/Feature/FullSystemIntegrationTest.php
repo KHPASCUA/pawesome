@@ -100,8 +100,8 @@ class FullSystemIntegrationTest extends TestCase
     {
         // Services
         Service::factory()->create(['name' => 'Pet Grooming', 'category' => 'Grooming', 'price' => 500, 'duration' => 60]);
-        Service::factory()->create(['name' => 'Vaccination', 'category' => 'Health', 'price' => 800, 'duration' => 30]);
-        Service::factory()->create(['name' => 'Consultation', 'category' => 'Medical', 'price' => 300, 'duration' => 45]);
+        Service::factory()->create(['name' => 'Vaccination', 'category' => 'Vaccination', 'price' => 800, 'duration' => 30]);
+        Service::factory()->create(['name' => 'Consultation', 'category' => 'Consultation', 'price' => 300, 'duration' => 45]);
         
         // Hotel Rooms
         HotelRoom::factory()->create(['room_number' => '101', 'type' => 'standard', 'size' => 'small', 'daily_rate' => 500]);

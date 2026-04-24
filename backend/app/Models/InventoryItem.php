@@ -170,7 +170,6 @@ class InventoryItem extends Model
             'delta' => -$quantity,
             'reason' => $reason,
             'reference_type' => $referenceType,
-            'reference_id' => $referenceId,
         ]);
     }
 
@@ -186,7 +185,6 @@ class InventoryItem extends Model
             'delta' => $quantity,
             'reason' => $reason,
             'reference_type' => $referenceType,
-            'reference_id' => $referenceId,
         ]);
     }
 }

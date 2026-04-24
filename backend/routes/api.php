@@ -30,6 +30,16 @@ use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\PayrollController;
 use Illuminate\Support\Facades\Route;
 
+// Health check endpoint for deployment monitoring
+Route::get('/health', function () {
+    return response()->json([
+        'status' => 'ok',
+        'timestamp' => now()->toISOString(),
+        'version' => '1.0.0',
+        'environment' => app()->environment(),
+    ]);
+});
+
 Route::middleware('throttle:auth')->prefix('auth')->group(function () {
     Route::post('register', [AuthController::class, 'register']);
     Route::post('login', [AuthController::class, 'login']);

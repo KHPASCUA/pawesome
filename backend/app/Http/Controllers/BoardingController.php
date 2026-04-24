@@ -295,13 +295,7 @@ class BoardingController extends Controller
         }
 
         $oldStatus = $boarding->status;
-
-        // Release room if checked in
-        if ($boarding->status === 'checked_in' && $boarding->hotelRoom) {
-            $boarding->hotelRoom->update(['status' => 'available']);
-        }
-
-        $boarding->update(['status' => 'cancelled']);
+        $boarding->cancel();
 
         // Send notification
         NotificationService::notifyBoardingStatusChange($boarding, $oldStatus);
@@ -342,7 +336,7 @@ class BoardingController extends Controller
         $availableRooms = [];
 
         foreach ($rooms as $room) {
-            if ($room->isAvailableForDates($request->check_in, $request->check_out)) {
+            if ($room instanceof HotelRoom && $room->isAvailableForDates($request->check_in, $request->check_out)) {
                 $availableRooms[] = $room;
             }
         }

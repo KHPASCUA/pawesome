@@ -87,8 +87,8 @@ class ChatbotConversationSimulationTest extends TestCase
     {
         // Services
         Service::factory()->create(['name' => 'Pet Grooming', 'category' => 'Grooming', 'price' => 500]);
-        Service::factory()->create(['name' => 'Vaccination', 'category' => 'Health', 'price' => 800]);
-        Service::factory()->create(['name' => 'Consultation', 'category' => 'Medical', 'price' => 300]);
+        Service::factory()->create(['name' => 'Vaccination', 'category' => 'Vaccination', 'price' => 800]);
+        Service::factory()->create(['name' => 'Consultation', 'category' => 'Consultation', 'price' => 300]);
         
         // Inventory
         InventoryItem::factory()->create(['name' => 'Dog Food Premium', 'sku' => 'DOG-FOOD-001', 'stock' => 50, 'price' => 850]);

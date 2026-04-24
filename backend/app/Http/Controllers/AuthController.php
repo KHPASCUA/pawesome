@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Models\Customer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -41,6 +42,8 @@ class AuthController extends Controller
         // Create API token for the user
         $apiToken = Hash::make(uniqid() . time());
 
+        $userRole = $request->role ?? 'customer';
+        
         $user = User::create([
             'name' => $request->name,
             'first_name' => $request->first_name,
@@ -59,10 +62,20 @@ class AuthController extends Controller
             'emergency_contact_person' => $request->emergency_contact_person,
             'emergency_contact_number' => $request->emergency_contact_number,
             'country' => $request->country ?? 'Philippines',
-            'role' => $request->role ?? 'customer',
+            'role' => $userRole,
             'is_active' => true,
             'api_token' => $apiToken,
         ]);
+
+        // Create corresponding Customer record for customer role users
+        if ($userRole === 'customer') {
+            Customer::create([
+                'name' => $request->name,
+                'email' => $request->email,
+                'phone' => $request->phone,
+                'address' => $request->address,
+            ]);
+        }
 
         return response()->json([
             'message' => 'User registered successfully',

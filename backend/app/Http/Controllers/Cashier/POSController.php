@@ -94,11 +94,11 @@ class POSController extends Controller
                     'total_price' => $finalTotal,
                 ]);
 
-                // Update inventory for products
+                // Update inventory for products with logging
                 if ($item['item_type'] === 'product' && !empty($item['item_id'])) {
                     $product = InventoryItem::find($item['item_id']);
                     if ($product) {
-                        $product->decrement('stock', $item['quantity']);
+                        $product->decrementStock($item['quantity'], 'Sale', 'sale', $sale->id);
                     }
                 }
             }
@@ -308,12 +308,12 @@ class POSController extends Controller
                 ], 400);
             }
 
-            // Restore inventory for products
+            // Restore inventory for products with logging
             foreach ($sale->items as $item) {
                 if ($item->item_type === 'product' && $item->product_id) {
                     $product = InventoryItem::find($item->product_id);
                     if ($product) {
-                        $product->increment('stock', $item->quantity);
+                        $product->incrementStock($item->quantity, 'Sale Cancellation', 'cancellation', $sale->id);
                     }
                 }
             }

@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  checkHotelAvailability,
   createChatbotBooking,
   createChatbotHotelBooking,
   fetchBookingOptions,
@@ -13,7 +12,7 @@ import {
 } from "../../services/chatbotService";
 import "./RoleAwareChatbot.css";
 
-const formatMessage = (text) => text.split("\n");
+const formatMessage = (text) => (text || "").split("\n");
 
 const RoleAwareChatbot = ({
   mode = "widget",
