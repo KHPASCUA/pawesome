@@ -1,3 +1,4 @@
+ARG CACHE_BUST=2025-04-25-02-22
 FROM php:8.2-apache
 
 WORKDIR /var/www/html
