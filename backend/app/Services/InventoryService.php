@@ -42,8 +42,8 @@ class InventoryService
             $validated['sku'] = $this->generateSKU($validated['category']);
         }
 
-        // Use quantity if stock is not provided (frontend compatibility)
-        $stock = $validated['stock'] ?? ($validated['quantity'] ?? 0);
+        // Use quantity or stock_quantity if stock is not provided (frontend compatibility)
+        $stock = $validated['stock'] ?? $validated['stock_quantity'] ?? ($validated['quantity'] ?? 0);
         $validated['stock'] = $stock;
 
         // Set default status

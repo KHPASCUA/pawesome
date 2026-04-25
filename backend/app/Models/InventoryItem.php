@@ -17,6 +17,7 @@ class InventoryItem extends Model
         'category',
         'description',
         'stock',
+        'stock_quantity',
         'reorder_level',
         'price',
         'expiry_date',
