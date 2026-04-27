@@ -44,12 +44,7 @@ use Illuminate\Support\Facades\Route;
 
 // Health check endpoint for deployment monitoring
 Route::get('/health', function () {
-    return response()->json([
-        'status' => 'ok',
-        'timestamp' => now()->toISOString(),
-        'version' => '1.0.0',
-        'environment' => app()->environment(),
-    ]);
+    return response()->json(['status' => 'ok']);
 });
 
 // Service Request API (public endpoints for customer booking)
