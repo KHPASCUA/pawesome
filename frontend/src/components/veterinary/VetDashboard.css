@@ -13,13 +13,13 @@
   color: #ffffff;
 }
 
-.vet-dashboard.collapsed .veterinary-sidebar {
+.vet-dashboard.collapsed .app-sidebar {
   width: 80px;
 }
 
-.vet-dashboard.collapsed .veterinary-sidebar .sidebar-logo span,
-.vet-dashboard.collapsed .veterinary-sidebar .nav-item span,
-.vet-dashboard.collapsed .veterinary-sidebar .logout-btn span {
+.vet-dashboard.collapsed .app-sidebar .sidebar-logo span,
+.vet-dashboard.collapsed .app-sidebar .nav-item span,
+.vet-dashboard.collapsed .app-sidebar .logout-btn span {
   display: none;
 }
 
