@@ -10,7 +10,6 @@
 
 /* Premium Header */
 .reports-header {
-  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
   padding: 40px;
   margin-bottom: 24px;
   position: relative;
@@ -89,8 +88,8 @@
 
 .search-input:focus {
   outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  border-color: rgba(255, 95, 147, 0.6);
+  box-shadow: 0 0 0 3px rgba(255, 95, 147, 0.1);
 }
 
 .date-filters {
@@ -278,7 +277,7 @@
 }
 
 .report-section h3 svg {
-  color: #3b82f6;
+  color: #ff5f93;
 }
 
 /* Table Styles */
@@ -480,5 +479,338 @@
   .data-table th,
   .data-table td {
     padding: 8px;
+  }
+}
+
+/* =====================================================
+   CUSTOMER REPORTS — PINK GLASS FIX + UPGRADE
+===================================================== */
+
+.date-preset-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin-bottom: 1rem;
+}
+
+.date-preset-row button {
+  border: 1px solid rgba(255, 95, 147, 0.18);
+  border-radius: 999px;
+  padding: 0.55rem 0.85rem;
+  background: rgba(255, 95, 147, 0.08);
+  color: #ff5f93;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.date-preset-row button:hover {
+  background: rgba(255, 95, 147, 0.14);
+}
+
+.reports-insights-grid {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.reports-insight-card {
+  padding: 1.25rem;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.86);
+  border: 1px solid rgba(255, 95, 147, 0.18);
+  box-shadow: 0 18px 45px rgba(255, 95, 147, 0.14);
+}
+
+.insight-label {
+  display: inline-flex;
+  margin-bottom: 0.45rem;
+  color: #ff5f93;
+  font-size: 0.75rem;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.reports-insight-card h3 {
+  margin: 0;
+  color: #191919;
+  font-size: 1.25rem;
+  font-weight: 950;
+}
+
+.reports-insight-card p {
+  margin: 0.35rem 0 0;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+.export-btn.print {
+  background: rgba(255, 95, 147, 0.1) !important;
+  color: #ff5f93 !important;
+}
+
+.service-breakdown-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.service-breakdown-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 1rem;
+  border-radius: 16px;
+  background: rgba(255, 95, 147, 0.055);
+  border: 1px solid rgba(255, 95, 147, 0.12);
+}
+
+.service-breakdown-item span {
+  color: #1f2937;
+  font-weight: 850;
+}
+
+.service-breakdown-item strong {
+  color: #ff5f93;
+  font-weight: 950;
+}
+
+.reports-error-message {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin-bottom: 1.25rem;
+  padding: 1rem 1.15rem;
+  border-radius: 18px;
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+  border: 1px solid rgba(239, 68, 68, 0.18);
+  font-weight: 850;
+}
+
+@media (max-width: 900px) {
+  .reports-insights-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media print {
+  .filters-section,
+  .export-actions {
+    display: none !important;
+  }
+
+  .customer-reports {
+    background: #ffffff !important;
+    padding: 0 !important;
+  }
+
+  .reports-header,
+  .summary-card,
+  .report-section,
+  .reports-insight-card {
+    box-shadow: none !important;
+    border: 1px solid #ddd !important;
+  }
+
+  .reports-header {
+    border-radius: 0 !important;
+  }
+}
+
+/* =====================================================
+   CUSTOMER REPORTS — FULL PINK GLASS OVERRIDE
+===================================================== */
+
+.customer-reports {
+  position: relative;
+  max-width: none !important;
+  min-height: 100vh;
+  padding: 2rem !important;
+  overflow: hidden;
+  background: var(
+    --color-bg-gradient,
+    linear-gradient(135deg, #ffc8dd, #ffd6e8, #fff1f7)
+  ) !important;
+  color: var(--color-text, #1f2937) !important;
+}
+
+.customer-reports::before,
+.customer-reports::after {
+  content: "";
+  position: fixed;
+  border-radius: 999px;
+  pointer-events: none;
+  z-index: 0;
+  filter: blur(18px);
+}
+
+.customer-reports::before {
+  width: 360px;
+  height: 360px;
+  top: 80px;
+  right: -130px;
+  background: radial-gradient(circle, rgba(255, 95, 147, 0.28), transparent 68%);
+}
+
+.customer-reports::after {
+  width: 300px;
+  height: 300px;
+  bottom: -120px;
+  left: 15%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.9), transparent 65%);
+}
+
+.reports-header,
+.filters-section,
+.summary-cards,
+.reports-insights-grid,
+.report-section,
+.loading-state,
+.error-state,
+.reports-error-message {
+  position: relative;
+  z-index: 1;
+}
+
+.reports-header {
+  margin-bottom: 1.5rem !important;
+  padding: 2rem !important;
+  border-radius: 30px !important;
+  background:
+    radial-gradient(circle at top right, rgba(255, 95, 147, 0.2), transparent 38%),
+    rgba(255, 255, 255, 0.86) !important;
+  border: 1px solid rgba(255, 95, 147, 0.18) !important;
+  box-shadow: 0 18px 45px rgba(255, 95, 147, 0.16) !important;
+  backdrop-filter: blur(16px);
+}
+
+.reports-header h1 {
+  color: var(--color-heading, #191919) !important;
+  background: none !important;
+  -webkit-text-fill-color: initial !important;
+  font-size: clamp(1.8rem, 3vw, 2.6rem) !important;
+  font-weight: 950 !important;
+  letter-spacing: -0.045em !important;
+}
+
+.reports-header h1 svg {
+  color: var(--color-primary, #ff5f93) !important;
+}
+
+.reports-header p {
+  color: var(--color-muted, #64748b) !important;
+}
+
+.filters-section,
+.summary-card,
+.reports-insight-card,
+.report-section {
+  background: rgba(255, 255, 255, 0.86) !important;
+  border: 1px solid rgba(255, 95, 147, 0.18) !important;
+  box-shadow: 0 18px 45px rgba(255, 95, 147, 0.14) !important;
+  backdrop-filter: blur(16px);
+}
+
+.filters-section {
+  border-radius: 26px !important;
+}
+
+.summary-card {
+  border-radius: 24px !important;
+}
+
+.report-section {
+  border-radius: 26px !important;
+}
+
+.card-icon,
+.pet-icon {
+  background: linear-gradient(135deg, #ff5f93, #ff8db5) !important;
+  color: #ffffff !important;
+  box-shadow: 0 12px 24px rgba(255, 95, 147, 0.24);
+}
+
+.report-section h3,
+.card-content h3,
+.reports-insight-card h3,
+.pet-info h4 {
+  color: var(--color-heading, #191919) !important;
+}
+
+.report-section h3 svg {
+  color: var(--color-primary, #ff5f93) !important;
+}
+
+.search-input,
+.date-input,
+.status-filter {
+  min-height: 46px;
+  border: 1px solid rgba(255, 95, 147, 0.18) !important;
+  border-radius: 999px !important;
+  background: rgba(255, 255, 255, 0.9) !important;
+  color: #1f2937 !important;
+  font-weight: 700;
+}
+
+.search-input:focus,
+.date-input:focus,
+.status-filter:focus {
+  outline: none !important;
+  border-color: rgba(255, 95, 147, 0.6) !important;
+  box-shadow: 0 0 0 4px rgba(255, 95, 147, 0.12) !important;
+}
+
+.clear-btn,
+.export-btn {
+  border-radius: 999px !important;
+  font-weight: 900 !important;
+}
+
+.clear-btn {
+  min-height: 46px;
+  background: rgba(100, 116, 139, 0.1) !important;
+  color: #475569 !important;
+  border: 1px solid rgba(100, 116, 139, 0.16) !important;
+}
+
+.table-container {
+  border-radius: 20px;
+  border: 1px solid rgba(255, 95, 147, 0.12);
+  overflow-x: auto;
+}
+
+.data-table {
+  min-width: 760px;
+}
+
+.data-table th {
+  background: rgba(255, 95, 147, 0.06) !important;
+  color: var(--color-muted, #64748b) !important;
+  font-size: 0.76rem !important;
+  font-weight: 950 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.data-table td {
+  color: var(--color-text, #1f2937) !important;
+  font-weight: 700;
+}
+
+.data-table tr:hover td {
+  background: rgba(255, 95, 147, 0.045) !important;
+}
+
+@media (max-width: 768px) {
+  .customer-reports {
+    padding: 1rem !important;
+  }
+
+  .reports-header {
+    padding: 1.4rem !important;
+    border-radius: 24px !important;
   }
 }

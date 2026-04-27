@@ -1,0 +1,94 @@
+.vet-container {
+  padding: 24px;
+}
+
+.vet-header {
+  background: white;
+  border: 1px solid rgba(255, 95, 147, 0.2);
+  border-radius: 20px;
+  padding: 28px;
+  margin-bottom: 18px;
+  box-shadow: 0 12px 30px rgba(255, 95, 147, 0.12);
+}
+
+.vet-header h1 {
+  margin: 0 0 8px;
+  color: #ff5f93;
+  font-size: 32px;
+}
+
+.vet-header p {
+  margin: 0;
+  color: #64748b;
+}
+
+.vet-tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.vet-tabs button {
+  border: 1px solid rgba(255, 95, 147, 0.25);
+  background: white;
+  color: #64748b;
+  padding: 11px 18px;
+  border-radius: 999px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.vet-tabs button.active {
+  background: linear-gradient(135deg, #ff5f93, #ff8db5);
+  color: white;
+}
+
+.vet-card {
+  background: white;
+  border: 1px solid rgba(255, 95, 147, 0.2);
+  border-radius: 20px;
+  padding: 24px;
+}
+
+.vet-form {
+  display: grid;
+  gap: 14px;
+}
+
+.vet-form input,
+.vet-form select,
+.vet-form textarea {
+  width: 100%;
+  padding: 13px 15px;
+  border: 1px solid rgba(255, 95, 147, 0.25);
+  border-radius: 14px;
+}
+
+.vet-form textarea {
+  min-height: 100px;
+}
+
+.vet-form button {
+  border: none;
+  border-radius: 14px;
+  padding: 13px;
+  background: linear-gradient(135deg, #ff5f93, #ff8db5);
+  color: white;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.vet-item {
+  border: 1px solid rgba(255, 95, 147, 0.16);
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.vet-status.pending {
+  color: #92400e;
+  background: #fef3c7;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-weight: 700;
+}

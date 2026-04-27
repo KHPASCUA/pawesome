@@ -1,14 +1,10 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faChartBar,
-  faChartPie,
-  faChartLine,
   faDownload,
   faFileExcel,
   faFilePdf,
-  faCalendarAlt,
-  faFilter,
   faBuilding,
   faUsers,
   faDollarSign,
@@ -16,15 +12,41 @@ import {
   faArrowDown,
   faMinus,
 } from "@fortawesome/free-solid-svg-icons";
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Legend,
+} from "recharts";
 import "./PayrollReports.css";
 import { formatCurrency } from "../../utils/currency";
+
+const CHART_COLORS = ["#ff5f93", "#ff8db5", "#ffc8dd", "#f472b6", "#fb7185", "#f9a8d4", "#ec4899"];
 
 const PayrollReports = () => {
   const [selectedPeriod, setSelectedPeriod] = useState("monthly");
   const [selectedDepartment, setSelectedDepartment] = useState("all");
   const [reportType, setReportType] = useState("summary");
 
-  const departments = ["Veterinary", "Customer Service", "Management", "Grooming", "Reception", "Inventory", "Cashier"];
+  const departments = [
+    "Veterinary",
+    "Customer Service",
+    "Management",
+    "Grooming",
+    "Reception",
+    "Inventory",
+    "Cashier",
+  ];
+
   const periods = ["weekly", "monthly", "quarterly", "yearly"];
 
   const payrollData = {
@@ -33,8 +55,6 @@ const PayrollReports = () => {
       totalEmployees: 45,
       averageSalary: 6322,
       totalBonuses: 12450,
-      totalDeductions: 28450,
-      previousPeriod: 275000,
       growth: 3.5,
     },
     departmentBreakdown: [
@@ -63,9 +83,13 @@ const PayrollReports = () => {
     ],
   };
 
-  const filteredDepartmentData = selectedDepartment === "all" 
-    ? payrollData.departmentBreakdown 
-    : payrollData.departmentBreakdown.filter(dept => dept.department === selectedDepartment);
+  const filteredDepartmentData = useMemo(() => {
+    return selectedDepartment === "all"
+      ? payrollData.departmentBreakdown
+      : payrollData.departmentBreakdown.filter(
+          (dept) => dept.department === selectedDepartment
+        );
+  }, [selectedDepartment, payrollData.departmentBreakdown]);
 
   const getGrowthIcon = (growth) => {
     if (growth > 0) return faArrowUp;
@@ -79,29 +103,53 @@ const PayrollReports = () => {
     return "neutral";
   };
 
+  const exportCSV = () => {
+    const headers = ["Department", "Employees", "Total Salary", "Average Salary", "Percentage"];
+    const rows = filteredDepartmentData.map((dept) => [
+      dept.department,
+      dept.employees,
+      dept.totalSalary,
+      dept.average,
+      `${dept.percentage}%`,
+    ]);
+
+    const csv = [headers, ...rows].map((row) => row.join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `payroll-report-${selectedPeriod}.csv`;
+    link.click();
+
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="payroll-reports">
       <div className="reports-header">
         <div className="header-left">
           <h1>Payroll Reports & Analytics</h1>
-          <p>Comprehensive payroll insights and financial reports</p>
+          <p>Interactive payroll insights, department analytics, and salary reports.</p>
         </div>
+
         <div className="header-actions">
-          <button className="secondary-btn">
+          <button className="secondary-btn" onClick={exportCSV}>
             <FontAwesomeIcon icon={faFileExcel} />
             Export Excel
           </button>
-          <button className="secondary-btn">
+
+          <button className="secondary-btn" onClick={() => window.print()}>
             <FontAwesomeIcon icon={faFilePdf} />
-            Export PDF
+            Print / PDF
           </button>
         </div>
       </div>
 
-      {/* Report Controls */}
       <div className="report-controls">
         <div className="control-group">
           <label>Report Type</label>
+
           <div className="report-type-selector">
             {["summary", "department", "trend", "topEarners"].map((type) => (
               <button
@@ -117,30 +165,37 @@ const PayrollReports = () => {
             ))}
           </div>
         </div>
-        
+
         <div className="control-group">
           <label>Period</label>
-          <select value={selectedPeriod} onChange={(e) => setSelectedPeriod(e.target.value)}>
-            {periods.map(period => (
+          <select
+            value={selectedPeriod}
+            onChange={(e) => setSelectedPeriod(e.target.value)}
+          >
+            {periods.map((period) => (
               <option key={period} value={period}>
                 {period.charAt(0).toUpperCase() + period.slice(1)}
               </option>
             ))}
           </select>
         </div>
-        
+
         <div className="control-group">
           <label>Department</label>
-          <select value={selectedDepartment} onChange={(e) => setSelectedDepartment(e.target.value)}>
+          <select
+            value={selectedDepartment}
+            onChange={(e) => setSelectedDepartment(e.target.value)}
+          >
             <option value="all">All Departments</option>
-            {departments.map(dept => (
-              <option key={dept} value={dept}>{dept}</option>
+            {departments.map((dept) => (
+              <option key={dept} value={dept}>
+                {dept}
+              </option>
             ))}
           </select>
         </div>
       </div>
 
-      {/* Summary Report */}
       {reportType === "summary" && (
         <div className="report-content">
           <div className="summary-cards">
@@ -153,11 +208,11 @@ const PayrollReports = () => {
                 <p>Total Payroll</p>
                 <div className={`growth-indicator ${getGrowthColor(payrollData.summary.growth)}`}>
                   <FontAwesomeIcon icon={getGrowthIcon(payrollData.summary.growth)} />
-                  {Math.abs(payrollData.summary.growth)}%
+                  {payrollData.summary.growth}%
                 </div>
               </div>
             </div>
-            
+
             <div className="summary-card">
               <div className="card-icon">
                 <FontAwesomeIcon icon={faUsers} />
@@ -166,12 +221,11 @@ const PayrollReports = () => {
                 <h3>{payrollData.summary.totalEmployees}</h3>
                 <p>Total Employees</p>
                 <div className="growth-indicator positive">
-                  <FontAwesomeIcon icon={faArrowUp} />
-                  +2
+                  <FontAwesomeIcon icon={faArrowUp} /> +2
                 </div>
               </div>
             </div>
-            
+
             <div className="summary-card">
               <div className="card-icon">
                 <FontAwesomeIcon icon={faChartBar} />
@@ -180,12 +234,11 @@ const PayrollReports = () => {
                 <h3>{formatCurrency(payrollData.summary.averageSalary)}</h3>
                 <p>Average Salary</p>
                 <div className="growth-indicator positive">
-                  <FontAwesomeIcon icon={faArrowUp} />
-                  +3.2%
+                  <FontAwesomeIcon icon={faArrowUp} /> +3.2%
                 </div>
               </div>
             </div>
-            
+
             <div className="summary-card">
               <div className="card-icon">
                 <FontAwesomeIcon icon={faDollarSign} />
@@ -194,8 +247,7 @@ const PayrollReports = () => {
                 <h3>{formatCurrency(payrollData.summary.totalBonuses)}</h3>
                 <p>Total Bonuses</p>
                 <div className="growth-indicator positive">
-                  <FontAwesomeIcon icon={faArrowUp} />
-                  +8.5%
+                  <FontAwesomeIcon icon={faArrowUp} /> +8.5%
                 </div>
               </div>
             </div>
@@ -204,42 +256,82 @@ const PayrollReports = () => {
           <div className="report-grid">
             <div className="report-panel">
               <h3>Payroll Trend</h3>
-              <div className="chart-placeholder">
-                <FontAwesomeIcon icon={faChartLine} />
-                <p>Monthly payroll trend visualization</p>
-                <div className="trend-data">
-                  {payrollData.monthlyTrend.map((data, index) => (
-                    <div key={index} className="trend-item">
-                      <span className="trend-month">{data.month}</span>
-                      <span className="trend-value">{formatCurrency(data.payroll / 1000, { maximumFractionDigits: 0 })}k</span>
-                    </div>
-                  ))}
-                </div>
+              <div className="real-chart-box">
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={payrollData.monthlyTrend}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="month" />
+                    <YAxis tickFormatter={(value) => `₱${value / 1000}k`} />
+                    <Tooltip formatter={(value) => formatCurrency(value)} />
+                    <Legend />
+                    <Line
+                      type="monotone"
+                      dataKey="payroll"
+                      name="Payroll"
+                      stroke="#ff5f93"
+                      strokeWidth={4}
+                      dot={{ r: 5 }}
+                      activeDot={{ r: 8 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
               </div>
             </div>
-            
+
             <div className="report-panel">
               <h3>Department Distribution</h3>
-              <div className="chart-placeholder">
-                <FontAwesomeIcon icon={faChartPie} />
-                <p>Department payroll distribution</p>
-                <div className="distribution-data">
-                  {filteredDepartmentData.map((dept, index) => (
-                    <div key={index} className="distribution-item">
-                      <span className="dept-name">{dept.department}</span>
-                      <span className="dept-percentage">{dept.percentage}%</span>
-                    </div>
-                  ))}
-                </div>
+              <div className="real-chart-box">
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={filteredDepartmentData}
+                      dataKey="percentage"
+                      nameKey="department"
+                      outerRadius={105}
+                      innerRadius={55}
+                      paddingAngle={4}
+                    >
+                      {filteredDepartmentData.map((entry, index) => (
+                        <Cell
+                          key={entry.department}
+                          fill={CHART_COLORS[index % CHART_COLORS.length]}
+                        />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value) => `${value}%`} />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Department Report */}
       {reportType === "department" && (
         <div className="report-content">
+          <div className="report-panel full-panel">
+            <h3>Department Payroll Comparison</h3>
+            <div className="real-chart-box">
+              <ResponsiveContainer width="100%" height={330}>
+                <BarChart data={filteredDepartmentData}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="department" />
+                  <YAxis tickFormatter={(value) => `₱${value / 1000}k`} />
+                  <Tooltip formatter={(value) => formatCurrency(value)} />
+                  <Bar dataKey="totalSalary" name="Total Salary" radius={[12, 12, 0, 0]}>
+                    {filteredDepartmentData.map((entry, index) => (
+                      <Cell
+                        key={entry.department}
+                        fill={CHART_COLORS[index % CHART_COLORS.length]}
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
           <div className="department-table-container">
             <table className="department-table">
               <thead>
@@ -253,17 +345,17 @@ const PayrollReports = () => {
                 </tr>
               </thead>
               <tbody>
-                {filteredDepartmentData.map((dept, index) => (
-                  <tr key={index}>
+                {filteredDepartmentData.map((dept) => (
+                  <tr key={dept.department}>
                     <td className="department-name">
                       <FontAwesomeIcon icon={faBuilding} />
                       {dept.department}
                     </td>
-                    <td className="employee-count">{dept.employees}</td>
+                    <td>{dept.employees}</td>
                     <td className="total-salary">{formatCurrency(dept.totalSalary)}</td>
                     <td className="avg-salary">{formatCurrency(dept.average)}</td>
-                    <td className="percentage">{dept.percentage}%</td>
-                    <td className="trend">
+                    <td>{dept.percentage}%</td>
+                    <td>
                       <div className="trend-indicator positive">
                         <FontAwesomeIcon icon={faArrowUp} />
                         +2.3%
@@ -277,48 +369,77 @@ const PayrollReports = () => {
         </div>
       )}
 
-      {/* Trend Report */}
       {reportType === "trend" && (
         <div className="report-content">
           <div className="trend-analysis">
             <h3>Payroll Growth Analysis</h3>
-            <div className="trend-chart">
-              <div className="chart-placeholder large">
-                <FontAwesomeIcon icon={faChartLine} />
-                <p>6-month payroll trend analysis</p>
-              </div>
+
+            <div className="real-chart-box large">
+              <ResponsiveContainer width="100%" height={360}>
+                <LineChart data={payrollData.monthlyTrend}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="month" />
+                  <YAxis yAxisId="left" tickFormatter={(value) => `₱${value / 1000}k`} />
+                  <YAxis yAxisId="right" orientation="right" />
+                  <Tooltip
+                    formatter={(value, name) =>
+                      name === "payroll" ? formatCurrency(value) : value
+                    }
+                  />
+                  <Legend />
+                  <Line
+                    yAxisId="left"
+                    type="monotone"
+                    dataKey="payroll"
+                    name="Payroll"
+                    stroke="#ff5f93"
+                    strokeWidth={4}
+                    dot={{ r: 5 }}
+                    activeDot={{ r: 8 }}
+                  />
+                  <Line
+                    yAxisId="right"
+                    type="monotone"
+                    dataKey="employees"
+                    name="Employees"
+                    stroke="#fb7185"
+                    strokeWidth={3}
+                    dot={{ r: 5 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
             </div>
-            
+
             <div className="trend-insights">
               <div className="insight-card">
                 <h4>Key Insights</h4>
                 <ul>
-                  <li>Payroll increased by 12.5% over the last 6 months</li>
-                  <li>Employee count grew by 11.9% (42 to 47 employees)</li>
-                  <li>Average salary increased by 0.5% indicating controlled growth</li>
-                  <li>Q2 shows highest growth due to seasonal hiring</li>
+                  <li>Payroll increased by 12.5% over the last 6 months.</li>
+                  <li>Employee count grew from 42 to 47 employees.</li>
+                  <li>Average salary stayed controlled despite expansion.</li>
+                  <li>Q2 shows higher growth because of seasonal hiring.</li>
                 </ul>
               </div>
-              
+
               <div className="insight-card">
                 <h4>Forecast</h4>
-                <p>Based on current trends, projected payroll for next quarter: {formatCurrency(305000)}</p>
+                <p>Projected next quarter payroll: {formatCurrency(305000)}</p>
                 <p>Expected employee count: 49</p>
-                <p>Growth drivers: New hires, performance bonuses, annual increments</p>
+                <p>Growth drivers: new hires, bonuses, and annual increments.</p>
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Top Earners Report */}
       {reportType === "topEarners" && (
         <div className="report-content">
           <div className="top-earners-container">
             <h3>Top Earners by Salary</h3>
+
             <div className="earners-list">
               {payrollData.topEarners.map((earner, index) => (
-                <div key={index} className="earner-card">
+                <div key={earner.name} className="earner-card">
                   <div className="earner-rank">#{index + 1}</div>
                   <div className="earner-info">
                     <div className="earner-details">
@@ -334,45 +455,44 @@ const PayrollReports = () => {
                 </div>
               ))}
             </div>
-            
-            <div className="earners-analysis">
-              <h4>Salary Distribution Analysis</h4>
-              <div className="analysis-grid">
-                <div className="analysis-item">
-                  <label>Highest Salary Range</label>
-                  <span>{formatCurrency(10000)} - {formatCurrency(12500)}</span>
-                </div>
-                <div className="analysis-item">
-                  <label>Median Salary</label>
-                  <span>{formatCurrency(6322)}</span>
-                </div>
-                <div className="analysis-item">
-                  <label>Top 10% Earners</label>
-                  <span>{formatCurrency(9200)}+</span>
-                </div>
-                <div className="analysis-item">
-                  <label>Bottom 10% Earners</label>
-                  <span>{formatCurrency(3550)}-</span>
-                </div>
+
+            <div className="report-panel">
+              <h3>Top Earners Chart</h3>
+              <div className="real-chart-box">
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={payrollData.topEarners}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="name" />
+                    <YAxis tickFormatter={(value) => `₱${value / 1000}k`} />
+                    <Tooltip formatter={(value) => formatCurrency(value)} />
+                    <Bar dataKey="salary" name="Salary" radius={[12, 12, 0, 0]}>
+                      {payrollData.topEarners.map((entry, index) => (
+                        <Cell key={entry.name} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Export Options */}
       <div className="export-section">
         <h3>Export Options</h3>
+
         <div className="export-buttons">
-          <button className="export-btn">
+          <button className="export-btn" onClick={exportCSV}>
             <FontAwesomeIcon icon={faFileExcel} />
             Export to Excel
           </button>
-          <button className="export-btn">
+
+          <button className="export-btn" onClick={() => window.print()}>
             <FontAwesomeIcon icon={faFilePdf} />
             Generate PDF Report
           </button>
-          <button className="export-btn">
+
+          <button className="export-btn" onClick={exportCSV}>
             <FontAwesomeIcon icon={faDownload} />
             Download CSV
           </button>

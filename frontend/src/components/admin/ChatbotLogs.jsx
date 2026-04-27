@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faBook,
@@ -8,6 +8,10 @@ import {
   faSpinner,
   faTrash,
   faWrench,
+  faEdit,
+  faUser,
+  faCoins,
+  faClock,
 } from "@fortawesome/free-solid-svg-icons";
 import { apiRequest } from "../../api/client";
 import { formatCurrency } from "../../utils/currency";
@@ -35,15 +39,48 @@ const ChatbotLogs = () => {
   const [userChats, setUserChats] = useState([]);
   const [faqs, setFaqs] = useState([]);
   const [services, setServices] = useState([]);
+
   const [faqForm, setFaqForm] = useState(emptyFaq);
   const [serviceForm, setServiceForm] = useState(emptyService);
+
   const [editingFaqId, setEditingFaqId] = useState(null);
   const [editingServiceId, setEditingServiceId] = useState(null);
+
   const [loading, setLoading] = useState(true);
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
+  const stats = useMemo(() => {
+    const totalChats = chatLogs.reduce(
+      (sum, log) => sum + Number(log.total_chats || 0),
+      0
+    );
+
+    return [
+      {
+        label: "Total Users",
+        value: chatLogs.length,
+        icon: faUser,
+      },
+      {
+        label: "Total Chats",
+        value: totalChats,
+        icon: faComments,
+      },
+      {
+        label: "Active FAQs",
+        value: faqs.filter((faq) => faq.is_active).length,
+        icon: faBook,
+      },
+      {
+        label: "Services",
+        value: services.length,
+        icon: faCoins,
+      },
+    ];
+  }, [chatLogs, faqs, services]);
 
   const showMessage = (setter, message) => {
     setter(message);
@@ -53,11 +90,13 @@ const ChatbotLogs = () => {
   const loadData = async () => {
     try {
       setLoading(true);
+
       const [logsData, faqData, serviceData] = await Promise.all([
         apiRequest("/admin/chatbot/logs"),
         apiRequest("/admin/chatbot/faqs"),
         apiRequest("/admin/services"),
       ]);
+
       setChatLogs(Array.isArray(logsData) ? logsData : []);
       setFaqs(Array.isArray(faqData) ? faqData : []);
       setServices(Array.isArray(serviceData) ? serviceData : []);
@@ -103,6 +142,7 @@ const ChatbotLogs = () => {
   const submitFaq = async (event) => {
     event.preventDefault();
     setSaving(true);
+
     try {
       const payload = {
         ...faqForm,
@@ -127,7 +167,7 @@ const ChatbotLogs = () => {
 
       resetFaqForm();
       await loadData();
-      showMessage(setSuccess, "FAQ saved.");
+      showMessage(setSuccess, "FAQ saved successfully.");
     } catch (err) {
       setError(err.message || "Failed to save FAQ.");
     } finally {
@@ -138,6 +178,7 @@ const ChatbotLogs = () => {
   const submitService = async (event) => {
     event.preventDefault();
     setSaving(true);
+
     try {
       const payload = {
         ...serviceForm,
@@ -158,7 +199,7 @@ const ChatbotLogs = () => {
 
       resetServiceForm();
       await loadData();
-      showMessage(setSuccess, "Service saved.");
+      showMessage(setSuccess, "Service saved successfully.");
     } catch (err) {
       setError(err.message || "Failed to save service.");
     } finally {
@@ -188,26 +229,56 @@ const ChatbotLogs = () => {
 
   return (
     <div className="chatbot-logs chatbot-admin-console">
-      <div className="section-header">
-        <div className="header-left">
+      <div className="chatbot-hero">
+        <div>
+          <span className="eyebrow">Admin AI Console</span>
           <h2>
             <FontAwesomeIcon icon={faRobot} /> Chatbot Control Center
           </h2>
-          <p>Manage chatbot logs, editable FAQs, and live service answers.</p>
+          <p>Monitor conversations, manage FAQs, and update service answers.</p>
         </div>
+
+        <button className="refresh-btn" type="button" onClick={loadData}>
+          Refresh Data
+        </button>
       </div>
 
       {success && <div className="success-message">{success}</div>}
       {error && <div className="error-message">{error}</div>}
 
+      <div className="chatbot-stat-grid">
+        {stats.map((item) => (
+          <div className="chatbot-stat-card" key={item.label}>
+            <span className="stat-icon">
+              <FontAwesomeIcon icon={item.icon} />
+            </span>
+            <div>
+              <strong>{item.value}</strong>
+              <p>{item.label}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
       <div className="chatbot-tabs">
-        <button className={activeTab === "logs" ? "active" : ""} onClick={() => setActiveTab("logs")}>
+        <button
+          className={activeTab === "logs" ? "active" : ""}
+          onClick={() => setActiveTab("logs")}
+        >
           <FontAwesomeIcon icon={faComments} /> Logs
         </button>
-        <button className={activeTab === "faqs" ? "active" : ""} onClick={() => setActiveTab("faqs")}>
+
+        <button
+          className={activeTab === "faqs" ? "active" : ""}
+          onClick={() => setActiveTab("faqs")}
+        >
           <FontAwesomeIcon icon={faBook} /> FAQs
         </button>
-        <button className={activeTab === "services" ? "active" : ""} onClick={() => setActiveTab("services")}>
+
+        <button
+          className={activeTab === "services" ? "active" : ""}
+          onClick={() => setActiveTab("services")}
+        >
           <FontAwesomeIcon icon={faWrench} /> Services
         </button>
       </div>
@@ -221,43 +292,82 @@ const ChatbotLogs = () => {
           {activeTab === "logs" && (
             <div className="admin-grid">
               <div className="management-panel">
-                <h3>Conversation Summary</h3>
+                <div className="panel-title-row">
+                  <h3>Conversation Summary</h3>
+                  <span>{chatLogs.length} users</span>
+                </div>
+
                 <div className="management-list">
                   {chatLogs.map((log) => (
                     <button
                       type="button"
                       key={log.user_id}
-                      className="management-card clickable"
+                      className={`management-card clickable ${
+                        selectedUser?.user_id === log.user_id ? "selected" : ""
+                      }`}
                       onClick={() => openUserChats(log)}
                     >
-                      <strong>{log.user_name}</strong>
-                      <span>{log.user_role}</span>
-                      <span>{log.total_chats} chats</span>
-                      <span>{log.last_chat_date || "No date"}</span>
+                      <div className="card-main-row">
+                        <strong>{log.user_name || "Unknown User"}</strong>
+                        <span className="pill">{log.user_role || "user"}</span>
+                      </div>
+                      <span>{log.total_chats || 0} chats</span>
+                      <span>
+                        <FontAwesomeIcon icon={faClock} />{" "}
+                        {log.last_chat_date || "No date"}
+                      </span>
                     </button>
                   ))}
-                  {chatLogs.length === 0 && <div className="empty-state">No chatbot logs yet.</div>}
+
+                  {chatLogs.length === 0 && (
+                    <div className="empty-state">No chatbot logs yet.</div>
+                  )}
                 </div>
               </div>
 
-              <div className="management-panel">
-                <h3>{selectedUser ? `Chat History: ${selectedUser.user_name}` : "Select a user"}</h3>
+              <div className="management-panel chat-history-panel">
+                <div className="panel-title-row">
+                  <h3>
+                    {selectedUser
+                      ? `Chat History: ${selectedUser.user_name}` 
+                      : "Select a user"}
+                  </h3>
+                </div>
+
                 {detailsLoading ? (
                   <div className="loading-container">
                     <FontAwesomeIcon icon={faSpinner} spin /> Loading conversations...
                   </div>
                 ) : (
-                  <div className="management-list">
+                  <div className="chat-bubble-list">
                     {userChats.map((chat) => (
-                      <div key={chat.id} className="management-card">
-                        <strong>{chat.intent || "general"}</strong>
-                        <span>User: {chat.user_message}</span>
-                        <span>Bot: {chat.bot_response}</span>
-                        <span>{chat.created_at}</span>
+                      <div key={chat.id} className="chat-thread">
+                        <span className="chat-intent">
+                          {chat.intent || "general"} • {chat.created_at}
+                        </span>
+
+                        <div className="bubble user-bubble">
+                          <strong>User</strong>
+                          <p>{chat.user_message}</p>
+                        </div>
+
+                        <div className="bubble bot-bubble">
+                          <strong>Bot</strong>
+                          <p>{chat.bot_response}</p>
+                        </div>
                       </div>
                     ))}
+
                     {selectedUser && userChats.length === 0 && (
-                      <div className="empty-state">No conversation history for this user yet.</div>
+                      <div className="empty-state">
+                        No conversation history for this user yet.
+                      </div>
+                    )}
+
+                    {!selectedUser && (
+                      <div className="empty-state">
+                        Choose a user from the left panel to view chat history.
+                      </div>
                     )}
                   </div>
                 )}
@@ -269,31 +379,55 @@ const ChatbotLogs = () => {
             <div className="admin-grid">
               <div className="management-panel">
                 <h3>{editingFaqId ? "Edit FAQ" : "Create FAQ"}</h3>
+
                 <form className="management-form" onSubmit={submitFaq}>
                   <input
                     type="text"
                     placeholder="Question"
                     value={faqForm.question}
-                    onChange={(event) => setFaqForm((prev) => ({ ...prev, question: event.target.value }))}
+                    onChange={(event) =>
+                      setFaqForm((prev) => ({
+                        ...prev,
+                        question: event.target.value,
+                      }))
+                    }
                     required
                   />
+
                   <textarea
                     placeholder="Answer"
                     value={faqForm.answer}
-                    onChange={(event) => setFaqForm((prev) => ({ ...prev, answer: event.target.value }))}
+                    onChange={(event) =>
+                      setFaqForm((prev) => ({
+                        ...prev,
+                        answer: event.target.value,
+                      }))
+                    }
                     rows="5"
                     required
                   />
+
                   <input
                     type="text"
                     placeholder="Keywords separated by commas"
                     value={faqForm.keywords}
-                    onChange={(event) => setFaqForm((prev) => ({ ...prev, keywords: event.target.value }))}
+                    onChange={(event) =>
+                      setFaqForm((prev) => ({
+                        ...prev,
+                        keywords: event.target.value,
+                      }))
+                    }
                   />
+
                   <div className="management-row">
                     <select
                       value={faqForm.scope}
-                      onChange={(event) => setFaqForm((prev) => ({ ...prev, scope: event.target.value }))}
+                      onChange={(event) =>
+                        setFaqForm((prev) => ({
+                          ...prev,
+                          scope: event.target.value,
+                        }))
+                      }
                     >
                       <option value="general">General</option>
                       <option value="admin">Admin</option>
@@ -304,39 +438,71 @@ const ChatbotLogs = () => {
                       <option value="inventory">Inventory</option>
                       <option value="manager">Manager</option>
                     </select>
+
                     <input
                       type="number"
                       placeholder="Sort order"
                       value={faqForm.sort_order}
-                      onChange={(event) => setFaqForm((prev) => ({ ...prev, sort_order: event.target.value }))}
+                      onChange={(event) =>
+                        setFaqForm((prev) => ({
+                          ...prev,
+                          sort_order: event.target.value,
+                        }))
+                      }
                     />
                   </div>
+
                   <label className="checkbox-row">
                     <input
                       type="checkbox"
                       checked={faqForm.is_active}
-                      onChange={(event) => setFaqForm((prev) => ({ ...prev, is_active: event.target.checked }))}
+                      onChange={(event) =>
+                        setFaqForm((prev) => ({
+                          ...prev,
+                          is_active: event.target.checked,
+                        }))
+                      }
                     />
                     Active
                   </label>
+
                   <div className="management-actions">
                     <button type="submit" disabled={saving}>
-                      <FontAwesomeIcon icon={faPlus} /> {editingFaqId ? "Update FAQ" : "Add FAQ"}
+                      <FontAwesomeIcon icon={faPlus} />{" "}
+                      {editingFaqId ? "Update FAQ" : "Add FAQ"}
                     </button>
-                    {editingFaqId && <button type="button" onClick={resetFaqForm}>Cancel</button>}
+
+                    {editingFaqId && (
+                      <button type="button" onClick={resetFaqForm}>
+                        Cancel
+                      </button>
+                    )}
                   </div>
                 </form>
               </div>
 
               <div className="management-panel">
-                <h3>Editable FAQs</h3>
+                <div className="panel-title-row">
+                  <h3>Editable FAQs</h3>
+                  <span>{faqs.length} records</span>
+                </div>
+
                 <div className="management-list">
                   {faqs.map((faq) => (
                     <div key={faq.id} className="management-card">
-                      <strong>{faq.question}</strong>
+                      <div className="card-main-row">
+                        <strong>{faq.question}</strong>
+                        <span className={`pill ${faq.is_active ? "active" : ""}`}>
+                          {faq.is_active ? "Active" : "Inactive"}
+                        </span>
+                      </div>
+
                       <span>{faq.answer}</span>
                       <span>Scope: {faq.scope}</span>
-                      <span>Keywords: {(faq.keywords || []).join(", ") || "None"}</span>
+                      <span>
+                        Keywords: {(faq.keywords || []).join(", ") || "None"}
+                      </span>
+
                       <div className="card-actions">
                         <button
                           type="button"
@@ -352,15 +518,23 @@ const ChatbotLogs = () => {
                             });
                           }}
                         >
-                          Edit
+                          <FontAwesomeIcon icon={faEdit} /> Edit
                         </button>
-                        <button type="button" className="danger" onClick={() => removeFaq(faq.id)}>
+
+                        <button
+                          type="button"
+                          className="danger"
+                          onClick={() => removeFaq(faq.id)}
+                        >
                           <FontAwesomeIcon icon={faTrash} /> Delete
                         </button>
                       </div>
                     </div>
                   ))}
-                  {faqs.length === 0 && <div className="empty-state">No FAQs configured yet.</div>}
+
+                  {faqs.length === 0 && (
+                    <div className="empty-state">No FAQs configured yet.</div>
+                  )}
                 </div>
               </div>
             </div>
@@ -370,45 +544,80 @@ const ChatbotLogs = () => {
             <div className="admin-grid">
               <div className="management-panel">
                 <h3>{editingServiceId ? "Edit Service" : "Create Service"}</h3>
+
                 <form className="management-form" onSubmit={submitService}>
                   <input
                     type="text"
                     placeholder="Service name"
                     value={serviceForm.name}
-                    onChange={(event) => setServiceForm((prev) => ({ ...prev, name: event.target.value }))}
+                    onChange={(event) =>
+                      setServiceForm((prev) => ({
+                        ...prev,
+                        name: event.target.value,
+                      }))
+                    }
                     required
                   />
+
                   <input
                     type="number"
                     step="0.01"
                     placeholder="Price"
                     value={serviceForm.price}
-                    onChange={(event) => setServiceForm((prev) => ({ ...prev, price: event.target.value }))}
+                    onChange={(event) =>
+                      setServiceForm((prev) => ({
+                        ...prev,
+                        price: event.target.value,
+                      }))
+                    }
                     required
                   />
+
                   <textarea
                     placeholder="Description"
                     value={serviceForm.description}
-                    onChange={(event) => setServiceForm((prev) => ({ ...prev, description: event.target.value }))}
+                    onChange={(event) =>
+                      setServiceForm((prev) => ({
+                        ...prev,
+                        description: event.target.value,
+                      }))
+                    }
                     rows="4"
                   />
+
                   <div className="management-actions">
                     <button type="submit" disabled={saving}>
-                      <FontAwesomeIcon icon={faPlus} /> {editingServiceId ? "Update Service" : "Add Service"}
+                      <FontAwesomeIcon icon={faPlus} />{" "}
+                      {editingServiceId ? "Update Service" : "Add Service"}
                     </button>
-                    {editingServiceId && <button type="button" onClick={resetServiceForm}>Cancel</button>}
+
+                    {editingServiceId && (
+                      <button type="button" onClick={resetServiceForm}>
+                        Cancel
+                      </button>
+                    )}
                   </div>
                 </form>
               </div>
 
               <div className="management-panel">
-                <h3>Live Service Answers</h3>
+                <div className="panel-title-row">
+                  <h3>Live Service Answers</h3>
+                  <span>{services.length} records</span>
+                </div>
+
                 <div className="management-list">
                   {services.map((service) => (
                     <div key={service.id} className="management-card">
-                      <strong>{service.name}</strong>
-                      <span>{formatCurrency(service.price)}</span>
+                      <div className="card-main-row">
+                        <strong>{service.name}</strong>
+                        <span className="pill active">
+                          {formatCurrency(service.price)}
+                        </span>
+                      </div>
+
                       <span>{service.description || "No description"}</span>
+
                       <div className="card-actions">
                         <button
                           type="button"
@@ -421,15 +630,23 @@ const ChatbotLogs = () => {
                             });
                           }}
                         >
-                          Edit
+                          <FontAwesomeIcon icon={faEdit} /> Edit
                         </button>
-                        <button type="button" className="danger" onClick={() => removeService(service.id)}>
+
+                        <button
+                          type="button"
+                          className="danger"
+                          onClick={() => removeService(service.id)}
+                        >
                           <FontAwesomeIcon icon={faTrash} /> Delete
                         </button>
                       </div>
                     </div>
                   ))}
-                  {services.length === 0 && <div className="empty-state">No services configured yet.</div>}
+
+                  {services.length === 0 && (
+                    <div className="empty-state">No services configured yet.</div>
+                  )}
                 </div>
               </div>
             </div>

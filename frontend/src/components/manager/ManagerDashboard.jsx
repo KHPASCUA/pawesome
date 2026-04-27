@@ -28,7 +28,6 @@ import {
   faChartLine,
   faHotel,
 } from "@fortawesome/free-solid-svg-icons";
-import { boardingApi } from "../../api/boardings";
 import { apiRequest } from "../../api/client";
 import { formatCurrency } from "../../utils/currency";
 import ManagerSidebar from "./ManagerSidebar";
@@ -228,20 +227,26 @@ const ManagerDashboard = () => {
   useEffect(() => {
     const timer = setTimeout(() => setAnimatedStats(true), 100);
     
-    // Fetch hotel occupancy stats
+    // Fetch hotel occupancy stats from Laravel
     const fetchHotelStats = async () => {
       try {
-        const response = await boardingApi.getOccupancyStats();
-        if (response.occupancy_stats) {
-          setHotelStats({
-            totalRooms: response.occupancy_stats.total_rooms || 0,
-            occupiedRooms: response.occupancy_stats.occupied_rooms || 0,
-            occupancyRate: response.occupancy_stats.occupancy_rate || 0,
-            todayCheckIns: response.occupancy_stats.today_check_ins || 0,
-            todayCheckOuts: response.occupancy_stats.today_check_outs || 0,
-            revenue: response.occupancy_stats.monthly_revenue || 0,
-          });
-        }
+        const response = await fetch("http://127.0.0.1:8000/api/receptionist/requests");
+        const data = await response.json();
+        
+        // Calculate hotel stats from service_requests
+        const hotelRequests = data.requests.filter(item => item.type === "hotel");
+        const totalRooms = 50; // Fixed total rooms
+        const occupiedRooms = hotelRequests.filter(r => r.status === "checked_in").length;
+        const occupancyRate = Math.round((occupiedRooms / totalRooms) * 100);
+        
+        setHotelStats({
+          totalRooms,
+          occupiedRooms,
+          occupancyRate,
+          todayCheckIns: hotelRequests.filter(r => r.status === "approved").length,
+          todayCheckOuts: hotelRequests.filter(r => r.status === "checked_out").length,
+          revenue: 0, // Would need separate revenue endpoint
+        });
       } catch (error) {
         console.error("Failed to fetch hotel stats:", error);
       }

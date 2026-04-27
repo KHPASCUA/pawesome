@@ -1,0 +1,89 @@
+.app-dashboard {
+  min-height: 100vh;
+  background: var(--color-bg-gradient);
+  color: var(--color-text);
+}
+
+.app-main {
+  margin-left: 260px;
+  width: calc(100% - 260px);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+.app-topbar {
+  width: 100%;
+  min-height: 110px;
+  padding: 22px 28px;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  backdrop-filter: blur(18px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+}
+
+.app-topbar h1 {
+  margin: 0 0 4px;
+  font-size: 1.8rem;
+  font-weight: 950;
+}
+
+.app-topbar p {
+  margin: 0;
+  color: var(--color-muted);
+}
+
+.app-content {
+  width: 100%;
+  max-width: none;
+  padding: 28px;
+}
+
+.app-section {
+  margin-bottom: 28px;
+}
+
+.app-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 22px;
+}
+
+.app-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 22px;
+}
+
+.app-grid-4 {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(180px, 1fr));
+  gap: 22px;
+}
+
+.app-stat-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  padding: 1.4rem;
+  backdrop-filter: blur(18px);
+}
+
+.app-stat-card h3 {
+  margin: 0;
+  font-size: 2rem;
+  color: var(--color-primary);
+}
+
+.app-stat-card p {
+  margin: 6px 0 0;
+  color: var(--color-muted);
+  font-weight: 700;
+}
+
+[data-theme="dark"] .app-topbar {
+  background: rgba(15, 23, 42, 0.9);
+}

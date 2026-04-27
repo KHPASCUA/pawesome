@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Appointment;
 use App\Models\User;
+use App\Models\Grooming;
+use App\Models\Service;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -77,6 +79,8 @@ class AppointmentController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
+        $service = Service::find($request->service_id);
+
         $appointment = Appointment::create([
             'customer_id' => $request->customer_id,
             'pet_id' => $request->pet_id,
@@ -84,8 +88,22 @@ class AppointmentController extends Controller
             'status' => 'pending',
             'scheduled_at' => $request->scheduled_at,
             'notes' => $request->notes,
-            'price' => \App\Models\Service::find($request->service_id)->price ?? 0,
+            'price' => $service->price ?? 0,
         ]);
+
+        // Automatically create grooming record if service category is Grooming
+        if ($service && $service->category === 'Grooming') {
+            Grooming::create([
+                'customer_id' => $request->customer_id,
+                'pet_id' => $request->pet_id,
+                'service' => $service->name,
+                'appointment_date' => Carbon::parse($request->scheduled_at)->toDateString(),
+                'appointment_time' => Carbon::parse($request->scheduled_at)->toTimeString(),
+                'notes' => $request->notes,
+                'amount' => $service->price ?? 0,
+                'status' => 'pending',
+            ]);
+        }
 
         return response()->json([
             'message' => 'Appointment created successfully',
@@ -213,6 +231,46 @@ class AppointmentController extends Controller
         return response()->json([
             'message' => 'Appointment cancelled successfully',
             'appointment' => $appointment->load(['customer', 'pet', 'service', 'veterinarian']),
+        ]);
+    }
+
+    /**
+     * Reject appointment
+     */
+    public function reject(Request $request, $id)
+    {
+        $appointment = Appointment::find($id);
+        
+        if (!$appointment) {
+            return response()->json(['message' => 'Appointment not found'], 404);
+        }
+
+        if (!in_array($appointment->status, ['pending', 'approved'])) {
+            return response()->json([
+                'message' => 'Can only reject pending or approved appointments',
+                'current_status' => $appointment->status
+            ], 422);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'reason' => 'nullable|string|max:500',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $oldStatus = $appointment->status;
+        $appointment->status = 'rejected';
+        $appointment->cancellation_reason = $request->reason;
+        $appointment->save();
+
+        // Send notification
+        NotificationService::notifyAppointmentStatusChange($appointment, $oldStatus);
+
+        return response()->json([
+            'message' => 'Appointment rejected successfully',
+            'appointment' => $appointment->load(['customer', 'pet', 'service', 'veterinarian'])
         ]);
     }
 

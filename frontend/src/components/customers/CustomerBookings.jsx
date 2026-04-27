@@ -1,37 +1,79 @@
-import React, { useState } from "react";
-import "./CustomerBookings_Polished.css";
-import { formatCurrency } from "../../utils/currency";
+import React, { useState, useEffect, useCallback } from "react";
+import "./CustomerBookings.css";
 
 const CustomerBookings = () => {
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [receipt, setReceipt] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
+  const [bookings, setBookings] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [successMessage, setSuccessMessage] = useState(null);
+
+  const customerEmail = localStorage.getItem("email");
+  const customerName = localStorage.getItem("name") || "Customer";
+
   const [formData, setFormData] = useState({
-    pet: '',
-    roomType: '',
-    checkInDate: '',
-    checkOutDate: '',
-    specialRequests: '',
-    appointmentDate: '',
-    reason: '',
-    groomingDate: '',
-    serviceType: ''
+    customer_name: customerName,
+    customer_email: customerEmail || "",
+    pet_name: "",
+    service_type: "",
+    service_name: "",
+    request_date: "",
+    request_time: "",
+    notes: "",
   });
+
+  const fetchBookings = useCallback(async () => {
+    try {
+      setLoading(true);
+      
+      if (!customerEmail) {
+        setBookings([]);
+        return;
+      }
+
+      const response = await fetch(
+        `http://127.0.0.1:8000/api/customer/my-requests?email=${customerEmail}`
+      );
+      const data = await response.json();
+
+      const allBookings = (data.requests || []).map(item => ({
+        id: item.id,
+        type: item.type === 'grooming' ? 'Groom' : item.type === 'vet' ? 'Vet' : 'Hotel',
+        icon: item.type === 'grooming' ? '✂️' : item.type === 'vet' ? '🏥' : '🏨',
+        title: item.type === 'grooming' ? 'Grooming Service' : item.type === 'vet' ? 'Veterinary Appointment' : 'Hotel Stay',
+        details: `${item.pet} - ${item.service}`,
+        date: item.date,
+        status: item.status
+      }));
+
+      allBookings.sort((a, b) => new Date(b.date) - new Date(a.date));
+      setBookings(allBookings);
+    } catch (error) {
+      console.error('Error fetching bookings:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [customerEmail]);
+
+  useEffect(() => {
+    fetchBookings();
+  }, [fetchBookings]);
 
   const handleSelect = (type) => {
     setSelectedBooking(type);
     setReceipt(null);
     setPreviewUrl(null);
     setFormData({
-      pet: '',
-      roomType: '',
-      checkInDate: '',
-      checkOutDate: '',
-      specialRequests: '',
-      appointmentDate: '',
-      reason: '',
-      groomingDate: '',
-      serviceType: ''
+      customer_name: customerName,
+      customer_email: customerEmail || "",
+      pet_name: "",
+      service_type: type === 'Hotel' ? 'hotel' : type === 'Vet' ? 'vet' : 'grooming',
+      service_name: type === 'Hotel' ? 'Standard Room' : type === 'Vet' ? 'Checkup' : 'Basic Bath',
+      request_date: "",
+      request_time: "",
+      notes: "",
     });
   };
 
@@ -43,10 +85,7 @@ const CustomerBookings = () => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleReceiptUpload = (e) => {
@@ -62,11 +101,37 @@ const CustomerBookings = () => {
     setPreviewUrl(null);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('Booking submitted:', { type: selectedBooking, ...formData, receipt });
-    alert(`${selectedBooking} booking submitted successfully!`);
-    handleClose();
+    setSubmitting(true);
+
+    try {
+      const response = await fetch("http://127.0.0.1:8000/api/customer/requests", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setSuccessMessage(`${selectedBooking} booking submitted successfully! Your request is pending approval.`);
+        await fetchBookings();
+        setTimeout(() => {
+          setSuccessMessage(null);
+          handleClose();
+        }, 3000);
+      } else {
+        alert('Failed to submit booking: ' + (data.message || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Error submitting booking:', error);
+      alert('Failed to submit booking. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const bookingTypes = [
@@ -77,9 +142,28 @@ const CustomerBookings = () => {
 
   return (
     <div className="customer-bookings">
+      {/* Success Message Toast */}
+      {successMessage && (
+        <div style={{
+          position: 'fixed',
+          top: '20px',
+          right: '20px',
+          background: 'linear-gradient(135deg, #10b981, #059669)',
+          color: 'white',
+          padding: '16px 24px',
+          borderRadius: '12px',
+          boxShadow: '0 8px 24px rgba(16, 185, 129, 0.3)',
+          zIndex: 10000,
+          animation: 'slideIn 0.3s ease',
+          fontWeight: 600
+        }}>
+          {successMessage}
+        </div>
+      )}
+
       <div className="bookings-header">
         <div className="header-content">
-          <h1>📅 My Bookings</h1>
+          <h1>My Bookings</h1>
           <p>Manage your pet's appointments and reservations</p>
         </div>
       </div>
@@ -103,24 +187,27 @@ const CustomerBookings = () => {
       {/* Recent Bookings Section */}
       <div className="recent-bookings">
         <h4>Recent Bookings</h4>
-        <div className="bookings-list">
-          <div className="booking-item">
-            <div className="booking-info">
-              <span className="booking-type"></span>
-              <span className="booking-details">Max - Standard Room</span>
-              <span className="booking-date">Dec 15-17, 2023</span>
-            </div>
-            <span className="booking-status confirmed">Confirmed</span>
+        {loading ? (
+          <p style={{ color: 'var(--color-muted)' }}>Loading bookings...</p>
+        ) : bookings.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--color-muted)' }}>
+            <p>No bookings yet</p>
+            <p style={{ fontSize: '0.9rem' }}>Start by selecting Hotel, Veterinary, or Grooming service.</p>
           </div>
-          <div className="booking-item">
-            <div className="booking-info">
-              <span className="booking-type"></span>
-              <span className="booking-details">Bella - Regular Checkup</span>
-              <span className="booking-date">Dec 20, 2023</span>
-            </div>
-            <span className="booking-status pending">Pending</span>
+        ) : (
+          <div className="bookings-list">
+            {bookings.map((booking) => (
+              <div key={booking.id} className="booking-item">
+                <div className="booking-info">
+                  <span className="booking-type">{booking.icon}</span>
+                  <span className="booking-details">{booking.details}</span>
+                  <span className="booking-date">{booking.date}</span>
+                </div>
+                <span className={`booking-status ${booking.status}`}>{booking.status}</span>
+              </div>
+            ))}
           </div>
-        </div>
+        )}
       </div>
       </div>
 
@@ -139,61 +226,56 @@ const CustomerBookings = () => {
             </div>
 
             <form className="booking-form" onSubmit={handleSubmit}>
-              {/* Pet Selection */}
               <div className="form-group">
-                <label htmlFor="pet">Select Your Pet</label>
-                <select 
-                  id="pet" 
-                  name="pet" 
-                  value={formData.pet} 
+                <label htmlFor="pet_name">Pet Name</label>
+                <input 
+                  type="text" 
+                  id="pet_name" 
+                  name="pet_name" 
+                  value={formData.pet_name} 
                   onChange={handleInputChange}
                   required
-                >
-                  <option value="">Choose your pet...</option>
-                  <option value="max">Max (Dog) - Golden Retriever</option>
-                  <option value="bella">Bella (Cat) - Persian</option>
-                  <option value="charlie">Charlie (Dog) - Beagle</option>
-                </select>
+                  placeholder="Enter pet name"
+                />
               </div>
 
               {/* Hotel-specific fields */}
               {selectedBooking === "Hotel" && (
                 <div className="service-fields">
                   <div className="form-group">
-                    <label htmlFor="roomType">Room Type</label>
+                    <label htmlFor="service_name">Room Type</label>
                     <select 
-                      id="roomType" 
-                      name="roomType" 
-                      value={formData.roomType} 
+                      id="service_name" 
+                      name="service_name" 
+                      value={formData.service_name} 
                       onChange={handleInputChange}
                       required
                     >
-                      <option value="">Select room...</option>
-                      <option value="standard">Standard Room - {formatCurrency(50)}/night</option>
-                      <option value="deluxe">Deluxe Room - {formatCurrency(75)}/night</option>
-                      <option value="suite">Suite - {formatCurrency(100)}/night</option>
+                      <option value="Standard Room">Standard Room</option>
+                      <option value="Deluxe Room">Deluxe Room</option>
+                      <option value="Suite">Suite</option>
                     </select>
                   </div>
 
                   <div className="form-row">
                     <div className="form-group">
-                      <label htmlFor="checkInDate">Check-In Date</label>
+                      <label htmlFor="request_date">Check-In Date</label>
                       <input 
                         type="date" 
-                        id="checkInDate" 
-                        name="checkInDate" 
-                        value={formData.checkInDate} 
+                        id="request_date" 
+                        name="request_date" 
+                        value={formData.request_date} 
                         onChange={handleInputChange}
                         required
                       />
                     </div>
                     <div className="form-group">
-                      <label htmlFor="checkOutDate">Check-Out Date</label>
+                      <label htmlFor="request_time">Check-In Time</label>
                       <input 
-                        type="date" 
-                        id="checkOutDate" 
-                        name="checkOutDate" 
-                        value={formData.checkOutDate} 
+                        type="time" 
+                        id="request_time" 
+                        name="request_time" 
+                        value={formData.request_time} 
                         onChange={handleInputChange}
                         required
                       />
@@ -201,11 +283,11 @@ const CustomerBookings = () => {
                   </div>
 
                   <div className="form-group">
-                    <label htmlFor="specialRequests">Special Requests</label>
+                    <label htmlFor="notes">Special Requests</label>
                     <textarea 
-                      id="specialRequests" 
-                      name="specialRequests" 
-                      value={formData.specialRequests} 
+                      id="notes" 
+                      name="notes" 
+                      value={formData.notes} 
                       onChange={handleInputChange}
                       placeholder="Any special needs or requests for your pet..."
                       rows="3"
@@ -218,23 +300,52 @@ const CustomerBookings = () => {
               {selectedBooking === "Vet" && (
                 <div className="service-fields">
                   <div className="form-group">
-                    <label htmlFor="appointmentDate">Preferred Date</label>
-                    <input 
-                      type="date" 
-                      id="appointmentDate" 
-                      name="appointmentDate" 
-                      value={formData.appointmentDate} 
+                    <label htmlFor="service_name">Service Type</label>
+                    <select 
+                      id="service_name" 
+                      name="service_name" 
+                      value={formData.service_name} 
                       onChange={handleInputChange}
                       required
-                    />
+                    >
+                      <option value="Checkup">General Checkup</option>
+                      <option value="Vaccination">Vaccination</option>
+                      <option value="Surgery">Surgery</option>
+                      <option value="Dental">Dental Cleaning</option>
+                    </select>
+                  </div>
+
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label htmlFor="request_date">Preferred Date</label>
+                      <input 
+                        type="date" 
+                        id="request_date" 
+                        name="request_date" 
+                        value={formData.request_date} 
+                        onChange={handleInputChange}
+                        required
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label htmlFor="request_time">Preferred Time</label>
+                      <input 
+                        type="time" 
+                        id="request_time" 
+                        name="request_time" 
+                        value={formData.request_time} 
+                        onChange={handleInputChange}
+                        required
+                      />
+                    </div>
                   </div>
 
                   <div className="form-group">
-                    <label htmlFor="reason">Reason for Visit</label>
+                    <label htmlFor="notes">Reason for Visit</label>
                     <textarea 
-                      id="reason" 
-                      name="reason" 
-                      value={formData.reason} 
+                      id="notes" 
+                      name="notes" 
+                      value={formData.notes} 
                       onChange={handleInputChange}
                       placeholder="Describe the health concern or reason for visit..."
                       rows="4"
@@ -248,32 +359,57 @@ const CustomerBookings = () => {
               {selectedBooking === "Groom" && (
                 <div className="service-fields">
                   <div className="form-group">
-                    <label htmlFor="groomingDate">Grooming Date</label>
-                    <input 
-                      type="date" 
-                      id="groomingDate" 
-                      name="groomingDate" 
-                      value={formData.groomingDate} 
-                      onChange={handleInputChange}
-                      required
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label htmlFor="serviceType">Service Type</label>
+                    <label htmlFor="service_name">Service Type</label>
                     <select 
-                      id="serviceType" 
-                      name="serviceType" 
-                      value={formData.serviceType} 
+                      id="service_name" 
+                      name="service_name" 
+                      value={formData.service_name} 
                       onChange={handleInputChange}
                       required
                     >
-                      <option value="">Select service...</option>
-                      <option value="bath">Bath & Dry - {formatCurrency(30)}</option>
-                      <option value="haircut">Haircut & Styling - {formatCurrency(45)}</option>
-                      <option value="nails">Nail Trim - {formatCurrency(15)}</option>
-                      <option value="full">Full Grooming Package - {formatCurrency(80)}</option>
+                      <option value="Basic Bath">Basic Bath</option>
+                      <option value="Full Grooming Package">Full Grooming Package</option>
+                      <option value="Haircut Only">Haircut Only</option>
+                      <option value="Nail Trim">Nail Trim</option>
+                      <option value="Teeth Cleaning">Teeth Cleaning</option>
                     </select>
+                  </div>
+
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label htmlFor="request_date">Grooming Date</label>
+                      <input 
+                        type="date" 
+                        id="request_date" 
+                        name="request_date" 
+                        value={formData.request_date} 
+                        onChange={handleInputChange}
+                        required
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label htmlFor="request_time">Grooming Time</label>
+                      <input 
+                        type="time" 
+                        id="request_time" 
+                        name="request_time" 
+                        value={formData.request_time} 
+                        onChange={handleInputChange}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="notes">Special Instructions</label>
+                    <textarea 
+                      id="notes" 
+                      name="notes" 
+                      value={formData.notes} 
+                      onChange={handleInputChange}
+                      placeholder="Any special instructions for grooming..."
+                      rows="3"
+                    />
                   </div>
                 </div>
               )}
@@ -322,8 +458,8 @@ const CustomerBookings = () => {
                 <button type="button" className="cancel-btn" onClick={handleClose}>
                   Cancel
                 </button>
-                <button type="submit" className="submit-btn">
-                  Confirm Booking
+                <button type="submit" className="submit-btn" disabled={submitting}>
+                  {submitting ? 'Submitting...' : 'Confirm Booking'}
                 </button>
               </div>
             </form>

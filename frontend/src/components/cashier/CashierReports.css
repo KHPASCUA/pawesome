@@ -4,16 +4,16 @@
   gap: 0;
   padding: 0;
   min-height: calc(100vh - 90px);
-  background: #ffffff;
+  background: var(--color-bg-gradient);
 }
 
 .reports-menu-panel {
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  background: #ffffff;
-  border-radius: 24px;
-  border: 1px solid #e5e7eb;
+  background: var(--color-surface);
+  border-radius: var(--radius-card);
+  border: 1px solid var(--color-border);
   padding: 1.5rem;
   min-height: 620px;
 }
@@ -28,14 +28,14 @@
   text-transform: uppercase;
   letter-spacing: 0.18em;
   font-size: 0.75rem;
-  color: #64748b;
+  color: var(--color-muted);
   margin: 0;
 }
 
 .reports-menu-header h2 {
   margin: 0;
   font-size: 1.7rem;
-  color: #0f172a;
+  color: var(--color-heading);
 }
 
 .reports-menu-list {
@@ -51,9 +51,9 @@
 .report-item {
   width: 100%;
   text-align: left;
-  border: 1px solid #e2e8f0;
-  border-radius: 18px;
-  background: #ffffff;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
   padding: 1rem 1.1rem;
   cursor: pointer;
   transition: background 0.2s ease, border-color 0.2s ease;
@@ -61,20 +61,20 @@
 
 .report-item:hover,
 .report-item.active {
-  background: #eff6ff;
-  border-color: #bfdbfe;
+  background: rgba(59, 130, 246, 0.1);
+  border-color: var(--info-blue);
 }
 
 .report-item-title {
   display: block;
   font-weight: 700;
-  color: #0f172a;
+  color: var(--text-primary);
   margin-bottom: 0.35rem;
 }
 
 .report-item-subtitle {
   display: block;
-  color: #64748b;
+  color: var(--color-muted);
   font-size: 0.95rem;
 }
 
@@ -85,7 +85,7 @@
   flex: 1;
   padding: 24px 0 32px 0;
   overflow-y: auto;
-  background: #ffffff;
+  background: var(--color-surface);
 }
 
 .reports-header {
@@ -93,10 +93,10 @@
   justify-content: space-between;
   align-items: center;
   padding: 40px;
-  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  background: linear-gradient(135deg, var(--text-primary) 0%, var(--color-heading) 100%);
   position: relative;
   overflow: hidden;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-lg);
 }
 
 .reports-header::before {
@@ -113,7 +113,7 @@
 .reports-header .header-content h1 {
   font-size: 2.5rem;
   font-weight: 800;
-  background: linear-gradient(135deg, #10b981 0%, #059669 50%, #14b8a6 100%);
+  background: linear-gradient(135deg, var(--success-green) 0%, #059669 50%, var(--primary-teal-light) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -122,7 +122,7 @@
 }
 
 .reports-header .header-content p {
-  color: #94a3b8;
+  color: var(--color-muted);
   margin: 0;
   font-size: 1.1rem;
   font-weight: 400;
@@ -134,22 +134,22 @@
   justify-content: space-between;
   align-items: center;
   gap: 1.5rem;
-  background: #ffffff;
+  background: var(--color-surface);
   padding: 1.75rem;
-  border-radius: 24px;
-  border: 1px solid #e5e7eb;
-  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.05);
+  border-radius: var(--radius-card);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-card);
 }
 
 .reports-overview-card h3 {
   margin: 0.5rem 0 0.5rem;
   font-size: 1.5rem;
-  color: #0f172a;
+  color: var(--text-primary);
 }
 
 .overview-note {
   margin: 0;
-  color: #475569;
+  color: var(--text-secondary);
   max-width: 520px;
 }
 
@@ -163,12 +163,12 @@
 .overview-metric span {
   font-size: 2rem;
   font-weight: 700;
-  color: #1d4ed8;
+  color: var(--info-blue);
 }
 
 .overview-metric p {
   margin: 0;
-  color: #64748b;
+  color: var(--color-muted);
 }
 
 .reports-grid {
@@ -184,24 +184,24 @@
 }
 
 .report-card {
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 24px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
   padding: 1.75rem;
-  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.04);
+  box-shadow: var(--shadow-card);
 }
 
 .report-card h4 {
   margin-top: 0;
   margin-bottom: 0.85rem;
   font-size: 1.1rem;
-  color: #0f172a;
+  color: var(--text-primary);
 }
 
 .report-card p,
 .report-card ul {
   margin: 0;
-  color: #475569;
+  color: var(--text-secondary);
   line-height: 1.8;
 }
 
@@ -218,25 +218,25 @@
 .report-stat-card li strong {
   display: inline-block;
   width: 120px;
-  color: #0f172a;
+  color: var(--text-primary);
 }
 
 /* Quick Filters Bar */
 .quick-filters-bar {
-  background: white;
+  background: var(--color-surface);
   padding: 16px 32px;
-  border-bottom: 1px solid #e9ecef;
+  border-bottom: 1px solid var(--color-border);
   display: flex;
   align-items: center;
   gap: 16px;
   flex-wrap: wrap;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  box-shadow: var(--shadow-soft);
 }
 
 .quick-filters-label {
   font-size: 14px;
   font-weight: 600;
-  color: #6c757d;
+  color: var(--color-muted);
 }
 
 .quick-filters {
@@ -247,10 +247,10 @@
 
 .quick-filter-btn {
   padding: 8px 16px;
-  border: 1px solid #dee2e6;
+  border: 1px solid var(--border-subtle);
   border-radius: 20px;
-  background: white;
-  color: #495057;
+  background: var(--color-surface);
+  color: var(--text-secondary);
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
@@ -258,35 +258,35 @@
 }
 
 .quick-filter-btn:hover {
-  background: #f8f9fa;
-  border-color: #adb5bd;
+  background: var(--bg-muted);
+  border-color: var(--border-subtle);
   transform: translateY(-1px);
 }
 
 .quick-filter-btn.active {
-  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
-  border-color: #3b82f6;
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-light) 100%);
+  border-color: var(--color-primary);
   color: white;
   font-weight: 600;
 }
 
 .current-range {
   font-size: 13px;
-  color: #6c757d;
+  color: var(--color-muted);
   margin-left: auto;
 }
 
 .current-range strong {
-  color: #3b82f6;
+  color: var(--info-blue);
   font-weight: 600;
 }
 
 /* Reports Navigation */
 .reports-navigation {
-  background: white;
-  border-bottom: 1px solid #e9ecef;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
   padding: 0 32px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  box-shadow: var(--shadow-soft);
 }
 
 .nav-tabs {
@@ -299,11 +299,11 @@
   padding: 12px 24px;
   border: 1px solid transparent;
   background: transparent;
-  color: #6c757d;
+  color: var(--color-muted);
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
@@ -312,17 +312,17 @@
 }
 
 .nav-tab:hover {
-  background: #f8f9fa;
-  color: #495057;
-  border-color: #e9ecef;
+  background: var(--bg-muted);
+  color: var(--text-secondary);
+  border-color: var(--color-border);
 }
 
 .nav-tab.active {
-  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-light) 100%);
   color: white;
   font-weight: 600;
-  border-color: #3b82f6;
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-soft);
 }
 
 /* Analytics Row - Payment & Trend Charts */
@@ -343,10 +343,10 @@
 }
 
 .daily-trend-card {
-  background: white;
-  border-radius: 16px;
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
   padding: 1.5rem;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--shadow-md);
 }
 
 /* Reports Content */
@@ -354,7 +354,7 @@
   flex: 1;
   padding: 24px 0 32px 0;
   overflow-y: auto;
-  background: #ffffff;
+  background: var(--color-surface);
 }
 
 /* Last Updated Timestamp */
@@ -365,35 +365,35 @@
   gap: 12px;
   margin: 0 32px 20px 32px;
   padding: 12px 16px;
-  background: white;
-  border-radius: 8px;
-  border: 1px solid #e9ecef;
+  background: var(--color-surface);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
   font-size: 13px;
-  color: #6c757d;
+  color: var(--color-muted);
   font-weight: 500;
 }
 
 .refresh-mini {
   padding: 6px 10px;
   border: none;
-  background: #f8f9fa;
-  border-radius: 6px;
+  background: var(--bg-muted);
+  border-radius: var(--radius-sm);
   cursor: pointer;
   font-size: 14px;
   transition: all 0.2s ease;
 }
 
 .refresh-mini:hover {
-  background: #e9ecef;
+  background: rgba(255, 95, 147, 0.1);
   transform: rotate(180deg);
 }
 
 .payment-breakdown-card,
 .transactions-list {
-  background: white;
-  border-radius: 16px;
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
   padding: 24px 32px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  box-shadow: var(--shadow-soft);
   margin: 0 32px;
 }
 
@@ -402,7 +402,7 @@
   margin: 0 0 1.25rem 0;
   font-size: 1rem;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--text-primary);
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -427,7 +427,7 @@
   gap: 0.5rem;
   min-width: 140px;
   font-size: 0.9rem;
-  color: #4b5563;
+  color: var(--text-secondary);
 }
 
 .payment-icon {
@@ -437,13 +437,13 @@
 .payment-amount {
   margin-left: auto;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--text-primary);
 }
 
 .payment-bar-container {
   flex: 1;
   height: 8px;
-  background: #e5e7eb;
+  background: var(--border-subtle);
   border-radius: 4px;
   overflow: hidden;
 }
@@ -459,7 +459,7 @@
   text-align: right;
   font-size: 0.85rem;
   font-weight: 600;
-  color: #6b7280;
+  color: var(--color-muted);
 }
 
 /* Daily Trend Chart */
@@ -482,7 +482,7 @@
 .trend-bar-container {
   width: 100%;
   height: 120px;
-  background: #e5e7eb;
+  background: var(--border-subtle);
   border-radius: 8px 8px 0 0;
   overflow: hidden;
   position: relative;
@@ -493,7 +493,7 @@
   bottom: 0;
   left: 0;
   right: 0;
-  background: linear-gradient(to top, #3b82f6, #8b5cf6);
+  background: linear-gradient(to top, var(--color-primary), var(--color-primary-light));
   border-radius: 8px 8px 0 0;
   transition: height 0.5s ease;
 }
@@ -501,12 +501,12 @@
 .trend-day {
   font-size: 0.8rem;
   font-weight: 600;
-  color: #6b7280;
+  color: var(--color-muted);
 }
 
 .trend-value {
   font-size: 0.75rem;
-  color: #9ca3af;
+  color: var(--color-muted);
 }
 
 @media (max-width: 1100px) {
@@ -516,5 +516,193 @@
 
   .analytics-row {
     grid-template-columns: 1fr;
+  }
+}
+
+/* Cashier Reports - Pink Glass Icon Polish */
+
+.quick-filters-label,
+.nav-tab,
+.payment-breakdown-card h4,
+.daily-trend-card h4,
+.retry-btn,
+.refresh-mini {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.reports-header {
+  border-radius: 28px;
+  margin: 0 0 1rem;
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(255, 95, 147, 0.18);
+  box-shadow: 0 18px 45px rgba(255, 95, 147, 0.14);
+  backdrop-filter: blur(18px);
+}
+
+.reports-header .header-content h1 {
+  background: linear-gradient(135deg, #191919, #ff5f93);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  color: #191919;
+}
+
+.reports-header .header-content p {
+  color: var(--color-muted, #64748b);
+}
+
+.quick-filters-bar,
+.reports-navigation,
+.payment-breakdown-card,
+.daily-trend-card,
+.transactions-list,
+.last-updated {
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(255, 95, 147, 0.18);
+  box-shadow: 0 14px 30px rgba(255, 95, 147, 0.1);
+  backdrop-filter: blur(16px);
+}
+
+.quick-filters-bar {
+  border-radius: 24px;
+  margin: 0 32px 1rem;
+  border-bottom: 1px solid rgba(255, 95, 147, 0.18);
+}
+
+.reports-navigation {
+  border-radius: 24px;
+  margin: 0 32px 1rem;
+  border-bottom: 1px solid rgba(255, 95, 147, 0.18);
+}
+
+.nav-tab.active,
+.quick-filter-btn.active {
+  background: linear-gradient(135deg, #ff5f93, #ff8db5);
+  border-color: transparent;
+  color: #ffffff;
+  box-shadow: 0 12px 24px rgba(255, 95, 147, 0.2);
+}
+
+.nav-tab:hover,
+.quick-filter-btn:hover {
+  background: rgba(255, 95, 147, 0.08);
+  border-color: rgba(255, 95, 147, 0.22);
+  color: #ff5f93;
+}
+
+.nav-tab.active:hover,
+.quick-filter-btn.active:hover {
+  color: #ffffff;
+}
+
+.payment-icon {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  background: rgba(255, 95, 147, 0.1);
+  color: #ff5f93;
+}
+
+.refresh-mini,
+.retry-btn {
+  border: none;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #ff5f93, #ff8db5);
+  color: #ffffff;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.refresh-mini {
+  width: 36px;
+  height: 36px;
+  justify-content: center;
+  padding: 0;
+}
+
+.retry-btn {
+  padding: 0.8rem 1rem;
+}
+
+.refresh-mini:hover,
+.retry-btn:hover {
+  transform: translateY(-2px);
+}
+
+.error-icon {
+  width: 70px;
+  height: 70px;
+  display: grid;
+  place-items: center;
+  margin: 0 auto 1rem;
+  border-radius: 24px;
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+  font-size: 1.8rem;
+}
+
+.cashier-dashboard.dark .reports-header,
+.cashier-dashboard.dark .quick-filters-bar,
+.cashier-dashboard.dark .reports-navigation,
+.cashier-dashboard.dark .payment-breakdown-card,
+.cashier-dashboard.dark .daily-trend-card,
+.cashier-dashboard.dark .transactions-list,
+.cashier-dashboard.dark .last-updated {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 141, 181, 0.22);
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.28);
+}
+
+.cashier-dashboard.dark .reports-header .header-content h1 {
+  background: linear-gradient(135deg, #ffffff, #ff8db5);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.cashier-dashboard.dark .reports-header .header-content p,
+.cashier-dashboard.dark .quick-filters-label,
+.cashier-dashboard.dark .current-range,
+.cashier-dashboard.dark .nav-tab,
+.cashier-dashboard.dark .trend-day,
+.cashier-dashboard.dark .trend-value {
+  color: #cbd5e1;
+}
+
+.cashier-dashboard.dark .nav-tab:hover,
+.cashier-dashboard.dark .quick-filter-btn:hover {
+  color: #ff8db5;
+}
+
+@media (max-width: 768px) {
+  .reports-header,
+  .quick-filters-bar,
+  .reports-navigation,
+  .payment-breakdown-card,
+  .transactions-list,
+  .last-updated,
+  .analytics-row,
+  .summary-cards {
+    margin-left: 1rem;
+    margin-right: 1rem;
+  }
+
+  .reports-header {
+    padding: 1.25rem;
+  }
+
+  .reports-header .header-content h1 {
+    font-size: 1.65rem;
+  }
+
+  .nav-tabs {
+    overflow-x: auto;
+  }
+
+  .nav-tab {
+    flex: 0 0 auto;
   }
 }

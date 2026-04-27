@@ -2,10 +2,6 @@ import React, { useState, useEffect } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faUser,
-  faEnvelope,
-  faPhone,
-  faMapMarkerAlt,
-  faCalendarAlt,
   faCamera,
   faSave,
   faTimes,
@@ -15,6 +11,7 @@ import {
   faSpinner,
 } from "@fortawesome/free-solid-svg-icons";
 import { apiRequest } from "../../api/client";
+import ReceptionistSidebar from "./ReceptionistSidebar";
 import "./ReceptionistProfile.css";
 
 const ReceptionistProfile = () => {
@@ -22,7 +19,6 @@ const ReceptionistProfile = () => {
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState("");
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
 
@@ -71,16 +67,14 @@ const ReceptionistProfile = () => {
   const fetchUserProfile = async () => {
     try {
       setLoading(true);
-      setError("");
       console.log("=== Starting ReceptionistProfile fetch ===");
-      
+
       // Check if token exists
       let token = localStorage.getItem("token");
       console.log("Token exists:", !!token);
-      
+
       if (!token) {
         console.log("No token found, cannot fetch profile");
-        setError("No authentication token found. Please log in again.");
         setLoading(false);
         return;
       }
@@ -108,7 +102,6 @@ const ReceptionistProfile = () => {
         });
       }
     } catch (err) {
-      setError(err.message || "Failed to load profile data");
       console.error("Profile fetch error:", err);
     } finally {
       setLoading(false);
@@ -159,8 +152,7 @@ const ReceptionistProfile = () => {
 
     try {
       setSaving(true);
-      setError("");
-      
+
       // Prepare update data
       const updateData = {
         first_name: profileData.first_name,
@@ -226,8 +218,7 @@ const ReceptionistProfile = () => {
 
     try {
       setChangingPassword(true);
-      setError("");
-      
+
       // Change password via API
       await apiRequest("/auth/change-password", {
         method: "POST",
@@ -281,42 +272,97 @@ const ReceptionistProfile = () => {
     fetchUserProfile();
   }, []);
 
+  // Auto clear message with useEffect
+  useEffect(() => {
+    if (message) {
+      const timer = setTimeout(() => setMessage(""), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [message]);
+
   return (
-    <div className="receptionist-profile">
-      <div className="profile-header">
-        <h2>
-          <FontAwesomeIcon icon={faUser} /> Receptionist Profile
-        </h2>
-        <p>Manage your personal information and preferences</p>
-      </div>
+    <div className="app-dashboard">
+      <aside className="app-sidebar">
+        <ReceptionistSidebar />
+      </aside>
 
-      {message && (
-        <div className={`${messageType}-message`}>
-          {message}
-        </div>
-      )}
+      <main className="app-main">
+        <header className="app-topbar">
+          <div>
+            <h1>Receptionist Profile</h1>
+            <p>Manage your personal information and system access</p>
+          </div>
+        </header>
 
-      {loading ? (
-        <div className="loading-container">
-          <FontAwesomeIcon icon={faSpinner} spin size="2x" />
-          <p>Loading your profile...</p>
-        </div>
-      ) : (
-        <>
+        <section className="app-content">
+          <div className="receptionist-profile">
+            <div className="dashboard-hero premium-card fade-up">
+              <h1>Welcome, {profileData.first_name || "Receptionist"} 👋</h1>
+              <p>You manage bookings, approvals, and customer coordination</p>
+              <div className="badge badge-info">Receptionist Control Panel</div>
+            </div>
+
+            {message && (
+              <div className={`${messageType}-message`}>
+                {message}
+              </div>
+            )}
+
+            {loading ? (
+              <div className="loading-container">
+                <FontAwesomeIcon icon={faSpinner} spin size="2x" />
+                <p>Loading your profile...</p>
+              </div>
+            ) : (
+              <>
+                <div className="summary-cards">
+                  <div className="summary-card">
+                    <div className="card-content">
+                      <h3>{profileData.first_name ? "Online" : "Loading..."}</h3>
+                      <p>Status</p>
+                    </div>
+                  </div>
+
+                  <div className="summary-card">
+                    <div className="card-content">
+                      <h3>{profileData.email || "—"}</h3>
+                      <p>Email</p>
+                    </div>
+                  </div>
+
+                  <div className="summary-card">
+                    <div className="card-content">
+                      <h3>{profileData.memberSince}</h3>
+                      <p>Member Since</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="profile-card">
+                  <h3>System Responsibilities</h3>
+                  <ul>
+                    <li>✔ Approve / Reject Bookings</li>
+                    <li>✔ Manage Customer Requests</li>
+                    <li>✔ Coordinate Services</li>
+                    <li>✔ Monitor Order Status</li>
+                  </ul>
+                </div>
+
+
           <div className="profile-card">
             <div className="profile-section">
               <h3>Personal Information</h3>
               <div className="profile-avatar-section">
                 <div className="avatar-container">
                   {profileData.profileImage ? (
-                    <img 
-                      src={profileData.profileImage} 
-                      alt="Profile" 
+                    <img
+                      src={profileData.profileImage}
+                      alt="Profile"
                       className="avatar-img"
                     />
                   ) : (
-                    <div className="avatar-img">
-                      <FontAwesomeIcon icon={faUser} size="3x" />
+                    <div className="avatar-img avatar-placeholder">
+                      <FontAwesomeIcon icon={faUser} />
                     </div>
                   )}
                   {isEditing && (
@@ -644,6 +690,9 @@ const ReceptionistProfile = () => {
           </div>
         </>
       )}
+          </div>
+        </section>
+      </main>
     </div>
   );
 };

@@ -4,12 +4,16 @@ import {
   faChartLine,
   faMoneyBillWave,
   faShoppingCart,
-  faUsers,
-  faBox,
   faExchangeAlt,
   faCalendar,
-  faArrowUp,
-  faArrowDown,
+  faCreditCard,
+  faTrophy,
+  faRotateRight,
+  faTriangleExclamation,
+  faReceipt,
+  faMobileScreen,
+  faGlobe,
+  faArrowRotateLeft,
 } from "@fortawesome/free-solid-svg-icons";
 import { apiRequest } from "../../api/client";
 import { formatCurrency } from "../../utils/currency";
@@ -69,14 +73,6 @@ const CashierReports = () => {
     fetchReportData();
   }, []);
 
-  // Demo fallback data
-  const demoTransactions = [
-    { id: "TXN-1", originalId: 1, customer: "Walk-in Customer", amount: 125.50, type: "sale", status: "completed", paymentMethod: "cash", date: new Date().toISOString().split("T")[0], time: "09:30", items: [{ name: "Premium Dog Food", quantity: 2, price: 45.00 }, { name: "Chew Toy", quantity: 1, price: 35.50 }] },
-    { id: "TXN-2", originalId: 2, customer: "John Smith", amount: 85.00, type: "sale", status: "completed", paymentMethod: "card", date: new Date().toISOString().split("T")[0], time: "10:15", items: [{ name: "Pet Grooming", quantity: 1, price: 45.00 }, { name: "Shampoo", quantity: 1, price: 40.00 }] },
-    { id: "TXN-3", originalId: 3, customer: "Sarah Lee", amount: 250.00, type: "sale", status: "completed", paymentMethod: "gcash", date: new Date().toISOString().split("T")[0], time: "11:45", items: [{ name: "5-in-1 Vaccine", quantity: 2, price: 35.00 }, { name: "Veterinary Checkup", quantity: 2, price: 85.00 }] },
-    { id: "TXN-4", originalId: 4, customer: "Walk-in Customer", amount: 45.00, type: "sale", status: "pending", paymentMethod: "cash", date: new Date().toISOString().split("T")[0], time: "14:20", items: [{ name: "Pet Grooming", quantity: 1, price: 45.00 }] },
-    { id: "TXN-5", originalId: 5, customer: "Mike Chen", amount: 35.00, type: "refund", status: "completed", paymentMethod: "cash", date: new Date().toISOString().split("T")[0], time: "15:00", items: [{ name: "Training Pads", quantity: 1, price: 35.00 }] },
-  ];
 
   const fetchReportData = async () => {
     try {
@@ -89,11 +85,12 @@ const CashierReports = () => {
       
       try {
         const salesData = await apiRequest("/cashier/transactions");
-        sales = Array.isArray(salesData) ? salesData : salesData.transactions || salesData.sales || [];
+        sales = Array.isArray(salesData)
+          ? salesData
+          : salesData.transactions || salesData.sales || salesData.data || [];
       } catch (apiErr) {
-        console.warn("API fetch failed, using demo data:", apiErr);
-        // Use demo data if API fails
-        sales = demoTransactions.map(t => ({...t, created_at: new Date().toISOString(), customer: {name: t.customer}}));
+        console.error("Cashier transactions API failed:", apiErr);
+        throw new Error("Unable to load live cashier transactions.");
       }
 
       try {
@@ -103,10 +100,6 @@ const CashierReports = () => {
         console.warn("Items API failed:", apiErr);
       }
 
-      // If no data from API, use demo data
-      if (sales.length === 0) {
-        sales = demoTransactions.map(t => ({...t, created_at: new Date().toISOString(), customer: {name: t.customer}}));
-      }
 
       // Transform and store raw data
       const transformedSales = sales.map((sale) => ({
@@ -267,6 +260,17 @@ const CashierReports = () => {
     exportToExcel(filtered, columns, "cashier-transactions-report");
   };
 
+  const getPaymentIcon = (method = "") => {
+    const value = String(method).toLowerCase();
+
+    if (value.includes("card")) return faCreditCard;
+    if (value.includes("gcash")) return faMobileScreen;
+    if (value.includes("maya")) return faMobileScreen;
+    if (value.includes("online")) return faGlobe;
+
+    return faMoneyBillWave;
+  };
+
   const getFilteredSales = () => getFilteredData().filter((t) => t.type === "sale");
   const getFilteredRefunds = () => getFilteredData().filter((t) => t.type === "refund");
 
@@ -280,32 +284,46 @@ const CashierReports = () => {
     return breakdown;
   };
 
-  // Calculate daily sales trend (mock data for demo)
+  // Calculate daily sales trend from real data
   const getDailyTrend = () => {
-    return [
-      { day: 'Mon', sales: 1250 },
-      { day: 'Tue', sales: 1890 },
-      { day: 'Wed', sales: 1540 },
-      { day: 'Thu', sales: 2100 },
-      { day: 'Fri', sales: 2450 },
-      { day: 'Sat', sales: 3200 },
-      { day: 'Sun', sales: 2800 },
-    ];
+    const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+    const trendMap = days.reduce((acc, day) => {
+      acc[day] = 0;
+      return acc;
+    }, {});
+
+    getFilteredSales().forEach((sale) => {
+      const date = new Date(sale.date);
+
+      if (!Number.isNaN(date.getTime())) {
+        const dayName = days[date.getDay()];
+        trendMap[dayName] += Number(sale.amount) || 0;
+      }
+    });
+
+    return days.map((day) => ({
+      day,
+      sales: trendMap[day],
+    }));
   };
 
   const renderPaymentBreakdown = () => {
     const breakdown = getPaymentBreakdown();
     const total = Object.values(breakdown).reduce((a, b) => a + b, 0) || 1;
     const methods = [
-      { key: 'cash', label: 'Cash', color: '#22c55e', icon: '💵' },
-      { key: 'card', label: 'Card', color: '#3b82f6', icon: '💳' },
-      { key: 'gcash', label: 'GCash', color: '#8b5cf6', icon: '📱' },
-      { key: 'maya', label: 'Maya', color: '#f59e0b', icon: '🟢' },
+      { key: "cash", label: "Cash", color: "#22c55e" },
+      { key: "card", label: "Card", color: "#3b82f6" },
+      { key: "gcash", label: "GCash", color: "#8b5cf6" },
+      { key: "maya", label: "Maya", color: "#f59e0b" },
     ];
 
     return (
       <div className="payment-breakdown-card">
-        <h4>💳 Payment Methods</h4>
+        <h4>
+          <FontAwesomeIcon icon={faCreditCard} />
+          Payment Methods
+        </h4>
         <div className="payment-bars">
           {methods.map(method => {
             const amount = breakdown[method.key] || 0;
@@ -313,7 +331,9 @@ const CashierReports = () => {
             return (
               <div key={method.key} className="payment-bar-item">
                 <div className="payment-label">
-                  <span className="payment-icon">{method.icon}</span>
+                  <span className="payment-icon">
+                    <FontAwesomeIcon icon={getPaymentIcon(method.key)} />
+                  </span>
                   <span>{method.label}</span>
                   <span className="payment-amount">{formatCurrency(amount)}</span>
                 </div>
@@ -341,7 +361,10 @@ const CashierReports = () => {
 
     return (
       <div className="daily-trend-card">
-        <h4>📈 Weekly Sales Trend</h4>
+        <h4>
+          <FontAwesomeIcon icon={faChartLine} />
+          Weekly Sales Trend
+        </h4>
         <div className="trend-chart">
           {trend.map((day, index) => {
             const height = maxSales > 0 ? (day.sales / maxSales) * 100 : 0;
@@ -588,7 +611,10 @@ const CashierReports = () => {
 
       {/* Quick Date Range Selector */}
       <div className="quick-filters-bar">
-        <div className="quick-filters-label">📅 Quick Select:</div>
+        <div className="quick-filters-label">
+          <FontAwesomeIcon icon={faCalendar} />
+          Quick Select:
+        </div>
         <div className="quick-filters">
           <button 
             className={`quick-filter-btn ${getDateRangeLabel() === 'Today' ? 'active' : ''}`}
@@ -614,23 +640,36 @@ const CashierReports = () => {
 
       <div className="reports-navigation">
         <nav className="nav-tabs">
-          <button className={`nav-tab ${activeTab === "sales" ? "active" : ""}`} onClick={() => setActiveTab("sales")}>
-            <span className="tab-icon">📊</span> Sales Summary
+          <button
+            className={`nav-tab ${activeTab === "sales" ? "active" : ""}`}
+            onClick={() => setActiveTab("sales")}
+          >
+            <FontAwesomeIcon icon={faChartLine} />
+            Sales Summary
           </button>
+
           <button
             className={`nav-tab ${activeTab === "transactions" ? "active" : ""}`}
             onClick={() => setActiveTab("transactions")}
           >
-            <span className="tab-icon">💳</span> Transactions
+            <FontAwesomeIcon icon={faCreditCard} />
+            Transactions
           </button>
-          <button className={`nav-tab ${activeTab === "items" ? "active" : ""}`} onClick={() => setActiveTab("items")}>
-            <span className="tab-icon">🏆</span> Top Items
+
+          <button
+            className={`nav-tab ${activeTab === "items" ? "active" : ""}`}
+            onClick={() => setActiveTab("items")}
+          >
+            <FontAwesomeIcon icon={faTrophy} />
+            Top Items
           </button>
+
           <button
             className={`nav-tab ${activeTab === "refunds" ? "active" : ""}`}
             onClick={() => setActiveTab("refunds")}
           >
-            <span className="tab-icon">↩️</span> Refunds
+            <FontAwesomeIcon icon={faArrowRotateLeft} />
+            Refunds
           </button>
         </nav>
       </div>
@@ -644,13 +683,16 @@ const CashierReports = () => {
           </div>
         ) : error ? (
           <div className="error-state enhanced">
-            <div className="error-icon">📊</div>
+            <div className="error-icon">
+              <FontAwesomeIcon icon={faTriangleExclamation} />
+            </div>
             <div className="error-message">{error}</div>
             <p style={{ fontSize: '14px', color: '#6c757d', margin: '8px 0' }}>
               Showing demo data for preview. API connection unavailable.
             </p>
             <button className="retry-btn" onClick={fetchReportData}>
-              🔄 Retry Connection
+              <FontAwesomeIcon icon={faRotateRight} />
+              Retry Connection
             </button>
           </div>
         ) : (
@@ -658,7 +700,7 @@ const CashierReports = () => {
             <div className="last-updated">
               Last updated: {new Date().toLocaleTimeString()}
               <button className="refresh-mini" onClick={fetchReportData} title="Refresh data">
-                🔄
+                <FontAwesomeIcon icon={faRotateRight} />
               </button>
             </div>
             {renderActiveTab()}

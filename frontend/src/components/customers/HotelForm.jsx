@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faHotel,
@@ -6,170 +6,104 @@ import {
   faBed,
   faCalendarAlt,
   faPaw,
-  faDollarSign,
-  faStar,
   faCheckCircle,
   faTimesCircle,
-  faInfoCircle,
 } from "@fortawesome/free-solid-svg-icons";
-import { boardingApi } from "../../api/boardings";
-import "./HotelForm_Polished.css";
+import "./HotelForm.css";
 
 const HotelForm = () => {
-  const [activeTab, setActiveTab] = useState("book"); // book, my-bookings
-  const [pets, setPets] = useState([]);
-  const [availableRooms, setAvailableRooms] = useState([]);
+  const [activeTab, setActiveTab] = useState("book");
   const [myBookings, setMyBookings] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
+  const customerEmail = localStorage.getItem("email");
+  const customerName = localStorage.getItem("name") || "Customer";
+
   const [bookingForm, setBookingForm] = useState({
-    petId: "",
-    checkIn: "",
-    checkOut: "",
-    roomType: "all",
-    specialRequests: "",
-    emergencyContact: "",
-    emergencyPhone: "",
+    customer_name: customerName,
+    customer_email: customerEmail || "",
+    pet_name: "",
+    service_type: "hotel",
+    service_name: "Standard Room",
+    request_date: "",
+    request_time: "",
+    notes: "",
   });
 
-  // Demo data for presentation
-  const demoBookings = [
-    {
-      id: 1,
-      pet_name: "Buddy",
-      room: { name: "Cozy Standard", room_number: "101", type: "standard", daily_rate: 50 },
-      check_in: "2024-04-25",
-      check_out: "2024-04-28",
-      status: "confirmed",
-      total_price: 150
-    },
-    {
-      id: 2,
-      pet_name: "Luna",
-      room: { name: "Deluxe Suite", room_number: "205", type: "deluxe", daily_rate: 75 },
-      check_in: "2024-05-01",
-      check_out: "2024-05-03",
-      status: "pending",
-      total_price: 150
-    },
-    {
-      id: 3,
-      pet_name: "Max",
-      room: { name: "Presidential Suite", room_number: "301", type: "suite", daily_rate: 100 },
-      check_in: "2024-03-15",
-      check_out: "2024-03-20",
-      status: "checked_out",
-      total_price: 500
-    }
-  ];
-
-  const demoRooms = [
-    { id: 1, name: "Cozy Standard", room_number: "101", type: "standard", daily_rate: 50, size: "medium", capacity: 2, description: "Comfortable room for small to medium pets", amenities: ["A/C", "Daily Cleaning"] },
-    { id: 2, name: "Spacious Deluxe", room_number: "205", type: "deluxe", daily_rate: 75, size: "large", capacity: 3, description: "Luxury space for larger pets", amenities: ["A/C", "Premium Bed", "Window View"] },
-    { id: 3, name: "Presidential Suite", room_number: "301", type: "suite", daily_rate: 100, size: "xlarge", capacity: 4, description: "Ultimate luxury experience", amenities: ["A/C", "King Bed", "TV", "Balcony"] },
-    { id: 4, name: "Standard Plus", room_number: "102", type: "standard", daily_rate: 55, size: "medium", capacity: 2, description: "Enhanced standard room", amenities: ["A/C", "Window View"] }
-  ];
-
-  // Fetch user's pets and bookings on mount
-  useEffect(() => {
-    fetchMyPets();
-    fetchMyBookings();
-  }, []);
-
-  // Search available rooms when dates change
-  useEffect(() => {
-    const searchAvailableRooms = async () => {
-      if (!bookingForm.checkIn || !bookingForm.checkOut) return;
-      
-      try {
-        const size = bookingForm.roomType === "all" ? null : bookingForm.roomType;
-        const response = await boardingApi.getAvailableRooms(
-          bookingForm.checkIn,
-          bookingForm.checkOut,
-          size
-        );
-        const rooms = response.available_rooms || [];
-        // Use API data if available, otherwise use demo rooms
-        setAvailableRooms(rooms.length > 0 ? rooms : demoRooms);
-      } catch (err) {
-        console.error("Failed to fetch available rooms:", err);
-        // Fallback to demo rooms on error
-        setAvailableRooms(demoRooms);
-      }
-    };
-    
-    searchAvailableRooms();
-  }, [bookingForm.checkIn, bookingForm.checkOut, bookingForm.roomType]);
-
-  const fetchMyPets = async () => {
-    // In production, this would fetch from a pets API
-    // For now using sample data - replace with actual API call
-    setPets([
-      { id: 1, name: "Buddy", species: "Dog", breed: "Golden Retriever", age: 3 },
-      { id: 2, name: "Luna", species: "Cat", breed: "Persian", age: 2 },
-    ]);
-  };
-
-  const fetchMyBookings = async () => {
+  const fetchMyBookings = useCallback(async () => {
     try {
       setLoading(true);
       setError("");
-      const response = await boardingApi.getBoardings();
-      if (response.boardings && response.bookings.data && response.bookings.data.length > 0) {
-        setMyBookings(response.bookings.data);
-      } else {
-        // Use demo data if no live data
-        setMyBookings(demoBookings);
+      
+      if (!customerEmail) {
+        setMyBookings([]);
+        return;
       }
+
+      const response = await fetch(
+        `http://127.0.0.1:8000/api/customer/my-requests?email=${customerEmail}`
+      );
+      const data = await response.json();
+
+      // Filter only hotel requests
+      const hotelOnly = data.requests.filter(item => item.type === "hotel");
+      
+      setMyBookings(hotelOnly);
     } catch (err) {
       console.error("Failed to fetch bookings:", err);
-      // Fallback to demo data on error
-      setMyBookings(demoBookings);
+      setError("Failed to load bookings. Please try again.");
+      setMyBookings([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [customerEmail]);
 
-  const handleCreateBooking = async (roomId) => {
-    if (!bookingForm.petId || !bookingForm.checkIn || !bookingForm.checkOut) {
-      setError("Please fill in all required fields");
-      return;
-    }
+  useEffect(() => {
+    fetchMyBookings();
+  }, [fetchMyBookings]);
+
+  const handleCreateBooking = async (e) => {
+    e.preventDefault();
 
     try {
       setLoading(true);
       setError("");
-      
-      await boardingApi.createBoarding({
-        pet_id: bookingForm.petId,
-        hotel_room_id: roomId,
-        check_in: bookingForm.checkIn,
-        check_out: bookingForm.checkOut,
-        special_requests: bookingForm.specialRequests,
-        emergency_contact: bookingForm.emergencyContact,
-        emergency_phone: bookingForm.emergencyPhone,
+
+      const response = await fetch("http://127.0.0.1:8000/api/customer/requests", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(bookingForm),
       });
 
-      setSuccessMessage("Hotel reservation created successfully!");
-      setTimeout(() => setSuccessMessage(""), 3000);
-      
-      // Reset form and refresh
-      setBookingForm({
-        petId: "",
-        checkIn: "",
-        checkOut: "",
-        roomType: "all",
-        specialRequests: "",
-        emergencyContact: "",
-        emergencyPhone: "",
-      });
-      setAvailableRooms([]);
-      fetchMyBookings();
-      setActiveTab("my-bookings");
+      const data = await response.json();
+
+      if (data.success) {
+        setSuccessMessage("Hotel reservation submitted successfully!");
+        setTimeout(() => setSuccessMessage(""), 3000);
+        
+        setBookingForm({
+          customer_name: customerName,
+          customer_email: customerEmail || "",
+          pet_name: "",
+          service_type: "hotel",
+          service_name: "Standard Room",
+          request_date: "",
+          request_time: "",
+          notes: "",
+        });
+
+        await fetchMyBookings();
+        setActiveTab("my-bookings");
+      } else {
+        setError(data.message || "Failed to create reservation");
+      }
     } catch (err) {
-      setError(err.message || "Failed to create reservation");
+      console.error("Submit error:", err);
+      setError("Failed to create reservation");
     } finally {
       setLoading(false);
     }
@@ -180,11 +114,21 @@ const HotelForm = () => {
     
     try {
       setLoading(true);
-      await boardingApi.cancelBoarding(bookingId);
+      await fetch(
+        `http://127.0.0.1:8000/api/receptionist/requests/${bookingId}/status`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ status: "rejected" }),
+        }
+      );
+      
       setSuccessMessage("Reservation cancelled successfully");
       fetchMyBookings();
     } catch (err) {
-      setError(err.message || "Failed to cancel reservation");
+      setError("Failed to cancel reservation");
     } finally {
       setLoading(false);
     }
@@ -193,22 +137,19 @@ const HotelForm = () => {
   const getStatusBadge = (status) => {
     const styles = {
       pending: { bg: "#fef3c7", color: "#d97706" },
-      confirmed: { bg: "#dbeafe", color: "#2563eb" },
-      checked_in: { bg: "#d1fae5", color: "#059669" },
-      checked_out: { bg: "#e5e7eb", color: "#6b7280" },
-      cancelled: { bg: "#fee2e2", color: "#dc2626" },
+      approved: { bg: "#dbeafe", color: "#2563eb" },
+      rejected: { bg: "#fee2e2", color: "#dc2626" },
     };
     return styles[status] || styles.pending;
   };
 
-  const getRoomTypeLabel = (type) => {
-    const labels = { standard: "Standard", deluxe: "Deluxe", suite: "Suite" };
-    return labels[type] || type;
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setBookingForm((prev) => ({ ...prev, [name]: value }));
   };
 
   return (
     <div className="customer-hotel-reservation">
-      {/* Header */}
       <div className="hotel-header">
         <div className="header-left">
           <h1><FontAwesomeIcon icon={faHotel} /> Pet Hotel</h1>
@@ -216,10 +157,10 @@ const HotelForm = () => {
         </div>
       </div>
 
-      {/* Alerts */}
       {error && (
-        <div className="alert alert-error">
-          <FontAwesomeIcon icon={faTimesCircle} /> {error}
+        <div className="hotel-error">
+          <span>×</span>
+          <p>{error}</p>
         </div>
       )}
       {successMessage && (
@@ -228,171 +169,108 @@ const HotelForm = () => {
         </div>
       )}
 
-      {/* Tabs */}
       <div className="hotel-tabs">
         <button
-          className={activeTab === "book" ? "active" : ""}
+          className={`hotel-tab ${activeTab === "book" ? "active" : ""}`}
           onClick={() => setActiveTab("book")}
         >
           <FontAwesomeIcon icon={faPlus} /> New Reservation
         </button>
         <button
-          className={activeTab === "my-bookings" ? "active" : ""}
+          className={`hotel-tab ${activeTab === "my-bookings" ? "active" : ""}`}
           onClick={() => setActiveTab("my-bookings")}
         >
           <FontAwesomeIcon icon={faBed} /> My Bookings ({myBookings.length})
         </button>
       </div>
 
-      {/* Book Tab */}
       {activeTab === "book" && (
         <div className="book-tab">
-          {/* Booking Form */}
           <div className="booking-form-section">
             <h3><FontAwesomeIcon icon={faCalendarAlt} /> Reservation Details</h3>
             
-            <div className="form-row">
+            <form onSubmit={handleCreateBooking}>
               <div className="form-group">
-                <label>Select Pet *</label>
-                <select
-                  value={bookingForm.petId}
-                  onChange={(e) => setBookingForm({...bookingForm, petId: e.target.value})}
-                >
-                  <option value="">Choose your pet...</option>
-                  {pets.map(pet => (
-                    <option key={pet.id} value={pet.id}>
-                      {pet.name} ({pet.species} - {pet.breed})
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="form-row">
-              <div className="form-group">
-                <label>Check-in Date *</label>
-                <input
-                  type="date"
-                  value={bookingForm.checkIn}
-                  min={new Date().toISOString().split('T')[0]}
-                  onChange={(e) => setBookingForm({...bookingForm, checkIn: e.target.value})}
-                />
-              </div>
-              <div className="form-group">
-                <label>Check-out Date *</label>
-                <input
-                  type="date"
-                  value={bookingForm.checkOut}
-                  min={bookingForm.checkIn || new Date().toISOString().split('T')[0]}
-                  onChange={(e) => setBookingForm({...bookingForm, checkOut: e.target.value})}
-                />
-              </div>
-            </div>
-
-            <div className="form-row">
-              <div className="form-group">
-                <label>Room Type Preference</label>
-                <select
-                  value={bookingForm.roomType}
-                  onChange={(e) => setBookingForm({...bookingForm, roomType: e.target.value})}
-                >
-                  <option value="all">Any Type</option>
-                  <option value="standard">Standard</option>
-                  <option value="deluxe">Deluxe</option>
-                  <option value="suite">Suite</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="form-group">
-              <label>Special Requests</label>
-              <textarea
-                value={bookingForm.specialRequests}
-                onChange={(e) => setBookingForm({...bookingForm, specialRequests: e.target.value})}
-                placeholder="Dietary needs, medication, exercise preferences, etc."
-                rows={3}
-              />
-            </div>
-
-            <div className="form-row">
-              <div className="form-group">
-                <label>Emergency Contact</label>
+                <label>Customer Name</label>
                 <input
                   type="text"
-                  value={bookingForm.emergencyContact}
-                  onChange={(e) => setBookingForm({...bookingForm, emergencyContact: e.target.value})}
-                  placeholder="Contact person name"
+                  name="customer_name"
+                  value={bookingForm.customer_name}
+                  onChange={handleChange}
+                  required
+                  readOnly
+                  style={{ backgroundColor: "#f0f0f0" }}
                 />
               </div>
-              <div className="form-group">
-                <label>Emergency Phone</label>
-                <input
-                  type="tel"
-                  value={bookingForm.emergencyPhone}
-                  onChange={(e) => setBookingForm({...bookingForm, emergencyPhone: e.target.value})}
-                  placeholder="+63..."
-                />
-              </div>
-            </div>
-          </div>
 
-          {/* Available Rooms */}
-          {bookingForm.checkIn && bookingForm.checkOut && (
-            <div className="available-rooms-section">
-              <h3><FontAwesomeIcon icon={faBed} /> Available Rooms</h3>
-              
-              {availableRooms.length === 0 ? (
-                <div className="no-rooms">
-                  <FontAwesomeIcon icon={faInfoCircle} />
-                  <p>No rooms available for selected dates. Try different dates or room type.</p>
+              <div className="form-group">
+                <label>Pet Name *</label>
+                <input
+                  type="text"
+                  name="pet_name"
+                  value={bookingForm.pet_name}
+                  onChange={handleChange}
+                  required
+                  placeholder="Enter pet name"
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Room Type</label>
+                <select
+                  name="service_name"
+                  value={bookingForm.service_name}
+                  onChange={handleChange}
+                >
+                  <option value="Standard Room">Standard Room</option>
+                  <option value="Deluxe Room">Deluxe Room</option>
+                  <option value="Suite">Suite</option>
+                </select>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Check-in Date *</label>
+                  <input
+                    type="date"
+                    name="request_date"
+                    value={bookingForm.request_date}
+                    onChange={handleChange}
+                    required
+                    min={new Date().toISOString().split('T')[0]}
+                  />
                 </div>
-              ) : (
-                <div className="rooms-grid">
-                  {availableRooms.map(room => (
-                    <div key={room.id} className="room-card">
-                      <div className="room-header">
-                        <h4>Room {room.room_number}</h4>
-                        <span className={`room-type ${room.type}`}>
-                          {getRoomTypeLabel(room.type)}
-                        </span>
-                      </div>
-                      <p className="room-name">{room.name}</p>
-                      <p className="room-description">{room.description}</p>
-                      <div className="room-details">
-                        <span><FontAwesomeIcon icon={faPaw} /> {room.size} size</span>
-                        <span><FontAwesomeIcon icon={faBed} /> Capacity: {room.capacity}</span>
-                      </div>
-                      {room.amenities && (
-                        <div className="room-amenities">
-                          {room.amenities.map((amenity, idx) => (
-                            <span key={idx} className="amenity-tag">
-                              <FontAwesomeIcon icon={faStar} /> {amenity}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                      <div className="room-price">
-                        <FontAwesomeIcon icon={faDollarSign} />
-                        <span className="price">{room.daily_rate}</span>
-                        <span className="per-night">/night</span>
-                      </div>
-                      <button
-                        className="book-room-btn"
-                        onClick={() => handleCreateBooking(room.id)}
-                        disabled={loading || !bookingForm.petId}
-                      >
-                        {loading ? "Booking..." : "Book This Room"}
-                      </button>
-                    </div>
-                  ))}
+                <div className="form-group">
+                  <label>Check-in Time *</label>
+                  <input
+                    type="time"
+                    name="request_time"
+                    value={bookingForm.request_time}
+                    onChange={handleChange}
+                    required
+                  />
                 </div>
-              )}
-            </div>
-          )}
+              </div>
+
+              <div className="form-group">
+                <label>Special Requests</label>
+                <textarea
+                  name="notes"
+                  value={bookingForm.notes}
+                  onChange={handleChange}
+                  placeholder="Dietary needs, medication, exercise preferences, etc."
+                  rows={3}
+                />
+              </div>
+
+              <button type="submit" disabled={loading}>
+                {loading ? "Submitting..." : "Submit Reservation"}
+              </button>
+            </form>
+          </div>
         </div>
       )}
 
-      {/* My Bookings Tab */}
       {activeTab === "my-bookings" && (
         <div className="my-bookings-tab">
           {myBookings.length === 0 ? (
@@ -416,39 +294,31 @@ const HotelForm = () => {
                         color: getStatusBadge(booking.status).color,
                       }}
                     >
-                      {booking.status === "checked_in" ? "Checked In" :
-                       booking.status === "checked_out" ? "Checked Out" :
-                       booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
+                      {booking.status}
                     </span>
                   </div>
                   
                   <div className="booking-details">
                     <div className="detail-row">
                       <span className="label"><FontAwesomeIcon icon={faPaw} /> Pet:</span>
-                      <span className="value">{booking.pet?.name || "Unknown"}</span>
+                      <span className="value">{booking.pet}</span>
                     </div>
                     <div className="detail-row">
                       <span className="label"><FontAwesomeIcon icon={faBed} /> Room:</span>
-                      <span className="value">
-                        {booking.hotel_room?.room_number} ({getRoomTypeLabel(booking.hotel_room?.type)})
-                      </span>
+                      <span className="value">{booking.service}</span>
                     </div>
                     <div className="detail-row">
-                      <span className="label"><FontAwesomeIcon icon={faCalendarAlt} /> Check-in:</span>
-                      <span className="value">
-                        {booking.check_in ? new Date(booking.check_in).toLocaleDateString() : "TBD"}
-                      </span>
+                      <span className="label"><FontAwesomeIcon icon={faCalendarAlt} /> Date:</span>
+                      <span className="value">{booking.date}</span>
                     </div>
                     <div className="detail-row">
-                      <span className="label"><FontAwesomeIcon icon={faCalendarAlt} /> Check-out:</span>
-                      <span className="value">
-                        {booking.check_out ? new Date(booking.check_out).toLocaleDateString() : "TBD"}
-                      </span>
+                      <span className="label"><FontAwesomeIcon icon={faCalendarAlt} /> Time:</span>
+                      <span className="value">{booking.time}</span>
                     </div>
-                    {booking.total_amount && (
+                    {booking.notes && (
                       <div className="detail-row">
-                        <span className="label"><FontAwesomeIcon icon={faDollarSign} /> Total:</span>
-                        <span className="value">₱{booking.total_amount}</span>
+                        <span className="label">Notes:</span>
+                        <span className="value">{booking.notes}</span>
                       </div>
                     )}
                   </div>

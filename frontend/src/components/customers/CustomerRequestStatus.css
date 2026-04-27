@@ -1,0 +1,265 @@
+.customer-status-page {
+  min-height: 100vh;
+  padding: 1.5rem;
+  background: var(--color-bg-gradient);
+  color: var(--color-text);
+}
+
+.customer-status-hero,
+.customer-status-toolbar,
+.customer-status-card,
+.customer-status-empty {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  backdrop-filter: blur(18px);
+}
+
+.customer-status-hero {
+  padding: 2rem;
+  margin-bottom: 1.5rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.customer-status-hero::before {
+  content: "";
+  position: absolute;
+  right: -90px;
+  top: -120px;
+  width: 330px;
+  height: 330px;
+  background: radial-gradient(
+    circle,
+    rgba(255, 95, 147, 0.28),
+    transparent 65%
+  );
+}
+
+.customer-status-badge {
+  display: inline-flex;
+  padding: 0.35rem 0.75rem;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 95, 147, 0.12);
+  color: var(--color-primary);
+  font-size: 0.78rem;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.customer-status-hero h1 {
+  margin: 0.7rem 0 0.6rem;
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 950;
+  letter-spacing: -0.05em;
+  background: linear-gradient(
+    135deg,
+    var(--color-primary),
+    var(--color-primary-light)
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.customer-status-hero p {
+  max-width: 760px;
+  margin: 0;
+  color: var(--color-muted);
+  font-weight: 700;
+  line-height: 1.6;
+}
+
+.customer-status-toolbar {
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.customer-status-search {
+  position: relative;
+}
+
+.customer-status-search svg {
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-primary);
+}
+
+.customer-status-search input {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 1rem 0 2.8rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-solid);
+  color: var(--color-text);
+  font: inherit;
+  font-weight: 750;
+}
+
+.customer-status-search input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 4px rgba(255, 95, 147, 0.15);
+}
+
+.customer-status-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+.customer-status-card {
+  padding: 1.3rem;
+  transition: 0.25s ease;
+}
+
+.customer-status-card:hover {
+  transform: translateY(-5px);
+  box-shadow: var(--shadow-primary);
+}
+
+.status-card-top {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.status-card-icon {
+  width: 50px;
+  height: 50px;
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  background: linear-gradient(
+    135deg,
+    var(--color-primary),
+    var(--color-primary-light)
+  );
+  box-shadow: var(--shadow-primary);
+}
+
+.status-card-top h3 {
+  margin: 0;
+  color: var(--color-heading);
+  font-weight: 950;
+}
+
+.status-card-top p {
+  margin: 0.25rem 0 0;
+  color: var(--color-muted);
+  font-weight: 750;
+}
+
+.status-card-details {
+  margin: 1rem 0;
+  padding: 1rem;
+  border-radius: var(--radius-md);
+  background: rgba(255, 95, 147, 0.07);
+}
+
+.status-card-details p {
+  margin: 0.45rem 0;
+  color: var(--color-text);
+  font-weight: 700;
+}
+
+.status-card-details strong {
+  color: var(--color-heading);
+}
+
+.status-card-footer {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.customer-status-pill,
+.customer-payment-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.75rem;
+  border-radius: var(--radius-pill);
+  font-size: 0.78rem;
+  font-weight: 950;
+  text-transform: capitalize;
+}
+
+.customer-status-pill.pending {
+  background: var(--color-warning-bg);
+  color: #92400e;
+}
+
+.customer-status-pill.approved {
+  background: var(--color-success-bg);
+  color: #065f46;
+}
+
+.customer-status-pill.rejected {
+  background: var(--color-danger-bg);
+  color: #991b1b;
+}
+
+.customer-payment-pill.unpaid {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.customer-payment-pill.pending {
+  background: var(--color-info-bg);
+  color: #1e3a8a;
+}
+
+.customer-payment-pill.paid {
+  background: var(--color-success-bg);
+  color: #065f46;
+}
+
+.customer-status-empty {
+  grid-column: 1 / -1;
+  padding: 4rem 2rem;
+  text-align: center;
+  color: var(--color-muted);
+}
+
+.customer-status-empty svg {
+  font-size: 2.5rem;
+  color: var(--color-primary);
+}
+
+.customer-status-empty h3 {
+  margin: 1rem 0 0.4rem;
+  color: var(--color-heading);
+  font-weight: 950;
+}
+
+.customer-status-empty p {
+  margin: 0;
+  font-weight: 700;
+}
+
+@media (max-width: 1100px) {
+  .customer-status-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .customer-status-page {
+    padding: 1rem;
+  }
+
+  .customer-status-hero {
+    padding: 1.35rem;
+  }
+
+  .customer-status-grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -12,9 +12,13 @@ class Pet extends Model
     protected $fillable = [
         'customer_id',
         'name',
+        'type',
         'species',
         'breed',
         'age',
+        'gender',
+        'image',
+        'notes',
     ];
 
     public function customer()

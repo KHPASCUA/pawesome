@@ -20,6 +20,7 @@ class DatabaseSeeder extends Seeder
             InventorySeeder::class, // Comprehensive inventory data for testing
             DemoDataSeeder::class,
             ChatbotFaqSeeder::class,
+            CashierTestDataSeeder::class, // Test data for cashier features
         ]);
     }
 }

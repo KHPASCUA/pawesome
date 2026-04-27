@@ -1,0 +1,199 @@
+:root {
+  --color-primary: #ff5f93;
+  --color-primary-light: #ff8db5;
+  --color-primary-soft: #ffc8dd;
+  --color-primary-hover: #ff4f85;
+
+  --color-bg: #fff1f7;
+  --color-bg-gradient: linear-gradient(135deg, #ffc8dd, #ffd6e8, #fff1f7);
+
+  --color-surface: rgba(255, 255, 255, 0.9);
+  --color-surface-solid: #ffffff;
+  --color-border: rgba(255, 95, 147, 0.18);
+
+  --color-text: #1f2937;
+  --color-heading: #191919;
+  --color-muted: #64748b;
+
+  --color-success: #10b981;
+  --color-success-bg: #d1fae5;
+  --color-warning: #f59e0b;
+  --color-warning-bg: #fef3c7;
+  --color-danger: #ef4444;
+  --color-danger-bg: #fee2e2;
+  --color-info: #3b82f6;
+  --color-info-bg: #dbeafe;
+
+  --shadow-card: 0 20px 50px rgba(255, 95, 147, 0.15);
+  --shadow-soft: 0 12px 28px rgba(15, 23, 42, 0.08);
+  --shadow-primary: 0 14px 34px rgba(255, 95, 147, 0.32);
+
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 22px;
+  --radius-card: 26px;
+  --radius-pill: 999px;
+}
+
+body {
+  margin: 0;
+  font-family: "Inter", "Jost", system-ui, sans-serif;
+  background: var(--color-bg-gradient);
+  color: var(--color-text);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  color: var(--color-heading);
+}
+
+.glass-card,
+.premium-card,
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  backdrop-filter: blur(18px);
+  color: var(--color-text);
+}
+
+.premium-card {
+  padding: 1.5rem;
+  transition: 0.25s ease;
+}
+
+.premium-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 28px 70px rgba(255, 95, 147, 0.22);
+}
+
+.premium-title {
+  color: var(--color-primary);
+  font-weight: 950;
+  letter-spacing: -0.04em;
+}
+
+.text-muted,
+.premium-muted {
+  color: var(--color-muted);
+}
+
+.btn,
+.btn-primary,
+.btn-secondary {
+  border: none;
+  cursor: pointer;
+  font-weight: 900;
+  border-radius: var(--radius-pill);
+  padding: 10px 18px;
+  transition: 0.25s ease;
+}
+
+.btn:hover,
+.btn-primary:hover,
+.btn-secondary:hover {
+  transform: translateY(-2px);
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+  color: white;
+  box-shadow: var(--shadow-primary);
+}
+
+.btn-secondary {
+  background: var(--color-surface-solid);
+  color: var(--color-primary);
+  border: 1px solid var(--color-border);
+}
+
+input,
+select,
+textarea,
+.input {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-solid);
+  color: var(--color-text);
+  font-family: inherit;
+  transition: 0.2s ease;
+}
+
+input:focus,
+select:focus,
+textarea:focus,
+.input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 4px rgba(255, 95, 147, 0.16);
+}
+
+.badge {
+  padding: 5px 10px;
+  border-radius: var(--radius-pill);
+  font-weight: 900;
+  font-size: 0.8rem;
+}
+
+.badge-success {
+  background: var(--color-success-bg);
+  color: #065f46;
+}
+
+.badge-warning {
+  background: var(--color-warning-bg);
+  color: #92400e;
+}
+
+.badge-danger {
+  background: var(--color-danger-bg);
+  color: #991b1b;
+}
+
+.badge-info {
+  background: var(--color-info-bg);
+  color: #1e3a8a;
+}
+
+/* DARK MODE */
+body[data-theme="dark"],
+[data-theme="dark"] {
+  --color-bg: #111827;
+  --color-bg-gradient: linear-gradient(135deg, #111827, #1f2937, #3b1224);
+
+  --color-surface: rgba(17, 24, 39, 0.9);
+  --color-surface-solid: #111827;
+  --color-border: rgba(255, 141, 181, 0.26);
+
+  --color-text: #f8fafc;
+  --color-heading: #ffffff;
+  --color-muted: #cbd5e1;
+
+  --shadow-card: 0 22px 55px rgba(0, 0, 0, 0.38);
+  --shadow-soft: 0 14px 34px rgba(0, 0, 0, 0.28);
+}
+
+[data-theme="dark"] input,
+[data-theme="dark"] select,
+[data-theme="dark"] textarea,
+[data-theme="dark"] .input {
+  background: rgba(15, 23, 42, 0.94);
+  color: var(--color-text);
+  border-color: var(--color-border);
+}
+
+[data-theme="dark"] input::placeholder,
+[data-theme="dark"] textarea::placeholder {
+  color: #94a3b8;
+}

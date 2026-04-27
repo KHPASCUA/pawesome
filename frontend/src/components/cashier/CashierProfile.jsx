@@ -534,7 +534,6 @@ const CashierProfile = () => {
                 type="text"
                 value="Cashier"
                 disabled
-                style={{ backgroundColor: '#f8f9fa' }}
               />
             </div>
             <div className="form-group">
@@ -543,7 +542,6 @@ const CashierProfile = () => {
                 type="text"
                 value="Active"
                 disabled
-                style={{ backgroundColor: '#f8f9fa' }}
               />
             </div>
           </div>
@@ -554,7 +552,6 @@ const CashierProfile = () => {
                 type="text"
                 value={profileData.memberSince}
                 disabled
-                style={{ backgroundColor: '#f8f9fa' }}
               />
             </div>
             <div className="form-group">
@@ -563,7 +560,6 @@ const CashierProfile = () => {
                 type="text"
                 value="Today"
                 disabled
-                style={{ backgroundColor: '#f8f9fa' }}
               />
             </div>
           </div>

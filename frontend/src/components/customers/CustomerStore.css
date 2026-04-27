@@ -1,4 +1,4 @@
-/* Modern Customer Store with Glassmorphism Design */
+/* Customer Store - Professional Polished Styles */
 
 * {
   margin: 0;
@@ -8,51 +8,50 @@
 
 body {
   font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-  background: linear-gradient(135deg, #f0f4f8 0%, #e8f4fd 100%);
+  background: #f8fafc;
   min-height: 100vh;
   color: #333;
 }
 
 .customer-store {
-  min-height: 100vh;
   display: flex;
   flex-direction: column;
+  min-height: calc(100vh - 90px);
+  background: #f8fafc;
 }
 
-/* Header Styles */
+/* Header Section */
 .store-header {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px);
-  border-bottom: 2px solid rgba(173, 216, 230, 0.3);
-  padding: 1rem 2rem;
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-}
-
-.header-content {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  max-width: 1400px;
-  margin: 0 auto;
+  padding: 24px 32px;
+  background: white;
+  border-bottom: 1px solid #e9ecef;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
-.store-header h1 {
-  font-size: 2rem;
+.store-header .header-content h1 {
+  font-size: 28px;
   font-weight: 700;
-  background: linear-gradient(135deg, #ADD8E6, #FFC0CB);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  color: transparent;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  color: #2c3e50;
+  margin: 0 0 8px 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
+.store-header .header-content p {
+  color: #6c757d;
+  margin: 0;
+  font-size: 14px;
+}
+
+/* Header Actions */
 .header-actions {
   display: flex;
   align-items: center;
+  gap: 16px;
   gap: 1.5rem;
 }
 
@@ -340,12 +339,24 @@ body {
   position: absolute;
   top: 0.5rem;
   left: 0.5rem;
-  background: rgba(220, 53, 69, 0.9);
+  background: #ef4444;
   color: white;
-  padding: 0.3rem 0.6rem;
+  padding: 4px 10px;
   border-radius: 12px;
-  font-size: 0.75rem;
-  font-weight: 600;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.low-stock {
+  position: absolute;
+  bottom: 0.5rem;
+  left: 0.5rem;
+  background: orange;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 700;
 }
 
 .product-info h3 {
@@ -1219,4 +1230,143 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(173, 216, 230, 0.5);
+}
+
+/* CUSTOMER STORE — PREMIUM FINAL FIX */
+
+.customer-store {
+  background: var(
+    --color-bg-gradient,
+    linear-gradient(135deg, #ffc8dd, #ffd6e8, #fff1f7)
+  ) !important;
+  color: var(--color-text, #1f2937);
+}
+
+.store-header,
+.store-sidebar,
+.store-main,
+.cart-section,
+.product-card,
+.wishlist-item,
+.receipt,
+.order-summary,
+.cart-summary,
+.discount-section,
+.empty-cart,
+.empty-wishlist {
+  background: rgba(255, 255, 255, 0.86) !important;
+  border: 1px solid rgba(255, 95, 147, 0.18) !important;
+  box-shadow: 0 18px 45px rgba(255, 95, 147, 0.14) !important;
+  backdrop-filter: blur(16px) !important;
+}
+
+.store-header,
+.store-sidebar,
+.store-main,
+.cart-section {
+  border-radius: 28px !important;
+}
+
+.store-header {
+  margin: 1.5rem 2rem 0;
+  background:
+    radial-gradient(circle at top right, rgba(255, 95, 147, 0.16), transparent 36%),
+    rgba(255, 255, 255, 0.86) !important;
+}
+
+.store-header .header-content h1,
+.category-header h2,
+.cart-content h2,
+.payment-content h2,
+.receipt-content h2 {
+  color: #191919 !important;
+  font-weight: 950 !important;
+}
+
+.search-bar input,
+.price-inputs input,
+.sort-filter select,
+.discount-section input,
+.payment-form select,
+.payment-form input[type="file"] {
+  border-radius: 999px !important;
+  border: 1px solid rgba(255, 95, 147, 0.18) !important;
+  background: rgba(255, 255, 255, 0.92) !important;
+  color: #1f2937 !important;
+  font-weight: 700;
+}
+
+.category-btn.active,
+.wishlist-btn,
+.add-to-cart-btn,
+.checkout-btn,
+.confirm-btn,
+.done-btn,
+.empty-wishlist button,
+.empty-cart button {
+  background: linear-gradient(135deg, #ff5f93, #ff8db5) !important;
+  color: #ffffff !important;
+  box-shadow: 0 14px 28px rgba(255, 95, 147, 0.24) !important;
+}
+
+.product-card {
+  border-radius: 26px !important;
+}
+
+.product-card:hover {
+  transform: translateY(-6px);
+  border-color: rgba(255, 95, 147, 0.32) !important;
+}
+
+.current-price,
+.discounted-price,
+.cart-item-info p,
+.quick-view-price {
+  color: #ff5f93 !important;
+  font-weight: 950 !important;
+}
+
+.quick-view-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(8px);
+}
+
+.quick-view-modal {
+  border-radius: 30px !important;
+  background: rgba(255, 255, 255, 0.94) !important;
+  border: 1px solid rgba(255, 95, 147, 0.18) !important;
+  box-shadow: 0 28px 70px rgba(15, 23, 42, 0.24) !important;
+}
+
+.quick-view-header,
+.quick-view-content {
+  padding: 1.5rem;
+}
+
+.quick-view-image {
+  font-size: 4rem;
+  text-align: center;
+}
+
+.low-stock {
+  background: #f59e0b !important;
+}
+
+.out-of-stock {
+  background: #ef4444 !important;
+}
+
+.checkout-btn:disabled,
+.confirm-btn:disabled,
+.add-to-cart-btn:disabled {
+  opacity: 0.55 !important;
+  cursor: not-allowed !important;
+  transform: none !important;
 }

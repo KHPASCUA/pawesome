@@ -1,49 +1,281 @@
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import "./CashierHistory_Polished.css";
+import { apiRequest } from "../../api/client";
 
-const sampleTransactions = [
-  { id: "TXN-001", customer: "Kristin Watson", amount: 312.5, method: "Card" },
-  { id: "TXN-002", customer: "Theresa Webb", amount: 129.0, method: "Cash" },
-  { id: "TXN-003", customer: "Admin User", amount: 564.25, method: "Gcash" },
-  { id: "TXN-004", customer: "John Doe", amount: 78.5, method: "Cash" },
-];
+const formatCurrency = (amount) => {
+  const value = Number(amount) || 0;
 
-const CashierHistory = ({ transactions = sampleTransactions } = {}) => {
+  return value.toLocaleString("en-PH", {
+    style: "currency",
+    currency: "PHP",
+  });
+};
+
+const formatDateTime = (value) => {
+  if (!value) return "N/A";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) return "N/A";
+
+  return date.toLocaleString("en-PH", {
+    month: "short",
+    day: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
+const normalizeTransaction = (transaction, index) => {
+  const rawId =
+    transaction.id ||
+    transaction.transaction_id ||
+    transaction.sale_id ||
+    transaction.payment_id ||
+    index + 1;
+
+  const id = String(rawId).startsWith("TRX-")
+    ? String(rawId)
+    : `TRX-${String(rawId).padStart(3, "0")}`;
+
+  return {
+    id,
+    customer:
+      transaction.customer ||
+      transaction.customer_name ||
+      transaction.client_name ||
+      transaction.name ||
+      transaction.owner_name ||
+      "Walk-in Customer",
+
+    amount:
+      transaction.amount ||
+      transaction.total ||
+      transaction.total_amount ||
+      transaction.payment_amount ||
+      transaction.paid_amount ||
+      0,
+
+    method:
+      transaction.method ||
+      transaction.payment_method ||
+      transaction.type ||
+      transaction.payment_type ||
+      "Cash",
+
+    date:
+      transaction.date ||
+      transaction.created_at ||
+      transaction.createdAt ||
+      transaction.payment_date ||
+      transaction.updated_at ||
+      null,
+  };
+};
+
+const CashierHistory = () => {
   const [lastUpdated, setLastUpdated] = useState(new Date());
-  const historyItems = Array.isArray(transactions) ? transactions : sampleTransactions;
+  const [searchTerm, setSearchTerm] = useState("");
+  const [transactions, setTransactions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleRefresh = () => {
-    setLastUpdated(new Date());
+  const fetchHistory = useCallback(async ({ silent = false } = {}) => {
+    try {
+      if (silent) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+
+      /*
+        LIVE BACKEND ENDPOINT
+
+        If this endpoint does not exist in your backend,
+        change only this line:
+
+        const response = await apiRequest("/cashier/history");
+
+        possible alternatives:
+        "/cashier/transactions"
+        "/cashier/sales"
+      */
+      const response = await apiRequest("/cashier/history");
+
+      const rawItems = Array.isArray(response)
+        ? response
+        : response?.transactions ||
+          response?.history ||
+          response?.data ||
+          response?.sales ||
+          response?.recent_sales ||
+          [];
+
+      const normalizedItems = rawItems.map((item, index) =>
+        normalizeTransaction(item, index)
+      );
+
+      setTransactions(normalizedItems);
+      setLastUpdated(new Date());
+      setError("");
+    } catch (err) {
+      setError(err.message || "Failed to load transaction history");
+      console.error("Cashier history fetch error:", err);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchHistory();
+  }, [fetchHistory]);
+
+  const filteredItems = useMemo(() => {
+    const keyword = searchTerm.trim().toLowerCase();
+
+    if (!keyword) return transactions;
+
+    return transactions.filter((item) => {
+      return (
+        String(item.id || "").toLowerCase().includes(keyword) ||
+        String(item.customer || "").toLowerCase().includes(keyword) ||
+        String(item.method || "").toLowerCase().includes(keyword) ||
+        String(item.amount || "").toLowerCase().includes(keyword)
+      );
+    });
+  }, [transactions, searchTerm]);
+
+  const totalAmount = useMemo(() => {
+    return filteredItems.reduce((sum, item) => {
+      return sum + (Number(item.amount) || 0);
+    }, 0);
+  }, [filteredItems]);
+
+  const paymentTypeCount = useMemo(() => {
+    return new Set(
+      filteredItems.map((item) => String(item.method || "").toLowerCase())
+    ).size;
+  }, [filteredItems]);
+
+  const getMethodBadgeClass = (method = "") => {
+    const lowerMethod = String(method).toLowerCase();
+
+    if (lowerMethod.includes("card")) return "card";
+    if (lowerMethod.includes("gcash")) return "gcash";
+    if (lowerMethod.includes("maya")) return "maya";
+    if (lowerMethod.includes("online")) return "online";
+
+    return "cash";
   };
 
-  const getMethodBadgeClass = (method) => {
-    const lowerMethod = method.toLowerCase();
-    if (lowerMethod.includes('card')) return 'card';
-    if (lowerMethod.includes('gcash')) return 'gcash';
-    return 'cash';
+  const getMethodIcon = (method = "") => {
+    const lowerMethod = String(method).toLowerCase();
+
+    if (lowerMethod.includes("card")) return "💳";
+    if (lowerMethod.includes("gcash")) return "📱";
+    if (lowerMethod.includes("maya")) return "📲";
+    if (lowerMethod.includes("online")) return "🌐";
+
+    return "💵";
   };
 
   return (
     <div className="cashier-history-page">
-      <div className="history-header">
-        <div className="header-content">
-          <h1>📜 Transaction History</h1>
-          <p>Review recent sales and payment details</p>
-        </div>
-        <div className="last-updated">
-          Last updated: {lastUpdated.toLocaleTimeString()}
-          <button className="refresh-mini" onClick={handleRefresh} title="Refresh">
-            🔄
-          </button>
-        </div>
-      </div>
+      <section className="history-hero">
+        <div className="history-header">
+          <div className="header-content">
+            <span className="history-kicker">Cashier Records</span>
+            <h1>Transaction History</h1>
+            <p>
+              Review recent sales, payment methods, and cashier transaction
+              details.
+            </p>
+          </div>
 
-      <div className="history-content">
-        {historyItems.length === 0 ? (
+          <div className="last-updated">
+            <span>
+              Last updated:
+              <strong>{lastUpdated.toLocaleTimeString("en-PH")}</strong>
+            </span>
+
+            <button
+              className="refresh-mini"
+              onClick={() => fetchHistory({ silent: true })}
+              title="Refresh"
+              type="button"
+              disabled={refreshing}
+            >
+              {refreshing ? "…" : "↻"}
+            </button>
+          </div>
+        </div>
+
+        <div className="history-summary-grid">
+          <div className="history-summary-card">
+            <span>Total Records</span>
+            <strong>{filteredItems.length}</strong>
+            <small>Filtered transaction count</small>
+          </div>
+
+          <div className="history-summary-card">
+            <span>Total Amount</span>
+            <strong>{formatCurrency(totalAmount)}</strong>
+            <small>Based on visible records</small>
+          </div>
+
+          <div className="history-summary-card">
+            <span>Payment Types</span>
+            <strong>{paymentTypeCount}</strong>
+            <small>Cash, card, or digital wallet</small>
+          </div>
+        </div>
+      </section>
+
+      <section className="history-content">
+        <div className="history-toolbar">
+          <div>
+            <h2>Recent Transactions</h2>
+            <p>Search and monitor cashier payment history.</p>
+          </div>
+
+          <div className="history-search">
+            <span>⌕</span>
+            <input
+              type="text"
+              placeholder="Search transaction, customer, method..."
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+            />
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="loading-state">
+            <div className="loading-spinner" />
+            <p>Loading transaction history...</p>
+          </div>
+        ) : error ? (
+          <div className="history-empty">
+            <div className="history-empty-icon">⚠️</div>
+            <h3>Unable to Load History</h3>
+            <p>{error}</p>
+
+            <button
+              className="history-retry-btn"
+              type="button"
+              onClick={() => fetchHistory()}
+            >
+              Retry
+            </button>
+          </div>
+        ) : filteredItems.length === 0 ? (
           <div className="history-empty">
             <div className="history-empty-icon">📋</div>
             <h3>No History Available</h3>
-            <p>Transaction history will appear here once sales are recorded</p>
+            <p>Transaction history will appear here once sales are recorded.</p>
           </div>
         ) : (
           <div className="history-table-container">
@@ -55,19 +287,37 @@ const CashierHistory = ({ transactions = sampleTransactions } = {}) => {
                     <th>Customer</th>
                     <th>Amount</th>
                     <th>Payment Method</th>
+                    <th>Date / Time</th>
                   </tr>
                 </thead>
+
                 <tbody>
-                  {historyItems.map((t) => (
-                    <tr key={t.id}>
-                      <td><strong>{t.id}</strong></td>
-                      <td>{t.customer}</td>
-                      <td>₱{t.amount.toFixed(2)}</td>
+                  {filteredItems.map((transaction) => (
+                    <tr key={transaction.id}>
                       <td>
-                        <span className={`method-badge ${getMethodBadgeClass(t.method)}`}>
-                          {t.method === 'Cash' ? '💵' : t.method === 'Card' ? '💳' : '📱'} {t.method}
+                        <strong className="transaction-id">
+                          {transaction.id}
+                        </strong>
+                      </td>
+
+                      <td>{transaction.customer}</td>
+
+                      <td className="amount-cell">
+                        {formatCurrency(transaction.amount)}
+                      </td>
+
+                      <td>
+                        <span
+                          className={`method-badge ${getMethodBadgeClass(
+                            transaction.method
+                          )}`}
+                        >
+                          <span>{getMethodIcon(transaction.method)}</span>
+                          {transaction.method}
                         </span>
                       </td>
+
+                      <td>{formatDateTime(transaction.date)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -75,7 +325,7 @@ const CashierHistory = ({ transactions = sampleTransactions } = {}) => {
             </div>
           </div>
         )}
-      </div>
+      </section>
     </div>
   );
 };

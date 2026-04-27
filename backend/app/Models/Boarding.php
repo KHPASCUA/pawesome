@@ -18,6 +18,7 @@ class Boarding extends Model
         'check_out',
         'status',
         'total_amount',
+        'amount_paid',
         'payment_status',
         'notes',
         'special_requests',
@@ -99,6 +100,11 @@ class Boarding extends Model
     public function hotelRoom(): BelongsTo
     {
         return $this->belongsTo(HotelRoom::class);
+    }
+
+    public function payments()
+    {
+        return $this->hasMany(Payment::class);
     }
 
     public function scopeCurrent($query)

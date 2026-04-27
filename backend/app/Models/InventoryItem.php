@@ -13,12 +13,14 @@ class InventoryItem extends Model
 
     protected $fillable = [
         'sku',
+        'barcode',
         'name',
         'category',
         'description',
         'stock',
         'stock_quantity',
         'reorder_level',
+        'threshold',
         'price',
         'expiry_date',
         'status',
@@ -29,6 +31,7 @@ class InventoryItem extends Model
         'price' => 'decimal:2',
         'stock' => 'integer',
         'reorder_level' => 'integer',
+        'threshold' => 'integer',
     ];
 
     /**

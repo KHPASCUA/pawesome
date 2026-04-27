@@ -11,6 +11,7 @@ import {
   faFileExcel,
   faSpinner,
   faExclamationTriangle,
+  faPrint,
 } from "@fortawesome/free-solid-svg-icons";
 import { apiRequest } from "../../api/client";
 import { formatCurrency } from "../../utils/currency";
@@ -23,11 +24,15 @@ import {
 } from "../../utils/reportExport";
 import "./CustomerReports.css";
 
+const getStatusClass = (status) =>
+  String(status || "pending")
+    .toLowerCase()
+    .replace(/\s+/g, "-");
+
 const CustomerReports = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // Filter states
   const [searchTerm, setSearchTerm] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -140,17 +145,25 @@ const CustomerReports = () => {
     }
 
     if (statusFilter !== "all") {
-      filtered = filtered.filter((b) => b.status === statusFilter);
+      filtered = filtered.filter(
+        (b) => String(b.status || "").toLowerCase() === statusFilter
+      );
     }
 
     if (searchTerm) {
       const search = searchTerm.toLowerCase();
-      filtered = filtered.filter(
-        (b) =>
-          b.service?.toLowerCase().includes(search) ||
-          b.pet?.name?.toLowerCase().includes(search) ||
-          b.type?.toLowerCase().includes(search)
-      );
+
+      filtered = filtered.filter((booking) => {
+        const service = booking.service || booking.type || "";
+        const petName = booking.pet?.name || booking.pet_name || booking.pet || "";
+        const customer = booking.customer || "";
+
+        return (
+          service.toLowerCase().includes(search) ||
+          petName.toLowerCase().includes(search) ||
+          customer.toLowerCase().includes(search)
+        );
+      });
     }
 
     return filtered;
@@ -165,7 +178,16 @@ const CustomerReports = () => {
 
     if (searchTerm) {
       const search = searchTerm.toLowerCase();
-      filtered = filtered.filter((t) => t.description?.toLowerCase().includes(search));
+
+      filtered = filtered.filter((transaction) => {
+        const description =
+          transaction.description ||
+          transaction.type ||
+          transaction.customer ||
+          "";
+
+        return description.toLowerCase().includes(search);
+      });
     }
 
     return filtered;
@@ -186,12 +208,48 @@ const CustomerReports = () => {
   }, [bookings]);
 
   const totalPurchases = useMemo(() => {
-    return purchases.reduce((sum, p) => sum + (parseFloat(p.total) || 0), 0);
+    return purchases.reduce(
+      (sum, purchase) =>
+        sum + (parseFloat(purchase.total || purchase.amount) || 0),
+      0
+    );
   }, [purchases]);
+
+  const serviceBreakdown = useMemo(() => {
+    return bookings.reduce((acc, booking) => {
+      const service = booking.service || booking.type || "Unknown Service";
+      acc[service] = (acc[service] || 0) + 1;
+      return acc;
+    }, {});
+  }, [bookings]);
+
+  const latestBooking = useMemo(() => {
+    return [...bookings].sort(
+      (a, b) => new Date(b.date || 0) - new Date(a.date || 0)
+    )[0];
+  }, [bookings]);
+
+  const latestPayment = useMemo(() => {
+    return [...transactions].sort(
+      (a, b) => new Date(b.date || 0) - new Date(a.date || 0)
+    )[0];
+  }, [transactions]);
 
   const handleDateChange = (key, value) => {
     if (key === "startDate") setStartDate(value);
     if (key === "endDate") setEndDate(value);
+  };
+
+  const handleDatePreset = (preset) => {
+    if (preset === "all") {
+      setStartDate("");
+      setEndDate("");
+      return;
+    }
+
+    const range = getDateRangePreset(preset);
+    setStartDate(range.startDate);
+    setEndDate(range.endDate);
   };
 
   const handleClearFilters = () => {
@@ -200,6 +258,10 @@ const CustomerReports = () => {
     const { startDate: defaultStart, endDate: defaultEnd } = getDateRangePreset("month");
     setStartDate(defaultStart);
     setEndDate(defaultEnd);
+  };
+
+  const handlePrintReport = () => {
+    window.print();
   };
 
   // Export handlers
@@ -292,6 +354,21 @@ const CustomerReports = () => {
           </button>
         </div>
 
+        <div className="date-preset-row">
+          <button type="button" onClick={() => handleDatePreset("month")}>
+            This Month
+          </button>
+          <button type="button" onClick={() => handleDatePreset("last30")}>
+            Last 30 Days
+          </button>
+          <button type="button" onClick={() => handleDatePreset("year")}>
+            This Year
+          </button>
+          <button type="button" onClick={() => handleDatePreset("all")}>
+            All Time
+          </button>
+        </div>
+
         {/* Export Buttons */}
         <div className="export-actions">
           <button onClick={handleExportCSV} className="export-btn csv">
@@ -303,8 +380,22 @@ const CustomerReports = () => {
           <button onClick={handleExportExcel} className="export-btn excel">
             <FontAwesomeIcon icon={faFileExcel} /> Excel
           </button>
+          <button
+            type="button"
+            onClick={handlePrintReport}
+            className="export-btn print"
+          >
+            <FontAwesomeIcon icon={faPrint} /> Print
+          </button>
         </div>
       </div>
+
+      {error && (
+        <div className="reports-error-message">
+          <FontAwesomeIcon icon={faExclamationTriangle} />
+          <span>{error}</span>
+        </div>
+      )}
 
       {loading ? (
         <div className="loading-state">
@@ -366,6 +457,53 @@ const CustomerReports = () => {
             </div>
           </div>
 
+          <div className="reports-insights-grid">
+            <article className="reports-insight-card">
+              <span className="insight-label">Latest Booking</span>
+              <h3>{latestBooking?.service || latestBooking?.type || "No booking yet"}</h3>
+              <p>{latestBooking?.date || "Your latest booking will appear here."}</p>
+            </article>
+
+            <article className="reports-insight-card">
+              <span className="insight-label">Latest Payment</span>
+              <h3>{formatCurrency(latestPayment?.amount || 0)}</h3>
+              <p>
+                {latestPayment?.description ||
+                  latestPayment?.type ||
+                  "No payment yet"}
+              </p>
+            </article>
+
+            <article className="reports-insight-card">
+              <span className="insight-label">Registered Pets</span>
+              <h3>{pets.length}</h3>
+              <p>
+                {pets.length > 0
+                  ? "Pet records are available."
+                  : "No pets registered yet."}
+              </p>
+            </article>
+          </div>
+
+          <div className="report-section">
+            <h3>
+              <FontAwesomeIcon icon={faChartLine} /> Service Usage Breakdown
+            </h3>
+
+            <div className="service-breakdown-list">
+              {Object.entries(serviceBreakdown).length === 0 ? (
+                <p className="no-data">No service data available</p>
+              ) : (
+                Object.entries(serviceBreakdown).map(([service, count]) => (
+                  <div key={service} className="service-breakdown-item">
+                    <span>{service}</span>
+                    <strong>{count} booking(s)</strong>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
           {/* Bookings Section */}
           <div className="report-section">
             <h3>
@@ -392,13 +530,24 @@ const CustomerReports = () => {
                   ) : (
                     filteredBookings.map((booking) => (
                       <tr key={booking.id}>
-                        <td>{booking.service}</td>
-                        <td>{booking.pet?.name || "N/A"}</td>
-                        <td>{booking.date}</td>
+                        <td>{booking.service || booking.type || "N/A"}</td>
                         <td>
-                          <span className={`status-badge ${booking.status}`}>{booking.status}</span>
+                          {booking.pet?.name ||
+                            booking.pet_name ||
+                            booking.pet ||
+                            "N/A"}
                         </td>
-                        <td>{formatCurrency(booking.amount)}</td>
+                        <td>{booking.date || "N/A"}</td>
+                        <td>
+                          <span
+                            className={`status-badge ${getStatusClass(
+                              booking.status
+                            )}`}
+                          >
+                            {booking.status || "Pending"}
+                          </span>
+                        </td>
+                        <td>{formatCurrency(booking.amount || 0)}</td>
                       </tr>
                     ))
                   )}
@@ -457,12 +606,20 @@ const CustomerReports = () => {
                   ) : (
                     filteredTransactions.map((transaction) => (
                       <tr key={transaction.id}>
-                        <td>{transaction.date}</td>
-                        <td>{transaction.description}</td>
-                        <td>{formatCurrency(transaction.amount)}</td>
+                        <td>{transaction.date || "N/A"}</td>
                         <td>
-                          <span className={`status-badge ${transaction.status}`}>
-                            {transaction.status}
+                          {transaction.description ||
+                            transaction.type ||
+                            "Payment Transaction"}
+                        </td>
+                        <td>{formatCurrency(transaction.amount || 0)}</td>
+                        <td>
+                          <span
+                            className={`status-badge ${getStatusClass(
+                              transaction.status
+                            )}`}
+                          >
+                            {transaction.status || "Pending"}
                           </span>
                         </td>
                       </tr>

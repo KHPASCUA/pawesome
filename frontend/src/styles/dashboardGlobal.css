@@ -1,0 +1,66 @@
+:root {
+  --color-primary: #ff5f93;
+  --color-primary-light: #ff8db5;
+  --color-primary-soft: #ffc8dd;
+  --color-bg-gradient: linear-gradient(135deg, #ffc8dd, #ffd6e8, #fff1f7);
+  --color-surface: rgba(255, 255, 255, 0.86);
+  --color-border: rgba(255, 95, 147, 0.18);
+  --color-text: #1f2937;
+  --color-heading: #191919;
+  --color-muted: #64748b;
+  --shadow-card: 0 18px 45px rgba(255, 95, 147, 0.14);
+}
+
+.dashboard-page {
+  min-height: 100vh;
+  background: var(--color-bg-gradient);
+  color: var(--color-text);
+  padding: 2rem;
+}
+
+.dashboard-card,
+.dashboard-panel {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-card);
+  border-radius: 26px;
+  backdrop-filter: blur(16px);
+}
+
+.dashboard-title {
+  color: var(--color-heading);
+  font-weight: 950;
+}
+
+.dashboard-muted {
+  color: var(--color-muted);
+}
+
+.dashboard-btn-primary {
+  border: none;
+  border-radius: 999px;
+  padding: 0.8rem 1.15rem;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+  color: #fff;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+/* Premium input styles */
+input,
+select,
+textarea {
+  border: 1px solid rgba(255, 95, 147, 0.3) !important;
+  border-radius: 12px !important;
+  padding: 12px 14px !important;
+  background: white;
+  transition: all 0.2s ease;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: #ff5f93 !important;
+  box-shadow: 0 0 0 3px rgba(255, 95, 147, 0.15);
+  outline: none;
+}

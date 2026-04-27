@@ -1,5 +1,15 @@
 import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+} from "recharts";
 import { apiRequest } from "../../api/client";
 import { formatCurrency } from "../../utils/currency";
 import ReportFilters from "../shared/ReportFilters";
@@ -13,48 +23,44 @@ import {
 } from "../../utils/reportExport";
 import "./AdminReports.css";
 
+const safeNumber = (value) => Number(value || 0);
+
+const fadeUp = {
+  hidden: { opacity: 0, y: 18 },
+  show: { opacity: 1, y: 0 },
+};
+
 const AdminReports = () => {
   const location = useLocation();
   const navigate = useNavigate();
+
   const [activeTab, setActiveTab] = useState("overview");
   const [reportData, setReportData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // Filter states
   const [searchTerm, setSearchTerm] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [roleFilter, setRoleFilter] = useState("all");
 
-  // Raw data storage
   const [rawTransactions, setRawTransactions] = useState([]);
   const [rawAppointments, setRawAppointments] = useState([]);
   const [rawUsers, setRawUsers] = useState([]);
 
   useEffect(() => {
-    const path = location.pathname;
-    if (path === "/admin" || path === "/admin/reports") {
+    if (location.pathname === "/admin" || location.pathname === "/admin/reports") {
       setActiveTab("overview");
     }
   }, [location.pathname]);
 
-  // Set default date range to current month
   useEffect(() => {
-    const { startDate: defaultStart, endDate: defaultEnd } = getDateRangePreset("month");
+    const { startDate: defaultStart, endDate: defaultEnd } =
+      getDateRangePreset("month");
     setStartDate(defaultStart);
     setEndDate(defaultEnd);
   }, []);
-
-  // Quick date range selector
-  const handleQuickDateRange = (preset) => {
-    const { startDate: start, endDate: end } = getDateRangePreset(preset);
-    setStartDate(start);
-    setEndDate(end);
-    // Auto refresh data when date range changes
-    setTimeout(() => fetchReportData(), 100);
-  };
 
   useEffect(() => {
     fetchReportData();
@@ -64,49 +70,42 @@ const AdminReports = () => {
     try {
       setLoading(true);
       const data = await apiRequest("/admin/reports/summary");
-      
-      // Ensure data has all required fields with defaults
-      const reportDataWithDefaults = {
-        ...data,
-        total_revenue: data.total_revenue || 0,
-        total_transactions: data.total_transactions || 0,
-        total_customers: data.total_customers || 0,
-        new_customers: data.new_customers || 0,
-        total_users: data.total_users || 0,
-        today_transactions: data.today_transactions || 0,
-        today_revenue: data.today_revenue || 0,
-        total_pets: data.total_pets || 0,
-        total_appointments: data.total_appointments || 0,
-        completed_appointments: data.completed_appointments || 0,
-        total_inventory_items: data.total_inventory_items || 0,
-        low_stock_items: data.low_stock_items || 0,
-        out_of_stock_items: data.out_of_stock_items || 0,
-        total_staff: data.total_staff || 0,
-        active_staff: data.active_staff || 0,
-        staff_on_leave: data.staff_on_leave || 0,
-        inactive_staff: data.inactive_staff || 0,
-        active_roles: data.active_roles || 6,
-        monthly_revenue_total: data.monthly_revenue || 0,
-        monthly_revenue_trend: data.monthly_revenue || [],
+
+      const safeData = {
+        total_revenue: safeNumber(data.total_revenue),
+        total_transactions: safeNumber(data.total_transactions),
+        total_customers: safeNumber(data.total_customers),
+        new_customers: safeNumber(data.new_customers),
+        total_users: safeNumber(data.total_users),
+        today_transactions: safeNumber(data.today_transactions),
+        today_revenue: safeNumber(data.today_revenue),
+        total_pets: safeNumber(data.total_pets),
+        total_appointments: safeNumber(data.total_appointments),
+        completed_appointments: safeNumber(data.completed_appointments),
+        total_inventory_items: safeNumber(data.total_inventory_items),
+        low_stock_items: safeNumber(data.low_stock_items),
+        out_of_stock_items: safeNumber(data.out_of_stock_items),
+        total_staff: safeNumber(data.total_staff),
+        active_staff: safeNumber(data.active_staff),
+        staff_on_leave: safeNumber(data.staff_on_leave),
+        inactive_staff: safeNumber(data.inactive_staff),
+        active_roles: safeNumber(data.active_roles || 6),
+        monthly_revenue_total: safeNumber(data.monthly_revenue),
+        monthly_revenue_trend: data.monthly_revenue_trend || [],
         top_services: data.top_services || [],
         top_customers: data.top_customers || [],
         transactions: data.transactions || [],
         appointments: data.appointments || [],
-        users: data.users || []
+        users: data.users || [],
       };
-      
-      setReportData(reportDataWithDefaults);
 
-      // Store raw data for filtering
-      setRawTransactions(reportDataWithDefaults.transactions || []);
-      setRawAppointments(reportDataWithDefaults.appointments || []);
-      setRawUsers(reportDataWithDefaults.users || []);
-
+      setReportData(safeData);
+      setRawTransactions(safeData.transactions);
+      setRawAppointments(safeData.appointments);
+      setRawUsers(safeData.users);
       setError("");
     } catch (err) {
-      console.error("Failed to load report data:", err);
       setError(err.message || "Failed to load report data");
-      // Set default data on error to prevent loading state
       setReportData({
         total_revenue: 0,
         total_transactions: 0,
@@ -132,14 +131,13 @@ const AdminReports = () => {
         top_customers: [],
         transactions: [],
         appointments: [],
-        users: []
+        users: [],
       });
     } finally {
       setLoading(false);
     }
   };
 
-  // Apply filters to data
   const getFilteredData = () => {
     let filtered = {
       transactions: rawTransactions,
@@ -147,32 +145,48 @@ const AdminReports = () => {
       users: rawUsers,
     };
 
-    // Apply date range filter
     if (startDate || endDate) {
-      filtered.transactions = filterByDateRange(filtered.transactions, "date", startDate, endDate);
-      filtered.appointments = filterByDateRange(filtered.appointments, "date", startDate, endDate);
+      filtered.transactions = filterByDateRange(
+        filtered.transactions,
+        "date",
+        startDate,
+        endDate
+      );
+      filtered.appointments = filterByDateRange(
+        filtered.appointments,
+        "date",
+        startDate,
+        endDate
+      );
     }
 
-    // Apply status filter
     if (statusFilter !== "all") {
-      filtered.transactions = filterByStatus(filtered.transactions, "status", statusFilter);
-      filtered.appointments = filterByStatus(filtered.appointments, "status", statusFilter);
+      filtered.transactions = filterByStatus(
+        filtered.transactions,
+        "status",
+        statusFilter
+      );
+      filtered.appointments = filterByStatus(
+        filtered.appointments,
+        "status",
+        statusFilter
+      );
     }
 
-    // Apply role filter
     if (roleFilter !== "all") {
       filtered.users = filtered.users.filter((u) => u.role === roleFilter);
     }
 
-    // Apply search
     if (searchTerm) {
       const search = searchTerm.toLowerCase();
+
       filtered.transactions = filtered.transactions.filter(
         (t) =>
           t.id?.toLowerCase().includes(search) ||
           t.customer?.toLowerCase().includes(search) ||
           t.type?.toLowerCase().includes(search)
       );
+
       filtered.appointments = filtered.appointments.filter(
         (a) =>
           a.id?.toLowerCase().includes(search) ||
@@ -193,172 +207,150 @@ const AdminReports = () => {
     setSearchTerm("");
     setStatusFilter("all");
     setRoleFilter("all");
-    const { startDate: defaultStart, endDate: defaultEnd } = getDateRangePreset("month");
+
+    const { startDate: defaultStart, endDate: defaultEnd } =
+      getDateRangePreset("month");
+
     setStartDate(defaultStart);
     setEndDate(defaultEnd);
   };
 
-  // Export handlers
+  const handleQuickDateRange = (preset) => {
+    const { startDate: start, endDate: end } = getDateRangePreset(preset);
+    setStartDate(start);
+    setEndDate(end);
+    setTimeout(fetchReportData, 100);
+  };
+
+  const exportColumns = [
+    { key: "id", label: "ID" },
+    { key: "customer", label: "Customer" },
+    { key: "type", label: "Type" },
+    { key: "date", label: "Date", format: "date" },
+    { key: "amount", label: "Amount", format: "currency" },
+    { key: "status", label: "Status" },
+  ];
+
   const handleExportCSV = () => {
-    const filtered = getFilteredData();
-    const columns = [
-      { key: "id", label: "ID" },
-      { key: "customer", label: "Customer" },
-      { key: "type", label: "Type" },
-      { key: "date", label: "Date" },
-      { key: "amount", label: "Amount", format: "currency" },
-      { key: "status", label: "Status" },
-    ];
-    exportToCSV(filtered.transactions, columns, "admin-transactions-report");
+    exportToCSV(getFilteredData().transactions, exportColumns, "admin-transactions-report");
   };
 
   const handleExportPDF = () => {
-    const filtered = getFilteredData();
-    const columns = [
-      { key: "id", label: "ID" },
-      { key: "customer", label: "Customer" },
-      { key: "type", label: "Type" },
-      { key: "date", label: "Date", format: "date" },
-      { key: "amount", label: "Amount", format: "currency" },
-      { key: "status", label: "Status" },
-    ];
-    exportToPDF(filtered.transactions, columns, "Admin Transactions Report", "admin-transactions-report");
+    exportToPDF(
+      getFilteredData().transactions,
+      exportColumns,
+      "Admin Transactions Report",
+      "admin-transactions-report"
+    );
   };
 
   const handleExportExcel = () => {
-    const filtered = getFilteredData();
-    const columns = [
-      { key: "id", label: "ID" },
-      { key: "customer", label: "Customer" },
-      { key: "type", label: "Type" },
-      { key: "date", label: "Date" },
-      { key: "amount", label: "Amount", format: "currency" },
-      { key: "status", label: "Status" },
-    ];
-    exportToExcel(filtered.transactions, columns, "admin-transactions-report");
+    exportToExcel(
+      getFilteredData().transactions,
+      exportColumns,
+      "admin-transactions-report"
+    );
   };
 
   const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  const monthlyTrend = reportData?.monthly_revenue_trend?.map((item) => ({
-    month: monthNames[(item.month ?? 1) - 1] || "N/A",
-    revenue: Number(item.total) || 0,
-  })) || [];
+
+  const monthlyTrend =
+    reportData?.monthly_revenue_trend?.map((item) => ({
+      month: monthNames[(item.month ?? 1) - 1] || "N/A",
+      revenue: safeNumber(item.total),
+    })) || [];
+
+  const StatCard = ({ className, value, label, change }) => (
+    <motion.div className={`stat-card ${className}`} variants={fadeUp}>
+      <div className="stat-value">{value}</div>
+      <div className="stat-label">{label}</div>
+      <div className={`stat-change ${change?.includes("+") ? "positive" : "neutral"}`}>
+        {change}
+      </div>
+    </motion.div>
+  );
 
   const renderOverview = () => (
-    <div className="modern-reports">
+    <motion.div
+      className="modern-reports"
+      initial="hidden"
+      animate="show"
+      transition={{ staggerChildren: 0.08 }}
+    >
       <div className="stats-grid">
-        <div className="stat-card primary">
-          <div className="stat-value">{formatCurrency(reportData?.total_revenue)}</div>
-          <div className="stat-label">Total Revenue</div>
-          <div className="stat-change positive">+12.5%</div>
-        </div>
-        <div className="stat-card secondary">
-          <div className="stat-value">{reportData?.total_transactions || 0}</div>
-          <div className="stat-label">Total Transactions</div>
-          <div className="stat-change positive">+8.2%</div>
-        </div>
-        <div className="stat-card tertiary">
-          <div className="stat-value">{reportData?.total_customers || 0}</div>
-          <div className="stat-label">Total Customers</div>
-          <div className="stat-change positive">+15.3%</div>
-        </div>
-        <div className="stat-card quaternary">
-          <div className="stat-value">{reportData?.new_customers || 0}</div>
-          <div className="stat-label">New Customers (30d)</div>
-          <div className="stat-change neutral">+5.1%</div>
-        </div>
-        <div className="stat-card quinary">
-          <div className="stat-value">{reportData?.total_users || 0}</div>
-          <div className="stat-label">Total Users</div>
-          <div className="stat-change positive">+3.7%</div>
-        </div>
+        <StatCard
+          className="primary"
+          value={formatCurrency(reportData?.total_revenue || 0)}
+          label="Total Revenue"
+          change="+12.5%"
+        />
+        <StatCard
+          className="secondary"
+          value={reportData?.total_transactions || 0}
+          label="Total Transactions"
+          change="+8.2%"
+        />
+        <StatCard
+          className="tertiary"
+          value={reportData?.total_customers || 0}
+          label="Total Customers"
+          change="+15.3%"
+        />
+        <StatCard
+          className="quaternary"
+          value={reportData?.new_customers || 0}
+          label="New Customers"
+          change="+5.1%"
+        />
+        <StatCard
+          className="quinary"
+          value={reportData?.total_users || 0}
+          label="Total Users"
+          change="+3.7%"
+        />
       </div>
-      
-      <div className="chart-section">
+
+      <motion.div className="chart-section" variants={fadeUp}>
         <h3 className="section-title">Monthly Revenue Trend</h3>
-        <div className="chart-container">
-          <div className="revenue-chart">
-            {monthlyTrend.map((month, index) => {
-              const height = Math.min((month.revenue / Math.max(reportData?.total_revenue || 1, 1)) * 100, 100);
-              return (
-                <div key={month.month} className="chart-bar-wrapper">
-                  <div className="chart-bar" style={{ height: `${height}%` }}></div>
-                  <div className="chart-label">{month.month}</div>
-                  <div className="chart-value">{formatCurrency(month.revenue)}</div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-    </div>
+
+        <ResponsiveContainer width="100%" height={320}>
+          <BarChart data={monthlyTrend}>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+            <XAxis dataKey="month" />
+            <YAxis />
+            <Tooltip formatter={(value) => formatCurrency(value)} />
+            <Bar dataKey="revenue" fill="#ff5f93" radius={[12, 12, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </motion.div>
+    </motion.div>
   );
 
   const renderCashier = () => (
     <div className="modern-reports">
-      <div className="metrics-header">
-        <h3 className="section-title">Cashier Metrics</h3>
-        <div className="period-selector">
-          <button className="period-btn active">Today</button>
-          <button className="period-btn">Week</button>
-          <button className="period-btn">Month</button>
-        </div>
-      </div>
-      
+      <h3 className="section-title">Cashier Metrics</h3>
+
       <div className="metrics-grid">
-        <div className="metric-card revenue">
-          <div className="metric-header">
-            <span className="metric-title">Total Sales</span>
-            <span className="metric-period">All time</span>
-          </div>
-          <div className="metric-value">{formatCurrency(reportData?.total_revenue)}</div>
-          <div className="metric-sparkline"></div>
+        <div className="metric-card">
+          <div className="metric-title">Total Sales</div>
+          <div className="metric-value">{formatCurrency(reportData?.total_revenue || 0)}</div>
         </div>
-        
-        <div className="metric-card transactions">
-          <div className="metric-header">
-            <span className="metric-title">Today&apos;s Transactions</span>
-            <span className="metric-period">Today</span>
-          </div>
+
+        <div className="metric-card">
+          <div className="metric-title">Today&apos;s Transactions</div>
           <div className="metric-value">{reportData?.today_transactions || 0}</div>
-          <div className="metric-sparkline"></div>
         </div>
-        
-        <div className="metric-card total-transactions">
-          <div className="metric-header">
-            <span className="metric-title">Total Transactions</span>
-            <span className="metric-period">All time</span>
-          </div>
+
+        <div className="metric-card">
+          <div className="metric-title">Total Transactions</div>
           <div className="metric-value">{reportData?.total_transactions || 0}</div>
-          <div className="metric-sparkline"></div>
         </div>
       </div>
 
       <div className="view-full-report">
-        <button
-          className="view-full-btn"
-          onClick={() => navigate('/admin/reports/cashier')}
-        >
+        <button className="view-full-btn" onClick={() => navigate("/admin/reports/cashier")}>
           <span>📊</span> View Full Cashier Report
         </button>
-      </div>
-      
-      <div className="services-section">
-        <h4 className="subsection-title">Top Services</h4>
-        <div className="services-list">
-          {reportData?.top_services?.map((service, index) => (
-            <div key={`${service.service}-${index}`} className="service-item">
-              <div className="service-rank">#{index + 1}</div>
-              <div className="service-info">
-                <div className="service-name">{service.service}</div>
-                <div className="service-orders">{service.count} orders</div>
-              </div>
-              <div className="service-performance">
-                <div className="performance-bar"></div>
-              </div>
-            </div>
-          ))}
-        </div>
       </div>
     </div>
   );
@@ -366,55 +358,32 @@ const AdminReports = () => {
   const renderInventory = () => (
     <div className="modern-reports">
       <h3 className="section-title">Inventory Metrics</h3>
-      
+
       <div className="inventory-overview">
         <div className="inventory-card total">
-          <div className="inventory-icon"></div>
           <div className="inventory-details">
             <div className="inventory-value">{reportData?.total_inventory_items || 0}</div>
             <div className="inventory-label">Total Items</div>
           </div>
-          <div className="inventory-status good"></div>
         </div>
-        
+
         <div className="inventory-card warning">
-          <div className="inventory-icon"></div>
           <div className="inventory-details">
             <div className="inventory-value">{reportData?.low_stock_items || 0}</div>
             <div className="inventory-label">Low Stock Items</div>
           </div>
-          <div className="inventory-status warning"></div>
         </div>
-        
+
         <div className="inventory-card danger">
-          <div className="inventory-icon"></div>
           <div className="inventory-details">
             <div className="inventory-value">{reportData?.out_of_stock_items || 0}</div>
             <div className="inventory-label">Out of Stock</div>
-          </div>
-          <div className="inventory-status danger"></div>
-        </div>
-      </div>
-      
-      <div className="stock-alerts">
-        <h4 className="subsection-title">Stock Alerts</h4>
-        <div className="alert-summary">
-          <div className="alert-item critical">
-            <span className="alert-count">{reportData?.out_of_stock_items || 0}</span>
-            <span className="alert-text">Critical - Out of Stock</span>
-          </div>
-          <div className="alert-item warning">
-            <span className="alert-count">{reportData?.low_stock_items || 0}</span>
-            <span className="alert-text">Warning - Low Stock</span>
           </div>
         </div>
       </div>
 
       <div className="view-full-report">
-        <button
-          className="view-full-btn"
-          onClick={() => navigate('/admin/reports/inventory')}
-        >
+        <button className="view-full-btn" onClick={() => navigate("/admin/reports/inventory")}>
           <span>📦</span> View Full Inventory Report
         </button>
       </div>
@@ -424,68 +393,26 @@ const AdminReports = () => {
   const renderReception = () => (
     <div className="modern-reports">
       <h3 className="section-title">Reception Metrics</h3>
-      
+
       <div className="reception-stats">
-        <div className="reception-card appointments">
-          <div className="reception-icon appointments"></div>
-          <div className="reception-content">
-            <div className="reception-value">{reportData?.total_appointments || 0}</div>
-            <div className="reception-label">Total Appointments</div>
-            <div className="reception-subtitle">This month</div>
-          </div>
+        <div className="reception-card">
+          <div className="reception-value">{reportData?.total_appointments || 0}</div>
+          <div className="reception-label">Total Appointments</div>
         </div>
-        
-        <div className="reception-card completed">
-          <div className="reception-icon completed"></div>
-          <div className="reception-content">
-            <div className="reception-value">{reportData?.completed_appointments || 0}</div>
-            <div className="reception-label">Completed Appointments</div>
-            <div className="reception-subtitle">Success rate: 85%</div>
-          </div>
+
+        <div className="reception-card">
+          <div className="reception-value">{reportData?.completed_appointments || 0}</div>
+          <div className="reception-label">Completed Appointments</div>
         </div>
-        
-        <div className="reception-card revenue">
-          <div className="reception-icon revenue"></div>
-          <div className="reception-content">
-            <div className="reception-value">{formatCurrency(reportData?.today_revenue)}</div>
-            <div className="reception-label">Today&apos;s Revenue</div>
-            <div className="reception-subtitle">From appointments</div>
-          </div>
-        </div>
-      </div>
-      
-      <div className="appointment-flow">
-        <h4 className="subsection-title">Appointment Status</h4>
-        <div className="flow-stages">
-          <div className="flow-stage scheduled">
-            <div className="stage-dot"></div>
-            <div className="stage-info">
-              <span className="stage-count">12</span>
-              <span className="stage-label">Scheduled</span>
-            </div>
-          </div>
-          <div className="flow-stage in-progress">
-            <div className="stage-dot"></div>
-            <div className="stage-info">
-              <span className="stage-count">5</span>
-              <span className="stage-label">In Progress</span>
-            </div>
-          </div>
-          <div className="flow-stage completed">
-            <div className="stage-dot"></div>
-            <div className="stage-info">
-              <span className="stage-count">{reportData?.completed_appointments || 0}</span>
-              <span className="stage-label">Completed</span>
-            </div>
-          </div>
+
+        <div className="reception-card">
+          <div className="reception-value">{formatCurrency(reportData?.today_revenue || 0)}</div>
+          <div className="reception-label">Today&apos;s Revenue</div>
         </div>
       </div>
 
       <div className="view-full-report">
-        <button
-          className="view-full-btn"
-          onClick={() => navigate('/admin/reports/reception')}
-        >
+        <button className="view-full-btn" onClick={() => navigate("/admin/reports/reception")}>
           <span>📅</span> View Full Reception Report
         </button>
       </div>
@@ -495,74 +422,26 @@ const AdminReports = () => {
   const renderVeterinary = () => (
     <div className="modern-reports">
       <h3 className="section-title">Veterinary Metrics</h3>
-      
-      <div className="veterinary-dashboard">
-        <div className="vet-metrics-row">
-          <div className="vet-metric-card patients">
-            <div className="vet-metric-header">
-              <span className="vet-metric-title">Total Patients</span>
-              <span className="vet-metric-subtitle">Active records</span>
-            </div>
-            <div className="vet-metric-value">{reportData?.total_pets || 0}</div>
-            <div className="vet-metric-trend positive">+23 this month</div>
-          </div>
-          
-          <div className="vet-metric-card appointments">
-            <div className="vet-metric-header">
-              <span className="vet-metric-title">Total Appointments</span>
-              <span className="vet-metric-subtitle">All time</span>
-            </div>
-            <div className="vet-metric-value">{reportData?.total_appointments || 0}</div>
-            <div className="vet-metric-trend positive">+15 this week</div>
-          </div>
-          
-          <div className="vet-metric-card completed">
-            <div className="vet-metric-header">
-              <span className="vet-metric-title">Completed Appointments</span>
-              <span className="vet-metric-subtitle">Success rate</span>
-            </div>
-            <div className="vet-metric-value">{reportData?.completed_appointments || 0}</div>
-            <div className="vet-metric-trend positive">92% completion</div>
-          </div>
+
+      <div className="vet-metrics-row">
+        <div className="vet-metric-card">
+          <div className="vet-metric-title">Total Patients</div>
+          <div className="vet-metric-value">{reportData?.total_pets || 0}</div>
         </div>
-        
-        <div className="vet-health-indicators">
-          <h4 className="subsection-title">Health Indicators</h4>
-          <div className="indicators-grid">
-            <div className="indicator-card vaccinations">
-              <div className="indicator-header">
-                <span className="indicator-title">Vaccinations</span>
-                <span className="indicator-status up-to-date">Up to date</span>
-              </div>
-              <div className="indicator-progress">
-                <div className="progress-bar">
-                  <div className="progress-fill" style={{width: '87%'}}></div>
-                </div>
-                <span className="progress-text">87% compliance</span>
-              </div>
-            </div>
-            
-            <div className="indicator-card checkups">
-              <div className="indicator-header">
-                <span className="indicator-title">Regular Checkups</span>
-                <span className="indicator-status good">Good</span>
-              </div>
-              <div className="indicator-progress">
-                <div className="progress-bar">
-                  <div className="progress-fill" style={{width: '72%'}}></div>
-                </div>
-                <span className="progress-text">72% regular</span>
-              </div>
-            </div>
-          </div>
+
+        <div className="vet-metric-card">
+          <div className="vet-metric-title">Total Appointments</div>
+          <div className="vet-metric-value">{reportData?.total_appointments || 0}</div>
+        </div>
+
+        <div className="vet-metric-card">
+          <div className="vet-metric-title">Completed Appointments</div>
+          <div className="vet-metric-value">{reportData?.completed_appointments || 0}</div>
         </div>
       </div>
 
       <div className="view-full-report">
-        <button
-          className="view-full-btn"
-          onClick={() => navigate('/admin/reports/veterinary')}
-        >
+        <button className="view-full-btn" onClick={() => navigate("/admin/reports/veterinary")}>
           <span>🩺</span> View Full Veterinary Report
         </button>
       </div>
@@ -572,56 +451,21 @@ const AdminReports = () => {
   const renderCustomers = () => (
     <div className="modern-reports">
       <h3 className="section-title">Customer Metrics</h3>
-      
-      <div className="customer-overview">
-        <div className="customer-stats-grid">
-          <div className="customer-stat-card total">
-            <div className="customer-stat-header">
-              <span className="customer-stat-title">Total Customers</span>
-              <span className="customer-stat-badge">All time</span>
-            </div>
-            <div className="customer-stat-value">{reportData?.total_customers || 0}</div>
-            <div className="customer-stat-growth positive">+18.5%</div>
-          </div>
-          
-          <div className="customer-stat-card new">
-            <div className="customer-stat-header">
-              <span className="customer-stat-title">New Customers</span>
-              <span className="customer-stat-badge">30 days</span>
-            </div>
-            <div className="customer-stat-value">{reportData?.new_customers || 0}</div>
-            <div className="customer-stat-growth positive">+12.3%</div>
-          </div>
+
+      <div className="customer-stats-grid">
+        <div className="customer-stat-card">
+          <div className="customer-stat-title">Total Customers</div>
+          <div className="customer-stat-value">{reportData?.total_customers || 0}</div>
         </div>
-      </div>
-      
-      <div className="top-customers">
-        <h4 className="subsection-title">Top Customers</h4>
-        <div className="customers-ranking">
-          {reportData?.top_customers?.map((customer, index) => (
-            <div key={`${customer.customer}-${index}`} className="customer-rank-item">
-              <div className="rank-position">#{index + 1}</div>
-              <div className="customer-info">
-                <div className="customer-name">{customer.customer}</div>
-                <div className="customer-details">Active since 2024</div>
-              </div>
-              <div className="customer-stats">
-                <div className="visits-count">{customer.visits}</div>
-                <div className="visits-label">visits</div>
-              </div>
-              <div className="customer-loyalty">
-                <div className="loyalty-badge premium">Premium</div>
-              </div>
-            </div>
-          ))}
+
+        <div className="customer-stat-card">
+          <div className="customer-stat-title">New Customers</div>
+          <div className="customer-stat-value">{reportData?.new_customers || 0}</div>
         </div>
       </div>
 
       <div className="view-full-report">
-        <button
-          className="view-full-btn"
-          onClick={() => navigate('/admin/reports/customers')}
-        >
+        <button className="view-full-btn" onClick={() => navigate("/admin/reports/customers")}>
           <span>👥</span> View Full Customer Report
         </button>
       </div>
@@ -632,60 +476,29 @@ const AdminReports = () => {
     <div className="modern-reports">
       <h3 className="section-title">Manager Metrics</h3>
 
-      <div className="manager-overview">
-        <div className="manager-stats-grid">
-          <div className="manager-stat-card staff">
-            <div className="manager-stat-header">
-              <span className="manager-stat-title">Total Staff</span>
-              <span className="manager-stat-badge">All roles</span>
-            </div>
-            <div className="manager-stat-value">{reportData?.total_staff || reportData?.total_users || 0}</div>
-            <div className="manager-stat-subtext">Active employees</div>
-          </div>
-
-          <div className="manager-stat-card roles">
-            <div className="manager-stat-header">
-              <span className="manager-stat-title">Role Distribution</span>
-              <span className="manager-stat-badge">Teams</span>
-            </div>
-            <div className="manager-stat-value">{reportData?.active_roles || 6}</div>
-            <div className="manager-stat-subtext">Different roles</div>
-          </div>
-
-          <div className="manager-stat-card revenue">
-            <div className="manager-stat-header">
-              <span className="manager-stat-title">Monthly Revenue</span>
-              <span className="manager-stat-badge">This month</span>
-            </div>
-            <div className="manager-stat-value">{formatCurrency(reportData?.monthly_revenue_total)}</div>
-            <div className="manager-stat-subtext">Business performance</div>
+      <div className="manager-stats-grid">
+        <div className="manager-stat-card staff">
+          <div className="manager-stat-title">Total Staff</div>
+          <div className="manager-stat-value">
+            {reportData?.total_staff || reportData?.total_users || 0}
           </div>
         </div>
-      </div>
 
-      <div className="staff-overview">
-        <h4 className="subsection-title">Staff Overview</h4>
-        <div className="staff-summary">
-          <div className="staff-metric active">
-            <span className="staff-count">{reportData?.active_staff || 0}</span>
-            <span className="staff-label">Active Staff</span>
-          </div>
-          <div className="staff-metric on-leave">
-            <span className="staff-count">{reportData?.staff_on_leave || 0}</span>
-            <span className="staff-label">On Leave</span>
-          </div>
-          <div className="staff-metric inactive">
-            <span className="staff-count">{reportData?.inactive_staff || 0}</span>
-            <span className="staff-label">Inactive</span>
+        <div className="manager-stat-card roles">
+          <div className="manager-stat-title">Role Distribution</div>
+          <div className="manager-stat-value">{reportData?.active_roles || 6}</div>
+        </div>
+
+        <div className="manager-stat-card revenue">
+          <div className="manager-stat-title">Monthly Revenue</div>
+          <div className="manager-stat-value">
+            {formatCurrency(reportData?.monthly_revenue_total || 0)}
           </div>
         </div>
       </div>
 
       <div className="view-full-report">
-        <button
-          className="view-full-btn"
-          onClick={() => navigate('/admin/reports/manager')}
-        >
+        <button className="view-full-btn" onClick={() => navigate("/admin/reports/manager")}>
           <span>👔</span> View Full Manager Report
         </button>
       </div>
@@ -716,77 +529,34 @@ const AdminReports = () => {
       <div className="reports-header">
         <div className="header-content">
           <h1 className="page-title">Admin Reports</h1>
-          <p className="page-subtitle">Live business metrics and activity trends from the backend</p>
+          <p className="page-subtitle">
+            Live business metrics and activity trends from the backend
+          </p>
         </div>
       </div>
 
-      {/* Quick Access Cards for Role-Based Reports */}
       <div className="quick-access-reports">
         <h3 className="quick-access-title">📂 Role-Based Report Modules</h3>
+
         <div className="quick-access-grid">
-          <button 
-            className="quick-access-card cashier"
-            onClick={() => navigate('/admin/reports/cashier')}
-            title="View detailed cashier reports"
-          >
-            <span className="quick-access-icon">💰</span>
-            <span className="quick-access-label">Cashier Reports</span>
-            <span className="quick-access-desc">Sales, transactions & refunds</span>
-          </button>
-          <button 
-            className="quick-access-card inventory"
-            onClick={() => navigate('/admin/reports/inventory')}
-            title="View detailed inventory reports"
-          >
-            <span className="quick-access-icon">📦</span>
-            <span className="quick-access-label">Inventory Reports</span>
-            <span className="quick-access-desc">Stock levels & analytics</span>
-          </button>
-          <button 
-            className="quick-access-card manager"
-            onClick={() => navigate('/admin/reports/manager')}
-            title="View detailed manager reports"
-          >
-            <span className="quick-access-icon">👔</span>
-            <span className="quick-access-label">Manager Reports</span>
-            <span className="quick-access-desc">Staff & business analytics</span>
-          </button>
-          <button 
-            className="quick-access-card veterinary"
-            onClick={() => navigate('/admin/reports/veterinary')}
-            title="View detailed veterinary reports"
-          >
-            <span className="quick-access-icon">🩺</span>
-            <span className="quick-access-label">Veterinary Reports</span>
-            <span className="quick-access-desc">Patient & service metrics</span>
-          </button>
-          <button 
-            className="quick-access-card customers"
-            onClick={() => navigate('/admin/reports/customers')}
-            title="View detailed customer reports"
-          >
-            <span className="quick-access-icon">👥</span>
-            <span className="quick-access-label">Customer Reports</span>
-            <span className="quick-access-desc">Bookings & activity</span>
-          </button>
-          <button 
-            className="quick-access-card reception"
-            onClick={() => navigate('/admin/reports/reception')}
-            title="View detailed reception reports"
-          >
-            <span className="quick-access-icon">📅</span>
-            <span className="quick-access-label">Reception Reports</span>
-            <span className="quick-access-desc">Appointments & operations</span>
-          </button>
-          <button 
-            className="quick-access-card manager"
-            onClick={() => navigate('/admin/reports/manager')}
-            title="View detailed manager reports"
-          >
-            <span className="quick-access-icon">👔</span>
-            <span className="quick-access-label">Manager Reports</span>
-            <span className="quick-access-desc">Staff & business analytics</span>
-          </button>
+          {[
+            ["cashier", "💰", "Cashier Reports", "Sales, transactions & refunds"],
+            ["inventory", "📦", "Inventory Reports", "Stock levels & analytics"],
+            ["manager", "👔", "Manager Reports", "Staff & business analytics"],
+            ["veterinary", "🩺", "Veterinary Reports", "Patient & service metrics"],
+            ["customers", "👥", "Customer Reports", "Bookings & activity"],
+            ["reception", "📅", "Reception Reports", "Appointments & operations"],
+          ].map(([key, icon, label, desc]) => (
+            <button
+              key={key}
+              className={`quick-access-card ${key}`}
+              onClick={() => setActiveTab(key)}
+            >
+              <span className="quick-access-icon">{icon}</span>
+              <span className="quick-access-label">{label}</span>
+              <span className="quick-access-desc">{desc}</span>
+            </button>
+          ))}
         </div>
       </div>
 
@@ -823,88 +593,52 @@ const AdminReports = () => {
         showRole={true}
         searchPlaceholder="Search transactions, customers, or services..."
       />
-      
-      {/* Quick Date Range Selector */}
+
       <div className="quick-filters-bar">
         <div className="quick-filters-label">Quick Select:</div>
+
         <div className="quick-filters">
-          <button 
-            className={`quick-filter-btn ${startDate === getDateRangePreset('today').startDate ? 'active' : ''}`}
-            onClick={() => handleQuickDateRange('today')}
-          >
-            Today
-          </button>
-          <button 
-            className={`quick-filter-btn ${startDate === getDateRangePreset('week').startDate ? 'active' : ''}`}
-            onClick={() => handleQuickDateRange('week')}
-          >
-            This Week
-          </button>
-          <button 
-            className={`quick-filter-btn ${startDate === getDateRangePreset('month').startDate ? 'active' : ''}`}
-            onClick={() => handleQuickDateRange('month')}
-          >
-            This Month
-          </button>
-          <button 
-            className={`quick-filter-btn ${startDate === getDateRangePreset('quarter').startDate ? 'active' : ''}`}
-            onClick={() => handleQuickDateRange('quarter')}
-          >
-            This Quarter
-          </button>
-          <button 
-            className={`quick-filter-btn ${startDate === getDateRangePreset('year').startDate ? 'active' : ''}`}
-            onClick={() => handleQuickDateRange('year')}
-          >
-            This Year
-          </button>
+          {["today", "week", "month", "quarter", "year"].map((preset) => (
+            <button
+              key={preset}
+              className={`quick-filter-btn ${
+                startDate === getDateRangePreset(preset).startDate ? "active" : ""
+              }`}
+              onClick={() => handleQuickDateRange(preset)}
+            >
+              {preset === "today"
+                ? "Today"
+                : preset === "week"
+                ? "This Week"
+                : preset === "month"
+                ? "This Month"
+                : preset === "quarter"
+                ? "This Quarter"
+                : "This Year"}
+            </button>
+          ))}
         </div>
       </div>
 
       <div className="reports-navigation">
         <nav className="nav-tabs">
-          <button
-            className={`nav-tab ${activeTab === "overview" ? "active" : ""}`}
-            onClick={() => setActiveTab("overview")}
-          >
-            <span className="tab-icon">📊</span> Overview
-          </button>
-          <button
-            className={`nav-tab ${activeTab === "cashier" ? "active" : ""}`}
-            onClick={() => setActiveTab("cashier")}
-          >
-            <span className="tab-icon">💰</span> Cashier
-          </button>
-          <button
-            className={`nav-tab ${activeTab === "inventory" ? "active" : ""}`}
-            onClick={() => setActiveTab("inventory")}
-          >
-            <span className="tab-icon">📦</span> Inventory
-          </button>
-          <button
-            className={`nav-tab ${activeTab === "reception" ? "active" : ""}`}
-            onClick={() => setActiveTab("reception")}
-          >
-            <span className="tab-icon">📅</span> Reception
-          </button>
-          <button
-            className={`nav-tab ${activeTab === "veterinary" ? "active" : ""}`}
-            onClick={() => setActiveTab("veterinary")}
-          >
-            <span className="tab-icon">🩺</span> Veterinary
-          </button>
-          <button
-            className={`nav-tab ${activeTab === "customers" ? "active" : ""}`}
-            onClick={() => setActiveTab("customers")}
-          >
-            <span className="tab-icon">👥</span> Customers
-          </button>
-          <button
-            className={`nav-tab ${activeTab === "manager" ? "active" : ""}`}
-            onClick={() => setActiveTab("manager")}
-          >
-            <span className="tab-icon">👔</span> Manager
-          </button>
+          {[
+            ["overview", "📊", "Overview"],
+            ["cashier", "💰", "Cashier"],
+            ["inventory", "📦", "Inventory"],
+            ["reception", "📅", "Reception"],
+            ["veterinary", "🩺", "Veterinary"],
+            ["customers", "👥", "Customers"],
+            ["manager", "👔", "Manager"],
+          ].map(([key, icon, label]) => (
+            <button
+              key={key}
+              className={`nav-tab ${activeTab === key ? "active" : ""}`}
+              onClick={() => setActiveTab(key)}
+            >
+              <span className="tab-icon">{icon}</span> {label}
+            </button>
+          ))}
         </nav>
       </div>
 
@@ -924,15 +658,22 @@ const AdminReports = () => {
             </button>
           </div>
         ) : (
-          <div className={`report-content ${activeTab}`}>
+          <motion.div
+            key={activeTab}
+            className={`report-content ${activeTab}`}
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25 }}
+          >
             <div className="last-updated">
               Last updated: {new Date().toLocaleTimeString()}
-              <button className="refresh-mini" onClick={fetchReportData} title="Refresh data">
+              <button className="refresh-mini" onClick={fetchReportData}>
                 🔄
               </button>
             </div>
+
             {renderActiveTab()}
-          </div>
+          </motion.div>
         )}
       </div>
     </div>

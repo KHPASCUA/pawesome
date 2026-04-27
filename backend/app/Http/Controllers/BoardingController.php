@@ -6,10 +6,14 @@ use App\Models\Boarding;
 use App\Models\HotelRoom;
 use App\Models\Pet;
 use App\Models\Customer;
+use App\Models\Sale;
+use App\Models\Payment;
+use App\Models\SaleItem;
 use App\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Auth;
 
 class BoardingController extends Controller
 {
@@ -274,6 +278,46 @@ class BoardingController extends Controller
         $oldStatus = $boarding->status;
         $boarding->checkOut();
 
+        // Auto-create sale and payment when boarding is checked out
+        $cashierId = null;
+        if (Auth::check()) {
+            $cashierId = Auth::id();
+        }
+
+        $sale = Sale::create([
+            'customer_id' => $boarding->customer_id,
+            'cashier_id' => $cashierId,
+            'type' => 'boarding',
+            'status' => 'completed',
+            'payment_type' => 'cash',
+            'subtotal' => $boarding->total_amount,
+            'tax_amount' => 0,
+            'discount_amount' => 0,
+            'total_amount' => $boarding->total_amount,
+            'amount' => $boarding->total_amount,
+            'notes' => "Pet Hotel boarding for pet ID {$boarding->pet_id} (Room: {$boarding->hotel_room_id})",
+        ]);
+
+        // Create sale item
+        SaleItem::create([
+            'sale_id' => $sale->id,
+            'product_id' => null,
+            'service_name' => 'Pet Hotel Boarding',
+            'quantity' => 1,
+            'unit_price' => $boarding->total_amount,
+            'total_price' => $boarding->total_amount,
+        ]);
+
+        // Create payment
+        Payment::create([
+            'sale_id' => $sale->id,
+            'payment_method' => 'cash',
+            'amount' => $boarding->total_amount,
+            'status' => 'completed',
+            'paid_at' => now(),
+            'notes' => "Auto-generated payment for pet hotel boarding",
+        ]);
+
         // Send notification
         NotificationService::notifyBoardingStatusChange($boarding, $oldStatus);
 
@@ -390,6 +434,58 @@ class BoardingController extends Controller
             'check_ins' => $checkIns,
             'check_outs' => $checkOuts,
             'currently_boarded' => $currentlyBoarded,
+        ]);
+    }
+
+    /**
+     * Reject reservation
+     */
+    public function reject($id): JsonResponse
+    {
+        $boarding = Boarding::findOrFail($id);
+
+        if ($boarding->status === 'checked_out') {
+            return response()->json(['error' => 'Cannot reject completed reservation'], 422);
+        }
+
+        if (!in_array($boarding->status, ['pending', 'confirmed'])) {
+            return response()->json(['error' => 'Can only reject pending or confirmed reservations'], 422);
+        }
+
+        $oldStatus = $boarding->status;
+        $boarding->status = 'rejected';
+        $boarding->save();
+
+        // Send notification
+        NotificationService::notifyBoardingStatusChange($boarding, $oldStatus);
+
+        return response()->json([
+            'message' => 'Reservation rejected',
+            'boarding' => $boarding->fresh(['pet', 'customer', 'hotelRoom']),
+        ]);
+    }
+
+    /**
+     * Mark as paid (cashier)
+     */
+    public function markAsPaid($id): JsonResponse
+    {
+        $boarding = Boarding::findOrFail($id);
+
+        if ($boarding->payment_status === 'paid') {
+            return response()->json(['error' => 'Payment already confirmed'], 422);
+        }
+
+        if (!in_array($boarding->status, ['confirmed', 'checked_in'])) {
+            return response()->json(['error' => 'Can only confirm payment for confirmed or checked-in reservations'], 422);
+        }
+
+        $boarding->payment_status = 'paid';
+        $boarding->save();
+
+        return response()->json([
+            'message' => 'Payment confirmed successfully',
+            'boarding' => $boarding->fresh(['pet', 'customer', 'hotelRoom']),
         ]);
     }
 

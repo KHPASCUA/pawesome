@@ -1,179 +1,346 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  faDollarSign,
-  faUsers,
-  faSearch,
-  faFilter,
-  faPlus,
+  faCalculator,
+  faDownload,
   faEdit,
-  faTrash,
+  faPlus,
   faSave,
+  faSearch,
+  faTrash,
   faTimes,
   faUserTie,
-  faBuilding,
-  faPercentage,
-  faCalculator,
+  faUsers,
 } from "@fortawesome/free-solid-svg-icons";
-import "./EmployeeSalaryManagement.css";
+import { apiRequest } from "../../api/client";
 import { formatCurrency } from "../../utils/currency";
+import "./EmployeeSalaryManagement.css";
+
+const fallbackEmployees = [
+  {
+    id: 1,
+    employeeId: "EMP-001",
+    name: "John Smith",
+    department: "Veterinary",
+    position: "Senior Veterinarian",
+    baseSalary: 8500,
+    housingAllowance: 1200,
+    transportAllowance: 300,
+    medicalAllowance: 500,
+    performanceBonus: 1000,
+    status: "active",
+  },
+];
+
+const emptyForm = {
+  employeeId: "",
+  name: "",
+  department: "",
+  position: "",
+  baseSalary: 0,
+  housingAllowance: 0,
+  transportAllowance: 0,
+  medicalAllowance: 0,
+  performanceBonus: 0,
+  status: "active",
+};
+
+const departments = [
+  "Veterinary",
+  "Customer Service",
+  "Management",
+  "Grooming",
+  "Reception",
+  "Inventory",
+  "Cashier",
+];
+
+const colors = ["#ff5f93", "#ff8db5", "#ffc8dd", "#f472b6", "#fb7185"];
 
 const EmployeeSalaryManagement = () => {
+  const [employees, setEmployees] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterDepartment, setFilterDepartment] = useState("all");
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [newEmployee, setNewEmployee] = useState(emptyForm);
+  const [loading, setLoading] = useState(true);
 
-  const [employees, setEmployees] = useState([
-    {
-      id: 1,
-      employeeId: "EMP-001",
-      name: "John Smith",
-      department: "Veterinary",
-      position: "Senior Veterinarian",
-      baseSalary: 8500,
-      housingAllowance: 1200,
-      transportAllowance: 300,
-      medicalAllowance: 500,
-      performanceBonus: 1000,
-      totalSalary: 11500,
-      status: "active",
-      joinDate: "2022-01-15",
-    },
-    {
-      id: 2,
-      employeeId: "EMP-002",
-      name: "Sarah Johnson",
-      department: "Customer Service",
-      position: "Customer Representative",
-      baseSalary: 3200,
-      housingAllowance: 400,
-      transportAllowance: 200,
-      medicalAllowance: 150,
-      performanceBonus: 300,
-      totalSalary: 4250,
-      status: "active",
-      joinDate: "2023-03-20",
-    },
-    {
-      id: 3,
-      employeeId: "EMP-003",
-      name: "Mike Davis",
-      department: "Management",
-      position: "Operations Manager",
-      baseSalary: 6500,
-      housingAllowance: 800,
-      transportAllowance: 400,
-      medicalAllowance: 300,
-      performanceBonus: 800,
-      totalSalary: 8800,
-      status: "active",
-      joinDate: "2021-06-10",
-    },
-    {
-      id: 4,
-      employeeId: "EMP-004",
-      name: "Emma Wilson",
-      department: "Grooming",
-      position: "Grooming Specialist",
-      baseSalary: 2800,
-      housingAllowance: 300,
-      transportAllowance: 150,
-      medicalAllowance: 100,
-      performanceBonus: 200,
-      totalSalary: 3550,
-      status: "active",
-      joinDate: "2023-08-05",
-    },
-  ]);
-
-  const [newEmployee, setNewEmployee] = useState({
-    employeeId: "",
-    name: "",
-    department: "",
-    position: "",
-    baseSalary: 0,
-    housingAllowance: 0,
-    transportAllowance: 0,
-    medicalAllowance: 0,
-    performanceBonus: 0,
+  const normalizeEmployee = (emp) => ({
+    id: emp.id,
+    employeeId: emp.employeeId || emp.employee_id || `EMP-${emp.id}`,
+    name: emp.name || emp.full_name || "Unknown Employee",
+    department: emp.department || "Unassigned",
+    position: emp.position || "Staff",
+    baseSalary: Number(emp.baseSalary ?? emp.base_salary ?? 0),
+    housingAllowance: Number(emp.housingAllowance ?? emp.housing_allowance ?? 0),
+    transportAllowance: Number(emp.transportAllowance ?? emp.transport_allowance ?? 0),
+    medicalAllowance: Number(emp.medicalAllowance ?? emp.medical_allowance ?? 0),
+    performanceBonus: Number(emp.performanceBonus ?? emp.performance_bonus ?? 0),
+    status: emp.status || "active",
   });
 
-  const departments = ["Veterinary", "Customer Service", "Management", "Grooming", "Reception", "Inventory", "Cashier"];
+  const calculateTotalSalary = (employee) =>
+    Number(employee.baseSalary || 0) +
+    Number(employee.housingAllowance || 0) +
+    Number(employee.transportAllowance || 0) +
+    Number(employee.medicalAllowance || 0) +
+    Number(employee.performanceBonus || 0);
 
-  const filteredEmployees = employees.filter(employee => {
-    const matchesSearch = 
-      employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      employee.employeeId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      employee.position.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesDepartment = filterDepartment === "all" || employee.department === filterDepartment;
-    
-    return matchesSearch && matchesDepartment;
-  });
-
-  const calculateTotalSalary = (employee) => {
-    return (
-      employee.baseSalary +
-      employee.housingAllowance +
-      employee.transportAllowance +
-      employee.medicalAllowance +
-      employee.performanceBonus
-    );
-  };
-
-  const handleEditEmployee = (employee) => {
-    setEditingEmployee({ ...employee });
-  };
-
-  const handleSaveEmployee = () => {
-    if (editingEmployee) {
-      const updatedEmployees = employees.map(emp =>
-        emp.id === editingEmployee.id
-          ? { ...editingEmployee, totalSalary: calculateTotalSalary(editingEmployee) }
-          : emp
-      );
-      setEmployees(updatedEmployees);
-      setEditingEmployee(null);
+  const loadEmployees = async () => {
+    try {
+      setLoading(true);
+      const data = await apiRequest("/admin/salaries");
+      const rows = Array.isArray(data) ? data : data?.data || [];
+      setEmployees(rows.map(normalizeEmployee));
+    } catch {
+      setEmployees(fallbackEmployees.map(normalizeEmployee));
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleAddEmployee = () => {
-    const totalSalary = calculateTotalSalary(newEmployee);
-    const employee = {
-      ...newEmployee,
-      id: employees.length + 1,
-      totalSalary,
-      status: "active",
-      joinDate: new Date().toISOString().split('T')[0],
-    };
-    setEmployees([...employees, employee]);
-    setNewEmployee({
-      employeeId: "",
-      name: "",
-      department: "",
-      position: "",
-      baseSalary: 0,
-      housingAllowance: 0,
-      transportAllowance: 0,
-      medicalAllowance: 0,
-      performanceBonus: 0,
+  useEffect(() => {
+    loadEmployees();
+  }, []);
+
+  const filteredEmployees = useMemo(() => {
+    return employees.filter((employee) => {
+      const search = searchTerm.toLowerCase();
+      const matchesSearch =
+        employee.name.toLowerCase().includes(search) ||
+        employee.employeeId.toLowerCase().includes(search) ||
+        employee.position.toLowerCase().includes(search);
+
+      const matchesDepartment =
+        filterDepartment === "all" || employee.department === filterDepartment;
+
+      return matchesSearch && matchesDepartment;
     });
+  }, [employees, searchTerm, filterDepartment]);
+
+  const totalPayroll = employees.reduce(
+    (sum, emp) => sum + calculateTotalSalary(emp),
+    0
+  );
+
+  const averageSalary = employees.length
+    ? Math.round(totalPayroll / employees.length)
+    : 0;
+
+  const departmentChartData = departments
+    .map((dept) => {
+      const deptEmployees = employees.filter((emp) => emp.department === dept);
+      return {
+        department: dept,
+        employees: deptEmployees.length,
+        payroll: deptEmployees.reduce(
+          (sum, emp) => sum + calculateTotalSalary(emp),
+          0
+        ),
+      };
+    })
+    .filter((item) => item.employees > 0);
+
+  const exportCSV = () => {
+    const headers = [
+      "Employee ID",
+      "Name",
+      "Department",
+      "Position",
+      "Base Salary",
+      "Allowances",
+      "Bonus",
+      "Total Salary",
+      "Status",
+    ];
+
+    const rows = filteredEmployees.map((emp) => [
+      emp.employeeId,
+      emp.name,
+      emp.department,
+      emp.position,
+      emp.baseSalary,
+      emp.housingAllowance + emp.transportAllowance + emp.medicalAllowance,
+      emp.performanceBonus,
+      calculateTotalSalary(emp),
+      emp.status,
+    ]);
+
+    const csv = [headers, ...rows].map((row) => row.join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "salary-management-report.csv";
+    link.click();
+
+    URL.revokeObjectURL(url);
+  };
+
+  const handleAddEmployee = async () => {
+    const payload = {
+      ...newEmployee,
+      baseSalary: Number(newEmployee.baseSalary || 0),
+      housingAllowance: Number(newEmployee.housingAllowance || 0),
+      transportAllowance: Number(newEmployee.transportAllowance || 0),
+      medicalAllowance: Number(newEmployee.medicalAllowance || 0),
+      performanceBonus: Number(newEmployee.performanceBonus || 0),
+    };
+
+    try {
+      const saved = await apiRequest("/admin/salaries", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+
+      setEmployees((prev) => [
+        ...prev,
+        normalizeEmployee(saved?.data || saved || { ...payload, id: Date.now() }),
+      ]);
+    } catch {
+      setEmployees((prev) => [
+        ...prev,
+        normalizeEmployee({ ...payload, id: Date.now() }),
+      ]);
+    }
+
+    setNewEmployee(emptyForm);
     setShowAddForm(false);
   };
 
-  const handleDeleteEmployee = (id) => {
-    setEmployees(employees.filter(emp => emp.id !== id));
+  const handleSaveEmployee = async () => {
+    const payload = {
+      ...editingEmployee,
+      baseSalary: Number(editingEmployee.baseSalary || 0),
+      housingAllowance: Number(editingEmployee.housingAllowance || 0),
+      transportAllowance: Number(editingEmployee.transportAllowance || 0),
+      medicalAllowance: Number(editingEmployee.medicalAllowance || 0),
+      performanceBonus: Number(editingEmployee.performanceBonus || 0),
+    };
+
+    try {
+      await apiRequest(`/admin/salaries/${editingEmployee.id}`, {
+        method: "PUT",
+        body: JSON.stringify(payload),
+      });
+    } catch {}
+
+    setEmployees((prev) =>
+      prev.map((emp) =>
+        emp.id === editingEmployee.id ? normalizeEmployee(payload) : emp
+      )
+    );
+
+    setEditingEmployee(null);
   };
+
+  const handleDeleteEmployee = async (id) => {
+    try {
+      await apiRequest(`/admin/salaries/${id}`, { method: "DELETE" });
+    } catch {}
+
+    setEmployees((prev) => prev.filter((emp) => emp.id !== id));
+  };
+
+  const renderSalaryForm = (employee, setEmployee, onSave, title) => (
+    <div className="salary-form-overlay">
+      <div className="salary-form">
+        <div className="form-header">
+          <h2>{title}</h2>
+          <button
+            className="close-btn"
+            onClick={() => {
+              setShowAddForm(false);
+              setEditingEmployee(null);
+            }}
+          >
+            <FontAwesomeIcon icon={faTimes} />
+          </button>
+        </div>
+
+        <div className="form-content">
+          <div className="form-grid">
+            <input placeholder="Employee ID" value={employee.employeeId} onChange={(e) => setEmployee({ ...employee, employeeId: e.target.value })} />
+            <input placeholder="Full Name" value={employee.name} onChange={(e) => setEmployee({ ...employee, name: e.target.value })} />
+            <select value={employee.department} onChange={(e) => setEmployee({ ...employee, department: e.target.value })}>
+              <option value="">Select Department</option>
+              {departments.map((dept) => <option key={dept}>{dept}</option>)}
+            </select>
+            <input placeholder="Position" value={employee.position} onChange={(e) => setEmployee({ ...employee, position: e.target.value })} />
+            <input type="number" placeholder="Base Salary" value={employee.baseSalary} onChange={(e) => setEmployee({ ...employee, baseSalary: Number(e.target.value) })} />
+            <input type="number" placeholder="Housing Allowance" value={employee.housingAllowance} onChange={(e) => setEmployee({ ...employee, housingAllowance: Number(e.target.value) })} />
+            <input type="number" placeholder="Transport Allowance" value={employee.transportAllowance} onChange={(e) => setEmployee({ ...employee, transportAllowance: Number(e.target.value) })} />
+            <input type="number" placeholder="Medical Allowance" value={employee.medicalAllowance} onChange={(e) => setEmployee({ ...employee, medicalAllowance: Number(e.target.value) })} />
+            <input type="number" placeholder="Performance Bonus" value={employee.performanceBonus} onChange={(e) => setEmployee({ ...employee, performanceBonus: Number(e.target.value) })} />
+          </div>
+
+          <div className="salary-preview">
+            <h3>Salary Preview</h3>
+            <div className="preview-item">
+              <span>Base Salary</span>
+              <strong>{formatCurrency(employee.baseSalary || 0)}</strong>
+            </div>
+            <div className="preview-item">
+              <span>Total Allowances</span>
+              <strong>
+                {formatCurrency(
+                  Number(employee.housingAllowance || 0) +
+                    Number(employee.transportAllowance || 0) +
+                    Number(employee.medicalAllowance || 0)
+                )}
+              </strong>
+            </div>
+            <div className="preview-item">
+              <span>Bonus</span>
+              <strong>{formatCurrency(employee.performanceBonus || 0)}</strong>
+            </div>
+            <div className="preview-item total">
+              <span>Total Salary</span>
+              <strong>{formatCurrency(calculateTotalSalary(employee))}</strong>
+            </div>
+          </div>
+
+          <div className="form-actions">
+            <button className="secondary-btn" onClick={() => { setShowAddForm(false); setEditingEmployee(null); }}>
+              Cancel
+            </button>
+            <button className="primary-btn" onClick={onSave}>
+              <FontAwesomeIcon icon={faSave} />
+              Save
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="salary-management">
       <div className="salary-header">
         <div className="header-left">
           <h1>Employee Salary Management</h1>
-          <p>Manage employee salaries, allowances, and compensation packages</p>
+          <p>Track payroll, compensation packages, and salary distribution.</p>
         </div>
+
         <div className="header-actions">
+          <button className="secondary-btn" onClick={exportCSV}>
+            <FontAwesomeIcon icon={faDownload} />
+            Export CSV
+          </button>
           <button className="primary-btn" onClick={() => setShowAddForm(true)}>
             <FontAwesomeIcon icon={faPlus} />
             Add Employee
@@ -181,38 +348,61 @@ const EmployeeSalaryManagement = () => {
         </div>
       </div>
 
-      {/* Summary Cards */}
       <div className="summary-cards">
         <div className="summary-card">
-          <div className="card-icon">
-            <FontAwesomeIcon icon={faUsers} />
-          </div>
+          <div className="card-icon"><FontAwesomeIcon icon={faUsers} /></div>
           <div className="card-content">
             <h3>{employees.length}</h3>
             <p>Total Employees</p>
           </div>
         </div>
+
         <div className="summary-card">
-          <div className="card-icon">
-            <FontAwesomeIcon icon={faDollarSign} />
-          </div>
+          <div className="card-icon"><FontAwesomeIcon icon={faCalculator} /></div>
           <div className="card-content">
-            <h3>{formatCurrency(employees.reduce((sum, emp) => sum + emp.totalSalary, 0))}</h3>
+            <h3>{formatCurrency(totalPayroll)}</h3>
             <p>Total Payroll</p>
           </div>
         </div>
+
         <div className="summary-card">
-          <div className="card-icon">
-            <FontAwesomeIcon icon={faCalculator} />
-          </div>
+          <div className="card-icon"><FontAwesomeIcon icon={faUserTie} /></div>
           <div className="card-content">
-            <h3>{formatCurrency(Math.round(employees.reduce((sum, emp) => sum + emp.totalSalary, 0) / employees.length))}</h3>
+            <h3>{formatCurrency(averageSalary)}</h3>
             <p>Average Salary</p>
           </div>
         </div>
       </div>
 
-      {/* Filters */}
+      <div className="salary-analytics-grid">
+        <div className="analytics-panel">
+          <h3>Payroll by Department</h3>
+          <ResponsiveContainer width="100%" height={280}>
+            <BarChart data={departmentChartData}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} />
+              <XAxis dataKey="department" />
+              <YAxis />
+              <Tooltip formatter={(value) => formatCurrency(value)} />
+              <Bar dataKey="payroll" radius={[10, 10, 0, 0]} fill="#ff5f93" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div className="analytics-panel">
+          <h3>Employee Distribution</h3>
+          <ResponsiveContainer width="100%" height={280}>
+            <PieChart>
+              <Pie data={departmentChartData} dataKey="employees" nameKey="department" outerRadius={95}>
+                {departmentChartData.map((entry, index) => (
+                  <Cell key={entry.department} fill={colors[index % colors.length]} />
+                ))}
+              </Pie>
+              <Tooltip />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
       <div className="salary-controls">
         <div className="search-filter-group">
           <div className="search-box">
@@ -224,334 +414,91 @@ const EmployeeSalaryManagement = () => {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <div className="filter-dropdown">
-            <FontAwesomeIcon icon={faFilter} />
-            <select
-              value={filterDepartment}
-              onChange={(e) => setFilterDepartment(e.target.value)}
-            >
-              <option value="all">All Departments</option>
-              {departments.map(dept => (
-                <option key={dept} value={dept}>{dept}</option>
-              ))}
-            </select>
-          </div>
+
+          <select
+            className="filter-select"
+            value={filterDepartment}
+            onChange={(e) => setFilterDepartment(e.target.value)}
+          >
+            <option value="all">All Departments</option>
+            {departments.map((dept) => <option key={dept}>{dept}</option>)}
+          </select>
         </div>
       </div>
 
-      {/* Add Employee Form */}
-      {showAddForm && (
-        <div className="salary-form-overlay" onClick={() => setShowAddForm(false)}>
-          <div className="salary-form" onClick={(e) => e.stopPropagation()}>
-            <div className="form-header">
-              <h2>Add New Employee</h2>
-              <button className="close-btn" onClick={() => setShowAddForm(false)}>
-                <FontAwesomeIcon icon={faTimes} />
-              </button>
-            </div>
-            <div className="form-content">
-              <div className="form-grid">
-                <div className="form-group">
-                  <label>Employee ID</label>
-                  <input
-                    type="text"
-                    value={newEmployee.employeeId}
-                    onChange={(e) => setNewEmployee({...newEmployee, employeeId: e.target.value})}
-                    placeholder="EMP-XXX"
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Full Name</label>
-                  <input
-                    type="text"
-                    value={newEmployee.name}
-                    onChange={(e) => setNewEmployee({...newEmployee, name: e.target.value})}
-                    placeholder="John Doe"
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Department</label>
-                  <select
-                    value={newEmployee.department}
-                    onChange={(e) => setNewEmployee({...newEmployee, department: e.target.value})}
-                  >
-                    <option value="">Select Department</option>
-                    {departments.map(dept => (
-                      <option key={dept} value={dept}>{dept}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label>Position</label>
-                  <input
-                    type="text"
-                    value={newEmployee.position}
-                    onChange={(e) => setNewEmployee({...newEmployee, position: e.target.value})}
-                    placeholder="Job Title"
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Base Salary (PHP)</label>
-                  <input
-                    type="number"
-                    value={newEmployee.baseSalary}
-                    onChange={(e) => setNewEmployee({...newEmployee, baseSalary: Number(e.target.value)})}
-                    placeholder="5000"
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Housing Allowance (PHP)</label>
-                  <input
-                    type="number"
-                    value={newEmployee.housingAllowance}
-                    onChange={(e) => setNewEmployee({...newEmployee, housingAllowance: Number(e.target.value)})}
-                    placeholder="500"
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Transport Allowance (PHP)</label>
-                  <input
-                    type="number"
-                    value={newEmployee.transportAllowance}
-                    onChange={(e) => setNewEmployee({...newEmployee, transportAllowance: Number(e.target.value)})}
-                    placeholder="200"
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Medical Allowance (PHP)</label>
-                  <input
-                    type="number"
-                    value={newEmployee.medicalAllowance}
-                    onChange={(e) => setNewEmployee({...newEmployee, medicalAllowance: Number(e.target.value)})}
-                    placeholder="300"
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Performance Bonus (PHP)</label>
-                  <input
-                    type="number"
-                    value={newEmployee.performanceBonus}
-                    onChange={(e) => setNewEmployee({...newEmployee, performanceBonus: Number(e.target.value)})}
-                    placeholder="500"
-                  />
-                </div>
-              </div>
-              <div className="form-actions">
-                <button className="secondary-btn" onClick={() => setShowAddForm(false)}>
-                  Cancel
-                </button>
-                <button className="primary-btn" onClick={handleAddEmployee}>
-                  <FontAwesomeIcon icon={faSave} />
-                  Add Employee
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Employee Table */}
       <div className="salary-table-container">
-        <table className="salary-table">
-          <thead>
-            <tr>
-              <th>Employee</th>
-              <th>Department</th>
-              <th>Base Salary</th>
-              <th>Allowances</th>
-              <th>Bonus</th>
-              <th>Total Salary</th>
-              <th>Status</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredEmployees.map((employee) => (
-              <tr key={employee.id}>
-                <td className="employee-info">
-                  <div className="employee-details">
-                    <div className="employee-avatar">
-                      <FontAwesomeIcon icon={faUserTie} />
-                    </div>
-                    <div>
-                      <span className="employee-name">{employee.name}</span>
-                      <span className="employee-id">{employee.employeeId}</span>
-                      <span className="employee-position">{employee.position}</span>
-                    </div>
-                  </div>
-                </td>
-                <td className="department">
-                  <span className="department-badge">
-                    <FontAwesomeIcon icon={faBuilding} />
-                    {employee.department}
-                  </span>
-                </td>
-                <td className="base-salary">
-                  <span className="amount">{formatCurrency(employee.baseSalary)}</span>
-                </td>
-                <td className="allowances">
-                  <div className="allowance-breakdown">
-                    <span>H: {formatCurrency(employee.housingAllowance)}</span>
-                    <span>T: {formatCurrency(employee.transportAllowance)}</span>
-                    <span>M: {formatCurrency(employee.medicalAllowance)}</span>
-                  </div>
-                  <span className="total-allowances">
-                    {formatCurrency(employee.housingAllowance + employee.transportAllowance + employee.medicalAllowance)}
-                  </span>
-                </td>
-                <td className="bonus">
-                  <span className="amount bonus-amount">{formatCurrency(employee.performanceBonus)}</span>
-                </td>
-                <td className="total-salary">
-                  <span className="amount total-amount">{formatCurrency(employee.totalSalary)}</span>
-                </td>
-                <td className="status">
-                  <span className="status-badge active">
-                    {employee.status}
-                  </span>
-                </td>
-                <td className="actions">
-                  <button
-                    className="action-btn edit-btn"
-                    onClick={() => handleEditEmployee(employee)}
-                    title="Edit"
-                  >
-                    <FontAwesomeIcon icon={faEdit} />
-                  </button>
-                  <button
-                    className="action-btn delete-btn"
-                    onClick={() => handleDeleteEmployee(employee.id)}
-                    title="Delete"
-                  >
-                    <FontAwesomeIcon icon={faTrash} />
-                  </button>
-                </td>
+        {loading ? (
+          <div className="loading-state">Loading salary records...</div>
+        ) : (
+          <table className="salary-table">
+            <thead>
+              <tr>
+                <th>Employee</th>
+                <th>Department</th>
+                <th>Base Salary</th>
+                <th>Allowances</th>
+                <th>Bonus</th>
+                <th>Total Salary</th>
+                <th>Status</th>
+                <th>Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+
+            <tbody>
+              {filteredEmployees.map((employee) => (
+                <tr key={employee.id}>
+                  <td>
+                    <div className="employee-details">
+                      <div className="employee-avatar">
+                        <FontAwesomeIcon icon={faUserTie} />
+                      </div>
+                      <div>
+                        <span className="employee-name">{employee.name}</span>
+                        <span className="employee-id">{employee.employeeId}</span>
+                        <span className="employee-position">{employee.position}</span>
+                      </div>
+                    </div>
+                  </td>
+                  <td><span className="department-badge">{employee.department}</span></td>
+                  <td>{formatCurrency(employee.baseSalary)}</td>
+                  <td>
+                    {formatCurrency(
+                      employee.housingAllowance +
+                        employee.transportAllowance +
+                        employee.medicalAllowance
+                    )}
+                  </td>
+                  <td>{formatCurrency(employee.performanceBonus)}</td>
+                  <td><strong className="total-amount">{formatCurrency(calculateTotalSalary(employee))}</strong></td>
+                  <td><span className="status-badge active">{employee.status}</span></td>
+                  <td>
+                    <div className="actions">
+                      <button className="action-btn edit-btn" onClick={() => setEditingEmployee(employee)}>
+                        <FontAwesomeIcon icon={faEdit} />
+                      </button>
+                      <button className="action-btn delete-btn" onClick={() => handleDeleteEmployee(employee.id)}>
+                        <FontAwesomeIcon icon={faTrash} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+
+              {filteredEmployees.length === 0 && (
+                <tr>
+                  <td colSpan="8" className="empty-table">No salary records found.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        )}
       </div>
 
-      {/* Edit Employee Modal */}
-      {editingEmployee && (
-        <div className="salary-form-overlay" onClick={() => setEditingEmployee(null)}>
-          <div className="salary-form" onClick={(e) => e.stopPropagation()}>
-            <div className="form-header">
-              <h2>Edit Employee Salary</h2>
-              <button className="close-btn" onClick={() => setEditingEmployee(null)}>
-                <FontAwesomeIcon icon={faTimes} />
-              </button>
-            </div>
-            <div className="form-content">
-              <div className="form-grid">
-                <div className="form-group">
-                  <label>Employee ID</label>
-                  <input
-                    type="text"
-                    value={editingEmployee.employeeId}
-                    disabled
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Full Name</label>
-                  <input
-                    type="text"
-                    value={editingEmployee.name}
-                    disabled
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Department</label>
-                  <select
-                    value={editingEmployee.department}
-                    onChange={(e) => setEditingEmployee({...editingEmployee, department: e.target.value})}
-                  >
-                    {departments.map(dept => (
-                      <option key={dept} value={dept}>{dept}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label>Position</label>
-                  <input
-                    type="text"
-                    value={editingEmployee.position}
-                    onChange={(e) => setEditingEmployee({...editingEmployee, position: e.target.value})}
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Base Salary (PHP)</label>
-                  <input
-                    type="number"
-                    value={editingEmployee.baseSalary}
-                    onChange={(e) => setEditingEmployee({...editingEmployee, baseSalary: Number(e.target.value)})}
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Housing Allowance (PHP)</label>
-                  <input
-                    type="number"
-                    value={editingEmployee.housingAllowance}
-                    onChange={(e) => setEditingEmployee({...editingEmployee, housingAllowance: Number(e.target.value)})}
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Transport Allowance (PHP)</label>
-                  <input
-                    type="number"
-                    value={editingEmployee.transportAllowance}
-                    onChange={(e) => setEditingEmployee({...editingEmployee, transportAllowance: Number(e.target.value)})}
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Medical Allowance (PHP)</label>
-                  <input
-                    type="number"
-                    value={editingEmployee.medicalAllowance}
-                    onChange={(e) => setEditingEmployee({...editingEmployee, medicalAllowance: Number(e.target.value)})}
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Performance Bonus (PHP)</label>
-                  <input
-                    type="number"
-                    value={editingEmployee.performanceBonus}
-                    onChange={(e) => setEditingEmployee({...editingEmployee, performanceBonus: Number(e.target.value)})}
-                  />
-                </div>
-              </div>
-              <div className="salary-preview">
-                <h3>Salary Preview</h3>
-                <div className="preview-item">
-                  <span>Base Salary:</span>
-                  <span>{formatCurrency(editingEmployee.baseSalary)}</span>
-                </div>
-                <div className="preview-item">
-                  <span>Total Allowances:</span>
-                  <span>{formatCurrency(editingEmployee.housingAllowance + editingEmployee.transportAllowance + editingEmployee.medicalAllowance)}</span>
-                </div>
-                <div className="preview-item">
-                  <span>Performance Bonus:</span>
-                  <span>{formatCurrency(editingEmployee.performanceBonus)}</span>
-                </div>
-                <div className="preview-item total">
-                  <span>Total Salary:</span>
-                  <span>{formatCurrency(calculateTotalSalary(editingEmployee))}</span>
-                </div>
-              </div>
-              <div className="form-actions">
-                <button className="secondary-btn" onClick={() => setEditingEmployee(null)}>
-                  Cancel
-                </button>
-                <button className="primary-btn" onClick={handleSaveEmployee}>
-                  <FontAwesomeIcon icon={faSave} />
-                  Save Changes
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {showAddForm &&
+        renderSalaryForm(newEmployee, setNewEmployee, handleAddEmployee, "Add Employee Salary")}
+
+      {editingEmployee &&
+        renderSalaryForm(editingEmployee, setEditingEmployee, handleSaveEmployee, "Edit Employee Salary")}
     </div>
   );
 };

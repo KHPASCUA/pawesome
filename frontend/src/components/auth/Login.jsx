@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { apiRequest } from "../../api/client";
+import { FaEye, FaEyeSlash, FaUser, FaLock } from "react-icons/fa";
 import "./Login.css";
 
 const roleRouteMap = {
@@ -19,8 +20,9 @@ const Login = () => {
   const [formData, setFormData] = useState({
     username: "",
     password: "",
-    rememberMe: false
+    rememberMe: false,
   });
+
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -29,12 +31,12 @@ const Login = () => {
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData({ 
-      ...formData, 
-      [name]: type === "checkbox" ? checked : value 
+
+    setFormData({
+      ...formData,
+      [name]: type === "checkbox" ? checked : value,
     });
-    
-    // Clear error for this field when user starts typing
+
     if (errors[name]) {
       setErrors({ ...errors, [name]: "" });
     }
@@ -56,7 +58,7 @@ const Login = () => {
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    
+
     const newErrors = validateForm();
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -66,7 +68,6 @@ const Login = () => {
     setIsSubmitting(true);
 
     try {
-      // Call backend API for authentication
       const response = await apiRequest("/auth/login", {
         method: "POST",
         body: JSON.stringify({
@@ -75,72 +76,80 @@ const Login = () => {
         }),
       });
 
-      // Save authentication data
       localStorage.setItem("token", response.token);
       localStorage.setItem("role", response.user.role);
       localStorage.setItem("name", response.user.name);
       localStorage.setItem("username", response.user.username);
       localStorage.setItem("email", response.user.email);
-      
+
       if (formData.rememberMe) {
         localStorage.setItem("rememberMe", "true");
       }
 
-      // Show success message
-      alert(`Welcome back, ${response.user.name}!`);
-      
-      // Redirect to role-based dashboard
+      alert(`Welcome, ${response.user.name}!`);
+
       navigate(roleRouteMap[response.user.role] || "/dashboard");
     } catch (error) {
       console.error("Login error:", error);
+
       const errorMsg = error.message || "Invalid username or password";
-      setErrors({ 
+
+      setErrors({
         username: errorMsg,
-        password: errorMsg
+        password: errorMsg,
       });
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const togglePasswordVisibility = () => {
-    setShowPassword(!showPassword);
-  };
-
   return (
     <div className="login-container">
       <div className="login-background">
         <div className="login-content">
+
+          {/* HEADER IMPROVED */}
           <div className="login-header">
             <div className="logo">
               <h1>PAWESOME</h1>
               <span>RETREAT INC.</span>
             </div>
-            <h2>Welcome Back</h2>
-            <p>Sign in to access your account and manage your pet care services</p>
+
+            <h2>Welcome to Pawesome Retreat</h2>
+            <p>
+              Sign in to manage appointments, pet care services, and your account in one place.
+            </p>
           </div>
 
           <form className="login-form" onSubmit={handleLogin}>
             <div className="form-section">
-              
-              <div className="form-group">
-                <label htmlFor="username">Username *</label>
-                <input
-                  type="text"
-                  id="username"
-                  name="username"
-                  value={formData.username}
-                  onChange={handleChange}
-                  className={errors.username ? "error" : ""}
-                  placeholder="Enter your username"
-                  disabled={isSubmitting}
-                />
-                {errors.username && <span className="error-message">{errors.username}</span>}
+
+              {/* USERNAME */}
+              <div className="login-field">
+                <label>USERNAME *</label>
+                <div className="input-wrap">
+                  <FaUser className="input-left-icon" />
+                  <input
+                    type="text"
+                    id="username"
+                    name="username"
+                    value={formData.username}
+                    onChange={handleChange}
+                    className={errors.username ? "error" : ""}
+                    placeholder="Enter your username"
+                    disabled={isSubmitting}
+                  />
+                </div>
+                {errors.username && (
+                  <span className="error-message">{errors.username}</span>
+                )}
               </div>
 
-              <div className="form-group">
-                <label htmlFor="password">Password *</label>
-                <div className="password-input-group">
+              {/* PASSWORD */}
+              <div className="login-field">
+                <label>PASSWORD *</label>
+                <div className="password-input-wrap">
+                  <FaLock className="input-left-icon" />
                   <input
                     type={showPassword ? "text" : "password"}
                     id="password"
@@ -154,15 +163,19 @@ const Login = () => {
                   <button
                     type="button"
                     className="password-toggle"
-                    onClick={togglePasswordVisibility}
+                    onClick={() => setShowPassword(!showPassword)}
                     disabled={isSubmitting}
+                    aria-label="Toggle password visibility"
                   >
-                    {showPassword ? "👁️‍🗨️" : "👁️"}
+                    {showPassword ? <FaEyeSlash /> : <FaEye />}
                   </button>
                 </div>
-                {errors.password && <span className="error-message">{errors.password}</span>}
+                {errors.password && (
+                  <span className="error-message">{errors.password}</span>
+                )}
               </div>
 
+              {/* OPTIONS */}
               <div className="form-options">
                 <div className="remember-me">
                   <input
@@ -175,21 +188,33 @@ const Login = () => {
                   />
                   <label htmlFor="rememberMe">Remember me</label>
                 </div>
-                <Link to="/forgot-password" className="forgot-password">Forgot password?</Link>
+
+                <Link to="/forgot-password" className="forgot-password">
+                  Forgot password?
+                </Link>
               </div>
             </div>
 
+            {/* BUTTON */}
             <div className="form-actions">
-              <button type="submit" className="login-btn" disabled={isSubmitting}>
+              <button
+                type="submit"
+                className="login-btn"
+                disabled={isSubmitting}
+              >
                 {isSubmitting ? "Signing In..." : "Sign In"}
               </button>
             </div>
           </form>
-          
+
+          {/* REGISTER */}
           <div className="register-link">
-            <span>Don't have an account?</span>
-            <Link to="/register" className="link">Create Account</Link>
+            <span>New to Pawesome?</span>
+            <Link to="/register" className="link">
+              Create an account
+            </Link>
           </div>
+
         </div>
       </div>
     </div>

@@ -12,7 +12,11 @@ class Payment extends Model
 
     protected $fillable = [
         'sale_id',
+        'customer_id',
+        'boarding_id',
+        'order_id',
         'payment_number',
+        'method',
         'payment_method',
         'card_type',
         'card_last_four',
@@ -21,6 +25,7 @@ class Payment extends Model
         'change_amount',
         'status',
         'paid_at',
+        'verified_at',
         'notes',
     ];
 
@@ -28,6 +33,7 @@ class Payment extends Model
         'amount' => 'decimal:2',
         'change_amount' => 'decimal:2',
         'paid_at' => 'datetime',
+        'verified_at' => 'datetime',
     ];
 
     /**
@@ -38,7 +44,7 @@ class Payment extends Model
     /**
      * Valid payment statuses
      */
-    public const VALID_STATUSES = ['pending', 'completed', 'failed', 'refunded', 'cancelled'];
+    public const VALID_STATUSES = ['pending', 'completed', 'verified', 'rejected', 'failed', 'refunded', 'cancelled'];
 
     /**
      * Boot method for model-level validation
@@ -79,6 +85,22 @@ class Payment extends Model
     {
         return $this->belongsTo(Sale::class);
     }
+
+    public function customer(): BelongsTo
+    {
+        return $this->belongsTo(Customer::class);
+    }
+
+    public function boarding(): BelongsTo
+    {
+        return $this->belongsTo(Boarding::class);
+    }
+
+    // Order relationship - commented out as Order model doesn't exist
+    // public function order(): BelongsTo
+    // {
+    //     return $this->belongsTo(Order::class);
+    // }
 
     public function markAsCompleted(): void
     {

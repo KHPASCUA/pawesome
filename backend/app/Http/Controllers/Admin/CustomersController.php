@@ -60,12 +60,15 @@ class CustomersController extends Controller
 
     /**
      * Create new customer
+     * For cashier: phone is required, email is optional
+     * For admin: email is required, phone is optional
      */
     public function store(Request $request)
     {
+        // Flexible validation - either email or phone must be provided
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:customers,email',
+            'email' => 'nullable|string|email|max:255|unique:customers,email',
             'phone' => 'nullable|string|max:20',
             'address' => 'nullable|string|max:255',
             'is_active' => 'boolean',
@@ -73,6 +76,11 @@ class CustomersController extends Controller
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        // Ensure at least email or phone is provided
+        if (!$request->email && !$request->phone) {
+            return response()->json(['errors' => ['Either email or phone is required']], 422);
         }
 
         $customer = Customer::create([
@@ -166,7 +174,7 @@ class CustomersController extends Controller
     public function addPet(Request $request, $id)
     {
         $customer = Customer::find($id);
-        
+
         if (!$customer) {
             return response()->json(['message' => 'Customer not found'], 404);
         }
@@ -198,5 +206,65 @@ class CustomersController extends Controller
             'message' => 'Pet added successfully',
             'pet' => $pet
         ], 201);
+    }
+
+    /**
+     * Search customers for Cashier POS
+     * Search by name or phone
+     */
+    public function search(Request $request)
+    {
+        $query = $request->get('q', '');
+
+        $customers = Customer::where('is_active', true)
+            ->where(function ($q) use ($query) {
+                $q->where('name', 'like', "%{$query}%")
+                  ->orWhere('phone', 'like', "%{$query}%");
+            })
+            ->withCount('pets')
+            ->limit(20)
+            ->get()
+            ->map(function ($customer) {
+                return [
+                    'id' => $customer->id,
+                    'name' => $customer->name,
+                    'phone' => $customer->phone,
+                    'email' => $customer->email,
+                    'pets_count' => $customer->pets_count,
+                    'loyalty_points' => $customer->loyalty_points ?? 0,
+                ];
+            });
+
+        return response()->json($customers);
+    }
+
+    /**
+     * Get customer purchase history
+     */
+    public function purchases($id)
+    {
+        $customer = Customer::find($id);
+
+        if (!$customer) {
+            return response()->json(['error' => 'Customer not found'], 404);
+        }
+
+        // Get sales for this customer
+        $transactions = \App\Models\Sale::where('customer_id', $id)
+            ->orderBy('created_at', 'desc')
+            ->limit(20)
+            ->get()
+            ->map(function ($sale) {
+                return [
+                    'id' => $sale->id,
+                    'date' => $sale->created_at->format('Y-m-d'),
+                    'amount' => $sale->amount,
+                    'payment_type' => $sale->payment_type ?? 'cash',
+                ];
+            });
+
+        return response()->json([
+            'transactions' => $transactions,
+        ]);
     }
 }

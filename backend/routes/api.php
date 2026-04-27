@@ -13,6 +13,7 @@ use App\Http\Controllers\Admin\LoginLogController;
 use App\Http\Controllers\ChatbotController as SharedChatbotController;
 use App\Http\Controllers\ChatbotWorkflowController;
 use App\Http\Controllers\Customer\PortalController;
+use App\Http\Controllers\Customer\CustomerStoreController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\Cashier\DashboardController as CashierDashboardController;
 use App\Http\Controllers\Cashier\POSController;
@@ -28,6 +29,17 @@ use App\Http\Controllers\TelegramBotController;
 use App\Http\Controllers\AppointmentController;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\PayrollController;
+use App\Http\Controllers\GiftCardController;
+use App\Http\Controllers\GroomingController;
+use App\Http\Controllers\Api\GroomingController as ApiGroomingController;
+use App\Http\Controllers\PetController;
+use App\Http\Controllers\VetController;
+use App\Http\Controllers\Api\PaymentController;
+use App\Http\Controllers\Api\CashierPaymentController;
+use App\Http\Controllers\Api\ServiceRequestController;
+use App\Http\Controllers\Api\ReceptionistCustomerController;
+use App\Http\Controllers\Api\ReceptionistPetController;
+use App\Http\Controllers\ReceptionistRequestController;
 use Illuminate\Support\Facades\Route;
 
 // Health check endpoint for deployment monitoring
@@ -39,6 +51,12 @@ Route::get('/health', function () {
         'environment' => app()->environment(),
     ]);
 });
+
+// Service Request API (public endpoints for customer booking)
+Route::post('/customer/requests', [ServiceRequestController::class, 'store']);
+Route::get('/customer/my-requests', [ServiceRequestController::class, 'customerRequests']);
+Route::get('/receptionist/requests', [ServiceRequestController::class, 'receptionistRequests']);
+Route::patch('/receptionist/requests/{id}/status', [ServiceRequestController::class, 'updateStatus']);
 
 Route::middleware('throttle:auth')->prefix('auth')->group(function () {
     Route::post('register', [AuthController::class, 'register']);
@@ -97,6 +115,8 @@ Route::middleware(['auth.api', 'throttle:api', 'role:admin'])->prefix('admin')->
     Route::delete('customers/{id}', [CustomersController::class, 'destroy']);
     Route::get('customers/{id}/pets', [CustomersController::class, 'pets']);
     Route::post('customers/{id}/pets', [CustomersController::class, 'addPet']);
+    Route::get('customers/search', [CustomersController::class, 'search']);
+    Route::get('customers/{id}/purchases', [CustomersController::class, 'purchases']);
 
     Route::get('chatbot/logs', [ChatbotController::class, 'index']);
     Route::get('chatbot/logs/user/{user}', [ChatbotController::class, 'userHistory']);
@@ -123,7 +143,7 @@ Route::middleware(['auth.api', 'throttle:api', 'role:admin'])->prefix('admin')->
 
     // Notifications
     Route::get('notifications', [NotificationController::class, 'index']);
-    Route::get('notifications/unread', [NotificationController::class, 'unread']);
+    Route::get('notifications/unread-count', [NotificationController::class, 'unreadCount']);
     Route::post('notifications/{id}/read', [NotificationController::class, 'markAsRead']);
     Route::post('notifications/mark-all-read', [NotificationController::class, 'markAllAsRead']);
 });
@@ -151,12 +171,34 @@ Route::middleware(['auth.api', 'throttle:api', 'role:customer'])->prefix('custom
     Route::post('boardings', [PortalController::class, 'bookBoarding']);
     Route::get('services', [PortalController::class, 'services']);
     Route::post('chatbot', [PortalController::class, 'chatbot']);
+    
+    // Customer Store Checkout
+    Route::post('store/checkout', [CustomerStoreController::class, 'checkout']);
+    Route::get('store/orders', [CustomerStoreController::class, 'orders']);
 });
 
 Route::middleware(['auth.api', 'throttle:api', 'role:cashier'])->prefix('cashier')->group(function () {
     Route::get('dashboard', [CashierDashboardController::class, 'overview']);
     Route::get('sales', [CashierDashboardController::class, 'sales']);
     Route::get('transactions', [CashierDashboardController::class, 'transactions']);
+    Route::get('transactions/search', [CashierDashboardController::class, 'searchTransactions']);
+
+    // Cashier Transaction Operations
+    Route::post('refund', [CashierDashboardController::class, 'refund']);
+    Route::post('multi-payment', [CashierDashboardController::class, 'multiPayment']);
+    Route::post('apply-discount', [CashierDashboardController::class, 'applyDiscount']);
+    Route::post('handover', [CashierDashboardController::class, 'handover']);
+    Route::post('void', [CashierDashboardController::class, 'voidTransaction']);
+    Route::get('receipt/{id}', [CashierDashboardController::class, 'generateReceipt']);
+
+    // Payment Verification Routes
+    Route::get('payment-requests', [CashierDashboardController::class, 'getPaymentRequests']);
+    Route::put('payment-requests/{id}/verify', [CashierDashboardController::class, 'verifyPayment']);
+
+    // Existing Payment Verification Routes
+    Route::get('payments', [CashierPaymentController::class, 'index']);
+    Route::put('payments/{payment}/verify', [CashierPaymentController::class, 'verify']);
+    Route::put('payments/{payment}/reject', [CashierPaymentController::class, 'reject']);
 
     // POS Endpoints
     Route::post('pos/transaction', [POSController::class, 'processTransaction']);
@@ -172,17 +214,36 @@ Route::middleware(['auth.api', 'throttle:api', 'role:receptionist'])->prefix('re
     Route::get('dashboard', [ReceptionistDashboardController::class, 'overview']);
     Route::get('appointments', [ReceptionistDashboardController::class, 'appointments']);
     Route::get('customers', [ReceptionistDashboardController::class, 'customers']);
-    
+
+    // Customer Order Management
+    Route::get('orders', [ReceptionistDashboardController::class, 'orders']);
+    Route::put('orders/{id}/status', [ReceptionistDashboardController::class, 'updateOrderStatus']);
+
     // Appointment management
     Route::get('appointment/list', [AppointmentController::class, 'index']);
     Route::post('appointments', [AppointmentController::class, 'store']);
     Route::get('appointments/{id}', [AppointmentController::class, 'show']);
     Route::put('appointments/{id}', [AppointmentController::class, 'update']);
     Route::post('appointments/{id}/approve', [AppointmentController::class, 'approve']);
+    Route::post('appointments/{id}/reject', [AppointmentController::class, 'reject']);
     Route::post('appointments/{id}/reschedule', [AppointmentController::class, 'reschedule']);
     Route::post('appointments/{id}/cancel', [AppointmentController::class, 'cancel']);
     Route::get('veterinarians/available', [AppointmentController::class, 'availableVeterinarians']);
     Route::get('veterinarians/{id}/schedule', [AppointmentController::class, 'veterinarianSchedule']);
+
+    // Customer Profile Management
+    Route::get('customers', [ReceptionistCustomerController::class, 'index']);
+    Route::post('customers', [ReceptionistCustomerController::class, 'store']);
+
+    // Pet Management
+    Route::get('pets', [ReceptionistPetController::class, 'index']);
+    Route::post('pets', [ReceptionistPetController::class, 'store']);
+
+    // Service Request Management
+    Route::get('requests', [ReceptionistRequestController::class, 'index']);
+    Route::get('requests/pending', [ReceptionistRequestController::class, 'pending']);
+    Route::post('requests', [ReceptionistRequestController::class, 'store']);
+    Route::patch('requests/{id}/status', [ReceptionistRequestController::class, 'updateStatus']);
 });
 
 Route::middleware(['auth.api', 'throttle:api', 'role:inventory'])->prefix('inventory')->group(function () {
@@ -265,6 +326,17 @@ Route::middleware(['auth.api', 'throttle:api'])->prefix('inventory')->group(func
     Route::get('/public/item/{id}', [InventoryDashboardController::class, 'showPublicItem']);
 });
 
+// Product Search Routes (for Cashier POS)
+Route::middleware(['auth.api', 'throttle:api'])->prefix('products')->group(function () {
+    Route::get('/search', [InventoryDashboardController::class, 'searchProducts']);
+    Route::get('/barcode/{barcode}', [InventoryDashboardController::class, 'lookupBarcode']);
+});
+
+// Gift Card Routes (for Cashier POS)
+Route::middleware(['auth.api', 'throttle:api'])->prefix('gift-cards')->group(function () {
+    Route::get('/{number}/balance', [GiftCardController::class, 'checkBalance']);
+});
+
 // Notification Routes (available to all authenticated users)
 Route::middleware(['auth.api', 'throttle:api'])->prefix('notifications')->group(function () {
     Route::get('/', [NotificationController::class, 'index']);
@@ -301,9 +373,12 @@ Route::middleware(['auth.api', 'throttle:api', 'role:receptionist,admin,manager'
     Route::put('/{id}', [BoardingController::class, 'update']);
     Route::delete('/{id}', [BoardingController::class, 'destroy']);
     Route::post('/{id}/confirm', [BoardingController::class, 'confirm']);
+    Route::post('/{id}/reject', [BoardingController::class, 'reject']);
     Route::post('/{id}/check-in', [BoardingController::class, 'checkIn']);
     Route::post('/{id}/check-out', [BoardingController::class, 'checkOut']);
     Route::post('/{id}/cancel', [BoardingController::class, 'cancel']);
+    Route::post('/{id}/pay', [BoardingController::class, 'markAsPaid']);
+    Route::post('/{boarding}/payment', [PaymentController::class, 'storeBoardingPayment']);
 });
 
 // Customer Boarding Routes (View own reservations, create new)
@@ -319,6 +394,45 @@ Route::middleware(['auth.api', 'throttle:api', 'role:customer'])->prefix('custom
 Route::middleware(['auth.api', 'throttle:api', 'role:veterinary'])->prefix('veterinary/boardings')->group(function () {
     Route::get('/current-boarders', [BoardingController::class, 'currentBoarders']);
     Route::get('/{id}', [BoardingController::class, 'show']);
+});
+
+// Grooming Appointment Routes (Receptionist, Admin, Manager)
+Route::middleware(['auth.api', 'throttle:api', 'role:receptionist,admin,manager'])->prefix('grooming')->group(function () {
+    Route::get('/', [ApiGroomingController::class, 'index']);
+    Route::post('/', [ApiGroomingController::class, 'store']);
+    Route::put('/{grooming}/status', [ApiGroomingController::class, 'updateStatus']);
+});
+
+// Customer Grooming Routes (View own appointments, create new)
+Route::middleware(['auth.api', 'throttle:api', 'role:customer'])->prefix('customer/grooming')->group(function () {
+    Route::get('/', [GroomingController::class, 'index']);
+    Route::post('/', [GroomingController::class, 'store']);
+    Route::get('/{id}', [GroomingController::class, 'show']);
+});
+
+// Vet Appointment Routes (Receptionist, Admin, Manager)
+Route::middleware(['auth.api', 'throttle:api', 'role:receptionist,admin,manager'])->prefix('vet')->group(function () {
+    Route::get('/', [VetController::class, 'index']);
+    Route::post('/', [VetController::class, 'store']);
+    Route::get('/{id}', [VetController::class, 'show']);
+    Route::patch('/{id}/status', [VetController::class, 'updateStatus']);
+    Route::delete('/{id}', [VetController::class, 'destroy']);
+});
+
+// Customer Vet Routes (View own appointments, create new)
+Route::middleware(['auth.api', 'throttle:api', 'role:customer'])->prefix('customer/vet')->group(function () {
+    Route::get('/', [VetController::class, 'index']);
+    Route::post('/', [VetController::class, 'store']);
+    Route::get('/{id}', [VetController::class, 'show']);
+});
+
+// Pets Routes (Receptionist, Admin, Manager, Customer)
+Route::middleware(['auth.api', 'throttle:api', 'role:receptionist,admin,manager,customer'])->prefix('pets')->group(function () {
+    Route::get('/', [PetController::class, 'index']);
+    Route::post('/', [PetController::class, 'store']);
+    Route::get('/{id}', [PetController::class, 'show']);
+    Route::put('/{id}', [PetController::class, 'update']);
+    Route::delete('/{id}', [PetController::class, 'destroy']);
 });
 
 // Telegram Bot Webhook (public - receives updates from Telegram, rate limited)

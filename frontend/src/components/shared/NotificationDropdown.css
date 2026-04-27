@@ -4,88 +4,67 @@
 }
 
 /* Notification Button */
-.notification-btn {
+.notification-bell-wrapper {
   position: relative;
-  width: 46px;
-  height: 46px;
-  display: grid;
-  place-items: center;
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(8px);
-  color: #0d9488;
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  border-radius: 999px;
+}
+
+.notification-bell-btn {
+  position: relative;
+  width: 52px;
+  height: 52px;
+  border: 1px solid rgba(255, 95, 147, 0.22);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.78);
+  color: #1f2937;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  transition: all 0.3s ease;
-  font-size: 1rem;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 12px 30px rgba(255, 95, 147, 0.13);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
 
-.notification-btn:hover {
+.notification-bell-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 12px 24px rgba(13, 148, 136, 0.2);
-  background: rgba(255, 255, 255, 1);
-  color: #0f766e;
-}
-
-.dark .notification-btn,
-.admin-dashboard.dark .notification-btn,
-.cashier-dashboard.dark .notification-btn,
-.customer-dashboard.dark .notification-btn,
-.inventory-dashboard.dark .notification-btn,
-.receptionist-dashboard.dark .notification-btn,
-.vet-dashboard.dark .notification-btn,
-.manager-dashboard.dark .notification-btn {
-  background: #1e293b;
-  color: #e2e8f0;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 16px 36px rgba(255, 95, 147, 0.2);
 }
 
 /* Notification Badge */
 .notification-badge {
   position: absolute;
-  top: 6px;
-  right: 6px;
-  width: 18px;
-  height: 18px;
+  top: -5px;
+  right: -5px;
+  min-width: 21px;
+  height: 21px;
+  padding: 0 6px;
   border-radius: 999px;
-  background: #ef4444;
+  background: linear-gradient(135deg, #ff5f93, #ff8db5);
   color: #fff;
-  font-size: 0.72rem;
-  font-weight: 600;
-  display: grid;
-  place-items: center;
-  animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-  0%, 100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.1);
-  }
+  font-size: 0.7rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #fff;
 }
 
 /* Notification Dropdown */
-.notification-dropdown {
+.notification-panel {
   position: absolute;
+  top: calc(100% + 12px);
   right: 0;
-  top: calc(100% + 10px);
-  min-width: 320px;
-  max-width: 360px;
-  max-height: 400px;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  border-radius: 20px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(255, 255, 255, 0.5) inset;
-  z-index: 9999;
-  display: flex;
-  flex-direction: column;
+  width: min(390px, calc(100vw - 24px));
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(255, 95, 147, 0.2);
+  border-radius: 22px;
+  box-shadow: 0 24px 70px rgba(31, 41, 55, 0.18);
+  backdrop-filter: blur(18px);
   overflow: hidden;
+  z-index: 9999;
 }
 
-.notification-dropdown::before {
+.notification-panel::before {
   content: '';
   position: absolute;
   top: -6px;
@@ -98,115 +77,47 @@
   transform: rotate(45deg);
 }
 
-.dark .notification-dropdown,
-.admin-dashboard.dark .notification-dropdown,
-.cashier-dashboard.dark .notification-dropdown,
-.customer-dashboard.dark .notification-dropdown,
-.inventory-dashboard.dark .notification-dropdown,
-.receptionist-dashboard.dark .notification-dropdown,
-.vet-dashboard.dark .notification-dropdown,
-.manager-dashboard.dark .notification-dropdown {
-  background: #1e293b;
-  border-color: rgba(255, 192, 203, 0.2);
-}
-
-.dark .notification-dropdown::before,
-.admin-dashboard.dark .notification-dropdown::before,
-.cashier-dashboard.dark .notification-dropdown::before,
-.customer-dashboard.dark .notification-dropdown::before,
-.inventory-dashboard.dark .notification-dropdown::before,
-.receptionist-dashboard.dark .notification-dropdown::before,
-.vet-dashboard.dark .notification-dropdown::before,
-.manager-dashboard.dark .notification-dropdown::before {
-  background: #1e293b;
-  border-color: rgba(255, 192, 203, 0.2);
-}
-
 /* Notification Header */
 .notification-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  padding: 16px 20px;
-  border-bottom: 1px solid rgba(13, 148, 136, 0.1);
-  background: linear-gradient(135deg, rgba(13, 148, 136, 0.05) 0%, rgba(20, 184, 166, 0.08) 100%);
-}
-
-.dark .notification-header,
-.admin-dashboard.dark .notification-header,
-.cashier-dashboard.dark .notification-header,
-.customer-dashboard.dark .notification-header,
-.inventory-dashboard.dark .notification-header,
-.receptionist-dashboard.dark .notification-header,
-.vet-dashboard.dark .notification-header,
-.manager-dashboard.dark .notification-header {
-  background: linear-gradient(135deg, rgba(30, 41, 59, 0.8) 0%, rgba(30, 41, 59, 0.6) 100%);
-  border-color: rgba(255, 192, 203, 0.1);
+  gap: 1rem;
+  padding: 1rem 1.1rem;
+  border-bottom: 1px solid rgba(255, 95, 147, 0.14);
+  background: linear-gradient(135deg, rgba(255, 200, 221, 0.5), rgba(255, 255, 255, 0.88));
 }
 
 .notification-header h3 {
   margin: 0;
   font-size: 1rem;
-  font-weight: 600;
-  color: #0f172a;
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  color: #191919;
 }
 
-.dark .notification-header h3,
-.admin-dashboard.dark .notification-header h3,
-.cashier-dashboard.dark .notification-header h3,
-.customer-dashboard.dark .notification-header h3,
-.inventory-dashboard.dark .notification-header h3,
-.receptionist-dashboard.dark .notification-header h3,
-.vet-dashboard.dark .notification-header h3,
-.manager-dashboard.dark .notification-header h3 {
-  color: #e2e8f0;
-}
-
-.notification-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.notification-actions button {
-  width: 28px;
-  height: 28px;
-  display: grid;
-  place-items: center;
-  background: rgba(255, 255, 255, 0.6);
-  border: 1px solid rgba(226, 232, 240, 0.5);
-  border-radius: 8px;
-  cursor: pointer;
+.notification-header p {
+  margin: 0.2rem 0 0;
+  font-size: 0.78rem;
   color: #64748b;
-  transition: all 0.2s ease;
 }
 
-.notification-actions button:hover {
-  background: rgba(13, 148, 136, 0.1);
-  color: #0d9488;
-  border-color: rgba(13, 148, 136, 0.3);
-}
-
-.dark .notification-actions button:hover,
-.admin-dashboard.dark .notification-actions button:hover,
-.cashier-dashboard.dark .notification-actions button:hover,
-.customer-dashboard.dark .notification-actions button:hover,
-.inventory-dashboard.dark .notification-actions button:hover,
-.receptionist-dashboard.dark .notification-actions button:hover,
-.vet-dashboard.dark .notification-actions button:hover,
-.manager-dashboard.dark .notification-actions button:hover {
-  background: rgba(20, 184, 166, 0.08);
-  color: #e2e8f0;
-  border-color: rgba(20, 184, 166, 0.3);
+.mark-all-btn {
+  border: 0;
+  background: rgba(255, 95, 147, 0.1);
+  color: #ff5f93;
+  border-radius: 999px;
+  padding: 0.45rem 0.7rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  cursor: pointer;
 }
 
 /* Notification List */
 .notification-list {
-  max-height: 300px;
+  max-height: 370px;
   overflow-y: auto;
-  padding: 8px;
 }
 
 .notification-list::-webkit-scrollbar {
@@ -228,186 +139,139 @@
 
 /* Notification Item */
 .notification-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 12px;
-  border-radius: 10px;
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid rgba(255, 95, 147, 0.1);
+  background: transparent;
+  padding: 0.95rem 1.1rem;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.85rem;
+  text-align: left;
   cursor: pointer;
   transition: background 0.2s ease;
-  position: relative;
 }
 
 .notification-item:hover {
-  background: rgba(13, 148, 136, 0.05);
-}
-
-.dark .notification-item:hover,
-.admin-dashboard.dark .notification-item:hover,
-.cashier-dashboard.dark .notification-item:hover,
-.customer-dashboard.dark .notification-item:hover,
-.inventory-dashboard.dark .notification-item:hover,
-.receptionist-dashboard.dark .notification-item:hover,
-.vet-dashboard.dark .notification-item:hover,
-.manager-dashboard.dark .notification-item:hover {
-  background: rgba(20, 184, 166, 0.08);
+  background: rgba(255, 200, 221, 0.18);
 }
 
 .notification-item.unread {
-  background: rgba(13, 148, 136, 0.08);
+  background: rgba(255, 200, 221, 0.28);
 }
 
-.dark .notification-item.unread,
-.admin-dashboard.dark .notification-item.unread,
-.cashier-dashboard.dark .notification-item.unread,
-.customer-dashboard.dark .notification-item.unread,
-.inventory-dashboard.dark .notification-item.unread,
-.receptionist-dashboard.dark .notification-item.unread,
-.vet-dashboard.dark .notification-item.unread,
-.manager-dashboard.dark .notification-item.unread {
-  background: rgba(13, 148, 136, 0.12);
-}
-
-.notification-dot {
-  flex-shrink: 0;
-  font-size: 8px;
-  margin-top: 6px;
-}
-
-.notification-content {
-  flex: 1;
+.notification-item-content {
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
 }
 
-.notification-title {
-  margin: 0 0 4px 0;
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: #102a43;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.notification-item-content strong {
+  font-size: 0.86rem;
+  color: #1f2937;
 }
 
-.dark .notification-title,
-.admin-dashboard.dark .notification-title,
-.cashier-dashboard.dark .notification-title,
-.customer-dashboard.dark .notification-title,
-.inventory-dashboard.dark .notification-title,
-.receptionist-dashboard.dark .notification-title,
-.vet-dashboard.dark .notification-title,
-.manager-dashboard.dark .notification-title {
-  color: #e2e8f0;
-}
-
-.notification-message {
-  margin: 0 0 6px 0;
+.notification-item-content span {
   font-size: 0.8rem;
   color: #64748b;
-  line-height: 1.4;
+  line-height: 1.35;
   display: -webkit-box;
   -webkit-line-clamp: 2;
-  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
 
-.dark .notification-message,
-.admin-dashboard.dark .notification-message,
-.cashier-dashboard.dark .notification-message,
-.customer-dashboard.dark .notification-message,
-.inventory-dashboard.dark .notification-message,
-.receptionist-dashboard.dark .notification-message,
-.vet-dashboard.dark .notification-message,
-.manager-dashboard.dark .notification-message {
+.notification-item-content small {
+  font-size: 0.72rem;
   color: #94a3b8;
 }
 
-.notification-time {
-  font-size: 0.75rem;
-  color: #94a3b8;
+.notif-icon {
+  width: 20px;
+  height: 20px;
 }
 
-.dark .notification-time,
-.admin-dashboard.dark .notification-time,
-.cashier-dashboard.dark .notification-time,
-.customer-dashboard.dark .notification-time,
-.inventory-dashboard.dark .notification-time,
-.receptionist-dashboard.dark .notification-time,
-.vet-dashboard.dark .notification-time,
-.manager-dashboard.dark .notification-time {
-  color: #64748b;
+.notif-icon.success {
+  color: #22c55e;
 }
 
-.unread-indicator {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  width: 8px;
-  height: 8px;
-  background: #3b82f6;
-  border-radius: 50%;
+.notif-icon.warning {
+  color: #f59e0b;
+}
+
+.notif-icon.error {
+  color: #ef4444;
+}
+
+.notif-icon.info {
+  color: #3b82f6;
+}
+
+.unread-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: #ff5f93;
+  margin-top: 0.4rem;
 }
 
 /* Empty State */
 .notification-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 40px 20px;
-  color: #94a3b8;
+  padding: 2.3rem 1.25rem;
+  text-align: center;
+  color: #64748b;
 }
 
-.notification-empty .empty-icon {
-  font-size: 2rem;
-  margin-bottom: 12px;
-  opacity: 0.5;
+.notification-empty-icon {
+  width: 58px;
+  height: 58px;
+  margin: 0 auto 0.85rem;
+  border-radius: 18px;
+  background: rgba(255, 200, 221, 0.35);
+  color: #ff5f93;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.notification-empty h4 {
+  margin: 0;
+  color: #191919;
+  font-size: 0.95rem;
 }
 
 .notification-empty p {
-  margin: 0;
-  font-size: 0.9rem;
+  margin: 0.25rem 0 0;
+  font-size: 0.8rem;
 }
 
 /* Footer */
 .notification-footer {
-  padding: 12px 16px;
-  border-top: 1px solid rgba(173, 216, 230, 0.2);
-  display: flex;
-  justify-content: center;
+  padding: 0.8rem;
+  text-align: center;
+  border-top: 1px solid rgba(255, 95, 147, 0.12);
 }
 
-.dark .notification-footer,
-.admin-dashboard.dark .notification-footer,
-.cashier-dashboard.dark .notification-footer,
-.customer-dashboard.dark .notification-footer,
-.inventory-dashboard.dark .notification-footer,
-.receptionist-dashboard.dark .notification-footer,
-.vet-dashboard.dark .notification-footer,
-.manager-dashboard.dark .notification-footer {
-  border-color: rgba(255, 192, 203, 0.1);
-}
-
-.clear-all-btn {
+.notification-footer button {
+  border: 0;
   background: transparent;
-  border: none;
   color: #64748b;
-  font-size: 0.85rem;
+  font-size: 0.82rem;
+  font-weight: 700;
   cursor: pointer;
-  padding: 6px 12px;
-  border-radius: 6px;
-  transition: all 0.2s ease;
-}
-
-.clear-all-btn:hover {
-  color: #ef4444;
-  background: rgba(239, 68, 68, 0.1);
 }
 
 /* Responsive */
+@media (max-width: 768px) {
+  .notification-panel {
+    right: -80px;
+    width: min(350px, calc(100vw - 18px));
+  }
+}
+
 @media (max-width: 480px) {
-  .notification-dropdown {
+  .notification-panel {
     position: fixed;
     top: auto;
     bottom: 0;
@@ -419,7 +283,7 @@
     max-height: 70vh;
   }
   
-  .notification-dropdown::before {
+  .notification-panel::before {
     display: none;
   }
 }

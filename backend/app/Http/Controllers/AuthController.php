@@ -74,6 +74,7 @@ class AuthController extends Controller
                 'email' => $request->email,
                 'phone' => $request->phone,
                 'address' => $request->address,
+                'user_id' => $user->id,
             ]);
         }
 

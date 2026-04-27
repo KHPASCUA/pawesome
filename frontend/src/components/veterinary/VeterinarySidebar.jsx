@@ -22,7 +22,7 @@ const VeterinarySidebar = ({ collapsed, onToggleCollapse }) => {
   };
 
   return (
-    <aside className={`veterinary-sidebar ${collapsed ? "collapsed" : ""}`}>
+    <aside className={`app-sidebar ${collapsed ? "collapsed" : ""}`}>
       <div className="sidebar-header">
         <button className="collapse-btn" onClick={onToggleCollapse}>
           <FontAwesomeIcon icon={faBars} />

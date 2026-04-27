@@ -1,0 +1,179 @@
+.cashier-payment-verification {
+  width: 100%;
+  padding: 0;
+  background: transparent;
+  color: var(--color-text);
+}
+
+.payment-hero {
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+  color: white;
+  padding: 26px;
+  border-radius: 22px;
+  margin-bottom: 22px;
+  box-shadow: var(--shadow-primary);
+}
+
+.payment-hero h1 {
+  margin: 0;
+  color: white;
+  font-size: 1.8rem;
+}
+
+.payment-hero p {
+  margin: 8px 0 0;
+  opacity: 0.95;
+}
+
+.payment-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 22px;
+  padding: 22px;
+  box-shadow: var(--shadow-card);
+  backdrop-filter: blur(18px);
+}
+
+.payment-card h2 {
+  margin-top: 0;
+  color: var(--color-heading);
+}
+
+.payment-card p {
+  color: var(--color-muted);
+  font-style: italic;
+  text-align: center;
+  padding: 20px;
+}
+
+.payment-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.payment-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 850px;
+}
+
+.payment-table th,
+.payment-table td {
+  padding: 14px;
+  border-bottom: 1px solid var(--color-border);
+  text-align: left;
+}
+
+.payment-table th {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.status-badge {
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-weight: 800;
+  font-size: 0.8rem;
+  text-transform: capitalize;
+}
+
+.status-badge.pending {
+  background: var(--color-warning-bg);
+  color: #92400e;
+}
+
+.status-badge.approved {
+  background: var(--color-success-bg);
+  color: #065f46;
+}
+
+.status-badge.rejected {
+  background: var(--color-danger-bg);
+  color: #991b1b;
+}
+
+.status-badge.rescheduled {
+  background: var(--color-info-bg);
+  color: #1e3a8a;
+}
+
+.status-badge.paid {
+  background: #10b981;
+  color: white;
+}
+
+.payment-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.payment-actions button {
+  border: none;
+  padding: 9px 13px;
+  border-radius: 999px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.verify-btn {
+  background: #10b981;
+  color: white;
+}
+
+.verify-btn:hover {
+  background: #059669;
+}
+
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 40px;
+  color: var(--color-muted);
+}
+
+.premium-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 22px;
+  box-shadow: var(--shadow-card);
+  backdrop-filter: blur(18px);
+}
+
+.fade-up {
+  animation: fadeUp 0.5s ease-out;
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.badge {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-weight: 800;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+}
+
+.badge-info {
+  background: rgba(59, 130, 246, 0.1);
+  color: #1e3a8a;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+@media (max-width: 768px) {
+  .payment-hero {
+    padding: 20px;
+  }
+}

@@ -19,7 +19,7 @@ const InventoryReports = lazy(() => import("../components/inventory/InventoryRep
 const ManagerReports = lazy(() => import("../components/manager/ManagerReports"));
 const VetReports = lazy(() => import("../components/veterinary/VetReports"));
 const CustomerReports = lazy(() => import("../components/customers/CustomerReports"));
-const ReceptionistReports = lazy(() => import("../components/receptionist/Reports"));
+const ReceptionistReports = lazy(() => import("../components/receptionist/ReceptionistReports"));
 
 // Payroll modules - lazy loaded
 const AdminPayroll = lazy(() => import("../components/admin/AdminPayroll"));

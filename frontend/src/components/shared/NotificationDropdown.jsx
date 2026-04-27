@@ -1,8 +1,21 @@
 import React, { useState, useRef, useEffect } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faBell, faCheck, faTimes, faCircle } from "@fortawesome/free-solid-svg-icons";
+import { faBell, faCheck, faTimes, faCircle, faCheckCircle, faExclamationTriangle, faExclamationCircle, faInfoCircle } from "@fortawesome/free-solid-svg-icons";
 import { notificationApi } from "../../api/notifications";
 import "./NotificationDropdown.css";
+
+const NotificationIcon = ({ type }) => {
+  switch (type) {
+    case "success":
+      return <FontAwesomeIcon icon={faCheckCircle} className="notif-icon success" />;
+    case "warning":
+      return <FontAwesomeIcon icon={faExclamationTriangle} className="notif-icon warning" />;
+    case "error":
+      return <FontAwesomeIcon icon={faExclamationCircle} className="notif-icon error" />;
+    default:
+      return <FontAwesomeIcon icon={faInfoCircle} className="notif-icon info" />;
+  }
+};
 
 const NotificationDropdown = ({ className = "" }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -97,15 +110,6 @@ const NotificationDropdown = ({ className = "" }) => {
     }
   };
 
-  const getIconColor = (type) => {
-    switch (type) {
-      case "success": return "#22c55e";
-      case "warning": return "#f59e0b";
-      case "error": return "#ef4444";
-      default: return "#3b82f6";
-    }
-  };
-
   const getDisplayTime = (notification) => {
     if (notification.time) return notification.time;
     if (!notification.created_at) return "Just now";
@@ -124,90 +128,93 @@ const NotificationDropdown = ({ className = "" }) => {
 
   return (
     <div className={`notification-container ${className}`} ref={dropdownRef}>
-      <button 
-        className="icon-btn notification-btn" 
+      <button
+        className="notification-bell-btn"
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         aria-label="Notifications"
       >
-        <FontAwesomeIcon icon={faBell} />
+        <FontAwesomeIcon icon={faBell} size="lg" />
         {unreadCount > 0 && (
           <span className="notification-badge">
-            {unreadCount > 99 ? "99+" : unreadCount}
+            {unreadCount > 9 ? "9+" : unreadCount}
           </span>
         )}
       </button>
 
       {isOpen && (
-        <div className="notification-dropdown">
+        <div className="notification-panel">
           <div className="notification-header">
-            <h3>Notifications</h3>
-            <div className="notification-actions">
-              {unreadCount > 0 && (
-                <button 
-                  className="mark-all-read"
-                  onClick={handleMarkAllAsRead}
-                  title="Mark all as read"
-                >
-                  <FontAwesomeIcon icon={faCheck} />
-                </button>
-              )}
-              <button 
-                className="close-dropdown"
-                onClick={() => setIsOpen(false)}
-                title="Close"
-              >
-                <FontAwesomeIcon icon={faTimes} />
-              </button>
+            <div>
+              <h3>Notifications</h3>
+              <p>{unreadCount > 0 ? `${unreadCount} unread` : "All caught up"}</p>
             </div>
+
+            {unreadCount > 0 && (
+              <button
+                type="button"
+                onClick={handleMarkAllAsRead}
+                className="mark-all-btn"
+              >
+                <FontAwesomeIcon icon={faCheck} size="sm" />
+                Mark all read
+              </button>
+            )}
           </div>
 
           <div className="notification-list">
             {loading && notifications.length === 0 ? (
               <div className="notification-empty">
-                <p>Loading...</p>
+                <div className="notification-empty-icon">
+                  <FontAwesomeIcon icon={faBell} size="2x" />
+                </div>
+                <h4>Loading...</h4>
               </div>
             ) : error ? (
               <div className="notification-empty">
-                <FontAwesomeIcon icon={faBell} className="empty-icon" />
+                <div className="notification-empty-icon">
+                  <FontAwesomeIcon icon={faBell} size="2x" />
+                </div>
+                <h4>Error</h4>
                 <p>{error}</p>
               </div>
             ) : notifications.length === 0 ? (
               <div className="notification-empty">
-                <FontAwesomeIcon icon={faBell} className="empty-icon" />
-                <p>No notifications</p>
+                <div className="notification-empty-icon">
+                  <FontAwesomeIcon icon={faBell} size="2x" />
+                </div>
+                <h4>No new notifications</h4>
+                <p>You are updated for now.</p>
               </div>
             ) : (
               notifications.map((notification) => (
-                <div
+                <button
+                  type="button"
                   key={notification.id}
                   className={`notification-item ${!notification.read ? "unread" : ""}`}
                   onClick={() => handleNotificationClick(notification)}
                 >
-                  <div 
-                    className="notification-dot"
-                    style={{ color: getIconColor(notification.type) }}
-                  >
-                    <FontAwesomeIcon icon={faCircle} />
+                  <div className="notification-item-icon">
+                    <NotificationIcon type={notification.type} />
                   </div>
-                  <div className="notification-content">
-                    <h4 className="notification-title">{notification.title}</h4>
-                    <p className="notification-message">{notification.message}</p>
-                    <span className="notification-time">{getDisplayTime(notification)}</span>
+
+                  <div className="notification-item-content">
+                    <strong>{notification.title}</strong>
+                    <span>{notification.message}</span>
+                    <small>{getDisplayTime(notification)}</small>
                   </div>
-                  {!notification.read && <div className="unread-indicator" />}
-                </div>
+
+                  {!notification.read && <i className="unread-dot" />}
+                </button>
               ))
             )}
           </div>
 
-          {notifications.length > 0 && (
-            <div className="notification-footer">
-              <button className="clear-all-btn" onClick={handleClearAll}>
-                Clear all notifications
-              </button>
-            </div>
-          )}
+          <div className="notification-footer">
+            <button type="button" onClick={() => setIsOpen(false)}>
+              Close
+            </button>
+          </div>
         </div>
       )}
     </div>

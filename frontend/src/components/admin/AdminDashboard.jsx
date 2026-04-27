@@ -1,5 +1,17 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Outlet, NavLink, useLocation } from "react-router-dom";
+import { motion } from "framer-motion";
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  PieChart,
+  Pie,
+  Cell,
+} from "recharts";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faMoon,
@@ -11,8 +23,9 @@ import {
   faCalendarCheck,
   faBoxOpen,
   faUserShield,
+  faBars,
 } from "@fortawesome/free-solid-svg-icons";
-import { faBars } from "@fortawesome/free-solid-svg-icons/faBars";
+
 import AdminSidebar from "./AdminSidebar";
 import RoleAwareChatbot from "../chatbot/RoleAwareChatbot";
 import NotificationDropdown from "../shared/NotificationDropdown";
@@ -20,17 +33,24 @@ import "./AdminDashboard.css";
 import { apiRequest } from "../../api/client";
 import { formatCurrency } from "../../utils/currency";
 
+const cardVariants = {
+  hidden: { opacity: 0, y: 18 },
+  show: { opacity: 1, y: 0 },
+};
+
+const chartColors = ["#ff5f93", "#ff8db5", "#ffc8dd", "#f472b6", "#fb7185"];
+
 const AdminDashboard = () => {
   const name = localStorage.getItem("name") || "Admin";
-  const [theme, setTheme] = useState("light");
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const location = useLocation();
+  const role = localStorage.getItem("role") || "admin";
 
+  const [theme, setTheme] = useState("light");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  const location = useLocation();
   const normalizedPath = location.pathname.replace(/\/+$/, "");
   const showOverview = normalizedPath === "/admin";
 
@@ -43,19 +63,17 @@ const AdminDashboard = () => {
         setError("");
       } catch (err) {
         setError(err.message || "Failed to load dashboard data");
-        console.error("Dashboard data fetch error:", err);
       } finally {
         setLoading(false);
       }
     };
 
-    if (showOverview) {
-      fetchDashboardData();
-    }
+    if (showOverview) fetchDashboardData();
   }, [showOverview]);
 
   const formatRelativeTime = (timestamp) => {
     if (!timestamp) return "Just now";
+
     const time = new Date(timestamp).getTime();
     const diff = Date.now() - time;
     const minutes = Math.floor(diff / 60000);
@@ -68,60 +86,71 @@ const AdminDashboard = () => {
     return `${days}d ago`;
   };
 
-  const summaryCards = dashboardData
-    ? [
-        {
-          title: "Total Users",
-          value: dashboardData.total_users || 0,
-          subtitle: "Registered accounts",
-          icon: faUsers,
-        },
-        {
-          title: "Active Users",
-          value: dashboardData.active_users || 0,
-          subtitle: "Enabled team members",
-          icon: faUserShield,
-        },
-        {
-          title: "Total Customers",
-          value: dashboardData.total_customers || 0,
-          subtitle: "Customer records",
-          icon: faUsers,
-        },
-        {
-          title: "Today's Appointments",
-          value: dashboardData.today_appointments || 0,
-          subtitle: "Scheduled for today",
-          icon: faCalendarCheck,
-        },
-        {
-          title: "Total Revenue",
-          value: formatCurrency(dashboardData.total_revenue || 0),
-          subtitle: "All-time collections",
-          icon: faArrowTrendUp,
-        },
-        {
-          title: "Low Stock Items",
-          value: dashboardData.low_stock_items || 0,
-          subtitle: "Need replenishment",
-          icon: faBoxOpen,
-        },
-      ]
-    : [];
+  const summaryCards = useMemo(() => {
+    if (!dashboardData) return [];
+
+    return [
+      {
+        title: "Total Users",
+        value: dashboardData.total_users || 0,
+        subtitle: "Registered accounts",
+        icon: faUsers,
+      },
+      {
+        title: "Active Users",
+        value: dashboardData.active_users || 0,
+        subtitle: "Enabled team members",
+        icon: faUserShield,
+      },
+      {
+        title: "Total Customers",
+        value: dashboardData.total_customers || 0,
+        subtitle: "Customer records",
+        icon: faUsers,
+      },
+      {
+        title: "Today’s Appointments",
+        value: dashboardData.today_appointments || 0,
+        subtitle: "Scheduled today",
+        icon: faCalendarCheck,
+      },
+      {
+        title: "Total Revenue",
+        value: formatCurrency(dashboardData.total_revenue || 0),
+        subtitle: "All-time collections",
+        icon: faArrowTrendUp,
+      },
+      {
+        title: "Low Stock Items",
+        value: dashboardData.low_stock_items || 0,
+        subtitle: "Need replenishment",
+        icon: faBoxOpen,
+      },
+    ];
+  }, [dashboardData]);
+
+  const appointmentStatusData = dashboardData?.appointments_by_status || [];
+  const userRoleData = dashboardData?.users_by_role || [];
 
   const completionRate = dashboardData?.total_appointments
-    ? Math.round((dashboardData.completed_appointments / dashboardData.total_appointments) * 100)
+    ? Math.round(
+        ((dashboardData.completed_appointments || 0) /
+          dashboardData.total_appointments) *
+          100
+      )
     : 0;
+
   const activeUserRate = dashboardData?.total_users
-    ? Math.round(((dashboardData.active_users || 0) / dashboardData.total_users) * 100)
+    ? Math.round(
+        ((dashboardData.active_users || 0) / dashboardData.total_users) * 100
+      )
     : 0;
+
   const pendingAppointments = Math.max(
-    (dashboardData?.total_appointments || 0) - (dashboardData?.completed_appointments || 0),
+    (dashboardData?.total_appointments || 0) -
+      (dashboardData?.completed_appointments || 0),
     0
   );
-  const lowStockMessage = dashboardData?.low_stock_items
-    ? `${dashboardData.low_stock_items} inventory item(s) need restocking.`
-    : "Inventory is currently within safe stock levels.";
 
   const orderRequests = dashboardData
     ? [
@@ -129,7 +158,9 @@ const AdminDashboard = () => {
           id: apt.id,
           name: apt.customer?.name || "Unknown Customer",
           time: formatRelativeTime(apt.scheduled_at),
-          date: new Date(apt.scheduled_at).toLocaleDateString(),
+          date: apt.scheduled_at
+            ? new Date(apt.scheduled_at).toLocaleDateString()
+            : "N/A",
           service: apt.service?.name || "Service",
           pet: apt.pet?.name || "Pet",
           status: apt.status || "scheduled",
@@ -139,54 +170,61 @@ const AdminDashboard = () => {
           id: user.id,
           name: user.name || user.username,
           time: formatRelativeTime(user.created_at),
-          date: new Date(user.created_at).toLocaleDateString(),
+          date: user.created_at
+            ? new Date(user.created_at).toLocaleDateString()
+            : "N/A",
           role: user.role || "user",
           status: user.is_active ? "active" : "inactive",
           type: "user",
         })),
-      ].slice(0, 10)
+      ].slice(0, 8)
     : [];
 
   const pageCopy = showOverview
     ? {
         title: "Admin Command Center",
         subtitle:
-          "Track service flow, staff activity, revenue, and stock pressure from one polished workspace.",
+          "Monitor appointments, users, revenue, and inventory performance in one premium workspace.",
       }
     : {
         title: "Admin Workspace",
-        subtitle: "Manage users, reports, payroll, and operations with live context always in reach.",
+        subtitle:
+          "Manage platform operations with role-based access and live system context.",
       };
 
   return (
-    <div className={`admin-dashboard ${theme} ${sidebarCollapsed ? "collapsed" : ""} ${mobileMenuOpen ? "mobile-open" : ""}`}>
+    <div className={`admin-dashboard ${theme} ${mobileMenuOpen ? "mobile-open" : ""}`}>
       <AdminSidebar
-        collapsed={sidebarCollapsed}
         mobileOpen={mobileMenuOpen}
-        onToggleCollapse={() => setSidebarCollapsed((prev) => !prev)}
         onMobileMenuToggle={() => setMobileMenuOpen((prev) => !prev)}
       />
 
       <main className="admin-main">
         <header className="admin-navbar top-navbar">
           <div className="navbar-left">
-            <button 
+            <button
               className="mobile-menu-toggle"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              onClick={() => setMobileMenuOpen((prev) => !prev)}
               aria-label="Toggle mobile menu"
             >
               <FontAwesomeIcon icon={faBars} />
             </button>
-            <h1>{pageCopy.title}</h1>
-            <p>{pageCopy.subtitle}</p>
+
+            <div>
+              <h1>{pageCopy.title}</h1>
+              <p>{pageCopy.subtitle}</p>
+            </div>
           </div>
 
           <div className="search-group admin-status-strip">
             <span className="status-strip-pill">
-              <strong>{completionRate}%</strong> completion rate
+              <strong>{completionRate}%</strong> completion
             </span>
             <span className="status-strip-pill">
-              <strong>{activeUserRate}%</strong> users active
+              <strong>{activeUserRate}%</strong> active users
+            </span>
+            <span className="status-strip-pill role-pill">
+              {role.toUpperCase()}
             </span>
           </div>
 
@@ -206,7 +244,9 @@ const AdminDashboard = () => {
             <button
               className="theme-toggle-btn"
               type="button"
-              onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+              onClick={() =>
+                setTheme((prev) => (prev === "light" ? "dark" : "light"))
+              }
             >
               <FontAwesomeIcon icon={theme === "light" ? faMoon : faSun} />
             </button>
@@ -218,122 +258,182 @@ const AdminDashboard = () => {
             {loading ? (
               <div className="loading-container">
                 <div className="loading-spinner">
-                  <div className="loading-spinner-wrapper">
-                    <div className="loading-spinner-circle primary"></div>
-                    <div className="loading-spinner-circle secondary"></div>
-                    <div className="loading-spinner-circle tertiary"></div>
-                  </div>
-                  <div>Loading dashboard...</div>
-                  <div className="loading-spinner-dots">
-                    <div className="loading-spinner-dot"></div>
-                    <div className="loading-spinner-dot"></div>
-                    <div className="loading-spinner-dot"></div>
-                  </div>
+                  <span>Loading dashboard...</span>
                 </div>
               </div>
             ) : error ? (
               <div className="error-container">
                 <div className="error-message">{error}</div>
-                <button onClick={() => window.location.reload()} className="retry-btn">
+                <button
+                  onClick={() => window.location.reload()}
+                  className="retry-btn"
+                >
                   Retry
                 </button>
               </div>
             ) : (
-              <>
+              <motion.div
+                className="dashboard-motion-wrap"
+                initial="hidden"
+                animate="show"
+                transition={{ staggerChildren: 0.08 }}
+              >
                 <section className="overview-cards">
                   {summaryCards.map((card) => (
-                    <article key={card.title} className="overview-card">
-                      <div className="overview-card-copy">
-                        <span className="overview-card-icon">
-                          <FontAwesomeIcon icon={card.icon} />
-                        </span>
-                        <h3>{card.value}</h3>
-                        <p>{card.title}</p>
-                        <small>{card.subtitle}</small>
-                      </div>
-                    </article>
+                    <motion.article
+                      key={card.title}
+                      className="overview-card"
+                      variants={cardVariants}
+                      whileHover={{ y: -6, scale: 1.01 }}
+                    >
+                      <span className="overview-card-icon">
+                        <FontAwesomeIcon icon={card.icon} />
+                      </span>
+                      <h3>{card.value}</h3>
+                      <p>{card.title}</p>
+                      <small>{card.subtitle}</small>
+                    </motion.article>
                   ))}
                 </section>
 
                 <section className="dashboard-grid">
-                  <article className="panel overview-panel">
+                  <motion.article className="panel" variants={cardVariants}>
                     <div className="panel-header">
                       <div>
                         <h2>Appointment Status</h2>
-                        <p>Live appointment rundown grouped by service progress.</p>
+                        <p>Visual breakdown of appointment progress.</p>
                       </div>
-                      <span className="badge">{dashboardData?.today_appointments || 0} today</span>
+                      <span className="badge">
+                        {dashboardData?.total_appointments || 0} total
+                      </span>
                     </div>
 
-                    <div className="status-summary-grid">
-                      {(dashboardData?.appointments_by_status || []).map((status) => (
-                        <div key={status.status} className={`status-pill status-${status.status}`}>
-                          <strong>{status.count}</strong>
-                          <span>{status.status}</span>
-                        </div>
-                      ))}
+                    <div className="chart-box">
+                      <ResponsiveContainer width="100%" height={260}>
+                        <BarChart data={appointmentStatusData}>
+                          <XAxis dataKey="status" />
+                          <YAxis allowDecimals={false} />
+                          <Tooltip />
+                          <Bar dataKey="count" radius={[10, 10, 0, 0]}>
+                            {appointmentStatusData.map((entry, index) => (
+                              <Cell
+                                key={entry.status}
+                                fill={chartColors[index % chartColors.length]}
+                              />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
                     </div>
+                  </motion.article>
 
-                    <div className="status-bars">
-                      {(dashboardData?.appointments_by_status || []).map((status) => (
-                        <div key={status.status} className="status-bar-row">
-                          <span>{status.status}</span>
-                          <div className="status-bar-track">
-                            <div
-                              className="status-bar-fill"
-                              style={{
-                                width: `${Math.min(
-                                  (status.count / Math.max(dashboardData.total_appointments || 1, 1)) * 100,
-                                  100
-                                )}%`,
-                              }}
-                            />
-                          </div>
-                          <strong>{status.count}</strong>
-                        </div>
-                      ))}
-                    </div>
-                  </article>
-
-                  <article className="panel quick-stat-panel">
-                    <div className="metric-card accent spotlight-card">
+                  <motion.article
+                    className="panel quick-stat-panel"
+                    variants={cardVariants}
+                  >
+                    <div className="metric-card accent">
                       <span className="metric-kicker">Daily Pulse</span>
-                      <h3>{formatCurrency(dashboardData?.today_revenue || 0)}</h3>
+                      <h3>
+                        {formatCurrency(dashboardData?.today_revenue || 0)}
+                      </h3>
                       <p>Revenue collected today</p>
-                      <small>Use this to gauge service demand and cashier throughput.</small>
                     </div>
 
                     <div className="metric-card">
                       <span className="metric-kicker">Service Flow</span>
                       <h3>{pendingAppointments}</h3>
                       <p>Appointments still in progress</p>
-                      <small>{lowStockMessage}</small>
                     </div>
 
-                    <div className="metric-card compact-metric">
+                    <div className="metric-card">
                       <span className="metric-kicker">Staff Readiness</span>
                       <h3>{dashboardData?.active_users || 0}</h3>
-                      <p>Active accounts with dashboard access</p>
+                      <p>Active dashboard accounts</p>
                     </div>
-                  </article>
+                  </motion.article>
+                </section>
+
+                <section className="dashboard-grid">
+                  <motion.article className="panel" variants={cardVariants}>
+                    <div className="panel-header">
+                      <div>
+                        <h2>Users by Role</h2>
+                        <p>Role distribution across the system.</p>
+                      </div>
+                    </div>
+
+                    <div className="chart-box">
+                      <ResponsiveContainer width="100%" height={260}>
+                        <PieChart>
+                          <Pie
+                            data={userRoleData}
+                            dataKey="count"
+                            nameKey="role"
+                            outerRadius={95}
+                            innerRadius={55}
+                            paddingAngle={4}
+                          >
+                            {userRoleData.map((entry, index) => (
+                              <Cell
+                                key={entry.role}
+                                fill={chartColors[index % chartColors.length]}
+                              />
+                            ))}
+                          </Pie>
+                          <Tooltip />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </motion.article>
+
+                  <motion.article className="panel" variants={cardVariants}>
+                    <div className="panel-header">
+                      <div>
+                        <h2>Operations Snapshot</h2>
+                        <p>Quick indicators for current performance.</p>
+                      </div>
+                    </div>
+
+                    <div className="completion-metrics">
+                      <div className="status-card success">
+                        <strong>{completionRate}%</strong>
+                        <p>Completion Rate</p>
+                      </div>
+                      <div className="status-card info">
+                        <strong>{dashboardData?.total_appointments || 0}</strong>
+                        <p>Total Appointments</p>
+                      </div>
+                      <div className="status-card danger">
+                        <strong>{dashboardData?.low_stock_items || 0}</strong>
+                        <p>Low Stock Alerts</p>
+                      </div>
+                    </div>
+                  </motion.article>
                 </section>
 
                 <section className="dashboard-bottom">
-                  <div className="panel orders-panel">
+                  <motion.div
+                    className="panel orders-panel"
+                    variants={cardVariants}
+                  >
                     <div className="panel-header space-between">
                       <div>
                         <h2>Recent Operational Activity</h2>
-                        <p>Newest appointments and user registrations in one stream.</p>
+                        <p>Latest appointments and user registrations.</p>
                       </div>
                       <NavLink to="/admin/reports" className="see-all-link">
-                        See all ({orderRequests.length})
+                        View reports
                       </NavLink>
                     </div>
 
                     <div className="request-list">
                       {orderRequests.length > 0 ? (
                         orderRequests.map((order) => (
-                          <div key={`${order.type}-${order.id}`} className="request-card">
+                          <motion.div
+                            key={`${order.type}-${order.id}`}
+                            className="request-card"
+                            whileHover={{ y: -4 }}
+                          >
                             <div className="request-card-top">
                               <div>
                                 <h3>{order.name}</h3>
@@ -342,9 +442,12 @@ const AdminDashboard = () => {
                                 </p>
                               </div>
                               <span className={`status-badge ${order.status}`}>
-                                {order.type === "appointment" ? order.status : order.role}
+                                {order.type === "appointment"
+                                  ? order.status
+                                  : order.role}
                               </span>
                             </div>
+
                             <div className="request-info">
                               {order.type === "appointment" ? (
                                 <>
@@ -370,72 +473,33 @@ const AdminDashboard = () => {
                                 </>
                               )}
                             </div>
+
                             <div className="request-footer">
                               <span>
                                 <FontAwesomeIcon icon={faUsers} />{" "}
-                                {order.type === "appointment" ? "Customer" : "New User"}
+                                {order.type === "appointment"
+                                  ? "Customer"
+                                  : "New User"}
                               </span>
                               <span>
-                                <FontAwesomeIcon icon={faClipboardList} /> {order.type}
+                                <FontAwesomeIcon icon={faClipboardList} />{" "}
+                                {order.type}
                               </span>
-                              <button className="secondary-btn" type="button">
-                                {order.type === "appointment" ? "View Appointment" : "View User"}
-                              </button>
                             </div>
-                          </div>
+                          </motion.div>
                         ))
                       ) : (
                         <div className="empty-panel-state">
-                          <h3>No recent requests</h3>
-                          <p>New appointments and registrations will show up here as activity comes in.</p>
+                          <h3>No recent activity</h3>
+                          <p>
+                            New appointments and registrations will appear here.
+                          </p>
                         </div>
                       )}
                     </div>
-                  </div>
-
-                  <div className="panel completion-panel">
-                    <div className="panel-header space-between">
-                      <div>
-                        <h2>Operations Snapshot</h2>
-                        <p>Quick indicators for service completion, volume, and inventory pressure.</p>
-                      </div>
-                      <NavLink to="/admin/reports" className="see-all-link">
-                        See report
-                      </NavLink>
-                    </div>
-                    <div className="completion-metrics">
-                      <div className="status-card success">
-                        <strong>{completionRate}%</strong>
-                        <p>Completion rate</p>
-                      </div>
-                      <div className="status-card info">
-                        <strong>{dashboardData?.total_appointments || 0}</strong>
-                        <p>Total appointments</p>
-                      </div>
-                      <div className="status-card danger">
-                        <strong>{dashboardData?.low_stock_items || 0}</strong>
-                        <p>Low stock alerts</p>
-                      </div>
-                    </div>
-                    <div className="mini-chart-placeholder">
-                      <div className="insight-stack">
-                        <div>
-                          <strong>{dashboardData?.today_appointments || 0}</strong>
-                          <span>Scheduled today</span>
-                        </div>
-                        <div>
-                          <strong>{dashboardData?.completed_appointments || 0}</strong>
-                          <span>Completed overall</span>
-                        </div>
-                        <div>
-                          <strong>{dashboardData?.total_customers || 0}</strong>
-                          <span>Customer records</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                  </motion.div>
                 </section>
-              </>
+              </motion.div>
             )}
           </>
         ) : (
@@ -444,6 +508,7 @@ const AdminDashboard = () => {
           </section>
         )}
       </main>
+
       <RoleAwareChatbot
         mode="widget"
         title="Admin Assistant"

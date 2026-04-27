@@ -13,6 +13,10 @@ import CustomerUserInfo from "../components/customers/CustomerUserInfo";
 import CustomerProfile from "../components/customers/CustomerProfile";
 import CustomerPayments from "../components/customers/CustomerPayments";
 import HotelForm from "../components/customers/HotelForm";
+import GroomingForm from "../components/customers/GroomingForm";
+import VetForm from "../components/customers/VetForm";
+import CustomerBookingForm from "../components/customers/CustomerBookingForm";
+import CustomerRequestStatus from "../components/customers/CustomerRequestStatus";
 
 const CustomerRoutes = () => (
   <Routes>
@@ -29,8 +33,12 @@ const CustomerRoutes = () => (
 
       {/* Core customer routes */}
       <Route path="bookings" element={<CustomerBookings />} />
+      <Route path="booking" element={<CustomerBookingForm />} />
+      <Route path="requests" element={<CustomerRequestStatus />} />
       <Route path="pets" element={<CustomerPets />} />
       <Route path="hotel" element={<HotelForm />} />
+      <Route path="grooming" element={<GroomingForm />} />
+      <Route path="vet" element={<VetForm />} />
       <Route path="store" element={<CustomerStore />} />
       <Route path="chatbot" element={<CustomerChatbot />} />
       <Route path="userinfo" element={<CustomerUserInfo />} />

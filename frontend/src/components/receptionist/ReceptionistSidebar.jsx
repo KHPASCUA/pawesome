@@ -2,26 +2,21 @@ import React from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  faHome,
   faCalendarAlt,
-  faUsers,
   faPhone,
-  faClipboardList,
   faSignOutAlt,
-  faBars,
   faUser,
   faChartBar,
   faHotel,
-  faStethoscope,
   faCut,
   faRobot,
-  faChevronDown,
-  faChevronRight,
+  faShoppingCart,
+  faCheckCircle,
+  faCalendarCheck,
 } from "@fortawesome/free-solid-svg-icons";
 import "./ReceptionistSidebar.css";
 
-const ReceptionistSidebar = ({ collapsed, onToggleCollapse }) => {
-  const [bookingsExpanded, setBookingsExpanded] = React.useState(false);
+const ReceptionistSidebar = () => {
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -32,97 +27,114 @@ const ReceptionistSidebar = ({ collapsed, onToggleCollapse }) => {
   };
 
   return (
-    <aside className={`receptionist-sidebar ${collapsed ? "collapsed" : ""}`}>
+    <aside className="app-sidebar receptionist-sidebar">
       <div className="sidebar-header">
-        <button className="collapse-btn" onClick={onToggleCollapse}>
-          <FontAwesomeIcon icon={faBars} />
-        </button>
-        {!collapsed && (
-          <div className="sidebar-logo">
-            <FontAwesomeIcon icon={faPhone} />
-            <span>Reception Portal</span>
-          </div>
-        )}
+        <div className="sidebar-logo">
+          <FontAwesomeIcon icon={faPhone} />
+          <span>Reception Portal</span>
+        </div>
       </div>
 
       <nav className="sidebar-nav">
         <ul className="nav-list">
           <li className="nav-item">
             <NavLink
-              to="/receptionist"
-              className={({ isActive }) => (isActive ? "active" : "")}
+              to="/receptionist/dashboard"
               end
-              title="Dashboard"
+              className={({ isActive }) => (isActive ? "active" : "")}
             >
-              <FontAwesomeIcon icon={faHome} />
-              {!collapsed && <span>Dashboard</span>}
+              <FontAwesomeIcon icon={faCalendarCheck} />
+              <span>Dashboard</span>
             </NavLink>
           </li>
-          
           <li className="nav-item">
             <NavLink
               to="/receptionist/bookings"
-              className={({ isActive }) => (isActive ? "active" : "")}
               end
-              title="Bookings"
+              className={({ isActive }) => (isActive ? "active" : "")}
             >
               <FontAwesomeIcon icon={faCalendarAlt} />
-              {!collapsed && <span>Bookings</span>}
+              <span>Bookings</span>
             </NavLink>
           </li>
-          
           <li className="nav-item">
             <NavLink
               to="/receptionist/bookings/hotel"
+              end
               className={({ isActive }) => (isActive ? "active" : "")}
-              title="Pet Hotel"
             >
               <FontAwesomeIcon icon={faHotel} />
-              {!collapsed && <span>Pet Hotel</span>}
+              <span>Pet Hotel</span>
             </NavLink>
           </li>
-          
+          <li className="nav-item">
+            <NavLink
+              to="/receptionist/bookings/grooming"
+              end
+              className={({ isActive }) => (isActive ? "active" : "")}
+            >
+              <FontAwesomeIcon icon={faCut} />
+              <span>Grooming</span>
+            </NavLink>
+          </li>
           <li className="nav-item">
             <NavLink
               to="/receptionist/customer-profile"
+              end
               className={({ isActive }) => (isActive ? "active" : "")}
-              title="Customer Profile"
             >
               <FontAwesomeIcon icon={faUser} />
-              {!collapsed && <span>Customer Profile</span>}
+              <span>Customer Profile</span>
             </NavLink>
           </li>
-          
+          <li className="nav-item">
+            <NavLink
+              to="/receptionist/orders"
+              end
+              className={({ isActive }) => (isActive ? "active" : "")}
+            >
+              <FontAwesomeIcon icon={faShoppingCart} />
+              <span>Customer Orders</span>
+            </NavLink>
+          </li>
+          <li className="nav-item">
+            <NavLink
+              to="/receptionist/approvals"
+              end
+              className={({ isActive }) => (isActive ? "active" : "")}
+            >
+              <FontAwesomeIcon icon={faCheckCircle} />
+              <span>Approvals</span>
+            </NavLink>
+          </li>
           <li className="nav-item">
             <NavLink
               to="/receptionist/chatbot"
+              end
               className={({ isActive }) => (isActive ? "active" : "")}
-              title="Chatbot"
             >
               <FontAwesomeIcon icon={faRobot} />
-              {!collapsed && <span>Chatbot</span>}
+              <span>Chatbot</span>
             </NavLink>
           </li>
-          
           <li className="nav-item">
             <NavLink
               to="/receptionist/profile"
+              end
               className={({ isActive }) => (isActive ? "active" : "")}
-              title="Profile"
             >
               <FontAwesomeIcon icon={faUser} />
-              {!collapsed && <span>Profile</span>}
+              <span>Profile</span>
             </NavLink>
           </li>
-          
           <li className="nav-item">
             <NavLink
               to="/receptionist/reports"
+              end
               className={({ isActive }) => (isActive ? "active" : "")}
-              title="Reports"
             >
               <FontAwesomeIcon icon={faChartBar} />
-              {!collapsed && <span>Reports</span>}
+              <span>Reports</span>
             </NavLink>
           </li>
         </ul>
@@ -131,7 +143,7 @@ const ReceptionistSidebar = ({ collapsed, onToggleCollapse }) => {
       <div className="sidebar-footer">
         <button className="logout-btn" onClick={handleLogout} title="Logout">
           <FontAwesomeIcon icon={faSignOutAlt} />
-          {!collapsed && <span>Logout</span>}
+          <span>Logout</span>
         </button>
       </div>
     </aside>

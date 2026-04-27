@@ -35,31 +35,6 @@ export const boardingApi = {
     });
   },
 
-  // Get available rooms for dates
-  getAvailableRooms: async (checkIn, checkOut, size, type) => {
-    const params = new URLSearchParams({ check_in: checkIn, check_out: checkOut });
-    if (size) params.append("size", size);
-    if (type) params.append("type", type);
-    return apiRequest(`/boardings/available-rooms?${params}`);
-  },
-
-  // Get current boarders
-  getCurrentBoarders: async () => {
-    return apiRequest("/boardings/current-boarders");
-  },
-
-  // Get today's activity
-  getTodayActivity: async () => {
-    return apiRequest("/boardings/today-activity");
-  },
-
-  // Confirm reservation
-  confirmBoarding: async (id) => {
-    return apiRequest(`/boardings/${id}/confirm`, {
-      method: "POST",
-    });
-  },
-
   // Check in guest
   checkIn: async (id) => {
     return apiRequest(`/boardings/${id}/check-in`, {
@@ -74,17 +49,12 @@ export const boardingApi = {
     });
   },
 
-  // Cancel reservation
-  cancelBoarding: async (id) => {
-    return apiRequest(`/boardings/${id}/cancel`, {
+  // Submit payment for boarding
+  submitPayment: (boardingId, payload) =>
+    apiRequest(`/boardings/${boardingId}/payment`, {
       method: "POST",
-    });
-  },
-
-  // Get occupancy stats
-  getOccupancyStats: async (month) => {
-    return apiRequest(`/boardings/occupancy-stats?month=${month}`);
-  },
+      body: JSON.stringify(payload),
+    }),
 };
 
 // Hotel Room Management (Admin/Manager only)

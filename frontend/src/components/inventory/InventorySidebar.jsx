@@ -26,7 +26,7 @@ const InventorySidebar = ({ collapsed, onToggleCollapse }) => {
   };
 
   return (
-    <aside className={`inventory-sidebar ${collapsed ? "collapsed" : ""}`}>
+    <aside className={`app-sidebar ${collapsed ? "collapsed" : ""}`}>
       <div className="sidebar-header">
         <button className="collapse-btn" onClick={onToggleCollapse}>
           <FontAwesomeIcon icon={faBars} />

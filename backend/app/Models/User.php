@@ -68,4 +68,9 @@ class User extends Authenticatable
             'is_active' => 'boolean',
         ];
     }
+
+    public function customer()
+    {
+        return $this->hasOne(Customer::class);
+    }
 }

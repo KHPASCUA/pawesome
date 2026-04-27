@@ -371,3 +371,318 @@
     gap: 15px;
   }
 }
+
+/* =====================================================
+   CUSTOMER PROFILE — PREMIUM PINK GLASS UPGRADE
+===================================================== */
+
+.customer-profile {
+  position: relative;
+  max-width: none !important;
+  min-height: 100vh;
+  padding: 2rem !important;
+  overflow: hidden;
+  background: var(
+    --color-bg-gradient,
+    linear-gradient(135deg, #ffc8dd, #ffd6e8, #fff1f7)
+  );
+  color: var(--color-text, #1f2937);
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif !important;
+}
+
+.customer-profile::before,
+.customer-profile::after {
+  content: "";
+  position: fixed;
+  border-radius: 999px;
+  pointer-events: none;
+  z-index: 0;
+  filter: blur(18px);
+}
+
+.customer-profile::before {
+  width: 360px;
+  height: 360px;
+  top: 80px;
+  right: -130px;
+  background: radial-gradient(circle, rgba(255, 95, 147, 0.28), transparent 68%);
+}
+
+.customer-profile::after {
+  width: 300px;
+  height: 300px;
+  bottom: -120px;
+  left: 15%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.9), transparent 65%);
+}
+
+.profile-header,
+.success-message,
+.error-message,
+.profile-card,
+.password-section,
+.loading-container {
+  position: relative;
+  z-index: 1;
+}
+
+/* Header */
+.profile-header {
+  text-align: left !important;
+  margin-bottom: 1.5rem !important;
+}
+
+.profile-header h2 {
+  margin: 0 !important;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  color: var(--color-heading, #191919) !important;
+  font-size: clamp(1.8rem, 3vw, 2.5rem) !important;
+  font-weight: 950 !important;
+  letter-spacing: -0.045em;
+}
+
+.profile-header h2 svg {
+  color: var(--color-primary, #ff5f93);
+}
+
+.profile-header p {
+  margin: 0.55rem 0 0 !important;
+  color: var(--color-muted, #64748b) !important;
+  font-size: 0.98rem !important;
+  line-height: 1.55;
+}
+
+/* Cards */
+.profile-card,
+.score-summary,
+.stat-card {
+  background: var(--color-surface, rgba(255, 255, 255, 0.86)) !important;
+  border: 1px solid var(--color-border, rgba(255, 95, 147, 0.18)) !important;
+  border-radius: 26px !important;
+  box-shadow: var(--shadow-card, 0 18px 45px rgba(255, 95, 147, 0.16)) !important;
+  backdrop-filter: blur(16px);
+}
+
+.profile-card {
+  padding: 1.6rem !important;
+  margin-bottom: 1.5rem !important;
+}
+
+.profile-section {
+  margin-bottom: 1.5rem !important;
+}
+
+.profile-section h3 {
+  color: var(--color-heading, #191919) !important;
+  font-size: 1.25rem !important;
+  font-weight: 950 !important;
+  letter-spacing: -0.03em;
+}
+
+/* Avatar */
+.profile-avatar-section {
+  padding: 1rem;
+  border-radius: 24px;
+  background: rgba(255, 95, 147, 0.055);
+  border: 1px solid rgba(255, 95, 147, 0.12);
+}
+
+.avatar-img {
+  width: 92px !important;
+  height: 92px !important;
+  border-radius: 50%;
+  border: 4px solid rgba(255, 95, 147, 0.35) !important;
+  background: linear-gradient(135deg, #ff5f93, #ff8db5);
+  color: #ffffff;
+  display: grid;
+  place-items: center;
+  object-fit: cover;
+  box-shadow: 0 14px 28px rgba(255, 95, 147, 0.24);
+}
+
+.avatar-upload-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 0.85rem;
+  background: linear-gradient(135deg, #ff5f93, #ff8db5) !important;
+  color: #ffffff !important;
+  border-radius: 999px !important;
+  font-weight: 900;
+  box-shadow: 0 12px 24px rgba(255, 95, 147, 0.22);
+}
+
+/* Forms */
+.form-row {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem !important;
+}
+
+.form-group label {
+  color: var(--color-heading, #191919) !important;
+  font-weight: 850 !important;
+}
+
+.form-group input,
+.form-group textarea {
+  border: 1px solid rgba(255, 95, 147, 0.18) !important;
+  border-radius: 16px !important;
+  padding: 0.85rem 1rem !important;
+  background: rgba(255, 255, 255, 0.86) !important;
+  color: var(--color-text, #1f2937) !important;
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
+  border-color: rgba(255, 95, 147, 0.6) !important;
+  box-shadow: 0 0 0 4px rgba(255, 95, 147, 0.12) !important;
+}
+
+.form-group input:disabled,
+.form-group textarea:disabled {
+  background: rgba(248, 250, 252, 0.78) !important;
+  color: #64748b !important;
+}
+
+/* Buttons */
+.btn-group {
+  display: flex !important;
+  gap: 0.8rem !important;
+  flex-wrap: wrap;
+}
+
+.btn-group > div {
+  display: flex;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.btn-primary,
+.btn-secondary {
+  border-radius: 999px !important;
+  padding: 0.85rem 1.15rem !important;
+  font-weight: 900 !important;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #ff5f93, #ff8db5) !important;
+  color: #ffffff !important;
+  box-shadow: 0 14px 28px rgba(255, 95, 147, 0.24);
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, #ff477f, #ff7cab) !important;
+  transform: translateY(-2px);
+}
+
+.btn-secondary {
+  background: rgba(100, 116, 139, 0.12) !important;
+  color: #475569 !important;
+}
+
+.btn-secondary:hover {
+  background: rgba(100, 116, 139, 0.18) !important;
+  transform: translateY(-2px);
+}
+
+/* Messages */
+.success-message,
+.error-message {
+  border-radius: 18px !important;
+  padding: 1rem 1.15rem !important;
+  margin-bottom: 1.25rem !important;
+  font-weight: 850 !important;
+  text-align: left !important;
+}
+
+.success-message {
+  background: rgba(34, 197, 94, 0.12) !important;
+  color: #16a34a !important;
+  border: 1px solid rgba(34, 197, 94, 0.18);
+}
+
+.error-message {
+  background: rgba(239, 68, 68, 0.1) !important;
+  color: #dc2626 !important;
+  border: 1px solid rgba(239, 68, 68, 0.18);
+}
+
+/* Password section */
+.password-section {
+  border-left: none !important;
+  position: relative;
+  overflow: hidden;
+}
+
+.password-section::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 5px;
+  background: linear-gradient(180deg, #ff5f93, #ff8db5);
+}
+
+.password-input-wrapper input {
+  padding-right: 3rem !important;
+}
+
+.password-toggle-btn {
+  right: 0.65rem !important;
+  color: #ff5f93 !important;
+}
+
+.password-requirements {
+  padding: 0.85rem 1rem;
+  border-radius: 16px;
+  background: rgba(255, 95, 147, 0.06);
+  border: 1px solid rgba(255, 95, 147, 0.12);
+  color: var(--color-muted, #64748b) !important;
+  font-style: normal !important;
+  font-weight: 750;
+}
+
+/* Loading */
+.loading-container {
+  min-height: 260px;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  gap: 0.8rem;
+  border-radius: 26px;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(255, 95, 147, 0.16);
+  box-shadow: 0 18px 45px rgba(255, 95, 147, 0.12);
+  color: #ff5f93;
+  font-weight: 900;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .customer-profile {
+    padding: 1rem !important;
+  }
+
+  .profile-card {
+    padding: 1.15rem !important;
+  }
+
+  .profile-avatar-section {
+    align-items: flex-start !important;
+  }
+
+  .btn-group,
+  .btn-group > div {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .btn-primary,
+  .btn-secondary {
+    width: 100%;
+    justify-content: center;
+  }
+}

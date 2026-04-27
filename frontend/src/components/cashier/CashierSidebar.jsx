@@ -7,34 +7,34 @@ import {
   faHistory,
   faChartBar,
   faSignOutAlt,
-  faBars,
   faUser,
   faReceipt,
+  faCheckCircle,
 } from "@fortawesome/free-solid-svg-icons";
 import "./CashierSidebar.css";
 
-const CashierSidebar = ({ collapsed, onToggleCollapse }) => {
+const CashierSidebar = () => {
   const navigate = useNavigate();
 
   const handleLogout = () => {
     localStorage.removeItem("token");
+    localStorage.removeItem("authToken");
+    localStorage.removeItem("adminToken");
+    localStorage.removeItem("clientToken");
     localStorage.removeItem("role");
     localStorage.removeItem("name");
+    localStorage.removeItem("user");
+    localStorage.removeItem("adminUser");
     navigate("/");
   };
 
   return (
-    <aside className={`cashier-sidebar ${collapsed ? "collapsed" : ""}`}>
+    <aside className="app-sidebar cashier-sidebar">
       <div className="sidebar-header">
-        <button className="collapse-btn" onClick={onToggleCollapse}>
-          <FontAwesomeIcon icon={faBars} />
-        </button>
-        {!collapsed && (
-          <div className="sidebar-logo">
-            <FontAwesomeIcon icon={faCashRegister} />
-            <span>Cashier Portal</span>
-          </div>
-        )}
+        <div className="sidebar-logo">
+          <FontAwesomeIcon icon={faCashRegister} />
+          <span>Cashier Portal</span>
+        </div>
       </div>
 
       <nav className="sidebar-nav">
@@ -47,10 +47,10 @@ const CashierSidebar = ({ collapsed, onToggleCollapse }) => {
               title="Dashboard"
             >
               <FontAwesomeIcon icon={faHome} />
-              {!collapsed && <span>Dashboard</span>}
+              <span>Dashboard</span>
             </NavLink>
           </li>
-          
+
           <li className="nav-item">
             <NavLink
               to="/cashier/pos"
@@ -58,10 +58,10 @@ const CashierSidebar = ({ collapsed, onToggleCollapse }) => {
               title="POS"
             >
               <FontAwesomeIcon icon={faCashRegister} />
-              {!collapsed && <span>POS</span>}
+              <span>POS</span>
             </NavLink>
           </li>
-          
+
           <li className="nav-item">
             <NavLink
               to="/cashier/transactions"
@@ -69,10 +69,21 @@ const CashierSidebar = ({ collapsed, onToggleCollapse }) => {
               title="Transactions"
             >
               <FontAwesomeIcon icon={faReceipt} />
-              {!collapsed && <span>Transactions</span>}
+              <span>Transactions</span>
             </NavLink>
           </li>
-          
+
+          <li className="nav-item">
+            <NavLink
+              to="/cashier/payment-verification"
+              className={({ isActive }) => (isActive ? "active" : "")}
+              title="Payment Verification"
+            >
+              <FontAwesomeIcon icon={faCheckCircle} />
+              <span>Payment Verification</span>
+            </NavLink>
+          </li>
+
           <li className="nav-item">
             <NavLink
               to="/cashier/history"
@@ -80,10 +91,10 @@ const CashierSidebar = ({ collapsed, onToggleCollapse }) => {
               title="History"
             >
               <FontAwesomeIcon icon={faHistory} />
-              {!collapsed && <span>History</span>}
+              <span>History</span>
             </NavLink>
           </li>
-          
+
           <li className="nav-item">
             <NavLink
               to="/cashier/reports"
@@ -91,7 +102,7 @@ const CashierSidebar = ({ collapsed, onToggleCollapse }) => {
               title="Reports"
             >
               <FontAwesomeIcon icon={faChartBar} />
-              {!collapsed && <span>Reports</span>}
+              <span>Reports</span>
             </NavLink>
           </li>
 
@@ -102,7 +113,7 @@ const CashierSidebar = ({ collapsed, onToggleCollapse }) => {
               title="Profile"
             >
               <FontAwesomeIcon icon={faUser} />
-              {!collapsed && <span>Profile</span>}
+              <span>Profile</span>
             </NavLink>
           </li>
         </ul>
@@ -111,7 +122,7 @@ const CashierSidebar = ({ collapsed, onToggleCollapse }) => {
       <div className="sidebar-footer">
         <button className="logout-btn" onClick={handleLogout} title="Logout">
           <FontAwesomeIcon icon={faSignOutAlt} />
-          {!collapsed && <span>Logout</span>}
+          <span>Logout</span>
         </button>
       </div>
     </aside>

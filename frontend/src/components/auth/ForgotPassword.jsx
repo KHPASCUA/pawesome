@@ -12,6 +12,7 @@ const ForgotPassword = () => {
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [resetTokenSent, setResetTokenSent] = useState(false);
+
   const navigate = useNavigate();
 
   const handleEmailSubmit = async (e) => {
@@ -20,7 +21,7 @@ const ForgotPassword = () => {
     setMessage("");
 
     if (!email.trim()) {
-      setError("Email is required.");
+      setError("Email address is required.");
       return;
     }
 
@@ -34,9 +35,9 @@ const ForgotPassword = () => {
 
       setResetTokenSent(true);
       setToken(response.reset_token || "");
-      setMessage("Password reset token created. Use the token below to reset your password.");
+      setMessage("Password reset token created. Use the token below to create a new password.");
     } catch (err) {
-      setError(err.message || "Failed to request reset token.");
+      setError(err.message || "Failed to request password reset.");
     } finally {
       setIsSubmitting(false);
     }
@@ -51,14 +52,17 @@ const ForgotPassword = () => {
       setError("Reset token is required.");
       return;
     }
+
     if (!newPassword) {
       setError("New password is required.");
       return;
     }
+
     if (newPassword.length < 8) {
       setError("New password must be at least 8 characters.");
       return;
     }
+
     if (newPassword !== confirmPassword) {
       setError("Passwords do not match.");
       return;
@@ -95,8 +99,11 @@ const ForgotPassword = () => {
               <h1>PAWESOME</h1>
               <span>RETREAT INC.</span>
             </div>
-            <h2>Reset Password</h2>
-            <p>Enter your email to request a password reset token.</p>
+
+            <h2>Reset Your Password</h2>
+            <p>
+              Enter your email address and we’ll help you create a new password.
+            </p>
           </div>
 
           {message && <div className="success-message">{message}</div>}
@@ -104,17 +111,19 @@ const ForgotPassword = () => {
 
           {!resetTokenSent ? (
             <form className="login-form" onSubmit={handleEmailSubmit}>
-              <div className="form-group">
-                <label htmlFor="email">Email Address *</label>
-                <input
-                  type="email"
-                  id="email"
-                  name="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Enter your email address"
-                  disabled={isSubmitting}
-                />
+              <div className="form-section">
+                <div className="form-group">
+                  <label htmlFor="email">Email Address *</label>
+                  <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="Enter your email address"
+                    disabled={isSubmitting}
+                  />
+                </div>
               </div>
 
               <div className="form-actions">
@@ -125,46 +134,49 @@ const ForgotPassword = () => {
             </form>
           ) : (
             <form className="login-form" onSubmit={handleResetSubmit}>
-              <div className="form-group">
-                <label htmlFor="resetToken">Reset Token *</label>
-                <input
-                  type="text"
-                  id="resetToken"
-                  name="resetToken"
-                  value={token}
-                  onChange={(e) => setToken(e.target.value)}
-                  placeholder="Enter the reset token"
-                  disabled={isSubmitting}
-                />
-                <small>
-                  Use the token returned by the system. If you did not receive one, request again.
-                </small>
-              </div>
+              <div className="form-section">
+                <div className="form-group">
+                  <label htmlFor="resetToken">Reset Token *</label>
+                  <input
+                    type="text"
+                    id="resetToken"
+                    name="resetToken"
+                    value={token}
+                    onChange={(e) => setToken(e.target.value)}
+                    placeholder="Enter the reset token"
+                    disabled={isSubmitting}
+                  />
+                  <small>
+                    Use the token returned by the system. If you did not receive one,
+                    request again.
+                  </small>
+                </div>
 
-              <div className="form-group">
-                <label htmlFor="newPassword">New Password *</label>
-                <input
-                  type="password"
-                  id="newPassword"
-                  name="newPassword"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="Create a new password"
-                  disabled={isSubmitting}
-                />
-              </div>
+                <div className="form-group">
+                  <label htmlFor="newPassword">New Password *</label>
+                  <input
+                    type="password"
+                    id="newPassword"
+                    name="newPassword"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Create a new password"
+                    disabled={isSubmitting}
+                  />
+                </div>
 
-              <div className="form-group">
-                <label htmlFor="confirmPassword">Confirm Password *</label>
-                <input
-                  type="password"
-                  id="confirmPassword"
-                  name="confirmPassword"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Confirm your new password"
-                  disabled={isSubmitting}
-                />
+                <div className="form-group">
+                  <label htmlFor="confirmPassword">Confirm Password *</label>
+                  <input
+                    type="password"
+                    id="confirmPassword"
+                    name="confirmPassword"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Confirm your new password"
+                    disabled={isSubmitting}
+                  />
+                </div>
               </div>
 
               <div className="form-actions">
@@ -177,7 +189,9 @@ const ForgotPassword = () => {
 
           <div className="register-link">
             <span>Remembered your password?</span>
-            <Link to="/login" className="link">Sign In</Link>
+            <Link to="/login" className="link">
+              Sign In
+            </Link>
           </div>
         </div>
       </div>

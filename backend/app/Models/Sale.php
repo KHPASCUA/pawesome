@@ -15,16 +15,23 @@ class Sale extends Model
     protected $fillable = [
         'customer_id',
         'cashier_id',
+        'product_id',
         'transaction_number',
         'type',
         'status',
+        'payment_type',
         'subtotal',
         'tax_amount',
         'discount_amount',
         'discount_code',
         'total_amount',
         'amount',
+        'cash_amount',
+        'card_amount',
         'notes',
+        'void_reason',
+        'voided_by',
+        'voided_at',
     ];
 
     protected $casts = [
@@ -33,17 +40,20 @@ class Sale extends Model
         'discount_amount' => 'decimal:2',
         'total_amount' => 'decimal:2',
         'amount' => 'decimal:2',
+        'cash_amount' => 'decimal:2',
+        'card_amount' => 'decimal:2',
+        'voided_at' => 'datetime',
     ];
 
     /**
      * Valid sale statuses
      */
-    public const VALID_STATUSES = ['pending', 'completed', 'cancelled', 'refunded'];
+    public const VALID_STATUSES = ['pending', 'completed', 'cancelled', 'refunded', 'voided'];
 
     /**
      * Valid sale types
      */
-    public const VALID_TYPES = ['product', 'service', 'mixed'];
+    public const VALID_TYPES = ['product', 'service', 'mixed', 'appointment', 'boarding', 'refund', 'multi_payment'];
 
     /**
      * Boot method for model-level validation

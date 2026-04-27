@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
-import "./CustomerStore_Polished.css";
+import "./CustomerStore.css";
 import { inventoryApi } from "../../api/inventory";
 import { sharedProducts, sharedServices } from "../shared/inventorySync";
+import Swal from "sweetalert2";
 
 // Get emoji based on product name/category
 const getProductEmoji = (name, category) => {
@@ -76,6 +77,9 @@ export default function CustomerStore() {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [showQuickView, setShowQuickView] = useState(false);
   const [orderHistory, setOrderHistory] = useState([]);
+  const [lastOrder, setLastOrder] = useState(null);
+  const [paymentMethod, setPaymentMethod] = useState("Online Payment");
+  const [isProcessing, setIsProcessing] = useState(false);
 
   // API-connected products state
   const [apiProducts, setApiProducts] = useState([]);
@@ -109,69 +113,51 @@ export default function CustomerStore() {
     }, 30000);
     
     return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Categorize API products (same categories as POS)
-  const categorizeProducts = (products) => {
-    const categories = {
-      Food: [],
-      Accessories: [],
-      Grooming: [],
-      Toys: [],
-      Health: [],
-      Services: []
-    };
-    
-    products.forEach(product => {
-      const item = {
-        id: product.id,
-        name: product.name,
-        price: product.price,
-        image: getProductEmoji(product.name, product.category),
-        rating: 4.5,
-        reviews: Math.floor(Math.random() * 200) + 50,
-        inStock: product.inStock || product.stock > 0,
-        stock: product.stock || 0,
-        discount: 0,
-        sku: product.sku,
-        description: product.description
-      };
-      
-      // Map to category
-      const cat = product.category?.toLowerCase() || '';
-      if (cat.includes('food') || cat.includes('treat')) categories.Food.push(item);
-      else if (cat.includes('accessory') || cat.includes('collar') || cat.includes('bed')) categories.Accessories.push(item);
-      else if (cat.includes('groom') || cat.includes('shampoo') || cat.includes('brush')) categories.Grooming.push(item);
-      else if (cat.includes('toy') || cat.includes('ball') || cat.includes('chew')) categories.Toys.push(item);
-      else if (cat.includes('health') || cat.includes('vitamin') || cat.includes('medical')) categories.Health.push(item);
-      else if (cat.includes('service') || cat.includes('grooming service') || cat.includes('consultation') || cat.includes('boarding')) categories.Services.push(item);
-      else categories.Food.push(item); // Default
-    });
-    
-    return categories;
-  };
+  // Fetch customer orders
+  useEffect(() => {
+    const fetchOrders = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const apiUrl = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000/api";
 
-  // Get emoji based on product name/category
-  const getProductEmoji = (name, category) => {
-    const nameLower = name.toLowerCase();
-    const catLower = (category || '').toLowerCase();
-    
-    if (nameLower.includes('dog') || nameLower.includes('puppy')) return '🦴';
-    if (nameLower.includes('cat') || nameLower.includes('kitten')) return '🐟';
-    if (nameLower.includes('food')) return '🍖';
-    if (nameLower.includes('shampoo') || nameLower.includes('groom')) return '🧴';
-    if (nameLower.includes('toy') || nameLower.includes('ball')) return '🎾';
-    if (nameLower.includes('bed')) return '🛏️';
-    if (nameLower.includes('collar') || nameLower.includes('leash')) return '🦮';
-    if (nameLower.includes('vitamin') || nameLower.includes('health')) return '💊';
-    if (catLower.includes('food')) return '🦴';
-    if (catLower.includes('accessory')) return '📦';
-    if (catLower.includes('grooming')) return '✂️';
-    if (catLower.includes('toy')) return '🧸';
-    if (catLower.includes('health')) return '🏥';
-    return '📦';
-  };
+        const res = await fetch(`${apiUrl}/customer/store/orders`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          setOrderHistory(data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch orders:", err);
+      }
+    };
+
+    fetchOrders();
+  }, [checkoutStep]);
+
+  // Persist cart to localStorage
+  useEffect(() => {
+    localStorage.setItem("customer_cart", JSON.stringify(cart));
+  }, [cart]);
+
+  // Persist wishlist to localStorage
+  useEffect(() => {
+    localStorage.setItem("customer_wishlist", JSON.stringify(wishlist));
+  }, [wishlist]);
+
+  // Load cart and wishlist from localStorage on mount
+  useEffect(() => {
+    const savedCart = JSON.parse(localStorage.getItem("customer_cart") || "[]");
+    const savedWishlist = JSON.parse(localStorage.getItem("customer_wishlist") || "[]");
+
+    setCart(savedCart);
+    setWishlist(savedWishlist);
+  }, []);
 
   // Use API products if available, otherwise demo data
   const currentStoreData = apiProducts && Object.keys(apiProducts).length > 0 ? apiProducts : storeData;
@@ -192,20 +178,41 @@ export default function CustomerStore() {
     });
 
   const addToCart = (item) => {
+    if (!item.inStock || item.stock <= 0) return;
+
     const existing = cart.find((c) => c.id === item.id);
+
     if (existing) {
-      setCart(cart.map((c) => c.id === item.id ? { ...c, qty: c.qty + 1 } : c));
+      if (existing.qty >= item.stock) return;
+
+      setCart(cart.map((c) =>
+        c.id === item.id ? { ...c, qty: c.qty + 1 } : c
+      ));
     } else {
       setCart([...cart, { ...item, qty: 1 }]);
     }
   };
 
   const updateQty = (id, change) => {
-    setCart(
-      cart
-        .map((c) =>
-          c.id === id ? { ...c, qty: Math.max(0, c.qty + change) } : c
-        )
+    setCart((prev) =>
+      prev
+        .map((c) => {
+          if (c.id !== id) return c;
+
+          const nextQty = c.qty + change;
+
+          if (nextQty > c.stock) {
+            Swal.fire({
+              icon: "warning",
+              title: "Stock limit reached",
+              text: `Only ${c.stock} stock available.`,
+              confirmButtonColor: "#ff5f93",
+            });
+            return c;
+          }
+
+          return { ...c, qty: Math.max(0, nextQty) };
+        })
         .filter((c) => c.qty > 0)
     );
   };
@@ -249,18 +256,78 @@ export default function CustomerStore() {
     if (cart.length > 0) setCheckoutStep("payment");
   };
 
-  const confirmPayment = () => {
-    if (paymentImage) {
+  const confirmPayment = async () => {
+    if (!paymentImage) {
+      Swal.fire({
+        icon: "warning",
+        title: "Payment Proof Required",
+        text: "Please upload payment proof first.",
+        confirmButtonColor: "#ff5f93",
+      });
+      return;
+    }
+
+    setIsProcessing(true);
+
+    try {
+      const token = localStorage.getItem("token");
+      const apiUrl = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000/api";
+
+      const res = await fetch(`${apiUrl}/customer/store/checkout`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          items: cart,
+          totalAmount: getTotal(),
+          orderType,
+          paymentMethod,
+          paymentProof: paymentImage.name,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.message || "Order failed");
+
       const newOrder = {
-        id: Date.now(),
-        items: cart,
+        id: data.orderId,
+        items: [...cart],
         total: getTotal(),
         orderType,
+        paymentMethod,
         date: new Date().toLocaleDateString(),
-        status: "Processing"
+        status: "Processing",
       };
-      setOrderHistory([...orderHistory, newOrder]);
+
+      setLastOrder(newOrder);
+      setOrderHistory((prev) => [...prev, newOrder]);
       setCheckoutStep("receipt");
+
+      setCart([]);
+      setDiscountApplied(0);
+      setDiscountCode("");
+      setPaymentImage(null);
+
+      Swal.fire({
+        icon: "success",
+        title: "Order Placed!",
+        text: "Your order has been successfully placed.",
+        timer: 2000,
+        showConfirmButton: false,
+      });
+
+    } catch (err) {
+      Swal.fire({
+        icon: "error",
+        title: "Order Failed",
+        text: err.message,
+        confirmButtonColor: "#ff5f93",
+      });
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -311,7 +378,7 @@ export default function CustomerStore() {
         <aside className="store-sidebar">
           <div className="category-section">
             <h3>Categories</h3>
-            {Object.keys(storeData).map((cat) => (
+            {Object.keys(currentStoreData).map((cat) => (
               <button
                 key={cat}
                 onClick={() => setCategory(cat)}
@@ -359,11 +426,11 @@ export default function CustomerStore() {
               <p>No orders yet</p>
             ) : (
               <div className="history-list">
-                {orderHistory.slice(-3).map(order => (
+                {orderHistory.slice(0, 3).map(order => (
                   <div key={order.id} className="history-item">
                     <span>Order #{order.id}</span>
-                    <span>¥{order.total}</span>
-                    <span className={`status ${order.status.toLowerCase()}`}>{order.status}</span>
+                    <span>₱{order.total_amount || order.total || 0}</span>
+                    <span className={`status ${order.status?.toLowerCase() || 'pending'}`}>{order.status || 'Pending'}</span>
                   </div>
                 ))}
               </div>
@@ -419,6 +486,9 @@ export default function CustomerStore() {
                       <span className="product-emoji">{item.image}</span>
                       {item.discount > 0 && (
                         <span className="discount-badge">-{item.discount}%</span>
+                      )}
+                      {item.stock <= 5 && item.inStock && (
+                        <span className="low-stock">Low Stock</span>
                       )}
                       {!item.inStock && (
                         <span className="out-of-stock">Out of Stock</span>
@@ -534,7 +604,7 @@ export default function CustomerStore() {
                       <span>₱{getTotal()}</span>
                     </div>
                   </div>
-                  <button className="checkout-btn" onClick={proceedCheckout}>
+                  <button className="checkout-btn" onClick={proceedCheckout} disabled={!cart.length}>
                     Proceed to Checkout
                   </button>
                 </>
@@ -571,11 +641,22 @@ export default function CustomerStore() {
                 <h3>Payment Method</h3>
                 <div className="payment-options">
                   <label>
-                    <input type="radio" name="payment" defaultChecked />
+                    <input
+                      type="radio"
+                      name="payment"
+                      checked={paymentMethod === "Online Payment"}
+                      onChange={() => setPaymentMethod("Online Payment")}
+                    />
                     Online Payment
                   </label>
+
                   <label>
-                    <input type="radio" name="payment" />
+                    <input
+                      type="radio"
+                      name="payment"
+                      checked={paymentMethod === "Cash on Delivery"}
+                      onChange={() => setPaymentMethod("Cash on Delivery")}
+                    />
                     Cash on Delivery
                   </label>
                 </div>
@@ -594,8 +675,8 @@ export default function CustomerStore() {
                   <button className="back-btn" onClick={() => setCheckoutStep("cart")}>
                     Back to Cart
                   </button>
-                  <button className="confirm-btn" onClick={confirmPayment}>
-                    Confirm Payment
+                  <button className="confirm-btn" onClick={confirmPayment} disabled={isProcessing}>
+                    {isProcessing ? "Processing..." : "Confirm Payment"}
                   </button>
                 </div>
               </div>
@@ -608,12 +689,12 @@ export default function CustomerStore() {
               <div className="receipt">
                 <h3>Pawesome Store Receipt</h3>
                 <div className="receipt-details">
-                  <p>Order #{Date.now()}</p>
+                  <p>Order #{lastOrder?.id}</p>
                   <p>Date: {new Date().toLocaleDateString()}</p>
                   <p>Order Type: {orderType}</p>
                 </div>
                 <div className="receipt-items">
-                  {cart.map((item) => (
+                  {lastOrder?.items?.map((item) => (
                     <div key={item.id} className="receipt-item">
                       <span>{item.name} x {item.qty}</span>
                       <span>₱{item.discount > 0 ? 
@@ -622,6 +703,13 @@ export default function CustomerStore() {
                     </div>
                   ))}
                 </div>
+                <div className="receipt-total">
+                  <span>Total</span>
+                  <strong>₱{lastOrder?.total || 0}</strong>
+                </div>
+                <button className="done-btn" onClick={() => setCheckoutStep("cart")}>
+                  Done
+                </button>
               </div>
             </div>
           )}
@@ -669,7 +757,7 @@ export default function CustomerStore() {
             </div>
           </div>
         )}
+      </div>
     </div>
-  </div>
   );
-}; 
+};

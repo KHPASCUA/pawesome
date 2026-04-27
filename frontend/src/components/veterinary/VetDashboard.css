@@ -395,6 +395,225 @@
   opacity: 0.7;
 }
 
+/* Appointments Preview */
+.appointments-preview {
+  padding: 1rem;
+}
+
+.preview-appointment-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem;
+  border-radius: 8px;
+  background: rgba(248, 249, 250, 0.5);
+  margin-bottom: 0.5rem;
+  transition: background 0.2s ease;
+}
+
+.preview-appointment-item:hover {
+  background: rgba(248, 249, 250, 0.8);
+}
+
+.vet-dashboard.dark .preview-appointment-item {
+  background: rgba(68, 68, 68, 0.5);
+}
+
+.vet-dashboard.dark .preview-appointment-item:hover {
+  background: rgba(68, 68, 68, 0.8);
+}
+
+.apt-time {
+  font-weight: 600;
+  color: #667eea;
+  min-width: 60px;
+}
+
+.apt-pet {
+  flex: 1;
+  font-weight: 600;
+}
+
+.apt-service {
+  font-size: 0.85rem;
+  opacity: 0.8;
+}
+
+/* Boarders Section */
+.dashboard-boarders {
+  margin-bottom: 1.5rem;
+}
+
+.boarders-panel {
+  background: rgba(248, 249, 250, 0.8);
+  border-radius: 12px;
+  padding: 1.5rem;
+  border: 1px solid rgba(241, 243, 244, 0.3);
+}
+
+.vet-dashboard.dark .boarders-panel {
+  background: rgba(68, 68, 68, 0.8);
+  border-color: rgba(255, 107, 157, 0.2);
+}
+
+.boarders-list {
+  display: grid;
+  gap: 1rem;
+}
+
+.boarder-card {
+  background: white;
+  border-radius: 12px;
+  padding: 1.25rem;
+  border: 1px solid rgba(241, 243, 244, 0.3);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.boarder-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+.vet-dashboard.dark .boarder-card {
+  background: rgba(45, 52, 54, 0.8);
+  border-color: rgba(255, 107, 157, 0.2);
+}
+
+.boarder-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+}
+
+.boarder-pet-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.pet-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  display: grid;
+  place-items: center;
+  font-size: 1.1rem;
+}
+
+.room-badge {
+  padding: 0.35rem 0.75rem;
+  border-radius: 20px;
+  background: rgba(102, 126, 234, 0.1);
+  color: #667eea;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.vet-dashboard.dark .room-badge {
+  background: rgba(102, 126, 234, 0.2);
+  color: #a0aec0;
+}
+
+.boarder-details {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  background: rgba(248, 249, 250, 0.5);
+  border-radius: 8px;
+}
+
+.vet-dashboard.dark .boarder-details {
+  background: rgba(68, 68, 68, 0.5);
+}
+
+.detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.detail-item strong {
+  font-size: 0.75rem;
+  color: #636e72;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.vet-dashboard.dark .detail-item strong {
+  color: #b2bec3;
+}
+
+.detail-item span {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.special-requests {
+  padding: 0.75rem;
+  background: rgba(255, 193, 7, 0.1);
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  font-size: 0.85rem;
+  color: #f39c12;
+}
+
+.vet-dashboard.dark .special-requests {
+  background: rgba(255, 193, 7, 0.2);
+}
+
+.boarder-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.boarder-actions button {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.boarder-actions button:first-child {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+}
+
+.boarder-actions button:first-child:hover {
+  opacity: 0.9;
+}
+
+.boarder-actions button:last-child {
+  background: rgba(241, 243, 244, 0.8);
+  color: #2d3436;
+}
+
+.boarder-actions button:last-child:hover {
+  background: rgba(241, 243, 244, 1);
+}
+
+.vet-dashboard.dark .boarder-actions button:last-child {
+  background: rgba(68, 68, 68, 0.8);
+  color: #b2bec3;
+}
+
+.loading-boarders {
+  text-align: center;
+  padding: 2rem;
+  color: #636e72;
+}
+
+.vet-dashboard.dark .loading-boarders {
+  color: #b2bec3;
+}
+
 /* Dashboard Bottom */
 .dashboard-bottom {
   display: grid;

@@ -1,36 +1,78 @@
 .userinfo-section {
-  padding: 20px;
+  padding: 24px;
+  color: #1f2937;
 }
 
-.userinfo-section h2 {
-  margin-bottom: 15px;
-  color: #2c3e50;
+.userinfo-header {
+  margin-bottom: 24px;
+}
+
+.userinfo-eyebrow {
+  display: inline-block;
+  padding: 4px 12px;
+  background: rgba(255, 95, 147, 0.12);
+  color: #ff5f93;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 999px;
+  margin-bottom: 8px;
+}
+
+.userinfo-header h2 {
+  margin: 8px 0 4px;
+  color: #191919;
+  font-weight: 950;
+}
+
+.userinfo-header p {
+  margin: 0;
+  color: #6b7280;
+  font-size: 14px;
 }
 
 .userinfo-card {
   display: flex;
-  justify-content: space-between;
-  background: #f9f9f9;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  padding: 20px;
+  align-items: center;
+  gap: 24px;
+  background: rgba(255, 255, 255, 0.86);
+  border: 1px solid rgba(255, 95, 147, 0.22);
+  border-radius: 18px;
+  padding: 24px;
+  box-shadow: 0 12px 30px rgba(255, 95, 147, 0.16);
 }
 
-.userinfo-left,
-.userinfo-right {
+.userinfo-avatar {
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #ff5f93, #ff8db5);
+  color: white;
+  font-size: 28px;
+  font-weight: 950;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.userinfo-details {
   flex: 1;
 }
 
-.userinfo-left {
-  margin-right: 40px;
-}
-
-.userinfo-card p {
-  margin: 8px 0;
+.userinfo-details p {
+  margin: 10px 0;
   font-size: 15px;
-  color: #333;
+  color: #1f2937;
 }
 
-.userinfo-card strong {
-  color: #000;
+.userinfo-details strong {
+  color: #191919;
+  font-weight: 700;
+}
+
+@media (max-width: 768px) {
+  .userinfo-card {
+    flex-direction: column;
+    text-align: center;
+  }
 }

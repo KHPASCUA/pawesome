@@ -143,4 +143,57 @@ class DashboardController extends Controller
             'stock_status' => $item->stock > 0 ? 'available' : 'out_of_stock',
         ]);
     }
+
+    /**
+     * Search products for Cashier POS
+     * Search by name or SKU
+     */
+    public function searchProducts(Request $request)
+    {
+        $query = $request->get('q', '');
+
+        $products = InventoryItem::where('status', 'active')
+            ->where(function ($q) use ($query) {
+                $q->where('name', 'like', "%{$query}%")
+                  ->orWhere('sku', 'like', "%{$query}%");
+            })
+            ->limit(20)
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'id' => $item->id,
+                    'name' => $item->name,
+                    'sku' => $item->sku,
+                    'price' => $item->price,
+                    'stock' => $item->stock,
+                ];
+            });
+
+        return response()->json($products);
+    }
+
+    /**
+     * Lookup product by barcode for Cashier POS
+     */
+    public function lookupBarcode($barcode)
+    {
+        $product = InventoryItem::where('barcode', $barcode)
+            ->where('status', 'active')
+            ->first();
+
+        if (!$product) {
+            return response()->json(['error' => 'Product not found'], 404);
+        }
+
+        return response()->json([
+            'product' => [
+                'id' => $product->id,
+                'name' => $product->name,
+                'sku' => $product->sku,
+                'price' => $product->price,
+                'stock' => $product->stock,
+                'barcode' => $product->barcode,
+            ],
+        ]);
+    }
 }

@@ -2,10 +2,6 @@ import React, { useState, useEffect } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faUser,
-  faEnvelope,
-  faPhone,
-  faMapMarkerAlt,
-  faCalendarAlt,
   faCamera,
   faSave,
   faTimes,
@@ -257,9 +253,10 @@ const CustomerProfile = () => {
   };
 
   // Cancel editing
-  const handleCancel = () => {
+  const handleCancel = async () => {
     setIsEditing(false);
     setMessage("");
+    await fetchUserProfile();
   };
 
   // Toggle edit mode
@@ -293,6 +290,12 @@ const CustomerProfile = () => {
       {message && (
         <div className={`${messageType}-message`}>
           {message}
+        </div>
+      )}
+
+      {error && (
+        <div className="error-message">
+          {error}
         </div>
       )}
 

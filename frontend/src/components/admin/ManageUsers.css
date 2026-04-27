@@ -1,9 +1,10 @@
 /* Manage Users Styles */
 .manage-users {
   padding: 1rem;
-  background: white;
+  background: var(--color-bg-gradient);
   border-radius: 0;
   box-shadow: none;
+  color: var(--color-text);
 }
 
 /* Header */
@@ -18,14 +19,14 @@
 
 .header-left h2 {
   margin: 0 0 0.5rem 0;
-  color: #000000;
+  color: var(--color-heading);
   font-size: 1.5rem;
   font-weight: 600;
 }
 
 .header-left p {
   margin: 0;
-  color: #000000;
+  color: var(--color-muted);
   font-size: 0.9rem;
 }
 
@@ -38,20 +39,20 @@
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  background: transparent;
-  color: #000000;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+  color: white;
   padding: 0.75rem 1.5rem;
-  border-radius: 0;
+  border-radius: var(--radius-button);
   text-decoration: none;
   font-weight: 500;
   transition: all 0.2s ease;
   border: none;
+  box-shadow: var(--shadow-soft);
 }
 
 .add-user-btn:hover {
-  background: transparent;
-  transform: none;
-  text-decoration: underline;
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-card);
 }
 
 /* Messages */
@@ -61,12 +62,12 @@
   align-items: center;
   gap: 0.5rem;
   padding: 1rem;
-  border-radius: 0;
+  border-radius: var(--radius-button);
   margin-bottom: 1rem;
   font-weight: 500;
-  background: transparent;
-  border: none;
-  color: #000000;
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  background: var(--color-surface);
 }
 
 /* Controls */
@@ -92,24 +93,24 @@
   left: 1rem;
   top: 50%;
   transform: translateY(-50%);
-  color: #000000;
+  color: var(--color-primary);
 }
 
 .search-box input {
   width: 100%;
   padding: 0.75rem 1rem 0.75rem 2.5rem;
-  border: none;
-  border-radius: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-button);
   font-size: 0.9rem;
   transition: none;
-  background: transparent;
-  color: #000000;
+  background: var(--color-surface-solid);
+  color: var(--color-text);
 }
 
 .search-box input:focus {
   outline: none;
-  border: none;
-  box-shadow: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 4px rgba(255, 95, 147, 0.16);
 }
 
 .filter-dropdown {
@@ -121,27 +122,28 @@
 
 .filter-dropdown select {
   padding: 0.75rem 2rem 0.75rem 1rem;
-  border: none;
-  border-radius: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-button);
   font-size: 0.9rem;
-  background: transparent;
+  background: var(--color-surface-solid);
   cursor: pointer;
   transition: none;
-  color: #000000;
+  color: var(--color-text);
 }
 
 .filter-dropdown select:focus {
   outline: none;
-  border: none;
-  box-shadow: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 4px rgba(255, 95, 147, 0.16);
 }
 
 /* Table Container */
 .users-table-container {
-  background: white;
-  border-radius: 0;
+  background: var(--color-surface);
+  border-radius: var(--radius-card);
   overflow: hidden;
-  box-shadow: none;
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--color-border);
 }
 
 .loading-container,
@@ -151,47 +153,49 @@
   align-items: center;
   justify-content: center;
   padding: 3rem;
-  color: #000000;
+  color: var(--color-muted);
 }
 
 .loading-container svg {
   font-size: 2rem;
   margin-bottom: 1rem;
+  color: var(--color-primary);
 }
 
 .empty-state svg {
   margin-bottom: 1rem;
   opacity: 1;
+  color: var(--color-primary);
 }
 
 .empty-state h3 {
   margin: 0 0 0.5rem 0;
-  color: #000000;
+  color: var(--color-heading);
 }
 
 .empty-state p {
   margin: 0;
   font-size: 0.9rem;
-  color: #000000;
+  color: var(--color-muted);
 }
 
 /* Table */
 .users-table {
   width: 100%;
   border-collapse: collapse;
-  background: white;
+  background: var(--color-surface);
 }
 
 .users-table thead {
-  background: transparent;
-  border-bottom: none;
+  background: rgba(255, 95, 147, 0.08);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .users-table th {
   padding: 1rem 0.75rem;
   text-align: left;
   font-weight: 600;
-  color: #000000;
+  color: var(--color-primary);
   font-size: 0.85rem;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -203,7 +207,7 @@
 }
 
 .users-table tbody tr:hover {
-  background: transparent;
+  background: rgba(255, 95, 147, 0.05);
 }
 
 .users-table td {
@@ -214,22 +218,22 @@
 
 .user-id {
   font-weight: 600;
-  color: #000000;
+  color: var(--color-primary);
   font-size: 0.85rem;
 }
 
 .user-name strong {
-  color: #000000;
+  color: var(--color-heading);
   font-weight: 600;
 }
 
 .user-username {
-  color: #000000;
+  color: var(--color-muted);
   font-size: 0.85rem;
 }
 
 .user-email {
-  color: #000000;
+  color: var(--color-text);
 }
 
 .user-role {
@@ -240,12 +244,13 @@
 .user-role .role-badge {
   display: inline-block;
   padding: 0.25rem 0.75rem;
-  border-radius: 0;
+  border-radius: var(--radius-button);
   font-size: 0.8rem;
   font-weight: 500;
   text-transform: capitalize;
-  background: transparent;
-  color: #000000;
+  background: rgba(255, 95, 147, 0.1);
+  color: var(--color-primary);
+  border: 1px solid var(--color-border);
 }
 
 .user-status {
@@ -253,34 +258,30 @@
 }
 
 .role-badge {
-  color: #000000;
-  border: none;
-  background: transparent;
+  color: var(--color-primary);
+  border: 1px solid var(--color-border);
+  background: rgba(255, 95, 147, 0.1);
 }
 
 .user-status .status-toggle {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  background: transparent;
-  border: none;
-  padding: 0.25rem 0.75rem;
-  border-radius: 0;
   cursor: pointer;
   font-size: 0.85rem;
   transition: none;
 }
 
 .status-toggle.active {
-  background: transparent;
-  color: #000000;
-  border: none;
+  background: var(--color-success-bg);
+  color: #065f46;
+  border: 1px solid var(--color-success);
 }
 
 .status-toggle.inactive {
-  background: transparent;
-  color: #000000;
-  border: none;
+  background: var(--color-danger-bg);
+  color: #991b1b;
+  border: 1px solid var(--color-danger);
 }
 
 .status-toggle:hover {
@@ -288,7 +289,7 @@
 }
 
 .user-date {
-  color: #000000;
+  color: var(--color-muted);
   font-size: 0.85rem;
 }
 
@@ -303,25 +304,25 @@
   justify-content: center;
   width: 32px;
   height: 32px;
-  border: none;
-  border-radius: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-button);
   cursor: pointer;
   transition: none;
   font-size: 0.85rem;
-  background: transparent;
-  color: #000000;
+  background: var(--color-surface-solid);
+  color: var(--color-primary);
 }
 
 .action-btn.edit-btn:hover {
-  background: transparent;
-  color: #000000;
-  text-decoration: underline;
+  background: rgba(255, 95, 147, 0.1);
+  color: var(--color-primary);
+  border-color: var(--color-primary);
 }
 
 .action-btn.delete-btn:hover {
-  background: transparent;
-  color: #000000;
-  text-decoration: underline;
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+  border-color: var(--color-danger);
 }
 
 /* Modal */
@@ -340,13 +341,14 @@
 }
 
 .modal {
-  background: white;
-  border-radius: 0;
+  background: var(--color-surface-solid);
+  border-radius: var(--radius-card);
   width: 100%;
   max-width: 600px;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: none;
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--color-border);
 }
 
 .modal-header {
@@ -354,31 +356,30 @@
   justify-content: space-between;
   align-items: center;
   padding: 1.5rem;
-  border-bottom: none;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .modal-header h3 {
   margin: 0;
-  color: #000000;
+  color: var(--color-heading);
   font-size: 1.25rem;
   font-weight: 600;
 }
 
 .close-btn {
-  background: transparent;
-  border: none;
+  background: var(--color-danger-bg);
+  border: 1px solid var(--color-danger);
   font-size: 1.5rem;
-  color: #000000;
+  color: var(--color-danger);
   cursor: pointer;
   padding: 0.25rem;
-  border-radius: 0;
+  border-radius: var(--radius-button);
   transition: none;
 }
 
 .close-btn:hover {
-  background: transparent;
-  color: #000000;
-  text-decoration: underline;
+  background: var(--color-danger);
+  color: white;
 }
 
 .modal-body {
@@ -405,26 +406,26 @@
 
 .form-group label {
   font-weight: 500;
-  color: #000000;
+  color: var(--color-text);
   font-size: 0.9rem;
 }
 
 .form-group input,
 .form-group select {
   padding: 0.75rem;
-  border: none;
-  border-radius: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-button);
   font-size: 0.9rem;
   transition: none;
-  background: transparent;
-  color: #000000;
+  background: var(--color-surface-solid);
+  color: var(--color-text);
 }
 
 .form-group input:focus,
 .form-group select:focus {
   outline: none;
-  border: none;
-  box-shadow: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 4px rgba(255, 95, 147, 0.16);
 }
 
 .checkbox-label {
@@ -433,7 +434,7 @@
   gap: 0.5rem;
   cursor: pointer;
   font-weight: 500;
-  color: #000000;
+  color: var(--color-text);
 }
 
 .checkbox-label input[type="checkbox"] {
@@ -448,17 +449,17 @@
 
 .warning-icon {
   font-size: 3rem;
-  color: #000000;
+  color: var(--color-primary);
   margin-bottom: 1rem;
 }
 
 .delete-confirmation p {
   margin: 0.5rem 0;
-  color: #000000;
+  color: var(--color-text);
 }
 
 .warning-text {
-  color: #000000 !important;
+  color: var(--color-danger) !important;
   font-size: 0.9rem;
 }
 
@@ -467,58 +468,60 @@
   justify-content: flex-end;
   gap: 0.75rem;
   padding: 1.5rem;
-  border-top: none;
+  border-top: 1px solid var(--color-border);
 }
 
 .modal-actions button {
   padding: 0.75rem 1.5rem;
-  border: none;
-  border-radius: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-button);
   font-weight: 500;
   cursor: pointer;
   transition: none;
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  background: transparent;
-  color: #000000;
+  background: var(--color-surface-solid);
+  color: var(--color-text);
 }
 
 .cancel-btn {
-  background: transparent;
-  color: #000000;
+  background: var(--color-surface-solid);
+  color: var(--color-text);
   align-self: flex-end;
 }
 
 .cancel-btn:hover {
-  background: transparent;
-  text-decoration: underline;
+  background: rgba(255, 95, 147, 0.1);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
 }
 
 .confirm-btn.primary {
-  background: transparent;
-  color: #000000;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+  color: white;
+  border: none;
+  box-shadow: var(--shadow-soft);
 }
 
 .confirm-btn.primary:hover {
-  background: transparent;
-  text-decoration: underline;
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-card);
 }
 
 .confirm-btn.danger {
-  background: transparent;
-  color: #000000;
+  background: var(--color-danger);
+  color: white;
+  border: none;
 }
 
 .confirm-btn.danger:hover {
-  background: transparent;
-  text-decoration: underline;
+  opacity: 0.9;
 }
 
 .modal-actions button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
-  text-decoration: none;
 }
 
 /* Responsive */

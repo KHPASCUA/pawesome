@@ -1,20 +1,23 @@
 import React, { Suspense, lazy } from "react";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import ProtectedRoute from "../components/ProtectedRoute";
+import ReceptionistLayout from "../components/receptionist/ReceptionistLayout";
 
 const ReceptionistDashboard = lazy(() => import("../components/receptionist/ReceptionistDashboard"));
 const ReceptionistChatbot = lazy(() => import("../components/receptionist/ReceptionistChatbot"));
-const HotelBookings = lazy(() => import("../components/receptionist/HotelBookings"));
-const VetAppointments = lazy(() => import("../components/receptionist/VetAppointments"));
-const Grooming = lazy(() => import("../components/receptionist/Grooming"));
+const HotelBookings = lazy(() => import("../components/receptionist/ReceptionistHotelBookings"));
+const VetAppointments = lazy(() => import("../components/receptionist/ReceptionistVetAppointments"));
+const Grooming = lazy(() => import("../components/receptionist/ReceptionistGrooming"));
 const ReceptionistBookings = lazy(() => import("../components/receptionist/ReceptionistBookings"));
-const CustomerManagement = lazy(() => import("../components/receptionist/CustomerManagement"));
-const CustomersProfile = lazy(() => import("../components/receptionist/CustomersProfile"));
+const CustomerManagement = lazy(() => import("../components/receptionist/ReceptionistCustomerManagement"));
+const CustomersProfile = lazy(() => import("../components/receptionist/ReceptionistCustomersProfile"));
 const ReceptionistProfile = lazy(() => import("../components/receptionist/ReceptionistProfile"));
-const AppointmentList = lazy(() => import("../components/receptionist/AppointmentList"));
-const CheckInForm = lazy(() => import("../components/receptionist/CheckInForm"));
-const CheckOutForm = lazy(() => import("../components/receptionist/CheckOutForm"));
-const Reports = lazy(() => import("../components/receptionist/Reports"));
+const AppointmentList = lazy(() => import("../components/receptionist/ReceptionistAppointmentList"));
+const CheckInForm = lazy(() => import("../components/receptionist/ReceptionistCheckInForm"));
+const CheckOutForm = lazy(() => import("../components/receptionist/ReceptionistCheckOutForm"));
+const Reports = lazy(() => import("../components/receptionist/ReceptionistReports"));
+const CustomerOrders = lazy(() => import("../components/receptionist/ReceptionistCustomerOrders"));
+const Approvals = lazy(() => import("../components/receptionist/ReceptionistApprovals"));
 
 const RouteLoading = () => (
   <div style={{ padding: "20px", textAlign: "center" }}>Loading...</div>
@@ -27,11 +30,12 @@ const ReceptionistRoutes = () => (
         path="/*"
         element={
           <ProtectedRoute>
-            <ReceptionistDashboard />
+            <ReceptionistLayout />
           </ProtectedRoute>
         }
       >
-        <Route index element={<AppointmentList />} />
+        <Route index element={<Navigate to="dashboard" replace />} />
+        <Route path="dashboard" element={<ReceptionistDashboard />} />
         <Route path="appointments" element={<AppointmentList />} />
         <Route path="checkin" element={<CheckInForm />} />
         <Route path="checkout" element={<CheckOutForm />} />
@@ -42,9 +46,20 @@ const ReceptionistRoutes = () => (
         <Route path="bookings/vet" element={<VetAppointments />} />
         <Route path="bookings/grooming" element={<Grooming />} />
         <Route path="customers" element={<CustomerManagement />} />
-        <Route path="customer-profile" element={<CustomersProfile />} />
+        <Route path="orders" element={<CustomerOrders />} />
+        <Route path="approvals" element={<Approvals />} />
         <Route path="profile" element={<ReceptionistProfile />} />
         <Route path="reports" element={<Reports />} />
+      </Route>
+      <Route
+        path="customer-profile"
+        element={
+          <ProtectedRoute>
+            <ReceptionistLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<CustomersProfile />} />
       </Route>
     </Routes>
   </Suspense>

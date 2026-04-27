@@ -1,0 +1,81 @@
+.app-table-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  overflow-x: auto;
+  backdrop-filter: blur(18px);
+}
+
+.app-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.app-table th {
+  padding: 14px 16px;
+  text-align: left;
+  color: var(--color-heading);
+  font-size: 0.78rem;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.app-table td {
+  padding: 14px 16px;
+  border-top: 1px solid var(--color-border);
+  color: var(--color-text);
+}
+
+.app-table tr:hover td {
+  background: rgba(255, 255, 255, 0.45);
+}
+
+.app-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 18px 0;
+}
+
+.app-filter-btn {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-solid);
+  color: var(--color-heading);
+  border-radius: var(--radius-pill);
+  padding: 9px 16px;
+  font-weight: 900;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.app-filter-btn:hover {
+  transform: translateY(-1px);
+}
+
+.app-filter-btn.active {
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+  color: white;
+  border-color: transparent;
+}
+
+.app-action-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-solid);
+  color: var(--color-primary);
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.app-action-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-soft);
+}
+
+[data-theme="dark"] .app-table tr:hover td {
+  background: rgba(255, 255, 255, 0.06);
+}
