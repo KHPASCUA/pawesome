@@ -20,15 +20,16 @@ class E2ESeeder extends Seeder
      */
     public function run()
     {
-        // Create role users for E2E tests
+        // Create role users for E2E tests - fixed accounts for stable testing
         $roles = [
-            ['email' => 'e2e-admin@example.com', 'name' => 'E2E Admin', 'role' => 'admin'],
-            ['email' => 'e2e-manager@example.com', 'name' => 'E2E Manager', 'role' => 'manager'],
-            ['email' => 'e2e-vet@example.com', 'name' => 'E2E Vet', 'role' => 'veterinary'],
-            ['email' => 'e2e-cashier@example.com', 'name' => 'E2E Cashier', 'role' => 'cashier'],
-            ['email' => 'e2e-inventory@example.com', 'name' => 'E2E Inventory', 'role' => 'inventory'],
-            ['email' => 'e2e-receptionist@example.com', 'name' => 'E2E Receptionist', 'role' => 'receptionist'],
-            ['email' => 'e2e-customer@example.com', 'name' => 'E2E Customer', 'role' => 'customer'],
+            ['email' => 'admin@test.com', 'name' => 'E2E Admin', 'role' => 'admin'],
+            ['email' => 'manager@test.com', 'name' => 'E2E Manager', 'role' => 'manager'],
+            ['email' => 'veterinary@test.com', 'name' => 'E2E Vet', 'role' => 'veterinary'],
+            ['email' => 'cashier@test.com', 'name' => 'E2E Cashier', 'role' => 'cashier'],
+            ['email' => 'inventory@test.com', 'name' => 'E2E Inventory', 'role' => 'inventory'],
+            ['email' => 'receptionist@test.com', 'name' => 'E2E Receptionist', 'role' => 'receptionist'],
+            ['email' => 'payroll@test.com', 'name' => 'E2E Payroll', 'role' => 'payroll'],
+            ['email' => 'customer@test.com', 'name' => 'E2E Customer', 'role' => 'customer'],
         ];
 
         foreach ($roles as $r) {
@@ -37,7 +38,7 @@ class E2ESeeder extends Seeder
                 [
                     'name' => $r['name'],
                     'email' => $r['email'],
-                    'password' => Hash::make('secret'),
+                    'password' => Hash::make('password123'),
                     'role' => $r['role'],
                     'is_active' => true,
                 ]

@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class InventoryController extends Controller
 {
@@ -62,7 +63,9 @@ class InventoryController extends Controller
 
         $items = $query->orderBy('name')->paginate($request->per_page ?? 20);
 
-        return response()->json($items);
+        return response()->json(array_merge($items->toArray(), [
+            'items' => $items->items(),
+        ]));
     }
 
     /**
@@ -73,6 +76,8 @@ class InventoryController extends Controller
         try {
             $result = $this->inventoryService->createItem($request->all());
             return response()->json($result, 201);
+        } catch (ValidationException $e) {
+            return response()->json(['errors' => $e->errors()], 422);
         } catch (\Exception $e) {
             return response()->json(['errors' => [$e->getMessage()]], 422);
         }
@@ -98,6 +103,8 @@ class InventoryController extends Controller
         try {
             $result = $this->inventoryService->updateItem($id, $request->all());
             return response()->json($result);
+        } catch (ValidationException $e) {
+            return response()->json(['errors' => $e->errors()], 422);
         } catch (\Exception $e) {
             return response()->json(['errors' => [$e->getMessage()]], 422);
         }
@@ -163,6 +170,7 @@ class InventoryController extends Controller
         return response()->json([
             'item' => $item,
             'history' => $logs,
+            'logs' => $logs->items(),
         ]);
     }
 

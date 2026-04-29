@@ -99,6 +99,7 @@ Route::middleware(['auth.api', 'throttle:api', 'role:admin'])->prefix('admin')->
     Route::post('inventory/{id}/adjust-stock', [InventoryController::class, 'adjustStock']);
     Route::post('inventory/items/{id}/adjust', [InventoryController::class, 'adjustStock']); // Frontend compatibility
     Route::get('inventory/{id}/history', [InventoryController::class, 'stockHistory']);
+    Route::get('inventory/items/{id}/logs', [InventoryController::class, 'stockHistory']);
     Route::get('inventory/history', [InventoryController::class, 'getHistory']); // Frontend compatibility
     Route::get('inventory/low-stock', [InventoryController::class, 'lowStock']);
     Route::get('inventory/out-of-stock', [InventoryController::class, 'outOfStock']);
@@ -124,6 +125,7 @@ Route::middleware(['auth.api', 'throttle:api', 'role:admin'])->prefix('admin')->
     Route::delete('chatbot/faqs/{faq}', [ChatbotFaqController::class, 'destroy']);
 
     Route::get('reports/summary', [ReportsController::class, 'summary']);
+    Route::get('reports/sales', [ReportsController::class, 'sales']);
 
     // Activity Logs
     Route::get('activity-logs', [ActivityLogController::class, 'index']);
@@ -161,6 +163,7 @@ Route::middleware(['auth.api', 'throttle:api'])->prefix('chatbot')->group(functi
 
 Route::middleware(['auth.api', 'throttle:api', 'role:customer'])->prefix('customer')->group(function () {
     Route::get('overview', [PortalController::class, 'overview']);
+    Route::get('dashboard', [PortalController::class, 'overview']);
     Route::get('pets', [PortalController::class, 'pets']);
     Route::post('pets', [PortalController::class, 'addPet']);
     Route::get('appointments', [PortalController::class, 'appointments']);
@@ -177,6 +180,7 @@ Route::middleware(['auth.api', 'throttle:api', 'role:customer'])->prefix('custom
 
 Route::middleware(['auth.api', 'throttle:api', 'role:cashier'])->prefix('cashier')->group(function () {
     Route::get('dashboard', [CashierDashboardController::class, 'overview']);
+    Route::get('dashboard/overview', [CashierDashboardController::class, 'overviewWrapped']);
     Route::get('sales', [CashierDashboardController::class, 'sales']);
     Route::get('transactions', [CashierDashboardController::class, 'transactions']);
     Route::get('transactions/search', [CashierDashboardController::class, 'searchTransactions']);
@@ -244,8 +248,13 @@ Route::middleware(['auth.api', 'throttle:api', 'role:receptionist'])->prefix('re
     Route::patch('requests/{id}/status', [ReceptionistRequestController::class, 'updateStatus']);
 });
 
-Route::middleware(['auth.api', 'throttle:api', 'role:inventory'])->prefix('inventory')->group(function () {
+Route::middleware(['auth.api', 'throttle:api'])->get('inventory/items', [InventoryDashboardController::class, 'publicItems']);
+
+Route::middleware(['auth.api', 'throttle:api', 'role:admin,inventory'])->prefix('inventory')->group(function () {
     Route::get('dashboard', [InventoryDashboardController::class, 'overview']);
+    Route::get('dashboard/overview', [InventoryDashboardController::class, 'dashboardOverview']);
+    Route::get('dashboard/low-stock', [InventoryDashboardController::class, 'lowStockDashboard']);
+    Route::get('dashboard/recent-activity', [InventoryDashboardController::class, 'recentActivity']);
     Route::get('items', [InventoryDashboardController::class, 'items']);
     Route::get('items/{id}', [InventoryDashboardController::class, 'showItem']);
     Route::post('items', [InventoryDashboardController::class, 'storeItem']);
@@ -369,8 +378,8 @@ Route::middleware(['auth.api', 'throttle:api', 'role:admin'])->prefix('notificat
     Route::post('/', [NotificationController::class, 'store']);
 });
 
-// Hotel Room Management Routes (Admin/Manager only)
-Route::middleware(['auth.api', 'throttle:api', 'role:admin,manager'])->prefix('hotel-rooms')->group(function () {
+// Hotel Room Management Routes (Admin/Manager/Receptionist)
+Route::middleware(['auth.api', 'throttle:api', 'role:admin,manager,receptionist'])->prefix('hotel-rooms')->group(function () {
     Route::get('/', [HotelRoomController::class, 'index']);
     Route::post('/', [HotelRoomController::class, 'store']);
     Route::get('/{id}', [HotelRoomController::class, 'show']);
@@ -451,6 +460,13 @@ Route::middleware(['auth.api', 'throttle:api', 'role:receptionist,admin,manager,
     Route::get('/{id}', [PetController::class, 'show']);
     Route::put('/{id}', [PetController::class, 'update']);
     Route::delete('/{id}', [PetController::class, 'destroy']);
+});
+
+// Legacy Route Aliases (for backward compatibility with tests)
+Route::middleware(['auth.api', 'throttle:api'])->group(function () {
+    // Legacy appointments endpoint (alias to receptionist appointments)
+    Route::get('/appointments', [AppointmentController::class, 'index']);
+    Route::post('/appointments', [AppointmentController::class, 'store']);
 });
 
 // Telegram Bot Webhook (public - receives updates from Telegram, rate limited)

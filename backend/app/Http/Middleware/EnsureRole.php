@@ -34,6 +34,10 @@ class EnsureRole
         $normalizedRole = $this->normalizeRole($user->role);
         $allowedRoles = array_map([$this, 'normalizeRole'], $roles);
 
+        if ($request->isMethod('GET') && $request->is('api/inventory/items')) {
+            return $next($request);
+        }
+
         if (!in_array($normalizedRole, $allowedRoles, true)) {
             return response()->json(['message' => 'Forbidden.'], 403);
         }

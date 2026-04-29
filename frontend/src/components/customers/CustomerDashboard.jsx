@@ -20,7 +20,7 @@ import {
   faArrowRight,
 } from "@fortawesome/free-solid-svg-icons";
 import CustomerSidebar from "./CustomerSidebar";
-import RoleAwareChatbot from "../chatbot/RoleAwareChatbot";
+import CustomerDashboardChatbot from "../CustomerDashboardChatbot";
 import NotificationDropdown from "../shared/NotificationDropdown";
 import { apiRequest } from "../../api/client";
 import "../../styles/dashboardGlobal.css";
@@ -522,11 +522,7 @@ const CustomerDashboard = () => {
         )}
       </main>
 
-      <RoleAwareChatbot
-        mode="widget"
-        title="Customer Assistant"
-        subtitle="Bookings, pets, services, and support"
-      />
+      <CustomerDashboardChatbot />
     </div>
   );
 };

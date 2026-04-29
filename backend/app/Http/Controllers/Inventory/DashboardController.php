@@ -40,11 +40,59 @@ class DashboardController extends Controller
         ]);
     }
 
+    public function dashboardOverview()
+    {
+        $summary = $this->inventoryService->getSummary();
+
+        return response()->json([
+            'data' => [
+                'total_items' => $summary['total_items'],
+                'total_inventory_value' => $summary['total_stock_value'],
+                'low_stock_count' => $summary['low_stock_count'],
+                'out_of_stock_count' => $summary['out_of_stock_count'],
+                'category_breakdown' => $summary['category_breakdown'],
+                'recent_activity' => InventoryLog::with('item')
+                    ->where(function ($query) {
+                        $query->whereNull('reference_type')
+                            ->orWhere('reference_type', '!=', 'initial');
+                    })
+                    ->latest()
+                    ->limit(10)
+                    ->get(),
+            ],
+        ]);
+    }
+
+    public function lowStockDashboard()
+    {
+        $items = InventoryItem::where('status', 'active')
+            ->where('stock', '>', 0)
+            ->whereColumn('stock', '<=', 'reorder_level')
+            ->orderBy('stock')
+            ->get();
+
+        return response()->json(['data' => $items]);
+    }
+
+    public function recentActivity()
+    {
+        $logs = InventoryLog::with('item')
+            ->where(function ($query) {
+                $query->whereNull('reference_type')
+                    ->orWhere('reference_type', '!=', 'initial');
+            })
+            ->latest()
+            ->limit(10)
+            ->get();
+
+        return response()->json(['data' => $logs]);
+    }
+
     public function items()
     {
-        return response()->json(
-            InventoryItem::orderBy('name')->get()
-        );
+        return response()->json([
+            'items' => InventoryItem::orderBy('name')->get(),
+        ]);
     }
 
     public function logs()

@@ -71,6 +71,7 @@ class AppointmentController extends Controller
             'customer_id' => 'required|integer|exists:customers,id',
             'pet_id' => 'required|integer|exists:pets,id',
             'service_id' => 'required|integer|exists:services,id',
+            'veterinarian_id' => 'nullable|integer|exists:users,id',
             'scheduled_at' => 'required|date|after:now',
             'notes' => 'nullable|string',
         ]);
@@ -85,6 +86,7 @@ class AppointmentController extends Controller
             'customer_id' => $request->customer_id,
             'pet_id' => $request->pet_id,
             'service_id' => $request->service_id,
+            'veterinarian_id' => $request->veterinarian_id,
             'status' => 'pending',
             'scheduled_at' => $request->scheduled_at,
             'notes' => $request->notes,

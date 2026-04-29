@@ -6,6 +6,7 @@ use App\Models\InventoryItem;
 use App\Models\InventoryLog;
 use App\Models\Notification;
 use App\Models\User;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -53,11 +54,6 @@ class InventoryService
 
         $item = InventoryItem::create($validated);
 
-        // Log initial stock
-        if ($stock > 0) {
-            $this->logStockChange($item->id, $stock, 'Initial stock', 'initial');
-        }
-
         return [
             'message' => 'Item created successfully',
             'item' => $item,
@@ -80,6 +76,7 @@ class InventoryService
         $addStock = $validated['add_stock'] ?? false;
 
         // Determine new stock value
+        $stockAction = $this->getStockAction($item, $inputStock, $addStock);
         $newStock = $this->calculateNewStock($item, $inputStock, $addStock);
         $validated['stock'] = $newStock;
 
@@ -102,7 +99,7 @@ class InventoryService
         return [
             'message' => 'Item updated successfully',
             'item' => $item->fresh(),
-            'stock_action' => $addStock ? 'added' : 'replaced',
+            'stock_action' => $stockAction,
             'previous_stock' => $oldStock,
             'new_stock' => $newStock,
         ];
@@ -180,14 +177,12 @@ class InventoryService
         $item->decrement('stock', $quantity);
         $item = $item->fresh();
 
-        // Log the stock deduction with before/after values
+        // Log the stock deduction.
         InventoryLog::create([
             'inventory_item_id' => $itemId,
-            'type' => $referenceType,
-            'quantity' => -$quantity,
-            'stock_before' => $stockBefore,
-            'stock_after' => $item->stock,
-            'reference' => $reason . ($referenceId ? " (#{$referenceId})" : ''),
+            'delta' => -$quantity,
+            'reason' => $reason,
+            'reference_type' => $referenceType,
         ]);
 
         // Check for low/out of stock and create notifications
@@ -214,14 +209,12 @@ class InventoryService
         $item->increment('stock', $quantity);
         $item = $item->fresh();
 
-        // Log the stock addition with before/after values
+        // Log the stock addition.
         InventoryLog::create([
             'inventory_item_id' => $itemId,
-            'type' => $referenceType,
-            'quantity' => $quantity,
-            'stock_before' => $stockBefore,
-            'stock_after' => $item->stock,
-            'reference' => $reason . ($referenceId ? " (#{$referenceId})" : ''),
+            'delta' => $quantity,
+            'reason' => $reason,
+            'reference_type' => $referenceType,
         ]);
 
         return [
@@ -339,7 +332,7 @@ class InventoryService
     {
         $rules = [
             'name' => $isCreate ? 'required|string|max:255' : 'sometimes|string|max:255',
-            'sku' => $isCreate ? 'nullable|string|max:50|unique:inventory_items,sku' : 'sometimes|string|max:50|unique:inventory_items,sku,' . ($data['id'] ?? null),
+            'sku' => $isCreate ? 'present|nullable|string|max:50|unique:inventory_items,sku' : 'sometimes|string|max:50|unique:inventory_items,sku,' . ($data['id'] ?? null),
             'category' => $isCreate ? 'required|string|max:50' : 'sometimes|string|max:50',
             'description' => 'nullable|string',
             'price' => $isCreate ? 'required|numeric|min:0' : 'sometimes|numeric|min:0',
@@ -354,7 +347,7 @@ class InventoryService
         $validator = \Illuminate\Support\Facades\Validator::make($data, $rules);
 
         if ($validator->fails()) {
-            throw new \Exception(implode(', ', $validator->errors()->all()));
+            throw ValidationException::withMessages($validator->errors()->toArray());
         }
 
         $validated = $validator->validated();
@@ -391,6 +384,21 @@ class InventoryService
         }
     }
 
+    private function getStockAction(InventoryItem $item, ?int $inputStock, bool $addStock): string
+    {
+        if ($inputStock === null) {
+            return 'unchanged';
+        }
+
+        $isExpired = $item->expiry_date !== null && $item->expiry_date < now();
+
+        if ($isExpired) {
+            return 'replaced_expired';
+        }
+
+        return $addStock ? 'added' : 'replaced';
+    }
+
     /**
      * Get stock adjustment reason
      */
@@ -404,7 +412,7 @@ class InventoryService
         } elseif ($addStock) {
             return "Stock addition (+{$delta})";
         } else {
-            return 'Manual stock adjustment';
+            return 'Stock update';
         }
     }
 

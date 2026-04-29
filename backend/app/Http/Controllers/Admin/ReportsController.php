@@ -16,6 +16,13 @@ use Illuminate\Support\Facades\DB;
 
 class ReportsController extends Controller
 {
+    public function sales()
+    {
+        return response()->json([
+            'sales' => Sale::latest()->get(),
+        ]);
+    }
+
     public function summary()
     {
         $today = Carbon::today();

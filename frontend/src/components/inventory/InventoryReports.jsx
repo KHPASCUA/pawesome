@@ -290,7 +290,7 @@ const InventoryReports = () => {
           <td>${item.name || "N/A"}</td>
           <td>${item.category || "N/A"}</td>
           <td>${item.quantity || 0}</td>
-          <td>₱${((item.quantity || 0) * (item.price || 0)).toFixed(2)}</td>
+          <td>₱${(Number(item.quantity || 0) * Number(item.price || 0)).toFixed(2)}</td>
           <td>${item.status || "N/A"}</td>
         </tr>
       `
@@ -421,7 +421,7 @@ const InventoryReports = () => {
 
             <div class="card">
               <span>Inventory Value</span>
-              <strong>₱${(totalInventoryValue || 0).toFixed(2)}</strong>
+              <strong>₱${Number(totalInventoryValue || 0).toFixed(2)}</strong>
             </div>
 
             <div class="card">
@@ -523,7 +523,7 @@ const InventoryReports = () => {
 
           <div className="mini-stat">
             <span>Value</span>
-            <strong>₱{(totalInventoryValue || 0).toFixed(0)}</strong>
+            <strong>₱{Number(totalInventoryValue || 0).toFixed(0)}</strong>
           </div>
         </div>
       </div>
@@ -606,7 +606,7 @@ const InventoryReports = () => {
             <FontAwesomeIcon icon={faTags} />
           </div>
           <div className="card-content">
-            <div className="card-value">₱{(totalInventoryValue || 0).toFixed(2)}</div>
+            <div className="card-value">₱{Number(totalInventoryValue || 0).toFixed(2)}</div>
             <div className="card-label">Inventory Value</div>
           </div>
         </div>
@@ -717,7 +717,7 @@ const InventoryReports = () => {
                     <td>{category}</td>
                     <td>{data.count}</td>
                     <td>{data.quantity}</td>
-                    <td>₱{(data.value || 0).toFixed(2)}</td>
+                    <td>₱{Number(data.value || 0).toFixed(2)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -743,7 +743,7 @@ const InventoryReports = () => {
                     <td>{brand}</td>
                     <td>{data.count}</td>
                     <td>{data.quantity}</td>
-                    <td>₱{(data.value || 0).toFixed(2)}</td>
+                    <td>₱{Number(data.value || 0).toFixed(2)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -820,8 +820,8 @@ const InventoryReports = () => {
                   <td>{item.brand}</td>
                   <td>{item.supplier}</td>
                   <td className={`stock-cell ${item.quantity <= 10 ? "low" : ""}`}>{item.quantity}</td>
-                  <td>₱{(item.price || 0).toFixed(2)}</td>
-                  <td>₱{((item.quantity || 0) * (item.price || 0)).toFixed(2)}</td>
+                  <td>₱{Number(item.price || 0).toFixed(2)}</td>
+                  <td>₱{(Number(item.quantity || 0) * Number(item.price || 0)).toFixed(2)}</td>
                   <td>
                     <span className={`status-badge ${item.status?.toLowerCase().replace(" ", "-")}`}>
                       {item.status}

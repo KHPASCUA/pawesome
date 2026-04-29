@@ -209,7 +209,7 @@ class CentralizedDataFlowTest extends TestCase
         // 3a. Verify sale record
         $this->assertDatabaseHas('sales', [
             'id' => $saleId,
-            'customer_id' => $this->customerUser->id,
+            'customer_id' => Customer::where('email', $this->customerUser->email)->value('id'),
             'cashier_id' => $this->cashier->id,
             'status' => 'completed',
         ]);

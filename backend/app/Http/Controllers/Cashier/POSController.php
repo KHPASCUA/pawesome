@@ -8,6 +8,7 @@ use App\Models\SaleItem;
 use App\Models\Payment;
 use App\Models\Invoice;
 use App\Models\InventoryItem;
+use App\Models\Customer;
 use App\Models\Service;
 use App\Services\InventoryService;
 use Illuminate\Http\Request;
@@ -21,8 +22,21 @@ class POSController extends Controller
      */
     public function processTransaction(Request $request)
     {
-        $validator = Validator::make($request->all(), [
-            'customer_id' => 'nullable|exists:customers,id',
+        $payload = $request->all();
+        $payload['items'] = collect($payload['items'] ?? [])->map(function ($item) {
+            if (($item['item_type'] ?? null) === 'product') {
+                $item['item_id'] = $item['item_id'] ?? ($item['id'] ?? null);
+                if (empty($item['item_name']) && !empty($item['item_id'])) {
+                    $item['item_name'] = InventoryItem::find($item['item_id'])?->name;
+                }
+            }
+
+            return $item;
+        })->all();
+        $request->merge($payload);
+
+        $validator = Validator::make($payload, [
+            'customer_id' => 'nullable|integer',
             'customer_name' => 'nullable|string|max:255',
             'items' => 'required|array|min:1',
             'items.*.item_type' => 'required|in:product,service',
@@ -52,8 +66,19 @@ class POSController extends Controller
             $subtotal = 0;
             $taxRate = 0.12; // 12% VAT
             $discountAmount = 0;
+            $saleCustomerId = null;
 
-            foreach ($request->items as $item) {
+            if (!empty($payload['customer_id'])) {
+                $saleCustomerId = Customer::find($payload['customer_id'])?->id;
+                if (!$saleCustomerId) {
+                    $customerUser = \App\Models\User::find($payload['customer_id']);
+                    $saleCustomerId = $customerUser
+                        ? Customer::where('email', $customerUser->email)->value('id')
+                        : null;
+                }
+            }
+
+            foreach ($payload['items'] as $item) {
                 $itemTotal = $item['unit_price'] * $item['quantity'];
                 $itemDiscount = $item['discount_amount'] ?? 0;
                 $subtotal += ($itemTotal - $itemDiscount);
@@ -64,21 +89,23 @@ class POSController extends Controller
 
             // Create the sale
             $sale = Sale::create([
-                'customer_id' => $request->customer_id,
-                'cashier_id' => auth()->id(),
+                'customer_id' => $saleCustomerId,
+                'cashier_id' => $request->user()?->id ?? auth()->id(),
                 'type' => 'product',
                 'status' => 'pending',
+                'payment_type' => $payload['payment_method'],
+                'payment_method' => $payload['payment_method'],
                 'subtotal' => $subtotal,
                 'tax_amount' => $taxAmount,
                 'discount_amount' => $discountAmount,
-                'discount_code' => $request->discount_code,
+                'discount_code' => $payload['discount_code'] ?? null,
                 'total_amount' => $totalAmount,
                 'amount' => $totalAmount,
-                'notes' => $request->notes,
+                'notes' => $payload['notes'] ?? null,
             ]);
 
             // Create sale items
-            foreach ($request->items as $item) {
+            foreach ($payload['items'] as $item) {
                 $itemTotal = $item['unit_price'] * $item['quantity'];
                 $itemDiscount = $item['discount_amount'] ?? 0;
                 $finalTotal = $itemTotal - $itemDiscount;
@@ -101,23 +128,23 @@ class POSController extends Controller
                     $inventoryService->deductStock(
                         $item['item_id'],
                         $item['quantity'],
-                        'POS Sale',
-                        'pos_sale',
+                        'Sale',
+                        'sale',
                         $sale->id
                     );
                 }
             }
 
             // Process payment
-            $cashReceived = $request->cash_received ?? $totalAmount;
-            $changeAmount = $request->payment_method === 'cash' ? ($cashReceived - $totalAmount) : 0;
+            $cashReceived = $payload['cash_received'] ?? $totalAmount;
+            $changeAmount = $payload['payment_method'] === 'cash' ? ($cashReceived - $totalAmount) : 0;
 
             $payment = Payment::create([
                 'sale_id' => $sale->id,
-                'payment_method' => $request->payment_method,
-                'card_type' => $request->card_type,
-                'card_last_four' => $request->card_last_four,
-                'reference_number' => $request->reference_number,
+                'payment_method' => $payload['payment_method'],
+                'card_type' => $payload['card_type'] ?? null,
+                'card_last_four' => $payload['card_last_four'] ?? null,
+                'reference_number' => $payload['reference_number'] ?? null,
                 'amount' => $totalAmount,
                 'change_amount' => max($changeAmount, 0),
                 'status' => 'completed',
@@ -130,7 +157,7 @@ class POSController extends Controller
             // Create invoice
             $invoice = Invoice::create([
                 'sale_id' => $sale->id,
-                'customer_id' => $request->customer_id,
+                'customer_id' => $saleCustomerId,
                 'invoice_date' => today(),
                 'status' => 'paid',
                 'subtotal' => $subtotal,
@@ -149,8 +176,9 @@ class POSController extends Controller
                     'transaction_number' => $sale->transaction_number,
                     'invoice_number' => $invoice->invoice_number,
                     'total_amount' => $totalAmount,
+                    'tax_amount' => $taxAmount,
                     'change_amount' => $changeAmount,
-                    'payment_method' => $request->payment_method,
+                    'payment_method' => $payload['payment_method'],
                     'status' => 'completed',
                     'created_at' => $sale->created_at,
                 ],
@@ -162,7 +190,7 @@ class POSController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Transaction failed: ' . $e->getMessage(),
-            ], 500);
+            ], str_contains($e->getMessage(), 'Insufficient stock') ? 422 : 500);
         }
     }
 

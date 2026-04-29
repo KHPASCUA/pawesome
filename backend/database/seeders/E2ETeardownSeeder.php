@@ -18,13 +18,14 @@ class E2ETeardownSeeder extends Seeder
     public function run()
     {
         $e2eEmails = [
-            'e2e-admin@example.com',
-            'e2e-manager@example.com',
-            'e2e-vet@example.com',
-            'e2e-cashier@example.com',
-            'e2e-inventory@example.com',
-            'e2e-receptionist@example.com',
-            'e2e-customer@example.com',
+            'admin@test.com',
+            'manager@test.com',
+            'veterinary@test.com',
+            'cashier@test.com',
+            'inventory@test.com',
+            'receptionist@test.com',
+            'payroll@test.com',
+            'customer@test.com',
         ];
 
         User::whereIn('email', $e2eEmails)->delete();

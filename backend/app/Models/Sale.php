@@ -20,6 +20,7 @@ class Sale extends Model
         'type',
         'status',
         'payment_type',
+        'payment_method',
         'subtotal',
         'tax_amount',
         'discount_amount',

@@ -12,11 +12,10 @@ use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
-    public function overview()
+    private function overviewData(): array
     {
         $today = Carbon::today();
 
-        // Get low stock items (below threshold)
         $lowStockItems = InventoryItem::whereColumn('stock', '<=', 'threshold')
             ->where('stock', '>', 0)
             ->get()
@@ -30,7 +29,6 @@ class DashboardController extends Controller
                 ];
             });
 
-        // Get top selling products (based on sales)
         $topSellingProducts = Sale::selectRaw('product_id, COUNT(*) as units_sold, SUM(amount) as revenue')
             ->whereNotNull('product_id')
             ->whereMonth('created_at', $today->month)
@@ -48,7 +46,6 @@ class DashboardController extends Controller
                 ];
             });
 
-        // Get pending orders (confirmed appointments)
         $pendingOrders = Appointment::where('status', 'confirmed')
             ->with(['pet', 'customer'])
             ->limit(5)
@@ -65,7 +62,6 @@ class DashboardController extends Controller
                 ];
             });
 
-        // Get sales by payment type
         $salesByType = Sale::selectRaw('payment_type, COUNT(*) as count, SUM(amount) as total')
             ->whereDate('created_at', $today)
             ->groupBy('payment_type')
@@ -78,7 +74,7 @@ class DashboardController extends Controller
                 ];
             });
 
-        return response()->json([
+        return [
             'today_sales' => Sale::whereDate('created_at', $today)->sum('amount'),
             'today_transactions' => Sale::whereDate('created_at', $today)->count(),
             'monthly_sales' => Sale::whereMonth('created_at', $today->month)->sum('amount'),
@@ -90,7 +86,17 @@ class DashboardController extends Controller
             'low_stock_items' => $lowStockItems,
             'top_selling_products' => $topSellingProducts,
             'pending_orders' => $pendingOrders,
-        ]);
+        ];
+    }
+
+    public function overview()
+    {
+        return response()->json($this->overviewData());
+    }
+
+    public function overviewWrapped()
+    {
+        return response()->json(['data' => $this->overviewData()]);
     }
 
     public function sales()

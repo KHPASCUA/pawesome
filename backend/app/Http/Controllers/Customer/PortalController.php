@@ -16,7 +16,7 @@ class PortalController extends Controller
 {
     private function currentCustomer(): ?Customer
     {
-        $user = auth()->user();
+        $user = request()->user() ?? auth()->user();
         if (!$user) return null;
         return Customer::where('email', $user->email)->first();
     }

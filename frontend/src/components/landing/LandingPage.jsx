@@ -2,6 +2,7 @@ import React from "react";
 import "./Landing.css";
 import { Link } from "react-router-dom";
 import pawesomeLogo from "../../assets/pawesome.jpg";
+import LandingChatbot from "../LandingChatbot";
 
 const LandingPage = () => {
   return (
@@ -122,6 +123,8 @@ const LandingPage = () => {
           <p>&copy; 2024 Pawesome Retreat Inc. All rights reserved.</p>
         </div>
       </footer>
+
+      <LandingChatbot />
     </div>
   );
 };

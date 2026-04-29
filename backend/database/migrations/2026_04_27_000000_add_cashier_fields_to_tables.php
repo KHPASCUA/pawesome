@@ -65,6 +65,12 @@ return new class extends Migration
             });
         }
 
+        if (!Schema::hasColumn('sales', 'payment_method')) {
+            Schema::table('sales', function (Blueprint $table) {
+                $table->string('payment_method')->default('cash')->after('payment_type');
+            });
+        }
+
         if (!Schema::hasColumn('sales', 'status')) {
             Schema::table('sales', function (Blueprint $table) {
                 $table->string('status')->default('completed')->after('payment_type');

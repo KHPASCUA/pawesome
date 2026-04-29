@@ -109,11 +109,13 @@ class PremiumChatbotService
             'complaint' => $this->complaintResponse($role),
             default => $this->defaultResponse($role, $message),
         };
-        
-        // Store context for follow-up
-        $this->storeContext($user?->id, $intent, $message);
-        
-        return $this->formatResponse($response, $role, $channel, $intent);
+
+        $formattedResponse = $this->formatResponse($response, $role, $channel, $intent);
+
+        // Store context for follow-up (with full response for logging)
+        $this->storeContext($user?->id, $intent, $message, $formattedResponse);
+
+        return $formattedResponse;
     }
 
     /**
@@ -954,7 +956,7 @@ class PremiumChatbotService
         };
     }
 
-    private function storeContext(?int $userId, string $intent, string $message): void
+    private function storeContext(?int $userId, string $intent, string $message, ?array $response = null): void
     {
         if ($userId) {
             $this->conversationContext[$userId] = [
@@ -962,6 +964,32 @@ class PremiumChatbotService
                 'last_message' => $message,
                 'timestamp' => now(),
             ];
+
+            // Persist chatbot log to database
+            try {
+                $user = User::find($userId);
+                ChatbotLog::create([
+                    'user_id' => $userId,
+                    'role' => $user?->role ?? 'guest',
+                    'channel' => 'web',
+                    'type' => 'conversation',
+                    'intent' => $intent,
+                    'scope' => $this->roleScopeService->normalizeRole($user?->role),
+                    'message' => $message,
+                    'user_message' => $message,
+                    'response' => $response['message'] ?? null,
+                    'bot_response' => $response['message'] ?? null,
+                    'metadata' => [
+                        'timestamp' => now()->toIso8601String(),
+                        'session_id' => uniqid('chat_', true),
+                        'confidence' => $response['confidence'] ?? null,
+                        'source' => $response['source'] ?? null,
+                    ],
+                ]);
+            } catch (\Exception $e) {
+                // Silently fail if log can't be saved (don't break chat for logging issues)
+                Log::warning('Failed to save chatbot log: ' . $e->getMessage());
+            }
         }
     }
 }

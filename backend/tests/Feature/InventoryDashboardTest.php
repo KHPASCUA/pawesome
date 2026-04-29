@@ -171,6 +171,6 @@ class InventoryDashboardTest extends TestCase
         $logs = InventoryLog::where('inventory_item_id', $item->id)->get();
 
         $this->assertCount(4, $logs); // Initial + 3 movements
-        $this->assertEquals(15, $item->fresh()->stock); // 20 - 3 - 2 + 10
+        $this->assertEquals(25, $item->fresh()->stock); // 20 - 3 - 2 + 10
     }
 }

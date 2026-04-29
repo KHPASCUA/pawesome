@@ -11,6 +11,10 @@ class ApiTokenAuth
 {
     public function handle(Request $request, Closure $next): Response
     {
+        if ($request->user()) {
+            return $next($request);
+        }
+
         $token = $request->bearerToken();
 
         if (!$token) {

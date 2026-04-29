@@ -30,6 +30,8 @@ class UserFactory extends Factory
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
             'remember_token' => Str::random(10),
+            'role' => 'customer',
+            'is_active' => true,
         ];
     }
 
@@ -40,6 +42,86 @@ class UserFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'email_verified_at' => null,
+        ]);
+    }
+
+    /**
+     * Set role to admin
+     */
+    public function admin(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'role' => 'admin',
+        ]);
+    }
+
+    /**
+     * Set role to manager
+     */
+    public function manager(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'role' => 'manager',
+        ]);
+    }
+
+    /**
+     * Set role to cashier
+     */
+    public function cashier(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'role' => 'cashier',
+        ]);
+    }
+
+    /**
+     * Set role to veterinary
+     */
+    public function veterinary(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'role' => 'veterinary',
+        ]);
+    }
+
+    /**
+     * Set role to receptionist
+     */
+    public function receptionist(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'role' => 'receptionist',
+        ]);
+    }
+
+    /**
+     * Set role to inventory
+     */
+    public function inventory(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'role' => 'inventory',
+        ]);
+    }
+
+    /**
+     * Set role to payroll
+     */
+    public function payroll(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'role' => 'payroll',
+        ]);
+    }
+
+    /**
+     * Set role to customer
+     */
+    public function customer(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'role' => 'customer',
         ]);
     }
 }
