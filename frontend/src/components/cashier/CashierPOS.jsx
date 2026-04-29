@@ -27,7 +27,7 @@ import {
   faFolderOpen,
 } from "@fortawesome/free-solid-svg-icons";
 
-const PRODUCT_ENDPOINT = "/cashier/pos/products";
+const PRODUCT_ENDPOINT = "/inventory/sellable";
 const CHECKOUT_ENDPOINT = "/cashier/pos/transaction";
 const VOUCHER_ENDPOINT = "/cashier/validate-voucher";
 

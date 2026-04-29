@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { inventoryItems as demoItems } from "./inventoryData";
 import { inventoryApi } from "../../api/inventory";
 import { formatCurrency } from "../../utils/currency";
 import { exportToCSV } from "../../utils/reportExport";
+import { demoItems } from "./inventoryData";
+import StockAdjustmentModal from "./StockAdjustmentModal";
+import { useNavigate } from "react-router-dom";
 import "./InventoryStock_Polished.css";
 
 const InventoryStock = () => {
+  const navigate = useNavigate();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [usingDemoData, setUsingDemoData] = useState(false);
@@ -13,7 +16,7 @@ const InventoryStock = () => {
   const [filterStatus, setFilterStatus] = useState("all");
   const [selectedItem, setSelectedItem] = useState(null);
   const [showAdjustModal, setShowAdjustModal] = useState(false);
-  const [adjustData, setAdjustData] = useState({ quantity: "", reason: "" });
+  const [lastUpdated, setLastUpdated] = useState(new Date());
 
   // Fetch items from API
   useEffect(() => {
@@ -27,7 +30,7 @@ const InventoryStock = () => {
           setItems(apiItems);
           setUsingDemoData(false);
         } else {
-          // Empty API response - use demo for presentation
+          // Empty API response - use demo data
           setItems(demoItems);
           setUsingDemoData(true);
         }
@@ -41,6 +44,26 @@ const InventoryStock = () => {
     };
 
     fetchItems();
+  }, []);
+
+  // Auto-refresh every 5 seconds for real-time updates
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        const response = await inventoryApi.getItems();
+        const apiItems = response.items || response.data || [];
+
+        if (apiItems.length > 0) {
+          setItems(apiItems);
+          setUsingDemoData(false);
+          setLastUpdated(new Date());
+        }
+      } catch (err) {
+        console.log("Auto refresh failed");
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
   }, []);
 
   // Calculate stats
@@ -106,49 +129,109 @@ const InventoryStock = () => {
     return { class: "status-good", label: "In Stock", icon: "✅" };
   };
 
-  // Get quantity bar color
+  // Smart stock color bar - percentage based
   const getQuantityBar = (quantity) => {
-    if (quantity === 0) return { width: "0%", color: "#ef4444" };
-    if (quantity <= 10) return { width: "25%", color: "#f59e0b" };
-    if (quantity <= 50) return { width: "50%", color: "#3b82f6" };
-    return { width: "100%", color: "#10b981" };
+    const maxStock = 100; // Reference max stock
+    const percentage = Math.min((quantity / maxStock) * 100, 100);
+
+    if (quantity === 0) return { width: "0%", color: "#ef4444", percentage: 0 };
+    if (percentage <= 10) return { width: `${percentage}%`, color: "#ef4444", percentage };
+    if (percentage <= 30) return { width: `${percentage}%`, color: "#f59e0b", percentage };
+    if (percentage <= 60) return { width: `${percentage}%`, color: "#3b82f6", percentage };
+    return { width: `${percentage}%`, color: "#10b981", percentage };
   };
+
+  // Top moving products
+  const topMovingItems = useMemo(() => {
+    return [...items]
+      .sort((a, b) => (b.sold || 0) - (a.sold || 0))
+      .slice(0, 5);
+  }, [items]);
 
   // Handle adjust stock
   const handleAdjustClick = (item) => {
     setSelectedItem(item);
-    setAdjustData({ quantity: "", reason: "" });
     setShowAdjustModal(true);
   };
 
-  const handleAdjustSubmit = async (e) => {
-    e.preventDefault();
-    if (!selectedItem) return;
-
-    const adjustQty = parseInt(adjustData.quantity) || 0;
-    
-    if (usingDemoData) {
-      // Demo mode: update locally
-      setItems(prev => prev.map(item => 
-        item.id === selectedItem.id 
-          ? { ...item, quantity: Math.max(0, (item.quantity || 0) + adjustQty) }
-          : item
-      ));
-    } else {
+  const handleAdjustSuccess = () => {
+    // Refresh items after adjustment
+    const fetchItems = async () => {
       try {
-        await inventoryApi.adjustStock(selectedItem.id, adjustQty, adjustData.reason);
-        // Refresh items
         const response = await inventoryApi.getItems();
-        setItems(response.items || response.data || []);
+        const apiItems = response.items || response.data || [];
+        if (apiItems.length > 0) {
+          setItems(apiItems);
+          setUsingDemoData(false);
+        } else {
+          setItems(demoItems);
+          setUsingDemoData(true);
+        }
       } catch (err) {
-        alert("Failed to adjust stock. Please try again.");
-        return;
+        console.error("Stock refresh failed:", err);
       }
-    }
-    
-    setShowAdjustModal(false);
+    };
+    fetchItems();
     setSelectedItem(null);
   };
+
+  // Notification helper function
+  const createInventoryNotification = async (item, type) => {
+    try {
+      await fetch(`${process.env.REACT_APP_API_URL || "http://localhost:8000/api"}/notifications`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify({
+          title:
+            type === "out"
+              ? "Out of Stock Alert"
+              : "Low Stock Alert",
+          message:
+            type === "out"
+              ? `${item.name} is out of stock.`
+              : `${item.name} is running low. Current stock: ${item.quantity}`,
+          module: "Inventory",
+          type,
+          priority: type === "out" ? "high" : "medium",
+          reference_id: item.id,
+        }),
+      });
+    } catch (error) {
+      console.error("Failed to create inventory notification:", error);
+    }
+  };
+
+  // Auto-notification checker for low/out of stock
+  useEffect(() => {
+    if (!items.length) return;
+
+    const notified = JSON.parse(
+      localStorage.getItem("inventoryNotifiedItems") || "{}"
+    );
+
+    items.forEach((item) => {
+      const quantity = item.quantity || 0;
+
+      if (quantity === 0 && notified[item.id] !== "out") {
+        createInventoryNotification(item, "out");
+        notified[item.id] = "out";
+      }
+
+      if (quantity > 0 && quantity <= 10 && notified[item.id] !== "low") {
+        createInventoryNotification(item, "low");
+        notified[item.id] = "low";
+      }
+
+      if (quantity > 10 && notified[item.id]) {
+        delete notified[item.id];
+      }
+    });
+
+    localStorage.setItem("inventoryNotifiedItems", JSON.stringify(notified));
+  }, [items]);
 
   return (
     <div className="inventory-stock-page polished">
@@ -163,7 +246,26 @@ const InventoryStock = () => {
           <button className="btn-export" onClick={handleExportCSV}>
             📥 Export CSV
           </button>
+          <button className="btn-add-item" onClick={() => navigate("/inventory/management")}>
+            ➕ Add Item
+          </button>
+          <button className="btn-view-reports" onClick={() => navigate("/inventory/reports")}>
+            📊 View Reports
+          </button>
         </div>
+      </div>
+
+      {/* Critical Alert Banner */}
+      {stats.outOfStock > 0 && (
+        <div className="critical-alert-banner">
+          ⚠️ <strong>{stats.outOfStock}</strong> items are OUT OF STOCK — Immediate attention required!
+        </div>
+      )}
+
+      {/* Real-time indicator */}
+      <div className="realtime-indicator">
+        <span className="live-dot"></span>
+        Live updates • Last synced: {lastUpdated.toLocaleTimeString()}
       </div>
 
       {/* Stats Cards */}
@@ -279,6 +381,7 @@ const InventoryStock = () => {
                           style={{ width: bar.width, backgroundColor: bar.color }}
                         ></div>
                       </div>
+                      <small className="stock-percentage">{Math.round(bar.percentage)}%</small>
                     </div>
                   </td>
                   <td className="numeric">
@@ -289,6 +392,11 @@ const InventoryStock = () => {
                       {item.expiration || "N/A"}
                       {isExpiring && " ⚠️"}
                     </span>
+                    {item.last_updated && (
+                      <small className="last-updated">
+                        Updated: {new Date(item.last_updated).toLocaleTimeString()}
+                      </small>
+                    )}
                   </td>
                   <td>
                     <span className={`status-badge ${badge.class}`}>
@@ -319,73 +427,31 @@ const InventoryStock = () => {
         )}
       </div>
 
-      {/* Adjust Stock Modal */}
-      {showAdjustModal && selectedItem && (
-        <div className="modal-overlay" onClick={() => setShowAdjustModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <div className="modal-title">
-                <div className="modal-icon">⚖️</div>
-                <div>
-                  <h3>Adjust Stock</h3>
-                  <p>{selectedItem.name}</p>
-                </div>
+      {/* Top Moving Items Section */}
+      {topMovingItems.length > 0 && (
+        <div className="top-moving-section">
+          <h3>🔥 Top Moving Products</h3>
+          <div className="top-moving-grid">
+            {topMovingItems.map((item) => (
+              <div key={item.id} className="top-moving-card">
+                <span className="moving-name">{item.name}</span>
+                <span className="moving-sold">{item.sold || 0} sold</span>
               </div>
-              <button className="btn-close" onClick={() => setShowAdjustModal(false)}>×</button>
-            </div>
-            
-            <form onSubmit={handleAdjustSubmit}>
-              <div className="modal-body">
-                <div className="current-stock">
-                  <span>Current Stock: <strong>{selectedItem.quantity || 0} units</strong></span>
-                </div>
-                
-                <div className="form-group">
-                  <label>
-                    Adjustment <span className="hint">(+ to add, - to remove)</span>
-                  </label>
-                  <div className="input-with-icon">
-                    <input
-                      type="number"
-                      value={adjustData.quantity}
-                      onChange={(e) => setAdjustData(prev => ({ ...prev, quantity: e.target.value }))}
-                      placeholder="e.g., +10 or -5"
-                      required
-                      autoFocus
-                    />
-                    <span className="input-suffix">units</span>
-                  </div>
-                </div>
-                
-                <div className="form-group">
-                  <label>Reason</label>
-                  <select
-                    value={adjustData.reason}
-                    onChange={(e) => setAdjustData(prev => ({ ...prev, reason: e.target.value }))}
-                    required
-                  >
-                    <option value="">Select reason...</option>
-                    <option value="New stock received">New stock received</option>
-                    <option value="Damaged/Expired">Damaged/Expired</option>
-                    <option value="Correction">Correction</option>
-                    <option value="Return">Return</option>
-                    <option value="Other">Other</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="modal-actions">
-                <button type="button" className="btn-secondary" onClick={() => setShowAdjustModal(false)}>
-                  Cancel
-                </button>
-                <button type="submit" className="btn-primary">
-                  Save Adjustment
-                </button>
-              </div>
-            </form>
+            ))}
           </div>
         </div>
       )}
+
+      {/* Adjust Stock Modal */}
+      <StockAdjustmentModal
+        isOpen={showAdjustModal}
+        onClose={() => {
+          setShowAdjustModal(false);
+          setSelectedItem(null);
+        }}
+        item={selectedItem}
+        onSuccess={handleAdjustSuccess}
+      />
     </div>
   );
 };

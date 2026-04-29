@@ -1,35 +1,39 @@
 /* Manage Users Styles */
 .manage-users {
   padding: 1rem;
-  background: var(--color-bg-gradient);
-  border-radius: 0;
-  box-shadow: none;
-  color: var(--color-text);
 }
 
-/* Header */
-.section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 2rem;
-  padding-bottom: 1rem;
-  border-bottom: none;
+/* ============================= */
+/* MANAGE USERS HEADER (FINAL)  */
+/* ============================= */
+
+.manage-users-header {
+  padding: 2rem;
+  border-radius: 24px;
+  background: linear-gradient(
+    135deg,
+    #ffc8dd,
+    #ffd6e8,
+    #fff1f7
+  );
+  margin-bottom: 1.5rem;
 }
 
-.header-left h2 {
-  margin: 0 0 0.5rem 0;
-  color: var(--color-heading);
-  font-size: 1.5rem;
-  font-weight: 600;
-}
-
-.header-left p {
+/* TITLE */
+.manage-users-header h1 {
   margin: 0;
-  color: var(--color-muted);
-  font-size: 0.9rem;
+  font-size: 2rem;
+  font-weight: 900;
+  color: #191919;
 }
 
+.manage-users-header p {
+  margin: 0.3rem 0 1.5rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+/* HEADER ACTIONS */
 .header-actions {
   display: flex;
   gap: 0.5rem;
@@ -70,71 +74,94 @@
   background: var(--color-surface);
 }
 
-/* Controls */
-.users-controls {
-  margin-bottom: 1.5rem;
-}
+/* ============================= */
+/* FILTER ROW                    */
+/* ============================= */
 
-.search-filter-group {
+.users-filter-bar {
   display: flex;
   gap: 1rem;
   flex-wrap: wrap;
-  align-items: center;
 }
+
+/* ============================= */
+/* SEARCH BOX (FIXED)           */
+/* ============================= */
 
 .search-box {
-  position: relative;
   flex: 1;
-  min-width: 250px;
-}
+  min-width: 280px;
 
-.search-box svg {
-  position: absolute;
-  left: 1rem;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--color-primary);
-}
-
-.search-box input {
-  width: 100%;
-  padding: 0.75rem 1rem 0.75rem 2.5rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-button);
-  font-size: 0.9rem;
-  transition: none;
-  background: var(--color-surface-solid);
-  color: var(--color-text);
-}
-
-.search-box input:focus {
-  outline: none;
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 4px rgba(255, 95, 147, 0.16);
-}
-
-.filter-dropdown {
-  position: relative;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+
+  background: rgba(255, 255, 255, 0.88);
+  border-radius: 22px;
+  border: 2px solid rgba(255, 255, 255, 0.75);
+  box-shadow: 0 14px 35px rgba(255, 95, 147, 0.14);
+
+  overflow: hidden;
 }
 
-.filter-dropdown select {
-  padding: 0.75rem 2rem 0.75rem 1rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-button);
-  font-size: 0.9rem;
-  background: var(--color-surface-solid);
-  cursor: pointer;
-  transition: none;
-  color: var(--color-text);
-}
+/* REMOVE DOUBLE BORDER */
+.search-box input {
+  flex: 1;
+  height: 56px;
 
-.filter-dropdown select:focus {
+  border: none;
   outline: none;
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 4px rgba(255, 95, 147, 0.16);
+  background: transparent;
+
+  padding: 0 1.4rem;
+  font-size: 0.95rem;
+  color: #1f2937;
+}
+
+/* ============================= */
+/* FILTER DROPDOWN (FIXED)      */
+/* ============================= */
+
+.filter-box {
+  min-width: 180px;
+
+  display: flex;
+  align-items: center;
+
+  background: rgba(255, 255, 255, 0.88);
+  border-radius: 22px;
+  border: 2px solid rgba(255, 255, 255, 0.75);
+  box-shadow: 0 14px 35px rgba(255, 95, 147, 0.14);
+
+  overflow: hidden;
+}
+
+/* REMOVE DOUBLE BORDER */
+.filter-box select {
+  width: 100%;
+  height: 56px;
+
+  border: none;
+  outline: none;
+  background: transparent;
+
+  padding: 0 3rem 0 1.4rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #1f2937;
+
+  appearance: none;
+}
+
+/* ============================= */
+/* FOCUS EFFECT (PREMIUM)       */
+/* ============================= */
+
+.search-box:focus-within,
+.filter-box:focus-within {
+  border-color: rgba(255, 95, 147, 0.55);
+  box-shadow:
+    0 0 0 4px rgba(255, 95, 147, 0.14),
+    0 16px 38px rgba(255, 95, 147, 0.18);
 }
 
 /* Table Container */
@@ -526,18 +553,13 @@
 
 /* Responsive */
 @media (max-width: 768px) {
-  .section-header {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 1rem;
-  }
-  
-  .search-filter-group {
+  .users-filter-bar {
     flex-direction: column;
   }
-  
-  .search-box {
-    min-width: 100%;
+
+  .search-box,
+  .filter-box {
+    width: 100%;
   }
   
   .form-row {

@@ -446,3 +446,109 @@
     padding: 12px 8px;
   }
 }
+
+/* ===== PREMIUM PINK GLASS UPGRADE ===== */
+
+.inventory-history-page.polished {
+  background: linear-gradient(135deg, #fff1f7, #ffffff, #f8fbff) !important;
+}
+
+.history-header {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(255, 95, 147, 0.14);
+  border-radius: 24px;
+  padding: 1.5rem;
+  box-shadow: 0 18px 45px rgba(255, 95, 147, 0.1);
+  backdrop-filter: blur(18px);
+}
+
+.header-title h2 {
+  color: #ff5f93 !important;
+  font-weight: 900;
+}
+
+/* Stats cards */
+.history-stats {
+  gap: 1rem;
+}
+
+.stat-card {
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(255, 95, 147, 0.14);
+  border-radius: 22px;
+  box-shadow: 0 14px 34px rgba(255, 95, 147, 0.09);
+  backdrop-filter: blur(18px);
+  padding: 1.25rem;
+}
+
+.stat-icon {
+  background: linear-gradient(135deg, #ff5f93, #ff8db5);
+  color: white;
+  border-radius: 14px;
+  box-shadow: 0 10px 24px rgba(255, 95, 147, 0.22);
+}
+
+/* Filters */
+.history-filters {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(255, 95, 147, 0.14);
+  border-radius: 24px;
+  padding: 1rem;
+  box-shadow: 0 14px 34px rgba(255, 95, 147, 0.09);
+}
+
+.history-filters input,
+.history-filters select {
+  border-radius: 999px;
+  border: 1px solid rgba(255, 95, 147, 0.18);
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.history-filters input:focus,
+.history-filters select:focus {
+  border-color: #ff5f93;
+  box-shadow: 0 0 0 4px rgba(255, 95, 147, 0.14);
+}
+
+/* Table */
+.history-table-card {
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(255, 95, 147, 0.14);
+  border-radius: 24px;
+  box-shadow: 0 18px 45px rgba(255, 95, 147, 0.1);
+  overflow: hidden;
+  backdrop-filter: blur(18px);
+}
+
+.history-table.polished th {
+  background: linear-gradient(135deg, #fff1f7, #ffffff);
+  color: #1f2937;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border-bottom: 1px solid rgba(255, 95, 147, 0.14);
+}
+
+.history-table.polished td {
+  border-bottom: 1px solid rgba(255, 95, 147, 0.09);
+  font-weight: 600;
+}
+
+.history-table.polished tbody tr:hover {
+  background: rgba(255, 241, 247, 0.75);
+}
+
+/* Buttons */
+.btn-export {
+  background: linear-gradient(135deg, #ff5f93, #ff8db5);
+  color: white;
+  border-radius: 999px;
+  font-weight: 900;
+  box-shadow: 0 12px 28px rgba(255, 95, 147, 0.28);
+  border: none;
+}
+
+.btn-export:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 34px rgba(255, 95, 147, 0.34);
+}

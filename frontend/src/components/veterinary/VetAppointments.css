@@ -1,25 +1,28 @@
-/* =============================================
-   Vet Appointments - PREMIUM EDITION
-   Glassmorphism • Gradients • Premium Interactions
-   ============================================= */
+/* VetAppointments.css */
+/* Clean global version: uses premium-card, app-content, app-filters, app-filter-btn, app-stat-card */
 
 .vet-appointments {
-  padding: 32px;
-  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-  min-height: calc(100vh - 80px);
+  display: grid;
+  gap: 24px;
 }
 
-.appointments-header {
+/* HEADER */
+
+.vet-appointments-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
+  gap: 1.5rem;
   margin-bottom: 32px;
   padding-bottom: 24px;
   border-bottom: 1px solid #e2e8f0;
 }
 
-.header-content h2 {
-  margin: 0 0 8px 0;
+.vet-appointments-header h2 {
+  margin: 0 0 0.4rem;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
   color: #0f172a;
   font-size: 1.75rem;
   font-weight: 700;

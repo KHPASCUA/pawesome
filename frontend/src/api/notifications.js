@@ -1,10 +1,22 @@
 import { apiRequest } from "./client";
 
 export const notificationApi = {
-  // Get all notifications
+  // Get all notifications (for role-based notifications)
+  getAll: async (role) => {
+    return apiRequest(`/notifications`, {
+      params: role ? { role } : {},
+    });
+  },
+
+  // Get all notifications (legacy)
   getNotifications: async (unreadOnly = false) => {
     const params = unreadOnly ? "?unread=1" : "";
     return apiRequest(`/notifications${params}`);
+  },
+
+  // Get unread notifications (for NotificationBell)
+  getUnread: async () => {
+    return apiRequest("/notifications/unread");
   },
 
   // Get unread count only
@@ -23,14 +35,14 @@ export const notificationApi = {
   // Mark single notification as read
   markAsRead: async (id) => {
     return apiRequest(`/notifications/${id}/read`, {
-      method: "POST",
+      method: "PATCH",
     });
   },
 
   // Mark all as read
   markAllAsRead: async () => {
-    return apiRequest("/notifications/mark-all-read", {
-      method: "POST",
+    return apiRequest("/notifications/read-all", {
+      method: "PATCH",
     });
   },
 

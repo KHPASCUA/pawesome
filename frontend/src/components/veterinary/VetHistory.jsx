@@ -39,7 +39,7 @@ const VetHistory = () => {
     try {
       setLoading(true);
       const data = await apiRequest("/veterinary/history?status=completed,cancelled,no-show");
-      const appointments = Array.isArray(data) ? data : (data.appointments || []);
+      const appointments = Array.isArray(data) ? data : data.appointments || data.data || [];
       const historyRecords = appointments.map(apt => ({
         id: apt.id,
         date: new Date(apt.scheduled_at).toISOString().split('T')[0],
@@ -67,17 +67,17 @@ const VetHistory = () => {
 
   const filteredHistory = history.filter((record) => {
     const matchesSearch = 
-      record.pet_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      record.owner_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      record.diagnosis?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      record.treatment?.toLowerCase().includes(searchTerm.toLowerCase());
+      (record.pet_name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (record.owner_name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (record.diagnosis || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (record.treatment || "").toLowerCase().includes(searchTerm.toLowerCase());
     
     if (filterType === "all") return matchesSearch;
-    return matchesSearch && record.treatment.toLowerCase().includes(filterType.toLowerCase());
+    return matchesSearch && (record.treatment || "").toLowerCase().includes(filterType.toLowerCase());
   }).sort((a, b) => {
-    if (sortBy === "date") return new Date(b.date) - new Date(a.date);
-    if (sortBy === "cost") return b.cost - a.cost;
-    if (sortBy === "pet") return a.pet_name.localeCompare(b.pet_name);
+    if (sortBy === "date") return new Date(b.date || 0) - new Date(a.date || 0);
+    if (sortBy === "cost") return (b.cost || 0) - (a.cost || 0);
+    if (sortBy === "pet") return (a.pet_name || "").localeCompare(b.pet_name || "");
     return 0;
   });
 
@@ -103,8 +103,8 @@ const VetHistory = () => {
       const csvContent = [
         ["Date", "Time", "Pet", "Owner", "Service", "Veterinarian", "Notes", "Cost", "Payment Status"],
         ...filteredHistory.map(record => [
-          new Date(record.date).toLocaleDateString(),
-          record.time,
+          record.date ? new Date(record.date).toLocaleDateString() : "",
+          record.time || "",
           record.pet_name || "",
           record.owner_name || "",
           record.treatment || "",
@@ -113,7 +113,7 @@ const VetHistory = () => {
           record.cost || 0,
           record.payment_status || ""
         ])
-      ].map(row => row.join(",")).join("\n");
+      ].map(row => row.map(val => `"${String(val).replace(/"/g, '""')}"`).join(",")).join("\n");
 
       const blob = new Blob([csvContent], { type: "text/csv" });
       const url = window.URL.createObjectURL(blob);
@@ -133,33 +133,44 @@ const VetHistory = () => {
   };
 
   const getTransactionStats = () => {
-    const stats = {};
-    filteredHistory.forEach(record => {
-      const service = record.treatment || 'Unknown';
-      stats[service] = (stats[service] || 0) + 1;
+    const stats = {
+      checkup: 0,
+      vaccination: 0,
+      surgery: 0,
+      emergency: 0,
+    };
+
+    filteredHistory.forEach((record) => {
+      const t = (record.treatment || "").toLowerCase();
+
+      if (t.includes("check")) stats.checkup++;
+      else if (t.includes("vacc")) stats.vaccination++;
+      else if (t.includes("surg")) stats.surgery++;
+      else if (t.includes("emerg")) stats.emergency++;
     });
+
     return stats;
   };
 
   if (loading) {
     return (
-      <div className="vet-history">
-        <div className="loading-spinner">
-          <FontAwesomeIcon icon={faSpinner} spin />
+      <section className="app-content vet-history">
+        <div className="premium-card vet-loading-state">
+          <FontAwesomeIcon icon={faSpinner} className="spin-animation" />
           <span>Loading history...</span>
         </div>
-      </div>
+      </section>
     );
   }
 
   if (error) {
     return (
-      <div className="vet-history">
-        <div className="error-message">
+      <section className="app-content vet-history">
+        <div className="premium-card vet-error-state">
           <FontAwesomeIcon icon={faExclamationTriangle} />
           <span>{error}</span>
         </div>
-      </div>
+      </section>
     );
   }
 
@@ -167,11 +178,16 @@ const VetHistory = () => {
   const totalRevenue = getTotalRevenue();
 
   return (
-    <div className="vet-history">
-      <div className="history-header">
-        <h2>Medical History Records</h2>
-        <div className="filter-controls">
-          <div className="search-input">
+    <section className="app-content vet-history">
+      <div className="premium-card vet-history-header">
+        <div>
+          <h2 className="premium-title">
+            <FontAwesomeIcon icon={faCalendarAlt} /> Medical History Records
+          </h2>
+          <p className="premium-muted">View completed appointments and treatments</p>
+        </div>
+        <div className="vet-history-controls">
+          <div className="vet-search-box">
             <FontAwesomeIcon icon={faSearch} />
             <input
               type="text"
@@ -181,7 +197,7 @@ const VetHistory = () => {
             />
           </div>
           <select
-            className="filter-select"
+            className="app-select"
             value={filterType}
             onChange={(e) => setFilterType(e.target.value)}
           >
@@ -194,7 +210,7 @@ const VetHistory = () => {
             <option value="grooming">Grooming</option>
           </select>
           <select
-            className="filter-select"
+            className="app-select"
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value)}
           >
@@ -206,175 +222,153 @@ const VetHistory = () => {
       </div>
 
       {/* Statistics Summary */}
-      <div className="stats-summary">
-        <div className="stat-card">
-          <div className="stat-icon">
+      <div className="app-grid-6 vet-stats-grid">
+        <div className="app-stat-card vet-stat-card">
+          <div className="vet-stat-icon">
             <FontAwesomeIcon icon={faFileInvoice} />
           </div>
-          <div className="stat-content">
-            <div className="stat-value">{filteredHistory.length}</div>
-            <div className="stat-label">Total Transactions</div>
+          <div>
+            <h3>{filteredHistory.length}</h3>
+            <p>Total Transactions</p>
           </div>
         </div>
-        <div className="stat-card">
-          <div className="stat-icon">
+        <div className="app-stat-card vet-stat-card">
+          <div className="vet-stat-icon">
             <FontAwesomeIcon icon={faDollarSign} />
           </div>
-          <div className="stat-content">
-            <div className="stat-value">{formatCurrency(totalRevenue)}</div>
-            <div className="stat-label">Total Revenue</div>
+          <div>
+            <h3>{formatCurrency(totalRevenue)}</h3>
+            <p>Total Revenue</p>
           </div>
         </div>
-        <div className="stat-card">
-          <div className="stat-icon">
+        <div className="app-stat-card vet-stat-card">
+          <div className="vet-stat-icon">
             <FontAwesomeIcon icon={faStethoscope} />
           </div>
-          <div className="stat-content">
-            <div className="stat-value">{stats.checkup || 0}</div>
-            <div className="stat-label">Checkups</div>
+          <div>
+            <h3>{stats.checkup || 0}</h3>
+            <p>Checkups</p>
           </div>
         </div>
-        <div className="stat-card">
-          <div className="stat-icon">
+        <div className="app-stat-card vet-stat-card">
+          <div className="vet-stat-icon">
             <FontAwesomeIcon icon={faSyringe} />
           </div>
-          <div className="stat-content">
-            <div className="stat-value">{stats.vaccination || 0}</div>
-            <div className="stat-label">Vaccinations</div>
+          <div>
+            <h3>{stats.vaccination || 0}</h3>
+            <p>Vaccinations</p>
           </div>
         </div>
-        <div className="stat-card">
-          <div className="stat-icon">
+        <div className="app-stat-card vet-stat-card">
+          <div className="vet-stat-icon">
             <FontAwesomeIcon icon={faHospital} />
           </div>
-          <div className="stat-content">
-            <div className="stat-value">{stats.surgery || 0}</div>
-            <div className="stat-label">Surgeries</div>
+          <div>
+            <h3>{stats.surgery || 0}</h3>
+            <p>Surgeries</p>
           </div>
         </div>
-        <div className="stat-card">
-          <div className="stat-icon">
+        <div className="app-stat-card vet-stat-card">
+          <div className="vet-stat-icon">
             <FontAwesomeIcon icon={faHeartbeat} />
           </div>
-          <div className="stat-content">
-            <div className="stat-value">{stats.emergency || 0}</div>
-            <div className="stat-label">Emergencies</div>
+          <div>
+            <h3>{stats.emergency || 0}</h3>
+            <p>Emergencies</p>
           </div>
         </div>
       </div>
 
       {filteredHistory.length === 0 ? (
-        <div className="no-records">
+        <div className="premium-card vet-empty-state">
           <FontAwesomeIcon icon={faCalendarAlt} />
           <h3>No history records found</h3>
           <p>Try adjusting your search or filters</p>
         </div>
       ) : (
-        <div className="history-timeline">
+        <div className="vet-history-list">
           {filteredHistory.map((record, index) => (
-            <div key={record.id || index} className="history-item">
-              <div className="history-item-header">
-                <div className="history-date">
+            <article key={record.id || index} className="premium-card vet-history-card">
+              <div className="vet-history-card-header">
+                <div className="vet-history-date">
                   <FontAwesomeIcon icon={faClock} />
-                  {new Date(record.date).toLocaleDateString()} at {record.time}
+                  {record.date ? new Date(record.date).toLocaleDateString() : "N/A"} at {record.time || "N/A"}
                 </div>
-                <span className={`history-type ${getTypeClass(record.type)}`}>
+                <span className="badge badge-info">
                   <FontAwesomeIcon icon={getTypeIcon(record.type)} />
                   {getTypeLabel(record.type)}
                 </span>
-                <div className="payment-status">
-                  <span className={`status-badge status-${record.payment_status}`}>
-                    {record.payment_status?.toUpperCase()}
-                  </span>
-                </div>
+                <span className={`badge ${record.payment_status === 'completed' ? 'badge-success' : 'badge-warning'}`}>
+                  {record.payment_status?.toUpperCase()}
+                </span>
               </div>
 
-              <div className="history-content">
-                <div className="history-patient">
-                  <div className="patient-avatar">
+              <div className="vet-history-body">
+                <div className="vet-history-patient">
+                  <div className="vet-pet-avatar">
                     <FontAwesomeIcon icon={faPaw} />
                   </div>
-                  <div className="patient-info">
+                  <div>
                     <h4>{record.pet_name}</h4>
                     <p><FontAwesomeIcon icon={faUser} /> {record.owner_name}</p>
                   </div>
                 </div>
 
-                <div className="medical-info">
-                  <div className="diagnosis-section">
-                    <h5>
-                      <FontAwesomeIcon icon={faStethoscope} />
-                      Diagnosis
-                    </h5>
+                <div className="vet-medical-info">
+                  <div className="vet-medical-section">
+                    <h5><FontAwesomeIcon icon={faStethoscope} /> Diagnosis</h5>
                     <p>{record.diagnosis}</p>
                   </div>
 
-                  <div className="treatment-section">
-                    <h5>
-                      <FontAwesomeIcon icon={faNotesMedical} />
-                      Treatment
-                    </h5>
+                  <div className="vet-medical-section">
+                    <h5><FontAwesomeIcon icon={faNotesMedical} /> Treatment</h5>
                     <p>{record.treatment}</p>
                   </div>
 
                   {record.prescription && (
-                    <div className="prescription-section">
-                      <h5>
-                        <FontAwesomeIcon icon={faPills} />
-                        Prescription
-                      </h5>
+                    <div className="vet-medical-section">
+                      <h5><FontAwesomeIcon icon={faPills} /> Prescription</h5>
                       <p>{record.prescription}</p>
                     </div>
                   )}
 
-                  <div className="cost-section">
-                    <h5>
-                      <FontAwesomeIcon icon={faDollarSign} />
-                      Cost
-                    </h5>
-                    <p className="cost-amount">{formatCurrency(record.cost)}</p>
+                  <div className="vet-medical-section vet-cost">
+                    <h5><FontAwesomeIcon icon={faDollarSign} /> Cost</h5>
+                    <p className="vet-cost-amount">{record.cost ? formatCurrency(record.cost) : "₱0"}</p>
                   </div>
                 </div>
 
-                <div className="notes-section">
-                  <h5>
-                    <FontAwesomeIcon icon={faFileInvoice} />
-                    Notes
-                  </h5>
+                <div className="vet-history-notes">
+                  <h5><FontAwesomeIcon icon={faFileInvoice} /> Notes</h5>
                   <p>{record.notes}</p>
                 </div>
               </div>
 
-              <div className="history-footer">
-                <div className="vet-info">
-                  <FontAwesomeIcon icon={faUser} />
-                  Dr. {record.vet_name}
+              <div className="vet-history-card-footer">
+                <div className="vet-vet-info">
+                  <FontAwesomeIcon icon={faUser} /> {record.vet_name ? `Dr. ${record.vet_name}` : "Unassigned"}
                 </div>
-                <div className="action-buttons">
-                  <button
-                    className="btn-view"
-                    onClick={() => handleViewRecord(record)}
-                    title="View Details"
-                  >
-                    <FontAwesomeIcon icon={faEye} />
-                    View
-                  </button>
-                </div>
+                <button
+                  className="btn-secondary"
+                  onClick={() => handleViewRecord(record)}
+                  type="button"
+                >
+                  <FontAwesomeIcon icon={faEye} /> View
+                </button>
               </div>
-            </div>
+            </article>
           ))}
         </div>
       )}
 
       {filteredHistory.length > 0 && (
-        <div className="history-footer-actions">
-          <button className="btn-export" onClick={handleExportHistory}>
-            <FontAwesomeIcon icon={faDownload} />
-            Export to CSV
+        <div className="vet-history-actions">
+          <button className="btn-primary" onClick={handleExportHistory} type="button">
+            <FontAwesomeIcon icon={faDownload} /> Export to CSV
           </button>
         </div>
       )}
-    </div>
+    </section>
   );
 };
 

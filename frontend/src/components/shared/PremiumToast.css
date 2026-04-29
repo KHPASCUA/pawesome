@@ -1,0 +1,115 @@
+/* ===== PREMIUM TOAST NOTIFICATION ===== */
+
+.premium-toast {
+  position: fixed;
+  right: 24px;
+  top: 24px;
+  z-index: 5000;
+
+  width: min(420px, calc(100vw - 32px));
+  display: flex;
+  align-items: flex-start;
+  gap: 0.9rem;
+
+  padding: 1rem 1.1rem;
+  border-radius: 22px;
+
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(255, 95, 147, 0.18);
+  box-shadow: 0 24px 70px rgba(255, 95, 147, 0.26);
+  backdrop-filter: blur(18px);
+
+  animation: toastSlideIn 0.35s ease both;
+}
+
+.toast-icon {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+
+  display: grid;
+  place-items: center;
+
+  border-radius: 16px;
+  background: linear-gradient(135deg, #ff5f93, #ff8db5);
+  color: white;
+  box-shadow: 0 12px 28px rgba(255, 95, 147, 0.25);
+}
+
+.toast-content {
+  flex: 1;
+}
+
+.toast-content h4 {
+  margin: 0 0 0.25rem;
+  color: #111827;
+  font-size: 0.98rem;
+  font-weight: 950;
+}
+
+.toast-content p {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  font-weight: 650;
+}
+
+.toast-close {
+  width: 30px;
+  height: 30px;
+  min-width: 30px;
+
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+
+  background: rgba(255, 241, 247, 0.9);
+  color: #111827;
+  font-size: 1.2rem;
+  line-height: 1;
+
+  transition: 0.2s ease;
+}
+
+.toast-close:hover {
+  background: #ffffff;
+  transform: scale(1.08);
+}
+
+.premium-toast.success .toast-icon {
+  background: linear-gradient(135deg, #10b981, #34d399);
+}
+
+.premium-toast.error .toast-icon {
+  background: linear-gradient(135deg, #ef4444, #fb7185);
+}
+
+.premium-toast.warning .toast-icon {
+  background: linear-gradient(135deg, #f59e0b, #fbbf24);
+}
+
+.premium-toast.info .toast-icon {
+  background: linear-gradient(135deg, #3b82f6, #60a5fa);
+}
+
+@keyframes toastSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(32px) translateY(-8px) scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0) translateY(0) scale(1);
+  }
+}
+
+@media (max-width: 768px) {
+  .premium-toast {
+    top: 16px;
+    right: 16px;
+    left: 16px;
+    width: auto;
+  }
+}

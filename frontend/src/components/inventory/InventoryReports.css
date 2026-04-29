@@ -208,54 +208,59 @@
  border-bottom-right-radius: 6px;
 }
 
-/* Status badges */
+/* Status badges - Pink Premium Theme */
 .status-badge {
- padding: 5px 12px;
- border-radius: 6px;
- font-size: 10.5px;
- font-weight: 700;
- text-transform: uppercase;
- letter-spacing: 0.6px;
- display: inline-block;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  display: inline-block;
 }
 
-.status-badge.in-stock {
- background: #dcfce7;
- color: #166534;
+.status-badge.in-stock,
+.status-badge.instock {
+  background: #d1fae5;
+  color: #065f46;
 }
 
-.status-badge.low-stock {
- background: #fef3c7;
- color: #92400e;
+.status-badge.low-stock,
+.status-badge.lowstock {
+  background: #fef3c7;
+  color: #92400e;
 }
 
-.status-badge.out-of-stock {
- background: #fee2e2;
- color: #991b1b;
+.status-badge.out-of-stock,
+.status-badge.outofstock,
+.status-badge.out-stock {
+  background: #fee2e2;
+  color: #991b1b;
 }
 
-/* ID and SKU codes */
+/* ID and SKU codes - Pink Theme */
 .id-code, .sku-code {
- padding: 4px 10px;
- background: #f3f4f6;
- border-radius: 6px;
- font-family: 'SF Mono', Monaco, 'Courier New', monospace;
- font-size: 11px;
- color: #4b5563;
- font-weight: 600;
- letter-spacing: 0.3px;
- display: inline-block;
+  padding: 4px 10px;
+  background: #fff1f7;
+  border: 1px solid rgba(255, 95, 147, 0.16);
+  border-radius: 999px;
+  font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+  font-size: 11px;
+  color: #be185d;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  display: inline-block;
 }
 
-/* Category badge */
+/* Category badge - Pink Theme */
 .category-badge {
- padding: 4px 10px;
- background: #eef2ff;
- color: #4f46e5;
- font-size: 11px;
- font-weight: 600;
- border-radius: 6px;
- display: inline-block;
+  padding: 4px 10px;
+  background: #ffe4ec;
+  color: #be185d;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 999px;
+  display: inline-block;
 }
 
 /* Product name */
@@ -302,23 +307,27 @@
 }
 
 .summary-card.primary .card-icon {
- background: #dbeafe;
- color: #2563eb;
+  background: linear-gradient(135deg, #ff5f93, #ff8db5);
+  color: white;
+  box-shadow: 0 10px 24px rgba(255, 95, 147, 0.22);
 }
 
 .summary-card.secondary .card-icon {
- background: #e0e7ff;
- color: #4f46e5;
+  background: linear-gradient(135deg, #ff8db5, #ffb3c9);
+  color: white;
+  box-shadow: 0 10px 24px rgba(255, 95, 147, 0.22);
 }
 
 .summary-card.tertiary .card-icon {
- background: #dcfce7;
- color: #16a34a;
+  background: linear-gradient(135deg, #86efac, #4ade80);
+  color: #065f46;
+  box-shadow: 0 10px 24px rgba(74, 222, 128, 0.22);
 }
 
 .summary-card.warning .card-icon {
- background: #fef3c7;
- color: #d97706;
+  background: linear-gradient(135deg, #fcd34d, #fbbf24);
+  color: #92400e;
+  box-shadow: 0 10px 24px rgba(251, 191, 36, 0.22);
 }
 
 .card-icon {
@@ -374,33 +383,35 @@
 }
 
 .status-card.in-stock {
- border-color: #86efac;
- background: #f0fdf4;
+  border-color: #86efac;
+  background: #f0fdf4;
 }
 
 .status-card.in-stock svg {
- color: #22c55e;
- font-size: 1.5rem;
+  color: #22c55e;
+  font-size: 1.5rem;
 }
 
 .status-card.low-stock {
- border-color: #fcd34d;
- background: #fffbeb;
+  border-color: #fcd34d;
+  background: #fffbeb;
 }
 
 .status-card.low-stock svg {
- color: #f59e0b;
- font-size: 1.5rem;
+  color: #f59e0b;
+  font-size: 1.5rem;
 }
 
-.status-card.out-stock {
- border-color: #fca5a5;
- background: #fef2f2;
+.status-card.out-stock,
+.status-card.out-of-stock {
+  border-color: #fca5a5;
+  background: #fef2f2;
 }
 
-.status-card.out-stock svg {
- color: #ef4444;
- font-size: 1.5rem;
+.status-card.out-stock svg,
+.status-card.out-of-stock svg {
+  color: #ef4444;
+  font-size: 1.5rem;
 }
 
 .status-info {
@@ -760,5 +771,376 @@
   .alerts-table td {
     padding: 0.5rem 0.75rem;
     font-size: 0.8rem;
+  }
+}
+
+/* ===== PREMIUM PINK GLASS UPGRADE ===== */
+
+.inventory-reports-page {
+  background: linear-gradient(135deg, #fff1f7, #ffffff, #f8fbff) !important;
+}
+
+.reports-header {
+  background: linear-gradient(135deg, #ff5f93, #ff8db5) !important;
+  box-shadow: 0 20px 50px rgba(255, 95, 147, 0.25);
+}
+
+.reports-header h2 {
+  color: white !important;
+}
+
+.reports-header p {
+  color: rgba(255, 255, 255, 0.85) !important;
+}
+
+/* Summary cards */
+.reports-summary-grid {
+  gap: 1rem;
+}
+
+.summary-card {
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(255, 95, 147, 0.14);
+  border-radius: 22px;
+  box-shadow: 0 14px 34px rgba(255, 95, 147, 0.09);
+  backdrop-filter: blur(18px);
+}
+
+.summary-card .card-icon {
+  background: linear-gradient(135deg, #ff5f93, #ff8db5);
+  color: white;
+  border-radius: 14px;
+  box-shadow: 0 10px 24px rgba(255, 95, 147, 0.22);
+}
+
+/* Tables */
+.reports-detail-panel section,
+.alerts-section,
+.inventory-table-section {
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(255, 95, 147, 0.14);
+  border-radius: 24px;
+  box-shadow: 0 18px 45px rgba(255, 95, 147, 0.1);
+  overflow: hidden;
+  backdrop-filter: blur(18px);
+}
+
+.summary-table th,
+.alerts-table th,
+.inventory-table th {
+  background: linear-gradient(135deg, #fff1f7, #ffffff);
+  color: #1f2937;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border-bottom: 1px solid rgba(255, 95, 147, 0.14);
+}
+
+.summary-table td,
+.alerts-table td,
+.inventory-table td {
+  border-bottom: 1px solid rgba(255, 95, 147, 0.09);
+  font-weight: 600;
+}
+
+.summary-table tbody tr:hover,
+.alerts-table tbody tr:hover,
+.inventory-table tbody tr:hover {
+  background: rgba(255, 241, 247, 0.75);
+}
+
+/* Status cards */
+.status-card {
+  border-radius: 22px;
+  box-shadow: 0 14px 34px rgba(255, 95, 147, 0.09);
+}
+
+/* Action buttons */
+.btn-primary {
+  background: linear-gradient(135deg, #ff5f93, #ff8db5);
+  border-radius: 999px;
+  font-weight: 900;
+  box-shadow: 0 12px 28px rgba(255, 95, 147, 0.28);
+  border: none;
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 34px rgba(255, 95, 147, 0.34);
+}
+
+/* Filter inputs */
+input, select {
+  border-radius: 999px !important;
+  border: 1px solid rgba(255, 95, 147, 0.18) !important;
+  background: rgba(255, 255, 255, 0.9) !important;
+}
+
+input:focus, select:focus {
+  border-color: #ff5f93 !important;
+  box-shadow: 0 0 0 4px rgba(255, 95, 147, 0.14) !important;
+}
+
+/* ===== PREMIUM DASHBOARD UPGRADES ===== */
+
+/* Loading Overlay */
+.loading-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 16px;
+  z-index: 9999;
+  color: #ff5f93;
+}
+
+.loading-overlay p {
+  color: #64748b;
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+/* Hero Header */
+.reports-hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 28px 32px;
+  margin-bottom: 18px;
+
+  border-radius: 24px;
+  background: linear-gradient(135deg, #ff5f93, #ff8db5);
+  color: white;
+  box-shadow: 0 20px 50px rgba(255, 95, 147, 0.3);
+}
+
+.reports-hero .hero-left h1 {
+  margin: 0 0 6px;
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: white !important;
+}
+
+.reports-hero .hero-left p {
+  margin: 0;
+  opacity: 0.9;
+  font-size: 1rem;
+  color: white !important;
+}
+
+.hero-right {
+  display: flex;
+  gap: 24px;
+}
+
+.mini-stat {
+  text-align: center;
+  padding: 12px 20px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 14px;
+  backdrop-filter: blur(4px);
+}
+
+.mini-stat span {
+  display: block;
+  font-size: 12px;
+  opacity: 0.85;
+  margin-bottom: 4px;
+  color: white;
+}
+
+.mini-stat strong {
+  display: block;
+  font-size: 22px;
+  font-weight: 800;
+  color: white;
+}
+
+/* Insights Row */
+.insights-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.insight-card {
+  padding: 20px 18px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 10px 25px rgba(255, 95, 147, 0.12);
+  border: 1px solid rgba(255, 95, 147, 0.1);
+  backdrop-filter: blur(12px);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.insight-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 14px 34px rgba(255, 95, 147, 0.18);
+}
+
+.insight-card h4 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: #64748b;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.insight-card p {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+  color: #ff5f93;
+}
+
+/* Sticky Table Headers */
+.summary-table thead th,
+.alerts-table thead th,
+.inventory-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: linear-gradient(135deg, #fff1f7, #ffffff);
+}
+
+/* Table Row Hover Intelligence */
+.summary-table tbody tr,
+.alerts-table tbody tr,
+.inventory-table tbody tr {
+  transition: all 0.2s ease;
+}
+
+.summary-table tbody tr:hover,
+.alerts-table tbody tr:hover,
+.inventory-table tbody tr:hover {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 95, 147, 0.08),
+    rgba(255, 141, 181, 0.08)
+  );
+  transform: scale(1.002);
+  box-shadow: 0 4px 12px rgba(255, 95, 147, 0.1);
+}
+
+/* Responsive */
+@media (max-width: 992px) {
+  .reports-hero {
+    flex-direction: column;
+    gap: 20px;
+    text-align: center;
+  }
+
+  .hero-right {
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .insights-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .mini-stat {
+    padding: 10px 16px;
+  }
+
+  .mini-stat strong {
+    font-size: 18px;
+  }
+}
+
+/* ===== INVENTORY REPORT CHARTS UPGRADE ===== */
+
+.reports-charts-grid {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+
+.chart-card {
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(255, 95, 147, 0.14);
+  border-radius: 24px;
+  padding: 1.25rem;
+  box-shadow: 0 18px 45px rgba(255, 95, 147, 0.1);
+  backdrop-filter: blur(18px);
+  overflow: hidden;
+}
+
+.chart-header {
+  margin-bottom: 1rem;
+}
+
+.chart-header h3 {
+  margin: 0;
+  color: #1f2937;
+  font-size: 1.05rem;
+  font-weight: 900;
+}
+
+.chart-header p {
+  margin: 0.3rem 0 0;
+  color: #64748b;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.recharts-wrapper text {
+  fill: #64748b;
+  font-weight: 600;
+}
+
+.recharts-default-tooltip {
+  border-radius: 14px !important;
+  border: 1px solid rgba(255, 95, 147, 0.18) !important;
+  box-shadow: 0 12px 28px rgba(255, 95, 147, 0.16) !important;
+}
+
+@media (max-width: 1024px) {
+  .reports-charts-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ===== EXECUTIVE REPORT PRINT BUTTON ===== */
+
+.executive-report-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin: 1rem 0 1.25rem;
+}
+
+.executive-report-actions .btn-primary {
+  padding: 12px 22px;
+  border-radius: 999px;
+  font-weight: 900;
+  border: none;
+  color: #ffffff;
+  background: linear-gradient(135deg, #ff5f93, #ff8db5);
+  box-shadow: 0 12px 28px rgba(255, 95, 147, 0.28);
+  cursor: pointer;
+  transition: 0.25s ease;
+}
+
+.executive-report-actions .btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 34px rgba(255, 95, 147, 0.34);
+}
+
+@media (max-width: 768px) {
+  .executive-report-actions {
+    justify-content: stretch;
+  }
+
+  .executive-report-actions .btn-primary {
+    width: 100%;
   }
 }

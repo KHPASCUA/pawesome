@@ -6,9 +6,8 @@ import {
   faCheckCircle,
   faWarehouse,
   faTags,
-  faTruck,
+  faSpinner,
 } from "@fortawesome/free-solid-svg-icons";
-import { inventoryItems as demoInventoryItems, inventoryHistory as demoInventoryHistory } from "./inventoryData";
 import ReportFilters from "../shared/ReportFilters";
 import { inventoryApi } from "../../api/inventory";
 import {
@@ -17,13 +16,24 @@ import {
   exportToExcel,
   getDateRangePreset,
 } from "../../utils/reportExport";
+import { inventoryProducts as demoInventoryItems } from "./inventoryData";
 import "./InventoryReports.css";
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  PieChart,
+  Pie,
+  Cell,
+  CartesianGrid,
+} from "recharts";
 
 const InventoryReports = () => {
   const [loading, setLoading] = useState(false);
-  const [usingDemoData, setUsingDemoData] = useState(false);
   const [apiItems, setApiItems] = useState([]);
-  const [apiHistory, setApiHistory] = useState([]);
 
   // Filter states
   const [searchTerm, setSearchTerm] = useState("");
@@ -37,40 +47,28 @@ const InventoryReports = () => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const [itemsResponse, historyResponse] = await Promise.all([
-          inventoryApi.getItems(),
-          inventoryApi.getStockHistory()
-        ]);
-        
+        const itemsResponse = await inventoryApi.getItems();
         const items = itemsResponse.items || itemsResponse.data || [];
-        const history = historyResponse.history || historyResponse.data || [];
-        
+
         if (items.length > 0) {
           setApiItems(items);
-          setApiHistory(history);
-          setUsingDemoData(false);
         } else {
-          // Fallback to demo data
+          // API returned empty - use demo data
           setApiItems(demoInventoryItems);
-          setApiHistory(demoInventoryHistory);
-          setUsingDemoData(true);
         }
       } catch (err) {
-        console.error("Failed to fetch inventory data:", err);
+        console.error("Failed to fetch inventory data, using demo:", err);
         setApiItems(demoInventoryItems);
-        setApiHistory(demoInventoryHistory);
-        setUsingDemoData(true);
       } finally {
         setLoading(false);
       }
     };
-    
+
     fetchData();
   }, []);
 
-  // Use API data or fallback to demo
-  const inventoryItems = apiItems.length > 0 ? apiItems : demoInventoryItems;
-  const inventoryHistory = apiHistory.length > 0 ? apiHistory : demoInventoryHistory;
+  // Use API data
+  const inventoryItems = apiItems;
 
   // Set default date range to current month
   useEffect(() => {
@@ -80,7 +78,7 @@ const InventoryReports = () => {
   }, []);
 
   // Get unique categories
-  const categories = useMemo(() => [...new Set(inventoryItems.map((item) => item.category))], []);
+  const categories = useMemo(() => [...new Set(inventoryItems.map((item) => item.category))], [inventoryItems]);
 
   // Filter inventory items
   const filteredItems = useMemo(() => {
@@ -109,7 +107,7 @@ const InventoryReports = () => {
     }
 
     return filtered;
-  }, [searchTerm, categoryFilter, statusFilter]);
+  }, [inventoryItems, searchTerm, categoryFilter, statusFilter]);
 
   // Calculate summaries
   const categorySummary = useMemo(() => {
@@ -150,12 +148,51 @@ const InventoryReports = () => {
   }, [filteredItems]);
 
   const lowStockItems = useMemo(() => filteredItems.filter((item) => item.quantity <= 10), [filteredItems]);
-  const criticalItems = useMemo(() => filteredItems.filter((item) => item.quantity <= 5), [filteredItems]);
 
   // Total values
   const totalProducts = filteredItems.length;
   const totalStockQuantity = filteredItems.reduce((sum, item) => sum + item.quantity, 0);
   const totalInventoryValue = filteredItems.reduce((sum, item) => sum + item.quantity * item.price, 0);
+
+  // Get top category and brand
+  const topCategory = useMemo(() => {
+    const entries = Object.entries(categorySummary);
+    if (entries.length === 0) return "N/A";
+    return entries.sort((a, b) => b[1].count - a[1].count)[0][0];
+  }, [categorySummary]);
+
+  const topBrand = useMemo(() => {
+    const entries = Object.entries(brandSummary);
+    if (entries.length === 0) return "N/A";
+    return entries.sort((a, b) => b[1].count - a[1].count)[0][0];
+  }, [brandSummary]);
+
+  const criticalItemsCount = useMemo(() => {
+    return lowStockItems.filter((i) => i.quantity <= 5).length;
+  }, [lowStockItems]);
+
+  // Chart data preparation
+  const categoryChartData = Object.entries(categorySummary).map(
+    ([category, data]) => ({
+      name: category,
+      value: data.quantity,
+    })
+  );
+
+  const statusChartData = Object.entries(statusCounts).map(
+    ([status, count]) => ({
+      name: status,
+      value: count,
+    })
+  );
+
+  const topStockItems = [...filteredItems]
+    .sort((a, b) => (b.quantity || 0) - (a.quantity || 0))
+    .slice(0, 6)
+    .map((item) => ({
+      name: item.name,
+      stock: item.quantity || 0,
+    }));
 
   const handleDateChange = (key, value) => {
     if (key === "startDate") setStartDate(value);
@@ -222,12 +259,272 @@ const InventoryReports = () => {
     exportToExcel(filteredItems, columns, "inventory-report");
   };
 
+  const handlePrintExecutiveReport = () => {
+    const printWindow = window.open("", "_blank");
+
+    const reportDate = new Date().toLocaleDateString("en-PH", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+
+    const lowStockRows = lowStockItems
+      .map(
+        (item) => `
+        <tr>
+          <td>${item.name || "N/A"}</td>
+          <td>${item.sku || "N/A"}</td>
+          <td>${item.category || "N/A"}</td>
+          <td>${item.quantity || 0}</td>
+          <td>${item.quantity <= 5 ? "Critical" : "Low Stock"}</td>
+        </tr>
+      `
+      )
+      .join("");
+
+    const inventoryRows = filteredItems
+      .map(
+        (item) => `
+        <tr>
+          <td>${item.id || "N/A"}</td>
+          <td>${item.name || "N/A"}</td>
+          <td>${item.category || "N/A"}</td>
+          <td>${item.quantity || 0}</td>
+          <td>₱${((item.quantity || 0) * (item.price || 0)).toFixed(2)}</td>
+          <td>${item.status || "N/A"}</td>
+        </tr>
+      `
+      )
+      .join("");
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Inventory Executive Report</title>
+          <style>
+            body {
+              font-family: Arial, sans-serif;
+              padding: 32px;
+              color: #111827;
+            }
+
+            .header {
+              border-bottom: 4px solid #ff5f93;
+              padding-bottom: 18px;
+              margin-bottom: 24px;
+            }
+
+            .header h1 {
+              margin: 0;
+              color: #ff5f93;
+              font-size: 28px;
+            }
+
+            .header p {
+              margin: 6px 0 0;
+              color: #64748b;
+            }
+
+            .summary {
+              display: grid;
+              grid-template-columns: repeat(4, 1fr);
+              gap: 12px;
+              margin-bottom: 24px;
+            }
+
+            .card {
+              border: 1px solid #fbcfe8;
+              border-radius: 12px;
+              padding: 14px;
+              background: #fff1f7;
+            }
+
+            .card span {
+              display: block;
+              color: #64748b;
+              font-size: 12px;
+              font-weight: 700;
+            }
+
+            .card strong {
+              display: block;
+              margin-top: 6px;
+              font-size: 22px;
+              color: #be185d;
+            }
+
+            h2 {
+              margin-top: 28px;
+              color: #111827;
+              font-size: 18px;
+              border-bottom: 1px solid #e5e7eb;
+              padding-bottom: 8px;
+            }
+
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-top: 12px;
+              font-size: 12px;
+            }
+
+            th {
+              background: #fff1f7;
+              color: #111827;
+              text-align: left;
+              padding: 10px;
+              border: 1px solid #fbcfe8;
+            }
+
+            td {
+              padding: 9px 10px;
+              border: 1px solid #e5e7eb;
+            }
+
+            .note {
+              margin-top: 24px;
+              padding: 14px;
+              border-left: 4px solid #ff5f93;
+              background: #fff1f7;
+              font-size: 13px;
+            }
+
+            @media print {
+              button {
+                display: none;
+              }
+
+              body {
+                padding: 20px;
+              }
+            }
+          </style>
+        </head>
+
+        <body>
+          <div class="header">
+            <h1>Pawesome Inventory Executive Report</h1>
+            <p>Generated on ${reportDate}</p>
+            <p>Stock levels, inventory value, and low-stock monitoring summary.</p>
+          </div>
+
+          <div class="summary">
+            <div class="card">
+              <span>Total Products</span>
+              <strong>${totalProducts}</strong>
+            </div>
+
+            <div class="card">
+              <span>Total Stock Units</span>
+              <strong>${totalStockQuantity}</strong>
+            </div>
+
+            <div class="card">
+              <span>Inventory Value</span>
+              <strong>₱${(totalInventoryValue || 0).toFixed(2)}</strong>
+            </div>
+
+            <div class="card">
+              <span>Low Stock Items</span>
+              <strong>${lowStockItems.length}</strong>
+            </div>
+          </div>
+
+          <h2>Executive Summary</h2>
+          <p>
+            This report summarizes the current inventory status of the system.
+            It includes total stock quantity, estimated inventory value, product availability,
+            and low-stock items requiring attention.
+          </p>
+
+          <h2>Low Stock Alerts</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Product</th>
+                <th>SKU</th>
+                <th>Category</th>
+                <th>Current Stock</th>
+                <th>Alert Level</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${
+                lowStockRows ||
+                `<tr><td colspan="5">No low stock items found.</td></tr>` 
+              }
+            </tbody>
+          </table>
+
+          <h2>Inventory Details</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Product</th>
+                <th>Category</th>
+                <th>Stock</th>
+                <th>Total Value</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${
+                inventoryRows ||
+                `<tr><td colspan="6">No inventory records found.</td></tr>` 
+              }
+            </tbody>
+          </table>
+
+          <div class="note">
+            <strong>Recommendation:</strong>
+            Review low-stock and critical-stock items immediately to prevent service or product availability issues.
+          </div>
+
+          <script>
+            window.onload = function () {
+              window.print();
+            };
+          </script>
+        </body>
+      </html>
+    `);
+
+    printWindow.document.close();
+  };
+
   return (
     <div className="inventory-reports-page">
-      <div className="reports-header">
-        <div className="header-content">
-          <h1>Inventory Reports</h1>
-          <p>Stock levels, suppliers, and inventory analytics</p>
+      {/* Loading Overlay */}
+      {loading && (
+        <div className="loading-overlay">
+          <FontAwesomeIcon icon={faSpinner} spin size="3x" />
+          <p>Loading inventory analytics...</p>
+        </div>
+      )}
+
+      {/* Hero Header */}
+      <div className="reports-hero">
+        <div className="hero-left">
+          <h1>Inventory Analytics Dashboard</h1>
+          <p>Real-time stock insights, alerts, and inventory performance</p>
+        </div>
+
+        <div className="hero-right">
+          <div className="mini-stat">
+            <span>Total</span>
+            <strong>{totalProducts}</strong>
+          </div>
+
+          <div className="mini-stat">
+            <span>Low Stock</span>
+            <strong>{lowStockItems.length}</strong>
+          </div>
+
+          <div className="mini-stat">
+            <span>Value</span>
+            <strong>₱{(totalInventoryValue || 0).toFixed(0)}</strong>
+          </div>
         </div>
       </div>
 
@@ -257,6 +554,31 @@ const InventoryReports = () => {
         searchPlaceholder="Search products by name, SKU, brand, or supplier..."
       />
 
+      {/* Executive Report Button */}
+      <div className="executive-report-actions">
+        <button className="btn-primary" onClick={handlePrintExecutiveReport}>
+          <FontAwesomeIcon icon={faBox} /> Print Executive Report
+        </button>
+      </div>
+
+      {/* Insights Row */}
+      <div className="insights-row">
+        <div className="insight-card">
+          <h4>Top Category</h4>
+          <p>{topCategory}</p>
+        </div>
+
+        <div className="insight-card">
+          <h4>Top Brand</h4>
+          <p>{topBrand}</p>
+        </div>
+
+        <div className="insight-card">
+          <h4>Critical Items</h4>
+          <p>{criticalItemsCount}</p>
+        </div>
+      </div>
+
       {/* Summary Cards */}
       <div className="reports-summary-grid">
         <div className="summary-card primary">
@@ -284,7 +606,7 @@ const InventoryReports = () => {
             <FontAwesomeIcon icon={faTags} />
           </div>
           <div className="card-content">
-            <div className="card-value">₱{totalInventoryValue.toFixed(2)}</div>
+            <div className="card-value">₱{(totalInventoryValue || 0).toFixed(2)}</div>
             <div className="card-label">Inventory Value</div>
           </div>
         </div>
@@ -298,6 +620,53 @@ const InventoryReports = () => {
             <div className="card-label">Low Stock Items</div>
           </div>
         </div>
+      </div>
+
+      {/* Charts Grid */}
+      <div className="reports-charts-grid">
+        <section className="chart-card">
+          <div className="chart-header">
+            <h3>Top Stock Items</h3>
+            <p>Highest available stock quantities</p>
+          </div>
+
+          <ResponsiveContainer width="100%" height={280}>
+            <BarChart data={topStockItems}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+              <YAxis />
+              <Tooltip />
+              <Bar dataKey="stock" fill="#ff5f93" radius={[10, 10, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </section>
+
+        <section className="chart-card">
+          <div className="chart-header">
+            <h3>Stock Status</h3>
+            <p>In stock, low stock, and out of stock count</p>
+          </div>
+
+          <ResponsiveContainer width="100%" height={280}>
+            <PieChart>
+              <Pie
+                data={statusChartData}
+                dataKey="value"
+                nameKey="name"
+                outerRadius={90}
+                label
+              >
+                {statusChartData.map((entry, index) => (
+                  <Cell
+                    key={`cell-${index}`}
+                    fill={["#10b981", "#f59e0b", "#ef4444"][index]}
+                  />
+                ))}
+              </Pie>
+              <Tooltip />
+            </PieChart>
+          </ResponsiveContainer>
+        </section>
       </div>
 
       {/* Status Overview */}
@@ -348,7 +717,7 @@ const InventoryReports = () => {
                     <td>{category}</td>
                     <td>{data.count}</td>
                     <td>{data.quantity}</td>
-                    <td>₱{data.value.toFixed(2)}</td>
+                    <td>₱{(data.value || 0).toFixed(2)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -374,7 +743,7 @@ const InventoryReports = () => {
                     <td>{brand}</td>
                     <td>{data.count}</td>
                     <td>{data.quantity}</td>
-                    <td>₱{data.value.toFixed(2)}</td>
+                    <td>₱{(data.value || 0).toFixed(2)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -451,8 +820,8 @@ const InventoryReports = () => {
                   <td>{item.brand}</td>
                   <td>{item.supplier}</td>
                   <td className={`stock-cell ${item.quantity <= 10 ? "low" : ""}`}>{item.quantity}</td>
-                  <td>₱{item.price.toFixed(2)}</td>
-                  <td>₱{(item.quantity * item.price).toFixed(2)}</td>
+                  <td>₱{(item.price || 0).toFixed(2)}</td>
+                  <td>₱{((item.quantity || 0) * (item.price || 0)).toFixed(2)}</td>
                   <td>
                     <span className={`status-badge ${item.status?.toLowerCase().replace(" ", "-")}`}>
                       {item.status}

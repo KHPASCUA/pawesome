@@ -28,6 +28,7 @@ use App\Http\Controllers\HotelRoomController;
 use App\Http\Controllers\TelegramBotController;
 use App\Http\Controllers\AppointmentController;
 use App\Http\Controllers\AttendanceController;
+use App\Http\Controllers\AttendanceRecordController;
 use App\Http\Controllers\PayrollController;
 use App\Http\Controllers\GiftCardController;
 use App\Http\Controllers\GroomingController;
@@ -39,6 +40,8 @@ use App\Http\Controllers\Api\CashierPaymentController;
 use App\Http\Controllers\Api\ServiceRequestController;
 use App\Http\Controllers\Api\ReceptionistCustomerController;
 use App\Http\Controllers\Api\ReceptionistPetController;
+use App\Http\Controllers\Api\PayrollController as ApiPayrollController;
+use App\Http\Controllers\Api\NotificationController as ApiNotificationController;
 use App\Http\Controllers\ReceptionistRequestController;
 use Illuminate\Support\Facades\Route;
 
@@ -268,17 +271,35 @@ Route::middleware(['auth.api', 'throttle:api', 'role:admin,manager'])->prefix('a
     Route::delete('/{id}', [AttendanceController::class, 'destroy']);
 });
 
+// Manager Attendance Records Routes (Simple attendance tracking)
+Route::middleware(['auth.api', 'throttle:api', 'role:admin,manager'])->prefix('attendance-records')->group(function () {
+    Route::get('/', [AttendanceRecordController::class, 'index']);
+    Route::post('/', [AttendanceRecordController::class, 'store']);
+    Route::get('/summary', [AttendanceRecordController::class, 'summary']);
+});
+
 // Payroll Routes (Admin and Manager)
 Route::middleware(['auth.api', 'throttle:api', 'role:admin,manager'])->prefix('payroll')->group(function () {
-    Route::get('/', [PayrollController::class, 'index']);
+    Route::get('/', [ApiPayrollController::class, 'index']);
+    Route::post('/generate', [ApiPayrollController::class, 'generate']);
+    Route::get('/{payroll}', [ApiPayrollController::class, 'show']);
+    Route::patch('/{payroll}/approve', [ApiPayrollController::class, 'approve']);
+    Route::patch('/{payroll}/paid', [ApiPayrollController::class, 'markAsPaid']);
+    Route::delete('/{payroll}', [ApiPayrollController::class, 'destroy']);
+
+    // Legacy routes using main controller
     Route::post('/', [PayrollController::class, 'store']);
-    Route::post('/generate', [PayrollController::class, 'generateForPeriod']);
-    Route::get('/summary', [PayrollController::class, 'summary']);
-    Route::get('/{id}', [PayrollController::class, 'show']);
     Route::put('/{id}', [PayrollController::class, 'update']);
-    Route::delete('/{id}', [PayrollController::class, 'destroy']);
+    Route::get('/summary', [PayrollController::class, 'summary']);
     Route::post('/{id}/process', [PayrollController::class, 'processPayment']);
     Route::get('/{id}/payslip', [PayrollController::class, 'payslip']);
+});
+
+// Role-based Notifications API Routes
+Route::middleware(['auth.api', 'throttle:api'])->prefix('notifications')->group(function () {
+    Route::get('/', [ApiNotificationController::class, 'index']);
+    Route::patch('/{notification}/read', [ApiNotificationController::class, 'markAsRead']);
+    Route::patch('/read-all', [ApiNotificationController::class, 'markAllAsRead']);
 });
 
 // Employee self-service routes
@@ -319,6 +340,7 @@ Route::middleware(['auth.api', 'throttle:api'])->prefix('inventory')->group(func
     Route::get('/public/items', [InventoryDashboardController::class, 'publicItems']);
     Route::get('/public/categories', [InventoryDashboardController::class, 'categories']);
     Route::get('/public/item/{id}', [InventoryDashboardController::class, 'showPublicItem']);
+    Route::get('/sellable', [InventoryController::class, 'sellable']); // For POS and Customer Store
 });
 
 // Product Search Routes (for Cashier POS)
@@ -335,9 +357,10 @@ Route::middleware(['auth.api', 'throttle:api'])->prefix('gift-cards')->group(fun
 // Notification Routes (available to all authenticated users)
 Route::middleware(['auth.api', 'throttle:api'])->prefix('notifications')->group(function () {
     Route::get('/', [NotificationController::class, 'index']);
+    Route::get('/unread', [NotificationController::class, 'getUnread']);
     Route::get('/unread-count', [NotificationController::class, 'unreadCount']);
     Route::post('/{id}/read', [NotificationController::class, 'markAsRead']);
-    Route::post('/mark-all-read', [NotificationController::class, 'markAllRead']);
+    Route::post('/mark-all-read', [NotificationController::class, 'markAllAsRead']);
     Route::post('/clear-all', [NotificationController::class, 'clearAll']);
     Route::delete('/{id}', [NotificationController::class, 'destroy']);
 });

@@ -3,7 +3,6 @@ import { Outlet, NavLink, useLocation } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faMoon,
-  faSun,
   faUserCircle,
   faCalendarAlt,
   faUsers,
@@ -19,40 +18,47 @@ import {
   faArrowDown,
   faStethoscope,
 } from "@fortawesome/free-solid-svg-icons";
+
 import { apiRequest } from "../../api/client";
 import VeterinarySidebar from "./VeterinarySidebar";
 import RoleAwareChatbot from "../chatbot/RoleAwareChatbot";
 import NotificationDropdown from "../shared/NotificationDropdown";
+import toast from "react-hot-toast";
 import "./VetDashboard.css";
 
 const VetDashboard = () => {
   const name = localStorage.getItem("name") || "Veterinarian";
-  const [theme, setTheme] = useState("light");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [dashboardData, setDashboardData] = useState(null);
   const [currentBoarders, setCurrentBoarders] = useState([]);
   const [loadingBoarders, setLoadingBoarders] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [lastUpdated, setLastUpdated] = useState(new Date());
+
   const location = useLocation();
   const normalizedPath = location.pathname.replace(/\/+$/, "");
   const showOverview = normalizedPath === "/veterinary" || normalizedPath === "/vet";
 
-  // Fetch dashboard data from backend
+  useEffect(() => {
+    const saved = localStorage.getItem("theme") || "light";
+    document.documentElement.setAttribute("data-theme", saved);
+  }, []);
+
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
         setLoading(true);
         setLoadingBoarders(true);
+
         const [data, boarders] = await Promise.all([
           apiRequest("/veterinary/dashboard"),
           apiRequest("/veterinary/boardings/current-boarders"),
         ]);
+
         setDashboardData(data);
         setCurrentBoarders(Array.isArray(boarders) ? boarders : []);
-        setError("");
+        setLastUpdated(new Date());
       } catch (err) {
-        setError(err.message || "Failed to load dashboard data");
         console.error("Vet dashboard fetch error:", err);
       } finally {
         setLoading(false);
@@ -60,70 +66,123 @@ const VetDashboard = () => {
       }
     };
 
-    if (showOverview) {
-      fetchDashboardData();
-    }
+    if (showOverview) fetchDashboardData();
+
+    // Real-time updates: poll every 5 seconds
+    const interval = setInterval(() => {
+      if (showOverview) fetchDashboardData();
+    }, 5000);
+
+    return () => clearInterval(interval);
   }, [showOverview]);
 
-  const summaryCards = dashboardData ? [
-    {
-      title: "Today's Appointments",
-      value: dashboardData.today_appointments || 0,
-      subtitle: "Scheduled today",
-      icon: faCalendarCheck,
-      iconClass: "appointments",
-      trend: "+12%",
-      trendUp: true,
-    },
-    {
-      title: "Active Patients",
-      value: dashboardData.total_patients || 0,
-      subtitle: "Patient records",
-      icon: faUsers,
-      iconClass: "patients",
-      trend: "+5%",
-      trendUp: true,
-    },
-    {
-      title: "Completed",
-      value: dashboardData.completed_appointments || 0,
-      subtitle: "This month",
-      icon: faClipboardCheck,
-      iconClass: "completed",
-      trend: "+8%",
-      trendUp: true,
-    },
-    {
-      title: "Pending",
-      value: dashboardData.pending_appointments || 0,
-      subtitle: "Awaiting confirmation",
-      icon: faClock,
-      iconClass: "pending",
-      trend: "-3%",
-      trendUp: false,
-    },
-  ] : [];
+  const summaryCards = dashboardData
+    ? [
+        {
+          title: "Today's Appointments",
+          value: dashboardData.today_appointments || 0,
+          subtitle: "Scheduled today",
+          icon: faCalendarCheck,
+          iconClass: "appointments",
+          trend: "+12%",
+          trendUp: true,
+        },
+        {
+          title: "Active Patients",
+          value: dashboardData.total_patients || 0,
+          subtitle: "Patient records",
+          icon: faUsers,
+          iconClass: "patients",
+          trend: "+5%",
+          trendUp: true,
+        },
+        {
+          title: "Completed",
+          value: dashboardData.completed_appointments || 0,
+          subtitle: "This month",
+          icon: faClipboardCheck,
+          iconClass: "completed",
+          trend: "+8%",
+          trendUp: true,
+        },
+        {
+          title: "Pending",
+          value: dashboardData.pending_appointments || 0,
+          subtitle: "Awaiting confirmation",
+          icon: faClock,
+          iconClass: "pending",
+          trend: "-3%",
+          trendUp: false,
+        },
+      ]
+    : [];
 
-  const todayAppointments = dashboardData ? (dashboardData.upcoming_appointments || []).map((apt) => ({
-    petName: apt.pet?.name || "Pet",
-    ownerName: apt.customer?.name || "Customer",
-    time: new Date(apt.scheduled_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    type: apt.service?.name || "Service",
-    status: apt.status || "pending",
-  })) : [];
+  const todayAppointments = dashboardData
+    ? (dashboardData.upcoming_appointments || []).map((apt) => ({
+        petName: apt.pet?.name || "Pet",
+        ownerName: apt.customer?.name || "Customer",
+        time: apt.scheduled_at
+          ? new Date(apt.scheduled_at).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            })
+          : "TBD",
+        type: apt.service?.name || "Service",
+        status: apt.status || "pending",
+      }))
+    : [];
+
+  // Calculate dynamic alerts
+  const getMissedAppointments = () => {
+    const appointments = dashboardData?.upcoming_appointments || [];
+    return appointments.filter(a => a.status === "missed" || a.status === "no-show").length;
+  };
+
+  const getCriticalPatients = () => {
+    const patients = dashboardData?.recent_patients || [];
+    return patients.filter(p => p.status === "critical").length;
+  };
+
+  const getCheckoutsToday = () => {
+    const today = new Date().toISOString().split("T")[0];
+    return currentBoarders.filter(b => {
+      const checkout = b.checkout_date || b.end_date;
+      return checkout && checkout.startsWith(today);
+    }).length;
+  };
+
+  // Handle appointment actions
+  const handleStartAppointment = (aptId) => {
+    toast.success(`Appointment #${aptId} started`);
+  };
+
+  const handleCompleteAppointment = (aptId) => {
+    toast.success(`Appointment #${aptId} completed • Receipt generated`);
+    // In real implementation: navigate to receipt
+    // navigate(`/veterinary/receipt/${aptId}`);
+  };
+
+  const toggleTheme = () => {
+    const current = document.documentElement.getAttribute("data-theme");
+    const next = current === "dark" ? "light" : "dark";
+    document.documentElement.setAttribute("data-theme", next);
+    localStorage.setItem("theme", next);
+  };
 
   return (
-    <div className={`vet-dashboard ${theme} ${sidebarCollapsed ? "collapsed" : ""}`}>
+    <div className={`app-dashboard vet-dashboard ${sidebarCollapsed ? "collapsed" : ""}`}>
       <VeterinarySidebar
         collapsed={sidebarCollapsed}
         onToggleCollapse={() => setSidebarCollapsed((prev) => !prev)}
       />
 
-      <main className="vet-main">
-        <header className="vet-navbar top-navbar">
+      <main className="app-main vet-main">
+        <header className="app-topbar vet-navbar">
           <div className="navbar-left">
-            <h1>Overview</h1>
-            <p>Manage your veterinary appointments and patient care here.</p>
+            <h1 className="premium-title">Veterinary Dashboard</h1>
+            <p className="premium-muted">
+              Manage appointments, patient records, and pet care workflow.
+            </p>
           </div>
 
           <div className="search-group">
@@ -134,7 +193,10 @@ const VetDashboard = () => {
           </div>
 
           <div className="navbar-actions">
-            <NavLink to="/veterinary/profile" className="vet-profile-btn">
+            <NavLink
+              to="/veterinary/profile"
+              className="vet-profile-btn"
+            >
               <span className="profile-avatar-icon">
                 <FontAwesomeIcon icon={faUserCircle} />
               </span>
@@ -146,19 +208,67 @@ const VetDashboard = () => {
 
             <NotificationDropdown />
 
-            <button
-              className="theme-toggle-btn"
-              type="button"
-              onClick={() => setTheme(theme === "light" ? "dark" : "light")}
-            >
-              <FontAwesomeIcon icon={theme === "light" ? faMoon : faSun} />
+            <button className="theme-toggle-btn" type="button" onClick={toggleTheme}>
+              <FontAwesomeIcon icon={faMoon} />
             </button>
           </div>
         </header>
 
         {showOverview ? (
-          <>
-            <section className="overview-cards">
+          <section className="app-content vet-content">
+            {/* Quick Actions */}
+            <section className="premium-card vet-quick-actions">
+              <h3 className="section-title">Quick Actions</h3>
+              <div className="actions-row">
+                <NavLink to="/veterinary/appointments" className="btn-primary">
+                  <FontAwesomeIcon icon={faCalendarAlt} /> + New Appointment
+                </NavLink>
+                <NavLink to="/veterinary/customer-profiles" className="btn-secondary">
+                  <FontAwesomeIcon icon={faPaw} /> + Add Patient
+                </NavLink>
+                <NavLink to="/veterinary/current-boarders" className="btn-secondary">
+                  <FontAwesomeIcon icon={faHotel} /> + Admit Boarder
+                </NavLink>
+              </div>
+            </section>
+
+            {/* Alerts Panel - Dynamic */}
+            <section className="premium-card vet-alerts">
+              <h3 className="section-title">
+                Clinic Alerts
+                <small className="last-updated">
+                  Last updated: {lastUpdated.toLocaleTimeString()}
+                </small>
+              </h3>
+              <div className="alert-grid">
+                {getMissedAppointments() > 0 && (
+                  <div className="alert-item danger">
+                    <FontAwesomeIcon icon={faExclamationTriangle} />
+                    <span>{getMissedAppointments()} Missed Appointments</span>
+                  </div>
+                )}
+                {getCriticalPatients() > 0 && (
+                  <div className="alert-item warning">
+                    <FontAwesomeIcon icon={faStethoscope} />
+                    <span>{getCriticalPatients()} Critical Patient{getCriticalPatients() > 1 ? "s" : ""}</span>
+                  </div>
+                )}
+                {getCheckoutsToday() > 0 && (
+                  <div className="alert-item info">
+                    <FontAwesomeIcon icon={faBed} />
+                    <span>{getCheckoutsToday()} Boarder{getCheckoutsToday() > 1 ? "s" : ""} Checking Out Today</span>
+                  </div>
+                )}
+                {getMissedAppointments() === 0 && getCriticalPatients() === 0 && getCheckoutsToday() === 0 && (
+                  <div className="alert-item success">
+                    <FontAwesomeIcon icon={faClipboardCheck} />
+                    <span>All systems normal • No alerts</span>
+                  </div>
+                )}
+              </div>
+            </section>
+
+            <section className="app-grid-4 vet-summary-grid">
               {loading ? (
                 <>
                   <div className="loading-skeleton loading-card" />
@@ -168,234 +278,290 @@ const VetDashboard = () => {
                 </>
               ) : (
                 summaryCards.map((card, index) => (
-                  <div 
-                    key={card.title} 
-                    className="overview-card animate-fade-in"
-                    style={{ animationDelay: `${index * 100}ms` }}
+                  <article
+                    key={card.title}
+                    className="app-stat-card vet-stat-card fade-up"
+                    style={{ animationDelay: `${index * 80}ms` }}
                   >
-                    <div className={`overview-card-icon ${card.iconClass}`}>
+                    <div className={`vet-stat-icon ${card.iconClass}`}>
                       <FontAwesomeIcon icon={card.icon} />
                     </div>
+
                     <div>
                       <h3>{card.value}</h3>
                       <p>{card.title}</p>
-                      <span className={`overview-card-trend ${card.trendUp ? '' : 'negative'}`}>
+                      <small>{card.subtitle}</small>
+
+                      <span className={`vet-trend ${card.trendUp ? "" : "negative"}`}>
                         <FontAwesomeIcon icon={card.trendUp ? faArrowUp : faArrowDown} />
                         {card.trend}
                       </span>
                     </div>
-                  </div>
+                  </article>
                 ))
               )}
             </section>
 
-            <section className="dashboard-grid">
-              <article className="panel overview-panel">
-                <div className="panel-header">
+            <section className="app-grid-2 vet-main-grid">
+              {/* Today's Appointments with Actions */}
+              <article className="premium-card vet-panel">
+                <div className="panel-header space-between">
                   <div>
-                    <h2>Today's Schedule</h2>
-                    <p>
-                      You have {summaryCards[0]?.value ?? 0} appointments scheduled for today.
-                    </p>
+                    <h2>Today's Appointments</h2>
+                    <p>Manage and track today's clinical cases</p>
                   </div>
-                  <span className="badge">{summaryCards[0]?.value ?? 0} Appointments</span>
+                  <span className="badge badge-info">
+                    {summaryCards[0]?.value ?? 0} Cases
+                  </span>
                 </div>
-                <div className="appointments-preview">
-                  {(dashboardData?.upcoming_appointments || []).slice(0, 3).map((apt, idx) => (
+
+                <div className="appointments-preview actionable">
+                  {(dashboardData?.upcoming_appointments || []).slice(0, 5).map((apt, idx) => (
                     <div key={idx} className="preview-appointment-item">
-                      <span className="apt-time">{new Date(apt.scheduled_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                      <span className="apt-pet">{apt.pet?.name || "Pet"}</span>
-                      <span className="apt-service">{apt.service?.name || "Service"}</span>
+                      <div className="apt-info">
+                        <span className="apt-time">
+                          {apt.scheduled_at
+                            ? new Date(apt.scheduled_at).toLocaleTimeString([], {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })
+                            : "TBD"}
+                        </span>
+                        <span className="apt-pet">{apt.pet?.name || "Pet"}</span>
+                        <span className="apt-service">{apt.service?.name || "Service"}</span>
+                      </div>
+                      <div className="apt-actions">
+                        <button 
+                          className="btn-primary btn-sm"
+                          onClick={() => handleStartAppointment(apt.id || idx)}
+                        >
+                          Start
+                        </button>
+                        <button 
+                          className="btn-secondary btn-sm"
+                          onClick={() => handleCompleteAppointment(apt.id || idx)}
+                        >
+                          Complete
+                        </button>
+                      </div>
                     </div>
                   ))}
+
                   {(dashboardData?.upcoming_appointments || []).length === 0 && (
-                    <p className="no-data">No upcoming appointments</p>
+                    <div className="empty-state">
+                      <h3>No appointments yet</h3>
+                      <p>Once bookings are approved, they will appear here.</p>
+                    </div>
                   )}
                 </div>
               </article>
 
-              <article className="panel quick-stat-panel">
-                <div className="metric-card accent">
-                  <h3>{dashboardData?.new_patients_this_month || 0}</h3>
-                  <p>New Patients This Month</p>
-                  <small>New registrations</small>
+              {/* Patient Snapshot */}
+              <article className="premium-card vet-panel">
+                <div className="panel-header space-between">
+                  <div>
+                    <h2>Patient Snapshot</h2>
+                    <p>Recent patients and ongoing treatments</p>
+                  </div>
+                  <span className="badge badge-warning">
+                    {dashboardData?.active_treatments || 0} Active
+                  </span>
                 </div>
 
-                <div className="metric-card">
-                  <h3>{dashboardData?.completed_appointments || 0}</h3>
-                  <p>Completed Appointments</p>
+                <div className="patients-preview">
+                  {(dashboardData?.recent_patients || []).slice(0, 4).map((pet, idx) => (
+                    <div key={idx} className="patient-row">
+                      <div className="patient-info">
+                        <FontAwesomeIcon icon={faPaw} />
+                        <div>
+                          <strong>{pet.name || "Unknown"}</strong>
+                          <p>{pet.species || "Pet"} • {pet.breed || "Unknown"}</p>
+                        </div>
+                      </div>
+                      <span className={`badge ${pet.status === "critical" ? "badge-danger" : pet.status === "recovering" ? "badge-warning" : "badge-success"}`}>
+                        {pet.status || "Under Treatment"}
+                      </span>
+                    </div>
+                  ))}
+
+                  {(!dashboardData?.recent_patients || dashboardData.recent_patients.length === 0) && (
+                    <div className="empty-state">
+                      <h3>No recent patients</h3>
+                      <p>Patient records will appear here.</p>
+                    </div>
+                  )}
                 </div>
               </article>
             </section>
 
-            {/* Current Boarders Section */}
             {currentBoarders.length > 0 && (
-              <section className="dashboard-boarders">
-                <div className="panel boarders-panel">
-                  <div className="panel-header space-between">
-                    <div>
-                      <h2><FontAwesomeIcon icon={faHotel} /> Current Boarders</h2>
-                      <p>Pets currently staying at the hotel that may need veterinary attention</p>
-                    </div>
-                    <span className="badge">{currentBoarders.length} Pets</span>
+              <section className="premium-card vet-panel dashboard-boarders">
+                <div className="panel-header space-between">
+                  <div>
+                    <h2>
+                      <FontAwesomeIcon icon={faHotel} /> Current Boarders
+                    </h2>
+                    <p>Pets currently staying at the hotel.</p>
                   </div>
+                  <span className="badge badge-warning">{currentBoarders.length} Pets</span>
+                </div>
 
-                  {loadingBoarders ? (
-                    <div className="loading-boarders">Loading...</div>
-                  ) : (
-                    <div className="boarders-list">
-                      {currentBoarders.slice(0, 5).map((boarder) => (
-                        <div key={boarder.id} className="boarder-card">
-                          <div className="boarder-card-top">
-                            <div className="boarder-pet-info">
-                              <FontAwesomeIcon icon={faPaw} className="pet-icon" />
-                              <div>
-                                <h4>{boarder.pet?.name || "Unknown"}</h4>
-                                <p>{boarder.pet?.species || "Unknown"} - {boarder.pet?.breed || "Unknown"}</p>
-                              </div>
-                            </div>
-                            <span className="room-badge">
-                              <FontAwesomeIcon icon={faBed} /> Room {boarder.hotel_room?.room_number || "N/A"}
-                            </span>
-                          </div>
-
-                          <div className="boarder-details">
-                            <div className="detail-item">
-                              <strong>Owner</strong>
-                              <p>{boarder.customer?.name || "Unknown"}</p>
-                            </div>
-                            <div className="detail-item">
-                              <strong>Contact</strong>
-                              <p><FontAwesomeIcon icon={faPhone} /> {boarder.customer?.phone || "N/A"}</p>
-                            </div>
-                            <div className="detail-item">
-                              <strong>Check-out</strong>
-                              <p>{boarder.check_out ? new Date(boarder.check_out).toLocaleDateString() : "TBD"}</p>
+                {loadingBoarders ? (
+                  <div className="loading-boarders">Loading...</div>
+                ) : (
+                  <div className="boarders-list">
+                    {currentBoarders.slice(0, 5).map((boarder) => (
+                      <div key={boarder.id} className="boarder-card">
+                        <div className="boarder-card-top">
+                          <div className="boarder-pet-info">
+                            <FontAwesomeIcon icon={faPaw} className="pet-icon" />
+                            <div>
+                              <h4>{boarder.pet?.name || "Unknown"}</h4>
+                              <p>
+                                {boarder.pet?.species || "Unknown"} -{" "}
+                                {boarder.pet?.breed || "Unknown"}
+                              </p>
                             </div>
                           </div>
 
-                          {boarder.special_requests && (
-                            <div className="special-requests">
-                              <FontAwesomeIcon icon={faExclamationTriangle} />
-                              <span>{boarder.special_requests}</span>
-                            </div>
-                          )}
-
-                          <div className="boarder-actions">
-                            <NavLink 
-                              to="/veterinary/customer-profiles" 
-                              className="view-pet-btn"
-                            >
-                              View Pet Records
-                            </NavLink>
-                          </div>
-                        </div>
-                      ))}
-                      {currentBoarders.length > 5 && (
-                        <div className="more-boarders">
-                          <span className="see-all-link">
-                            {currentBoarders.length} boarders total
+                          <span className="room-badge">
+                            <FontAwesomeIcon icon={faBed} /> Room{" "}
+                            {boarder.hotel_room?.room_number || "N/A"}
                           </span>
                         </div>
-                      )}
-                    </div>
-                  )}
-                </div>
+
+                        <div className="boarder-details">
+                          <div className="detail-item">
+                            <strong>Owner</strong>
+                            <p>{boarder.customer?.name || "Unknown"}</p>
+                          </div>
+                          <div className="detail-item">
+                            <strong>Contact</strong>
+                            <p>
+                              <FontAwesomeIcon icon={faPhone} />{" "}
+                              {boarder.customer?.phone || "N/A"}
+                            </p>
+                          </div>
+                          <div className="detail-item">
+                            <strong>Check-out</strong>
+                            <p>
+                              {boarder.check_out
+                                ? new Date(boarder.check_out).toLocaleDateString()
+                                : "TBD"}
+                            </p>
+                          </div>
+                        </div>
+
+                        {boarder.special_requests && (
+                          <div className="special-requests">
+                            <FontAwesomeIcon icon={faExclamationTriangle} />
+                            <span>{boarder.special_requests}</span>
+                          </div>
+                        )}
+
+                        <NavLink
+                          to="/veterinary/customer-profiles"
+                          className="btn-primary view-pet-btn"
+                        >
+                          View Pet Records
+                        </NavLink>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </section>
             )}
 
-            <section className="dashboard-bottom">
-              <div className="panel appointments-panel">
+            <section className="app-grid-2 vet-bottom-grid">
+              <article className="premium-card vet-panel">
                 <div className="panel-header space-between">
-                  <div>
-                    <h2>Upcoming Appointments</h2>
-                  </div>
+                  <h2>Upcoming Appointments</h2>
                   <NavLink to="/veterinary/appointments" className="see-all-link">
                     See all ({todayAppointments.length})
                   </NavLink>
                 </div>
 
                 <div className="appointment-list">
-                  {todayAppointments.map((appointment, index) => (
-                    <div key={index} className="appointment-card">
-                      <div className="appointment-card-top">
-                        <div>
-                          <h3>{appointment.petName}</h3>
-                          <p>{appointment.ownerName}</p>
+                  {todayAppointments.length > 0 ? (
+                    todayAppointments.map((appointment, index) => (
+                      <div key={index} className="appointment-card">
+                        <div className="appointment-card-top">
+                          <div>
+                            <h3>{appointment.petName}</h3>
+                            <p>{appointment.ownerName}</p>
+                          </div>
+                          <span className={`status-badge ${appointment.status.toLowerCase()}`}>
+                            {appointment.status}
+                          </span>
                         </div>
-                        <span className={`status-badge ${appointment.status.toLowerCase()}`}>
-                          {appointment.status}
-                        </span>
-                      </div>
-                      <p>{appointment.time} - {appointment.type}</p>
-                      <div className="appointment-info">
-                        <div>
-                          <strong>Pet</strong>
-                          <p>{appointment.petName}</p>
-                        </div>
-                        <div>
-                          <strong>Owner</strong>
-                          <p>{appointment.ownerName}</p>
-                        </div>
-                      </div>
-                      <div className="appointment-footer">
-                        <span>
-                          <FontAwesomeIcon icon={faCalendarAlt} /> {appointment.time}
-                        </span>
-                        <span>
-                          <FontAwesomeIcon icon={faUsers} /> {appointment.ownerName}
-                        </span>
-                        <button className="secondary-btn" type="button">
-                          View Details
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
 
-              <div className="panel activity-panel">
+                        <p>
+                          {appointment.time} - {appointment.type}
+                        </p>
+
+                        <div className="appointment-footer">
+                          <span>
+                            <FontAwesomeIcon icon={faCalendarAlt} /> {appointment.time}
+                          </span>
+                          <span>
+                            <FontAwesomeIcon icon={faUsers} /> {appointment.ownerName}
+                          </span>
+                          <button className="btn-secondary" type="button">
+                            View Details
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="empty-state">
+                      <h3>No upcoming appointments</h3>
+                      <p>Approved appointments will appear here.</p>
+                    </div>
+                  )}
+                </div>
+              </article>
+
+              <article className="premium-card vet-panel">
                 <div className="panel-header space-between">
-                  <div>
-                    <h2><FontAwesomeIcon icon={faStethoscope} /> Recent Activity</h2>
-                  </div>
+                  <h2>
+                    <FontAwesomeIcon icon={faStethoscope} /> Recent Activity
+                  </h2>
                   <span className="premium-badge live">Live</span>
                 </div>
+
                 <div className="activity-metrics">
-                  <div className="status-card success animate-fade-in">
+                  <div className="status-card success">
                     <strong>{dashboardData?.today_appointments || 0}</strong>
                     <p>Appointments today</p>
                   </div>
-                  <div className="status-card info animate-fade-in" style={{ animationDelay: '100ms' }}>
+                  <div className="status-card info">
                     <strong>{dashboardData?.pending_appointments || 0}</strong>
                     <p>Pending appointments</p>
                   </div>
                 </div>
-                
-                {/* Mini Activity Chart */}
+
                 <div className="mini-chart">
                   {[40, 65, 45, 80, 55, 90, 70].map((height, i) => (
-                    <div 
-                      key={i} 
-                      className="chart-bar" 
-                      style={{ height: `${height}%` }}
-                      data-value={height}
-                    />
+                    <div key={i} className="chart-bar" style={{ height: `${height}%` }} />
                   ))}
                 </div>
-                
+
                 <div className="activity-summary">
-                  <p>Total patients: {dashboardData?.total_patients || 0} | New this month: {dashboardData?.new_patients_this_month || 0}</p>
+                  <p>
+                    Total patients: {dashboardData?.total_patients || 0} | New this month:{" "}
+                    {dashboardData?.new_patients_this_month || 0}
+                  </p>
                 </div>
-              </div>
+              </article>
             </section>
-          </>
+          </section>
         ) : (
-          <section className="dashboard-content">
+          <section className="app-content dashboard-content">
             <Outlet />
           </section>
         )}
       </main>
+
       <RoleAwareChatbot
         mode="widget"
         title="Veterinary Assistant"

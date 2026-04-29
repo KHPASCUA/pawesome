@@ -28,6 +28,7 @@ import {
   sendChatbotMessage,
 } from "../../services/chatbotService";
 import { apiRequest } from "../../api/client";
+import botIcon from "../../assets/pawesome-icon.png";
 import "./RoleAwareChatbot.css";
 
 const formatMessage = (text) => (text || "").split("\n");
@@ -579,9 +580,7 @@ const RoleAwareChatbot = ({
           className="rbac-chatbot-toggle"
           onClick={() => setIsOpen(true)}
         >
-          <span className="rbac-chatbot-toggle-icon">
-            <FontAwesomeIcon icon={faRobot} />
-          </span>
+          <img src={botIcon} alt="Pawesome Assistant" className="chatbot-avatar-img" />
           <span className="rbac-chatbot-toggle-text">Assistant</span>
         </button>
       )}
@@ -590,9 +589,7 @@ const RoleAwareChatbot = ({
         <section className="rbac-chatbot-panel">
           <header className="rbac-chatbot-header">
             <div className="rbac-chatbot-title-wrap">
-              <span className="rbac-chatbot-header-icon">
-                <FontAwesomeIcon icon={faRobot} />
-              </span>
+              <img src={botIcon} alt="Pawesome Assistant" className="chatbot-avatar-img" />
 
               <div>
                 <h3>{title}</h3>

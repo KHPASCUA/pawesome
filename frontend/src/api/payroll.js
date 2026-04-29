@@ -50,6 +50,18 @@ export const payrollApi = {
       body: JSON.stringify(data),
     }),
 
+  // Approve payroll (changes status to pending)
+  approve: (id) =>
+    apiRequest(`/payroll/${id}/approve`, {
+      method: "PATCH",
+    }),
+
+  // Mark payroll as paid
+  markAsPaid: (id) =>
+    apiRequest(`/payroll/${id}/paid`, {
+      method: "PATCH",
+    }),
+
   // Get payslip
   getPayslip: (id) => apiRequest(`/payroll/${id}/payslip`),
 

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Appointment;
 use App\Models\Customer;
 use App\Models\Pet;
+use App\Services\InventoryService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -78,6 +79,7 @@ class DashboardController extends Controller
         ]);
 
         $user = Auth::user();
+        $inventoryService = new InventoryService();
 
         $order = DB::table('customer_orders')->where('id', $id)->first();
 
@@ -89,7 +91,7 @@ class DashboardController extends Controller
             'status' => $validated['status'],
         ];
 
-        // If approving, set approved_by and deduct stock
+        // If approving, set approved_by and deduct stock using centralized service
         if ($validated['status'] === 'approved' && $order->status === 'pending') {
             $updateData['approved_by'] = $user->id;
 
@@ -99,34 +101,14 @@ class DashboardController extends Controller
                 ->get();
 
             foreach ($orderItems as $item) {
-                // Check stock
-                $stockData = DB::table('inventory_items')
-                    ->where('id', $item->inventory_item_id)
-                    ->lockForUpdate()
-                    ->first();
-
-                if (!$stockData) {
-                    throw new \Exception("Item not found");
-                }
-
-                if ($stockData->stock < $item->quantity) {
-                    throw new \Exception("Not enough stock for item ID {$item->inventory_item_id}");
-                }
-
-                // Deduct stock
-                DB::table('inventory_items')
-                    ->where('id', $item->inventory_item_id)
-                    ->decrement('stock', $item->quantity);
-
-                // Log inventory movement
-                DB::table('inventory_logs')->insert([
-                    'inventory_item_id' => $item->inventory_item_id,
-                    'delta' => -$item->quantity,
-                    'reason' => "Customer Order #{$id} approved by Receptionist",
-                    'reference_type' => 'customer_order',
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]);
+                // Use centralized InventoryService for stock deduction
+                $inventoryService->deductStock(
+                    $item->inventory_item_id,
+                    $item->quantity,
+                    "Customer Order #{$id} approved by Receptionist",
+                    'customer_order',
+                    $id
+                );
             }
         }
 
@@ -137,20 +119,14 @@ class DashboardController extends Controller
                 ->get();
 
             foreach ($orderItems as $item) {
-                // Restore stock
-                DB::table('inventory_items')
-                    ->where('id', $item->inventory_item_id)
-                    ->increment('stock', $item->quantity);
-
-                // Log inventory movement
-                DB::table('inventory_logs')->insert([
-                    'inventory_item_id' => $item->inventory_item_id,
-                    'delta' => $item->quantity,
-                    'reason' => "Customer Order #{$id} rejected - stock restored",
-                    'reference_type' => 'customer_order',
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]);
+                // Use centralized InventoryService to restore stock
+                $inventoryService->addStock(
+                    $item->inventory_item_id,
+                    $item->quantity,
+                    "Customer Order #{$id} rejected - stock restored",
+                    'customer_order',
+                    $id
+                );
             }
         }
 

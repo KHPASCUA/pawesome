@@ -34,8 +34,8 @@ const NotificationBell = () => {
   useEffect(() => {
     fetchNotifications();
     
-    // Poll for new notifications every 30 seconds
-    const interval = setInterval(fetchNotifications, 30000);
+    // Poll for new notifications every 10 seconds (real-time feel)
+    const interval = setInterval(fetchNotifications, 10000);
     
     return () => clearInterval(interval);
   }, [fetchNotifications]);
@@ -120,7 +120,13 @@ const NotificationBell = () => {
                   className={`p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer ${
                     !notification.read ? 'bg-blue-50' : ''
                   }`}
-                  onClick={() => markAsRead(notification.id)}
+                  onClick={() => {
+                    markAsRead(notification.id);
+                    // Navigate to inventory page if inventory-related notification
+                    if (notification.related_type === 'inventory' && notification.related_id) {
+                      window.location.href = `/inventory/items/${notification.related_id}`;
+                    }
+                  }}
                 >
                   <div className="flex gap-3">
                     <div className="flex-shrink-0 mt-1">

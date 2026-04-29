@@ -810,3 +810,15 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ===== CHATBOT AVATAR IMAGE ===== */
+
+.chatbot-avatar-img {
+  width: 42px;
+  height: 42px;
+  object-fit: cover;
+  border-radius: 50%;
+  background: #ffffff;
+  padding: 4px;
+  box-shadow: 0 8px 22px rgba(255, 95, 147, 0.32);
+}

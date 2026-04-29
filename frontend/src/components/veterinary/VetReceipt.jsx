@@ -4,30 +4,27 @@ import {
   faPrint,
   faDownload,
   faTimes,
-  faCalendarAlt,
   faPaw,
   faUser,
-  faStethoscope,
   faDollarSign,
   faFileInvoice,
   faSpinner,
-  faExclamationTriangle,
 } from "@fortawesome/free-solid-svg-icons";
 import { apiRequest } from "../../api/client";
 import { formatCurrency } from "../../utils/currency";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
 import "./VetReceipt.css";
 
 const VetReceipt = () => {
   const [receiptData, setReceiptData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [receiptId, setReceiptId] = useState(null);
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const id = urlParams.get('id');
     if (id) {
-      setReceiptId(id);
       fetchReceipt(id);
     } else {
       setLoading(false);
@@ -38,9 +35,9 @@ const VetReceipt = () => {
     try {
       setLoading(true);
       const data = await apiRequest(`/veterinary/receipt/${id}`);
-      const receipt = data.receipt;
+      const receipt = data?.receipt || data;
 
-      if (!receipt) {
+      if (!receipt || typeof receipt !== "object") {
         throw new Error("Receipt not found");
       }
 
@@ -77,63 +74,71 @@ const VetReceipt = () => {
   const handleDownloadPDF = async () => {
     try {
       if (!receiptData) return;
-      window.print();
+      const element = document.getElementById("receipt-content");
+
+      const canvas = await html2canvas(element);
+      const imgData = canvas.toDataURL("image/png");
+
+      const pdf = new jsPDF("p", "mm", "a4");
+      const width = pdf.internal.pageSize.getWidth();
+
+      pdf.addImage(imgData, "PNG", 10, 10, width - 20, 0);
+      pdf.save(`receipt-${receiptData.id}.pdf`);
     } catch (err) {
       setError("Failed to download PDF");
-      console.error("PDF download error:", err);
+      console.error(err);
     }
   };
 
   const handleClose = () => {
     setReceiptData(null);
-    setReceiptId(null);
     window.history.back();
   };
 
   if (loading) {
     return (
-      <div className="vet-receipt">
-        <div className="loading-spinner">
-          <FontAwesomeIcon icon={faSpinner} spin />
+      <section className="app-content vet-receipt">
+        <div className="premium-card vet-loading-state">
+          <FontAwesomeIcon icon={faSpinner} className="spin-animation" />
           <span>Loading receipt...</span>
         </div>
-      </div>
+      </section>
     );
   }
 
   if (error) {
     return (
-      <div className="vet-receipt">
-        <div className="error-message">
-          <FontAwesomeIcon icon={faExclamationTriangle} />
-          <span>{error}</span>
+      <section className="app-content vet-receipt">
+        <div className="premium-card vet-error-banner">
+          <span>⚠️ {error}</span>
         </div>
-      </div>
+      </section>
     );
   }
 
   if (!receiptData) {
     return (
-      <div className="vet-receipt">
-        <div className="no-receipt">
+      <section className="app-content vet-receipt">
+        <div className="premium-card vet-empty-state">
           <FontAwesomeIcon icon={faFileInvoice} />
           <h3>No receipt selected</h3>
           <p>Please select a receipt from the reports page to view details</p>
         </div>
-      </div>
+      </section>
     );
   }
 
   return (
-    <div className="vet-receipt">
+    <section className="app-content vet-receipt" id="receipt-content">
       <div className="receipt-container">
-        <div className="receipt-header">
-          <h1>Payment Receipt</h1>
-          <p>Pawesome Pet Care Center</p>
-          <p>Receipt #{receiptData.id}</p>
-        </div>
+        <div className="premium-card receipt-card">
+          <div className="receipt-header">
+            <h1>Payment Receipt</h1>
+            <p>Pawesome Pet Care Center</p>
+            <p>Receipt #{receiptData.id}</p>
+          </div>
 
-        <div className="receipt-body">
+          <div className="receipt-body">
           <div className="receipt-section">
             <h3>Service Information</h3>
             <div className="receipt-info">
@@ -159,15 +164,13 @@ const VetReceipt = () => {
             <div className="receipt-info">
               <div className="info-label">Pet Name:</div>
               <div className="info-value">
-                <FontAwesomeIcon icon={faPaw} />
-                {receiptData.pet_name}
+                <FontAwesomeIcon icon={faPaw} /> {receiptData.pet_name}
               </div>
             </div>
             <div className="receipt-info">
               <div className="info-label">Owner:</div>
               <div className="info-value">
-                <FontAwesomeIcon icon={faUser} />
-                {receiptData.owner_name}
+                <FontAwesomeIcon icon={faUser} /> {receiptData.owner_name}
               </div>
             </div>
             <div className="receipt-info">
@@ -235,8 +238,14 @@ const VetReceipt = () => {
             
             <div className="payment-info">
               <p><strong>Payment Method:</strong> {receiptData.payment_method}</p>
-              <p><strong>Status:</strong> 
-                <span className={`status-badge status-${receiptData.payment_status}`}>
+              <p><strong>Status:</strong>{" "}
+                <span className={`badge ${
+                  receiptData.payment_status === "paid"
+                    ? "badge-success"
+                    : receiptData.payment_status === "pending"
+                    ? "badge-warning"
+                    : "badge-danger"
+                }`}>
                   {receiptData.payment_status?.toUpperCase()}
                 </span>
               </p>
@@ -247,22 +256,20 @@ const VetReceipt = () => {
           </div>
 
           <div className="receipt-actions">
-            <button className="btn-print" onClick={handlePrint}>
-              <FontAwesomeIcon icon={faPrint} />
-              Print Receipt
+            <button className="btn-primary" onClick={handlePrint}>
+              <FontAwesomeIcon icon={faPrint} /> Print
             </button>
-            <button className="btn-download" onClick={handleDownloadPDF}>
-              <FontAwesomeIcon icon={faDownload} />
-              Download PDF
+            <button className="btn-secondary" onClick={handleDownloadPDF}>
+              <FontAwesomeIcon icon={faDownload} /> Download PDF
             </button>
-            <button className="btn-close" onClick={handleClose}>
-              <FontAwesomeIcon icon={faTimes} />
-              Close
+            <button className="btn-secondary" onClick={handleClose}>
+              <FontAwesomeIcon icon={faTimes} /> Close
             </button>
           </div>
         </div>
+        </div>
       </div>
-    </div>
+    </section>
   );
 };
 

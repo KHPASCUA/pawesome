@@ -18,7 +18,8 @@ const CashierReports = lazy(() => import("../components/cashier/CashierReports")
 const InventoryReports = lazy(() => import("../components/inventory/InventoryReports"));
 const ManagerReports = lazy(() => import("../components/manager/ManagerReports"));
 const VetReports = lazy(() => import("../components/veterinary/VetReports"));
-const CustomerReports = lazy(() => import("../components/customers/CustomerReports"));
+// Customer reports use receptionist reports (shared view)
+const CustomerReports = lazy(() => import("../components/receptionist/ReceptionistReports"));
 const ReceptionistReports = lazy(() => import("../components/receptionist/ReceptionistReports"));
 
 // Payroll modules - lazy loaded

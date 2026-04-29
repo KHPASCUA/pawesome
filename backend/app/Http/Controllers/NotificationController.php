@@ -32,7 +32,28 @@ class NotificationController extends Controller
 
         return response()->json([
             'notifications' => $notifications->map(fn (Notification $notification) => $this->formatNotification($notification)),
+            'count' => $unreadCount,
             'unread_count' => $unreadCount,
+        ]);
+    }
+
+    /**
+     * Get unread notifications only (for NotificationBell component)
+     */
+    public function getUnread(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $notifications = Notification::forUser($user->id)
+            ->unread()
+            ->latest()
+            ->limit(20)
+            ->get();
+
+        $count = $notifications->count();
+
+        return response()->json([
+            'notifications' => $notifications->map(fn (Notification $notification) => $this->formatNotification($notification)),
+            'count' => $count,
         ]);
     }
 

@@ -27,19 +27,37 @@ const VetAppointments = () => {
 
   useEffect(() => {
     fetchAppointments();
+
+    // Real-time updates: poll every 5 seconds
+    const interval = setInterval(() => {
+      fetchAppointments();
+    }, 5000);
+
+    return () => clearInterval(interval);
   }, []);
 
   const fetchAppointments = async () => {
     try {
       setLoading(true);
+
       const data = await apiRequest("/veterinary/appointments");
-      const appointmentsData = Array.isArray(data) ? data : (data.appointments || []);
-      const transformedAppointments = appointmentsData.map(apt => ({
+      const appointmentsData = Array.isArray(data)
+        ? data
+        : data.appointments || data.data || [];
+
+      const transformedAppointments = appointmentsData.map((apt) => ({
         id: apt.id,
         pet: apt.pet?.name || "Unknown Pet",
         owner: apt.customer?.name || "Unknown Owner",
-        date: new Date(apt.scheduled_at).toISOString().split('T')[0],
-        time: new Date(apt.scheduled_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        date: apt.scheduled_at
+          ? new Date(apt.scheduled_at).toISOString().split("T")[0]
+          : "TBD",
+        time: apt.scheduled_at
+          ? new Date(apt.scheduled_at).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            })
+          : "TBD",
         service: apt.service?.name || "General Service",
         status: apt.status || "pending",
         notes: apt.notes || "",

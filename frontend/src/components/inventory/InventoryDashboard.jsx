@@ -8,6 +8,17 @@ import {
   faCalendarAlt,
   faBox,
 } from "@fortawesome/free-solid-svg-icons";
+import {
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip,
+  ResponsiveContainer,
+  XAxis,
+  YAxis,
+} from "recharts";
 import InventorySidebar from "./InventorySidebar";
 import RoleAwareChatbot from "../chatbot/RoleAwareChatbot";
 import NotificationDropdown from "../shared/NotificationDropdown";
@@ -103,6 +114,42 @@ const InventoryDashboard = () => {
     time: transaction.created_at ? new Date(transaction.created_at).toLocaleDateString() : 'N/A',
     status: transaction.status || "completed",
   })) : [];
+
+  // Chart data
+  const stockChartData = [
+    {
+      name: "In Stock",
+      value: Math.max(0, (dashboardData?.total_items || 0) - (dashboardData?.low_stock_items || 0) - (dashboardData?.out_of_stock_items || 0)),
+    },
+    {
+      name: "Low Stock",
+      value: dashboardData?.low_stock_items || 0,
+    },
+    {
+      name: "Out of Stock",
+      value: dashboardData?.out_of_stock_items || 0,
+    },
+  ];
+
+  const stockPieData = [
+    {
+      name: "Available",
+      value:
+        (dashboardData?.total_items || 0) -
+        (dashboardData?.low_stock_items || 0) -
+        (dashboardData?.out_of_stock_items || 0),
+    },
+    {
+      name: "Low Stock",
+      value: dashboardData?.low_stock_items || 0,
+    },
+    {
+      name: "Out of Stock",
+      value: dashboardData?.out_of_stock_items || 0,
+    },
+  ].filter((item) => item.value > 0);
+
+  const pieColors = ["#ff5f93", "#f59e0b", "#ef4444"];
 
   return (
     <div className={`inventory-dashboard ${theme} ${sidebarCollapsed ? "collapsed" : ""}`}>
@@ -261,19 +308,50 @@ const InventoryDashboard = () => {
                   </NavLink>
                 </div>
                 
-                <div className="inventory-metrics">
-                  <div className="status-card success">
-                    <strong>{dashboardData?.total_items || 0}</strong>
-                    <p>Total Products</p>
-                    <small>{dashboardData?.out_of_stock_items || 0} out of stock</small>
+                <div className="inventory-analytics-grid">
+                  <div className="analytics-chart-card">
+                    <h4>Stock Overview</h4>
+                    <div className="chart-box">
+                      <ResponsiveContainer width="100%" height={210}>
+                        <BarChart data={stockChartData}>
+                          <XAxis dataKey="name" />
+                          <YAxis allowDecimals={false} />
+                          <Tooltip />
+                          <Bar dataKey="value" radius={[10, 10, 0, 0]} fill="#ff5f93" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
                   </div>
-                  <div className="status-card warning">
-                    <strong>{dashboardData?.low_stock_items || 0}</strong>
-                    <p>Low Stock Items</p>
-                    <small>Need attention</small>
+
+                  <div className="analytics-chart-card">
+                    <h4>Stock Health</h4>
+
+                    {stockPieData.length > 0 ? (
+                      <div className="chart-box">
+                        <ResponsiveContainer width="100%" height={210}>
+                          <PieChart>
+                            <Pie
+                              data={stockPieData}
+                              dataKey="value"
+                              nameKey="name"
+                              innerRadius={52}
+                              outerRadius={78}
+                              paddingAngle={4}
+                            >
+                              {stockPieData.map((entry, index) => (
+                                <Cell key={entry.name} fill={pieColors[index % pieColors.length]} />
+                              ))}
+                            </Pie>
+                            <Tooltip />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </div>
+                    ) : (
+                      <div className="chart-empty">No stock data yet</div>
+                    )}
                   </div>
                 </div>
-                
+
                 <div className="inventory-summary">
                   <p>Total stock value: {formatCurrency(dashboardData?.total_stock_value || 0)}</p>
                 </div>

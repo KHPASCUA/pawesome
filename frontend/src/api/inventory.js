@@ -92,6 +92,22 @@ export const inventoryApi = {
   },
 
   /**
+   * Retrieves sellable products for POS and Customer Store
+   * Only returns items that are sellable and have stock > 0
+   * @async
+   * @returns {Promise<{success: boolean, products: Array, count: number}>} Sellable products
+   * @throws {Error} When the request fails
+   */
+  getSellable: async () => {
+    try {
+      return await apiRequest("/inventory/sellable");
+    } catch (error) {
+      console.error("[InventoryAPI] Failed to fetch sellable items:", error.message);
+      throw error;
+    }
+  },
+
+  /**
    * Retrieves a single inventory item by ID.
    * @async
    * @param {string|number} id - Inventory item ID
@@ -313,6 +329,58 @@ export const inventoryApi = {
       return await apiRequest("/inventory/low-stock");
     } catch (error) {
       console.error("[InventoryAPI] Failed to fetch low stock alerts:", error.message);
+      throw error;
+    }
+  },
+
+  /**
+   * Creates a reorder request for low stock items.
+   * @async
+   * @param {Object} payload - Reorder request data
+   * @param {string|number} payload.item_id - Inventory item ID
+   * @param {string} payload.item_name - Product name
+   * @param {string} payload.sku - Product SKU
+   * @param {number} payload.suggested_quantity - Suggested reorder quantity
+   * @param {number} payload.current_stock - Current stock level
+   * @param {number} payload.reorder_level - Reorder threshold
+   * @param {string} payload.priority - Priority level (critical, high, low)
+   * @param {string} payload.status - Request status
+   * @returns {Promise<Object>} Created reorder request confirmation
+   * @throws {Error} When validation fails or request fails
+   */
+  createReorderRequest: async (payload) => {
+    try {
+      return await apiRequest("/inventory/reorder-requests", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+    } catch (error) {
+      console.error("[InventoryAPI] Failed to create reorder request:", error.message);
+      throw error;
+    }
+  },
+
+  /**
+   * Creates a notification for inventory alerts (low stock, out of stock).
+   * @async
+   * @param {Object} payload - Notification data
+   * @param {string} payload.title - Notification title
+   * @param {string} payload.message - Notification message
+   * @param {string} payload.type - Notification type (danger, warning, info)
+   * @param {string} payload.module - Source module (inventory)
+   * @param {string|number} payload.item_id - Related inventory item ID
+   * @param {string} [payload.priority] - Priority level (high, medium, low)
+   * @returns {Promise<Object>} Created notification
+   * @throws {Error} When notification creation fails
+   */
+  createInventoryNotification: async (payload) => {
+    try {
+      return await apiRequest("/notifications", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+    } catch (error) {
+      console.error("[InventoryAPI] Failed to create notification:", error.message);
       throw error;
     }
   },

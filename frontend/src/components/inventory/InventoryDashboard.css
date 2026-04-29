@@ -828,8 +828,483 @@
   .metric-value {
     font-size: 1.8rem;
   }
-  
+
   .metric-label {
     font-size: 0.8rem;
   }
+}
+
+/* ===== INVENTORY DASHBOARD DESIGN FIX ===== */
+
+.inventory-main {
+  padding: 1.4rem 2rem 2rem;
+  padding-top: 112px;
+  background: linear-gradient(135deg, #fff1f7, #ffffff, #f8fbff);
+}
+
+.inventory-navbar {
+  min-height: 92px;
+  padding: 1rem 2rem !important;
+  grid-template-columns: minmax(320px, 1fr) minmax(360px, 460px) auto;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.86);
+  border-bottom: 1px solid rgba(255, 95, 147, 0.16);
+}
+
+.navbar-left h1 {
+  font-size: 1.65rem;
+  line-height: 1.1;
+}
+
+.navbar-left p {
+  margin-top: 0.25rem;
+  font-size: 0.9rem;
+}
+
+.search-group input {
+  height: 48px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(255, 95, 147, 0.22);
+}
+
+.inventory-profile-btn {
+  height: 48px;
+  min-height: 48px;
+  background: rgba(255, 95, 147, 0.08);
+  border: 1px solid rgba(255, 95, 147, 0.18);
+}
+
+.icon-btn,
+.theme-toggle-btn {
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 10px 24px rgba(255, 95, 147, 0.12);
+}
+
+/* Smaller better stat cards */
+.overview-cards {
+  grid-template-columns: repeat(4, minmax(190px, 1fr));
+  gap: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.overview-card {
+  min-height: 128px;
+  padding: 1.35rem 1.45rem;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(255, 95, 147, 0.14);
+  box-shadow: 0 18px 40px rgba(255, 95, 147, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.overview-card h3 {
+  font-size: 1.9rem;
+  color: #191919;
+}
+
+.overview-card p {
+  max-width: 120px;
+  font-size: 0.9rem;
+  font-weight: 850;
+  color: #1f2937;
+}
+
+.overview-card span {
+  width: 150px;
+  height: 18px;
+  padding: 0;
+  font-size: 0;
+  background: #eef2ff;
+}
+
+/* Better grid spacing */
+.dashboard-grid {
+  grid-template-columns: minmax(0, 2fr) minmax(280px, 0.9fr);
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.dashboard-bottom {
+  grid-template-columns: minmax(0, 2fr) minmax(280px, 0.9fr);
+  gap: 1.5rem;
+}
+
+.panel {
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(255, 95, 147, 0.14);
+  box-shadow: 0 18px 40px rgba(255, 95, 147, 0.1);
+}
+
+.panel-header {
+  padding: 1.45rem 1.6rem;
+}
+
+.panel-header h2 {
+  font-size: 1.25rem;
+}
+
+.panel-header p {
+  font-size: 0.9rem;
+}
+
+/* Fix empty recent activity height */
+.overview-panel {
+  min-height: 340px;
+}
+
+.activity-list {
+  padding: 1.35rem 1.6rem;
+  min-height: 210px;
+}
+
+.activity-list:empty::before {
+  content: "No recent inventory activity yet.";
+  display: block;
+  color: #64748b;
+  font-weight: 700;
+  padding: 1rem;
+  border-radius: 16px;
+  background: rgba(255, 241, 247, 0.8);
+  border: 1px dashed rgba(255, 95, 147, 0.22);
+}
+
+/* Right metric cards */
+.quick-stat-panel {
+  gap: 1.25rem;
+  padding: 1.35rem;
+}
+
+.metric-card {
+  min-height: 124px;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  padding: 1.4rem;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(255, 95, 147, 0.13);
+}
+
+.metric-card.accent {
+  background: #eef2ff;
+}
+
+.metric-card h3 {
+  font-size: 1.85rem;
+  color: #1d4ed8;
+}
+
+.metric-card p {
+  font-size: 0.92rem;
+  color: #111827;
+}
+
+.metric-card small {
+  color: #64748b;
+}
+
+/* Bottom sections */
+.stock-categories,
+.inventory-metrics {
+  padding: 1.35rem 1.6rem;
+}
+
+.stock-category-item {
+  border: 1px solid rgba(255, 95, 147, 0.12);
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.no-data {
+  padding: 1rem;
+  border-radius: 16px;
+  background: rgba(255, 241, 247, 0.8);
+  border: 1px dashed rgba(255, 95, 147, 0.22);
+  color: #64748b;
+  font-weight: 700;
+}
+
+/* Mobile/tablet */
+@media (max-width: 1200px) {
+  .inventory-navbar {
+    grid-template-columns: 1fr;
+    position: relative;
+    left: auto;
+    top: auto;
+  }
+
+  .inventory-main {
+    padding-top: 1.5rem;
+  }
+
+  .overview-cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .dashboard-grid,
+  .dashboard-bottom {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .inventory-main {
+    margin-left: 82px;
+    padding: 1rem;
+  }
+
+  .inventory-navbar {
+    padding: 1rem !important;
+  }
+
+  .overview-cards {
+    grid-template-columns: 1fr;
+  }
+
+  .overview-card {
+    min-height: 115px;
+  }
+}
+
+/* ===== FINAL INVENTORY DASHBOARD ALIGNMENT FIX ===== */
+
+.inventory-dashboard {
+  background: linear-gradient(135deg, #fff1f7, #ffffff, #f8fbff) !important;
+}
+
+.inventory-main {
+  padding: 1.25rem 1.75rem 2rem !important;
+  padding-top: 112px !important;
+}
+
+/* Topbar same premium style */
+.inventory-navbar {
+  min-height: 92px !important;
+  padding: 1rem 1.75rem !important;
+  background: rgba(255, 255, 255, 0.9) !important;
+  border-bottom: 1px solid rgba(255, 95, 147, 0.16) !important;
+  box-shadow: 0 12px 30px rgba(255, 95, 147, 0.08) !important;
+}
+
+.navbar-left h1 {
+  font-size: 1.55rem !important;
+  color: #ff5f93 !important;
+}
+
+.navbar-left p {
+  color: #64748b !important;
+}
+
+/* Better card sizing */
+.overview-cards {
+  grid-template-columns: repeat(4, 1fr) !important;
+  gap: 1rem !important;
+  margin-bottom: 1.35rem !important;
+}
+
+.overview-card {
+  min-height: 112px !important;
+  padding: 1.15rem 1.25rem !important;
+  border-radius: 22px !important;
+  background: rgba(255, 255, 255, 0.94) !important;
+  border: 1px solid rgba(255, 95, 147, 0.14) !important;
+  box-shadow: 0 14px 34px rgba(255, 95, 147, 0.09) !important;
+}
+
+.overview-card h3 {
+  font-size: 1.75rem !important;
+  color: #111827 !important;
+}
+
+.overview-card p {
+  font-size: 0.88rem !important;
+  font-weight: 850 !important;
+  color: #1f2937 !important;
+}
+
+.overview-card span {
+  display: none !important;
+}
+
+/* Main dashboard grid */
+.dashboard-grid,
+.dashboard-bottom {
+  grid-template-columns: minmax(0, 2.1fr) minmax(300px, 0.9fr) !important;
+  gap: 1.25rem !important;
+  margin-bottom: 1.25rem !important;
+}
+
+/* Panels */
+.panel {
+  border-radius: 22px !important;
+  background: rgba(255, 255, 255, 0.94) !important;
+  border: 1px solid rgba(255, 95, 147, 0.14) !important;
+  box-shadow: 0 14px 34px rgba(255, 95, 147, 0.09) !important;
+}
+
+.panel-header {
+  padding: 1.25rem 1.5rem !important;
+}
+
+.panel-header h2 {
+  font-size: 1.2rem !important;
+  color: #111827 !important;
+}
+
+.panel-header p {
+  font-size: 0.88rem !important;
+}
+
+/* Recent activity not too empty */
+.overview-panel {
+  min-height: 295px !important;
+}
+
+.activity-list {
+  padding: 1.25rem 1.5rem !important;
+  min-height: 180px !important;
+}
+
+.activity-list:empty::before {
+  content: "No recent inventory activity yet.";
+  display: block;
+  padding: 1rem;
+  border-radius: 16px;
+  background: #fff1f7;
+  border: 1px dashed rgba(255, 95, 147, 0.28);
+  color: #64748b;
+  font-weight: 800;
+}
+
+/* Right side cards */
+.quick-stat-panel {
+  padding: 1.25rem !important;
+  gap: 1rem !important;
+}
+
+.metric-card {
+  min-height: 110px !important;
+  border-radius: 18px !important;
+  background: #ffffff !important;
+  border: 1px solid rgba(255, 95, 147, 0.14) !important;
+  box-shadow: 0 10px 24px rgba(255, 95, 147, 0.08) !important;
+}
+
+.metric-card.accent {
+  background: linear-gradient(135deg, #eef2ff, #fff1f7) !important;
+}
+
+.metric-card h3 {
+  font-size: 1.65rem !important;
+  color: #ff5f93 !important;
+}
+
+.metric-card p {
+  color: #111827 !important;
+  font-weight: 850 !important;
+}
+
+.metric-card small {
+  color: #64748b !important;
+}
+
+/* Bottom sections */
+.stock-categories,
+.inventory-metrics {
+  padding: 1.25rem 1.5rem !important;
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+  .overview-cards {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  .dashboard-grid,
+  .dashboard-bottom {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .inventory-main {
+    margin-left: 82px !important;
+    padding: 1rem !important;
+  }
+
+  .inventory-navbar {
+    position: relative !important;
+    left: auto !important;
+    top: auto !important;
+    grid-template-columns: 1fr !important;
+  }
+
+  .overview-cards {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* ===== INVENTORY ANALYTICS CHART UPGRADE ===== */
+
+.inventory-analytics-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem;
+}
+
+@media (max-width: 768px) {
+  .inventory-analytics-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.analytics-chart-card {
+  background: linear-gradient(135deg, #ffffff, #fff1f7);
+  border: 1px solid rgba(255, 95, 147, 0.14);
+  border-radius: 20px;
+  padding: 1rem;
+  box-shadow: 0 12px 30px rgba(255, 95, 147, 0.08);
+}
+
+.analytics-chart-card h4 {
+  margin: 0 0 0.8rem;
+  color: #111827;
+  font-size: 0.95rem;
+  font-weight: 950;
+}
+
+.chart-box {
+  width: 100%;
+  height: 210px;
+}
+
+.chart-empty {
+  height: 210px;
+  display: grid;
+  place-items: center;
+  border-radius: 16px;
+  background: rgba(255, 241, 247, 0.8);
+  color: #64748b;
+  font-weight: 800;
+}
+
+.inventory-summary {
+  margin: 0 1.5rem 1.5rem;
+  padding: 1rem;
+  border-radius: 18px;
+  background: rgba(255, 241, 247, 0.85);
+  border: 1px solid rgba(255, 95, 147, 0.14);
+}
+
+.inventory-summary p {
+  margin: 0;
+  color: #111827;
+  font-weight: 900;
 }

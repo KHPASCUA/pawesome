@@ -1,7 +1,15 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { apiRequest } from "../../api/client";
-import { FaEye, FaEyeSlash, FaUser, FaLock } from "react-icons/fa";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faArrowLeft,
+  faUser,
+  faLock,
+  faEye,
+  faEyeSlash,
+} from "@fortawesome/free-solid-svg-icons";
+import logo from "../../assets/pawesome.jpg";
 import "./Login.css";
 
 const roleRouteMap = {
@@ -28,19 +36,6 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
 
   const navigate = useNavigate();
-
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-
-    setFormData({
-      ...formData,
-      [name]: type === "checkbox" ? checked : value,
-    });
-
-    if (errors[name]) {
-      setErrors({ ...errors, [name]: "" });
-    }
-  };
 
   const validateForm = () => {
     const newErrors = {};
@@ -104,118 +99,94 @@ const Login = () => {
   };
 
   return (
-    <div className="login-container">
-      <div className="login-background">
-        <div className="login-content">
+    <div className="login-page">
+      <div className="login-shell">
+        <aside className="login-left-panel">
+          <Link to="/" className="back-home-link">
+            <FontAwesomeIcon icon={faArrowLeft} />
+            <span>Back to Landing Page</span>
+          </Link>
 
-          {/* HEADER IMPROVED */}
-          <div className="login-header">
-            <div className="logo">
-              <h1>PAWESOME</h1>
-              <span>RETREAT INC.</span>
-            </div>
+          <div className="login-left-content">
+            <img src={logo} alt="Pawesome Retreat Inc." className="login-logo-img" />
 
-            <h2>Welcome to Pawesome Retreat</h2>
+            <h1>Welcome back to Pawesome Retreat</h1>
             <p>
-              Sign in to manage appointments, pet care services, and your account in one place.
+              Manage appointments, pet care services, customer requests, and daily
+              operations in one secure portal.
             </p>
           </div>
+        </aside>
 
-          <form className="login-form" onSubmit={handleLogin}>
-            <div className="form-section">
+        <main className="login-right-panel">
+          <div className="login-card">
+            <div className="login-heading">
+              <h2>Sign In</h2>
+              <p>Enter your account credentials to continue.</p>
+            </div>
 
-              {/* USERNAME */}
-              <div className="login-field">
-                <label>USERNAME *</label>
-                <div className="input-wrap">
-                  <FaUser className="input-left-icon" />
-                  <input
-                    type="text"
-                    id="username"
-                    name="username"
-                    value={formData.username}
-                    onChange={handleChange}
-                    className={errors.username ? "error" : ""}
-                    placeholder="Enter your username"
-                    disabled={isSubmitting}
-                  />
-                </div>
-                {errors.username && (
-                  <span className="error-message">{errors.username}</span>
-                )}
+            <form className="login-form" onSubmit={handleLogin}>
+              <label>USERNAME *</label>
+              <div className="input-wrap">
+                <FontAwesomeIcon icon={faUser} />
+                <input
+                  type="text"
+                  placeholder="Enter your username"
+                  value={formData.username}
+                  onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                  disabled={isSubmitting}
+                />
               </div>
 
-              {/* PASSWORD */}
-              <div className="login-field">
-                <label>PASSWORD *</label>
-                <div className="password-input-wrap">
-                  <FaLock className="input-left-icon" />
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    id="password"
-                    name="password"
-                    value={formData.password}
-                    onChange={handleChange}
-                    className={errors.password ? "error" : ""}
-                    placeholder="Enter your password"
-                    disabled={isSubmitting}
-                  />
-                  <button
-                    type="button"
-                    className="password-toggle"
-                    onClick={() => setShowPassword(!showPassword)}
-                    disabled={isSubmitting}
-                    aria-label="Toggle password visibility"
-                  >
-                    {showPassword ? <FaEyeSlash /> : <FaEye />}
-                  </button>
-                </div>
-                {errors.password && (
-                  <span className="error-message">{errors.password}</span>
-                )}
+              <label>PASSWORD *</label>
+              <div className="input-wrap">
+                <FontAwesomeIcon icon={faLock} />
+                <input
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Enter your password"
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  disabled={isSubmitting}
+                />
+
+                <button
+                  type="button"
+                  className="show-password-btn"
+                  onClick={() => setShowPassword(!showPassword)}
+                  disabled={isSubmitting}
+                >
+                  <FontAwesomeIcon icon={showPassword ? faEyeSlash : faEye} />
+                </button>
               </div>
 
-              {/* OPTIONS */}
-              <div className="form-options">
-                <div className="remember-me">
+              {(errors.username || errors.password) && (
+                <div className="login-error">{errors.username || errors.password}</div>
+              )}
+
+              <div className="login-options">
+                <label className="remember-box">
                   <input
                     type="checkbox"
-                    id="rememberMe"
-                    name="rememberMe"
                     checked={formData.rememberMe}
-                    onChange={handleChange}
+                    onChange={(e) => setFormData({ ...formData, rememberMe: e.target.checked })}
                     disabled={isSubmitting}
                   />
-                  <label htmlFor="rememberMe">Remember me</label>
-                </div>
+                  <span>Remember me</span>
+                </label>
 
-                <Link to="/forgot-password" className="forgot-password">
-                  Forgot password?
-                </Link>
+                <Link to="/forgot-password">Forgot password?</Link>
               </div>
-            </div>
 
-            {/* BUTTON */}
-            <div className="form-actions">
-              <button
-                type="submit"
-                className="login-btn"
-                disabled={isSubmitting}
-              >
+              <button className="login-btn" type="submit" disabled={isSubmitting}>
                 {isSubmitting ? "Signing In..." : "Sign In"}
               </button>
-            </div>
-          </form>
+            </form>
 
-          {/* REGISTER */}
-          <div className="register-link">
-            <span>New to Pawesome?</span>
-            <Link to="/register" className="link">
-              Create an account
-            </Link>
+            <p className="login-register">
+              New to Pawesome? <Link to="/register">Create an account</Link>
+            </p>
           </div>
-
-        </div>
+        </main>
       </div>
     </div>
   );

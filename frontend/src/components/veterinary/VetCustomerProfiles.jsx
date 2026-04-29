@@ -26,7 +26,7 @@ const VetCustomerProfiles = () => {
     try {
       setLoading(true);
       const data = await apiRequest("/veterinary/patients");
-      const patients = Array.isArray(data) ? data : (data.patients || []);
+      const patients = Array.isArray(data) ? data : data.patients || data.data || [];
       const customers = patients.map((pet) => ({
         id: pet.id,
         name: pet.customer?.name || "Unknown Owner",
@@ -59,34 +59,39 @@ const VetCustomerProfiles = () => {
 
   if (loading) {
     return (
-      <div className="vet-customer-profiles">
-        <div className="loading-spinner">
-          <div className="spinner-icon">
-            <FontAwesomeIcon icon={faSpinner} className="spin-animation" />
-          </div>
+      <section className="app-content vet-customer-profiles">
+        <div className="premium-card vet-loading-state">
+          <FontAwesomeIcon icon={faSpinner} className="spin-animation" />
           <span>Loading customers...</span>
         </div>
-      </div>
+      </section>
     );
   }
 
   if (error) {
     return (
-      <div className="vet-customer-profiles">
-        <div className="error-message">
+      <section className="app-content vet-customer-profiles">
+        <div className="premium-card vet-error-state">
           <FontAwesomeIcon icon={faExclamationTriangle} />
           <span>{error}</span>
         </div>
-      </div>
+      </section>
     );
   }
 
   return (
-    <div className="vet-customer-profiles">
-      <h2>Customer Profiles</h2>
-      
-      <div className="search-bar">
-        <div className="search-input-wrapper">
+    <section className="app-content vet-customer-profiles">
+      <div className="premium-card vet-profiles-header">
+        <div>
+          <h2 className="premium-title">
+            <FontAwesomeIcon icon={faUser} /> Customer Profiles
+          </h2>
+          <p className="premium-muted">View and search customer information</p>
+        </div>
+      </div>
+
+      <div className="premium-card vet-profiles-search">
+        <div className="vet-search-box">
           <FontAwesomeIcon icon={faSearch} />
           <input
             type="text"
@@ -98,37 +103,45 @@ const VetCustomerProfiles = () => {
       </div>
 
       {filteredCustomers.length === 0 ? (
-        <div className="no-records">
+        <div className="premium-card vet-empty-state">
           <FontAwesomeIcon icon={faUser} />
           <h3>No customers found</h3>
           <p>Try adjusting your search</p>
         </div>
       ) : (
-        <div className="customer-list">
+        <div className="vet-customer-list">
           {filteredCustomers.map((customer) => (
-            <div key={customer.id} className="customer-item">
-              <div className="customer-avatar">
+            <article key={customer.id} className="premium-card vet-customer-card">
+              <div className="vet-customer-avatar">
                 {customer.name?.charAt(0)?.toUpperCase()}
               </div>
               <div className="customer-info">
                 <h3>{customer.name}</h3>
-                <p>
-                  <FontAwesomeIcon icon={faEnvelope} /> {customer.email}
+
+                <p className="pet-line">
+                  <FontAwesomeIcon icon={faUser} />
+                  Pet: {customer.pet_name || "Unknown Pet"} • {customer.pet_species || "Unknown"} • {customer.pet_breed || "Unknown"}
                 </p>
+
                 <p>
-                  <FontAwesomeIcon icon={faPhone} /> {customer.phone}
+                  <FontAwesomeIcon icon={faEnvelope} /> {customer.email || "No email"}
                 </p>
+
+                <p>
+                  <FontAwesomeIcon icon={faPhone} /> {customer.phone || "No phone"}
+                </p>
+
                 {customer.address && (
                   <p>
                     <FontAwesomeIcon icon={faMapMarkerAlt} /> {customer.address}
                   </p>
                 )}
               </div>
-            </div>
+            </article>
           ))}
         </div>
       )}
-    </div>
+    </section>
   );
 };
 

@@ -200,11 +200,9 @@ const ManageUsers = () => {
 
   return (
     <div className="manage-users">
-      <div className="section-header">
-        <div className="header-left">
-          <h2>Manage Users</h2>
-          <p>Manage system users, roles, and permissions</p>
-        </div>
+      <div className="manage-users-header">
+        <h1>Manage Users</h1>
+        <p>Manage system users, roles, and permissions</p>
         <div className="header-actions">
           <NavLink to="/admin/users/create" className="add-user-btn">
             Add New User
@@ -225,42 +223,40 @@ const ManageUsers = () => {
       )}
 
       {/* Filters */}
-      <div className="users-controls">
-        <div className="search-filter-group">
-          <div className="search-box">
-            <input
-              type="text"
-              placeholder="Search by name, email, or username..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          <div className="filter-dropdown">
-            <select
-              value={filterRole}
-              onChange={(e) => setFilterRole(e.target.value)}
-            >
-              <option value="all">All Roles</option>
-              <option value="admin">Admin</option>
-              <option value="manager">Manager</option>
-              <option value="receptionist">Receptionist</option>
-              <option value="veterinary">Veterinary</option>
-              <option value="cashier">Cashier</option>
-              <option value="inventory">Inventory</option>
-              <option value="payroll">Payroll</option>
-              <option value="customer">Customer</option>
-            </select>
-          </div>
-          <div className="filter-dropdown">
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-            >
-              <option value="all">All Status</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
-          </div>
+      <div className="users-filter-bar">
+        <div className="search-box">
+          <input
+            type="text"
+            placeholder="Search by name, email, or username..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+        <div className="filter-box">
+          <select
+            value={filterRole}
+            onChange={(e) => setFilterRole(e.target.value)}
+          >
+            <option value="all">All Roles</option>
+            <option value="admin">Admin</option>
+            <option value="manager">Manager</option>
+            <option value="receptionist">Receptionist</option>
+            <option value="veterinary">Veterinary</option>
+            <option value="cashier">Cashier</option>
+            <option value="inventory">Inventory</option>
+            <option value="payroll">Payroll</option>
+            <option value="customer">Customer</option>
+          </select>
+        </div>
+        <div className="filter-box">
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+          >
+            <option value="all">All Status</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </select>
         </div>
       </div>
 

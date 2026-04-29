@@ -84,13 +84,13 @@ export default function CustomerStore() {
   // API-connected products state
   const [apiProducts, setApiProducts] = useState([]);
 
-  // Fetch products from PUBLIC Inventory API (shared with Cashier POS)
+  // Fetch products from centralized sellable inventory API (shared with Cashier POS)
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const response = await inventoryApi.getPublicItems();
-        const products = response.items || response.data || [];
-        
+        const response = await inventoryApi.getSellable();
+        const products = response.products || response.data || [];
+
         if (products.length > 0) {
           // Transform API products to store format with categories
           const categorized = categorizeProducts(products);
@@ -104,14 +104,14 @@ export default function CustomerStore() {
         setApiProducts(storeData);
       }
     };
-    
+
     // Auto-refresh every 30 seconds for live inventory updates
     fetchProducts();
-    
+
     const interval = setInterval(() => {
       fetchProducts();
     }, 30000);
-    
+
     return () => clearInterval(interval);
   }, []);
 

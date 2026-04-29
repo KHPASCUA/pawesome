@@ -19,6 +19,8 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { inventoryApi } from '../../api/inventory';
 import { sharedProducts, sharedServices } from '../shared/inventorySync';
+import PremiumToast from '../shared/PremiumToast';
+import DeleteConfirmModal from '../shared/DeleteConfirmModal';
 import './InventoryManagement.css';
 
 /**
@@ -82,6 +84,39 @@ const InventoryManagement = () => {
     outOfStock: 0,
     totalValue: 0
   });
+
+  // Toast state
+  const [toast, setToast] = useState({
+    show: false,
+    type: 'success',
+    title: '',
+    message: ''
+  });
+
+  // Delete modal state
+  const [deleteModal, setDeleteModal] = useState({
+    open: false,
+    item: null,
+    loading: false
+  });
+
+  // Activity logs state
+  const [activityLogs, setActivityLogs] = useState([]);
+
+  // Helper to add activity log
+  const addActivityLog = (type, message) => {
+    const newLog = {
+      id: Date.now(),
+      type,
+      message,
+      time: new Date().toLocaleString(),
+    };
+
+    setActivityLogs((prev) => [newLog, ...prev].slice(0, 5));
+  };
+
+  // Alert count for badge
+  const alertCount = stats.lowStock + stats.outOfStock;
 
   // Fetch inventory data
   const fetchInventory = useCallback(async () => {
@@ -215,31 +250,68 @@ const InventoryManagement = () => {
       setFormData(INITIAL_FORM_DATA);
       setEditingItem(null);
       
-      alert(`Item ${editingItem ? 'updated' : 'created'} successfully! All dashboards will sync automatically.`);
+      addActivityLog(
+        editingItem ? 'update' : 'create',
+        editingItem
+          ? `${formData.name} was updated.` 
+          : `${formData.name} was added to inventory.` 
+      );
+      
+      setToast({
+        show: true,
+        type: 'success',
+        title: editingItem ? 'Item Updated' : 'Item Created',
+        message: `Item ${editingItem ? 'updated' : 'created'} successfully! All dashboards will sync automatically.`
+      });
     } catch (err) {
       console.error('Failed to save item:', err);
-      alert(`Failed to ${editingItem ? 'update' : 'create'} item: ${err.message}`);
+      setToast({
+        show: true,
+        type: 'error',
+        title: 'Save Failed',
+        message: `Failed to ${editingItem ? 'update' : 'create'} item: ${err.message}`
+      });
     } finally {
       setLoading(false);
     }
   };
 
   // Delete item
-  const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this item? This action cannot be undone.')) {
-      return;
-    }
+  const handleDelete = (id) => {
+    const item = items.find(i => i.id === id);
+    setDeleteModal({
+      open: true,
+      item: item || { name: 'this item' },
+      loading: false
+    });
+  };
+
+  const confirmDelete = async () => {
+    setDeleteModal(prev => ({ ...prev, loading: true }));
+    const { item } = deleteModal;
     
     try {
-      setLoading(true);
-      await inventoryApi.deleteItem(id);
+      await inventoryApi.deleteItem(item.id);
       await fetchInventory();
-      alert('Item deleted successfully!');
+      
+      addActivityLog('delete', 'An inventory item was deleted.');
+      
+      setDeleteModal({ open: false, item: null, loading: false });
+      setToast({
+        show: true,
+        type: 'success',
+        title: 'Item Deleted',
+        message: 'Item deleted successfully!'
+      });
     } catch (err) {
       console.error('Failed to delete item:', err);
-      alert(`Failed to delete item: ${err.message}`);
-    } finally {
-      setLoading(false);
+      setDeleteModal(prev => ({ ...prev, loading: false }));
+      setToast({
+        show: true,
+        type: 'error',
+        title: 'Delete Failed',
+        message: `Failed to delete item: ${err.message}`
+      });
     }
   };
 
@@ -280,6 +352,14 @@ const InventoryManagement = () => {
       <div className="inventory-header">
         <div className="header-left">
           <h1><FontAwesomeIcon icon={faWarehouse} /> Inventory Management</h1>
+
+          {alertCount > 0 && (
+            <span className="stock-alert-badge">
+              <FontAwesomeIcon icon={faBell} />
+              {alertCount} stock alert{alertCount > 1 ? 's' : ''}
+            </span>
+          )}
+
           {usingDemoData && (
             <span className="demo-badge">
               <FontAwesomeIcon icon={faSync} /> Demo Mode - API Unavailable
@@ -321,6 +401,35 @@ const InventoryManagement = () => {
             <span className="stat-label">Total Value</span>
           </div>
         </div>
+      </div>
+
+      {/* Activity Timeline */}
+      <div className="activity-timeline-card">
+        <div className="timeline-header">
+          <div>
+            <h3>Recent Inventory Activity</h3>
+            <p>Latest product changes and stock updates</p>
+          </div>
+          <span>Live</span>
+        </div>
+
+        {activityLogs.length === 0 ? (
+          <div className="timeline-empty">
+            No recent activity yet.
+          </div>
+        ) : (
+          <div className="timeline-list">
+            {activityLogs.map((log) => (
+              <div key={log.id} className={`timeline-item ${log.type}`}>
+                <div className="timeline-dot"></div>
+                <div>
+                  <strong>{log.message}</strong>
+                  <small>{log.time}</small>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Filters */}
@@ -581,6 +690,24 @@ const InventoryManagement = () => {
           </div>
         </div>
       )}
+
+      {/* Toast Notification */}
+      <PremiumToast
+        show={toast.show}
+        type={toast.type}
+        title={toast.title}
+        message={toast.message}
+        onClose={() => setToast(prev => ({ ...prev, show: false }))}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmModal
+        isOpen={deleteModal.open}
+        itemName={deleteModal.item?.name || 'this item'}
+        loading={deleteModal.loading}
+        onClose={() => setDeleteModal({ open: false, item: null, loading: false })}
+        onConfirm={confirmDelete}
+      />
     </div>
   );
 };

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faUser,
@@ -66,6 +66,25 @@ const InventoryProfile = () => {
   // Store original values for validation
   const [originalEmail, setOriginalEmail] = useState("");
   const [originalUsername, setOriginalUsername] = useState("");
+  const [originalData, setOriginalData] = useState({});
+
+  // Check if profile has changes
+  const isChanged = useMemo(() => {
+    return (
+      profileData.email !== originalData.email ||
+      profileData.username !== originalData.username ||
+      profileData.first_name !== originalData.first_name ||
+      profileData.last_name !== originalData.last_name ||
+      profileData.middle_name !== originalData.middle_name ||
+      profileData.phone !== originalData.phone ||
+      profileData.address !== originalData.address ||
+      profileData.city !== originalData.city ||
+      profileData.state !== originalData.state ||
+      profileData.zip_code !== originalData.zip_code ||
+      profileData.country !== originalData.country ||
+      profileData.bio !== originalData.bio
+    );
+  }, [profileData, originalData]);
 
   // Handle input changes
   const handleInputChange = (e) => {
@@ -165,6 +184,20 @@ const InventoryProfile = () => {
           // Store original values for validation
           setOriginalEmail(response.email || "");
           setOriginalUsername(response.username || "");
+          setOriginalData({
+            email: response.email || "",
+            username: response.username || "",
+            first_name: response.first_name || "",
+            last_name: response.last_name || "",
+            middle_name: response.middle_name || "",
+            phone: response.phone || "",
+            address: response.address || "",
+            city: response.city || "",
+            state: response.state || "",
+            zip_code: response.zip_code || "",
+            country: response.country || "",
+            bio: response.bio || "",
+          });
           console.log("Profile data set successfully");
         }
       })
@@ -342,12 +375,50 @@ const InventoryProfile = () => {
 
   return (
     <div className="inventory-profile">
-      {/* Profile Header */}
-      <div className="profile-header">
-        <h2>
-          <FontAwesomeIcon icon={faUser} /> Inventory Profile
-        </h2>
-        <p>Manage your personal information and preferences</p>
+      {/* Profile Hero */}
+      <div className="profile-hero">
+        <div className="hero-left">
+          <div className="hero-avatar">
+            {profileData.profileImage ? (
+              <img src={profileData.profileImage} alt="Profile" />
+            ) : (
+              <FontAwesomeIcon icon={faUser} />
+            )}
+          </div>
+          <div className="hero-info">
+            <h2>{profileData.first_name} {profileData.last_name}</h2>
+            <p>Inventory Manager • {profileData.is_active ? "Active" : "Inactive"}</p>
+          </div>
+        </div>
+        <div className="hero-actions">
+          <button className="btn-primary" onClick={toggleEditMode}>
+            {isEditing ? (
+              <><FontAwesomeIcon icon={faTimes} /> Cancel Editing</>
+            ) : (
+              <><FontAwesomeIcon icon={faUser} /> Edit Profile</>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* Stats Row */}
+      <div className="profile-stats">
+        <div className="stat-card">
+          <h3>{profileData.role || "—"}</h3>
+          <p>Role</p>
+        </div>
+        <div className="stat-card">
+          <h3>{profileData.is_active ? "Active" : "Inactive"}</h3>
+          <p>Account Status</p>
+        </div>
+        <div className="stat-card">
+          <h3>
+            {profileData.created_at
+              ? new Date(profileData.created_at).toLocaleDateString()
+              : "—"}
+          </h3>
+          <p>Member Since</p>
+        </div>
       </div>
 
       {/* Success/Error Messages */}
@@ -360,10 +431,13 @@ const InventoryProfile = () => {
       {loading ? (
         <div className="loading-container">
           <FontAwesomeIcon icon={faSpinner} spin size="2x" />
-          <p>Loading your profile...</p>
+          <p>Fetching Inventory Profile...</p>
         </div>
       ) : (
         <>
+          {/* Split Layout Grid */}
+          <div className="profile-grid">
+            <div className="left">
           {/* Profile Form */}
           <div className="profile-card">
             <div className="profile-section">
@@ -597,13 +671,9 @@ const InventoryProfile = () => {
 
             {/* Action Buttons */}
             <div className="btn-group">
-              {!isEditing ? (
-                <button className="btn-primary" onClick={toggleEditMode}>
-                  <FontAwesomeIcon icon={faUser} /> Edit Profile
-                </button>
-              ) : (
+              {isEditing && (
                 <div>
-                  <button className="btn-primary" onClick={handleSaveProfile} disabled={saving}>
+                  <button className="btn-primary" onClick={handleSaveProfile} disabled={saving || !isChanged}>
                     {saving ? (
                       <>
                         <FontAwesomeIcon icon={faSpinner} spin /> Saving...
@@ -621,7 +691,8 @@ const InventoryProfile = () => {
               )}
             </div>
           </div>
-
+            </div>
+            <div className="right">
           {/* Password Change Section */}
           <div className="profile-card password-section">
             <div className="profile-section">
@@ -705,6 +776,8 @@ const InventoryProfile = () => {
                   )}
                 </button>
               </div>
+            </div>
+          </div>
             </div>
           </div>
         </>

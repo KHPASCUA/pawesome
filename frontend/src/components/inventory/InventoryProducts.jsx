@@ -1,6 +1,9 @@
 import React, { useMemo, useState, useEffect } from "react";
-import { inventoryItems as demoInventoryItems } from "./inventoryData";
 import { inventoryApi } from "../../api/inventory";
+import { demoItems } from "./inventoryData";
+import AddProductModal from "./AddProductModal";
+import PremiumToast from "../shared/PremiumToast";
+import DeleteConfirmModal from "../shared/DeleteConfirmModal";
 import "./InventoryProducts_Advanced.css";
 import { formatCurrency } from "../../utils/currency";
 
@@ -22,20 +25,25 @@ const InventoryProducts = () => {
   const [itemsPerPage] = useState(10);
   const [selectedItems, setSelectedItems] = useState([]);
   const [showFilters, setShowFilters] = useState(false);
+  const [reorderLoading, setReorderLoading] = useState(null);
 
   // Modal states
   const [showModal, setShowModal] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
-  const [formData, setFormData] = useState({
-    name: "",
-    sku: "",
-    brand: "",
-    supplier: "",
-    category: "",
-    quantity: "",
-    price: "",
-    expiration: "",
-    status: "In stock"
+
+  // Toast state
+  const [toast, setToast] = useState({
+    show: false,
+    type: "success",
+    title: "",
+    message: "",
+  });
+
+  // Delete confirmation state
+  const [deleteModal, setDeleteModal] = useState({
+    open: false,
+    item: null,
+    loading: false,
   });
 
   // Fetch items from API - ONLY use demo on complete API failure
@@ -52,8 +60,7 @@ const InventoryProducts = () => {
       return true; // Success
     } catch (err) {
       console.error("API fetch failed, using demo fallback:", err);
-      // Only use demo data on API failure
-      setItems(demoInventoryItems);
+      setItems(demoItems);
       setUsingDemoData(true);
       return false; // Failed
     } finally {
@@ -136,6 +143,70 @@ const InventoryProducts = () => {
     return filteredItems.slice(start, start + itemsPerPage);
   }, [filteredItems, currentPage, itemsPerPage]);
 
+  // AI Reorder Suggestions - Smart detection for low stock items
+  const reorderSuggestions = useMemo(() => {
+    return items
+      .filter((item) => {
+        const qty = Number(item.quantity || item.stock || item.stock_quantity || 0);
+        const reorderLevel = Number(item.reorder_level || item.minStock || 10);
+        return qty <= reorderLevel;
+      })
+      .map((item) => {
+        const qty = Number(item.quantity || item.stock || item.stock_quantity || 0);
+        const reorderLevel = Number(item.reorder_level || item.minStock || 10);
+        const suggestedQty = Math.max(reorderLevel * 2 - qty, reorderLevel);
+
+        let priority = "low";
+        if (qty === 0) priority = "critical";
+        else if (qty <= reorderLevel / 2) priority = "high";
+
+        return {
+          ...item,
+          quantity: qty,
+          reorder_level: reorderLevel,
+          suggestedQty,
+          priority,
+        };
+      })
+      .sort((a, b) => {
+        const order = { critical: 1, high: 2, low: 3 };
+        return order[a.priority] - order[b.priority];
+      });
+  }, [items]);
+
+  const handleAutoReorder = async (item) => {
+    try {
+      setReorderLoading(item.id);
+
+      await inventoryApi.createReorderRequest({
+        item_id: item.id,
+        item_name: item.name,
+        sku: item.sku,
+        suggested_quantity: item.suggestedQty,
+        current_stock: item.quantity,
+        reorder_level: item.reorder_level,
+        priority: item.priority,
+        status: "pending",
+      });
+
+      setToast({
+        show: true,
+        type: "success",
+        title: "Reorder Request Created",
+        message: `${item.name} was added to reorder requests.`,
+      });
+    } catch (err) {
+      setToast({
+        show: true,
+        type: "error",
+        title: "Reorder Failed",
+        message: err.message || "Unable to create reorder request.",
+      });
+    } finally {
+      setReorderLoading(null);
+    }
+  };
+
   const handleSort = (key) => {
     setSortConfig(current => ({
       key,
@@ -160,22 +231,11 @@ const InventoryProducts = () => {
   };
 
   const handleBulkDelete = async () => {
-    if (!window.confirm(`Delete ${selectedItems.length} selected items?`)) return;
-    
-    if (usingDemoData) {
-      // Demo mode: simulate bulk delete locally
-      setItems(prev => prev.filter(item => !selectedItems.includes(item.id)));
-      setSelectedItems([]);
-      return;
-    }
-    
-    try {
-      await Promise.all(selectedItems.map(id => inventoryApi.deleteItem(id)));
-      setSelectedItems([]);
-      await fetchItems(false);
-    } catch (err) {
-      alert("Failed to delete some items. Please check your connection and try again.");
-    }
+    setDeleteModal({
+      open: true,
+      item: { name: `${selectedItems.length} selected items`, isBulk: true },
+      loading: false,
+    });
   };
 
   const exportToCSV = () => {
@@ -197,108 +257,101 @@ const InventoryProducts = () => {
   // CRUD Operations
   const handleAdd = () => {
     setEditingItem(null);
-    setFormData({
-      name: "",
-      sku: "",
-      brand: "",
-      supplier: "",
-      category: "",
-      quantity: "",
-      price: "",
-      expiration: "",
-      status: "In stock"
-    });
     setShowModal(true);
   };
 
   const handleEdit = (item) => {
     setEditingItem(item);
-    setFormData({
-      name: item.name || "",
-      sku: item.sku || "",
-      brand: item.brand || "",
-      supplier: item.supplier || "",
-      category: item.category || "",
-      quantity: item.quantity || "",
-      price: item.price || "",
-      expiration: item.expiration || "",
-      status: item.status || "In stock"
-    });
     setShowModal(true);
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this item?")) return;
+  const handleDelete = (id) => {
+    const item = items.find(i => i.id === id);
+    setDeleteModal({
+      open: true,
+      item: { ...item, isBulk: false },
+      loading: false,
+    });
+  };
+
+  const confirmDelete = async () => {
+    setDeleteModal((prev) => ({ ...prev, loading: true }));
+
+    const { item } = deleteModal;
     
+    if (item?.isBulk) {
+      // Bulk delete
+      if (usingDemoData) {
+        setItems(prev => prev.filter(i => !selectedItems.includes(i.id)));
+        setSelectedItems([]);
+        setToast({
+          show: true,
+          type: "success",
+          title: "Products Deleted",
+          message: `${selectedItems.length} products were removed from inventory.`,
+        });
+        setDeleteModal({ open: false, item: null, loading: false });
+        return;
+      }
+      
+      try {
+        await Promise.all(selectedItems.map(id => inventoryApi.deleteItem(id)));
+        setSelectedItems([]);
+        await fetchItems(false);
+        setToast({
+          show: true,
+          type: "success",
+          title: "Products Deleted",
+          message: `${selectedItems.length} products were removed from inventory.`,
+        });
+        setDeleteModal({ open: false, item: null, loading: false });
+      } catch (err) {
+        setToast({
+          show: true,
+          type: "error",
+          title: "Delete Failed",
+          message: "Failed to delete some items. Please check your connection and try again.",
+        });
+        setDeleteModal((prev) => ({ ...prev, loading: false }));
+      }
+      return;
+    }
+    
+    // Single delete
     if (usingDemoData) {
-      // Demo mode: simulate delete locally
-      setItems(prev => prev.filter(item => item.id !== id));
+      setItems(prev => prev.filter(i => i.id !== item.id));
+      setToast({
+        show: true,
+        type: "success",
+        title: "Product Deleted",
+        message: "The selected product was removed from inventory.",
+      });
+      setDeleteModal({ open: false, item: null, loading: false });
       return;
     }
     
     try {
-      await inventoryApi.deleteItem(id);
-      await fetchItems(false); // Refresh without full loading
+      await inventoryApi.deleteItem(item.id);
+      await fetchItems(false);
+      setToast({
+        show: true,
+        type: "success",
+        title: "Product Deleted",
+        message: "The selected product was removed from inventory.",
+      });
+      setDeleteModal({ open: false, item: null, loading: false });
     } catch (err) {
       console.error("API delete failed, falling back to demo mode:", err);
-      
-      // Fallback to demo mode - delete locally
       setUsingDemoData(true);
-      setItems(prev => prev.filter(item => item.id !== id));
-      alert("Item deleted in DEMO mode (API unavailable). Changes are local only.");
+      setItems(prev => prev.filter(i => i.id !== item.id));
+      setToast({
+        show: true,
+        type: "success",
+        title: "Product Deleted",
+        message: "Item deleted in DEMO mode (API unavailable). Changes are local only.",
+      });
+      setDeleteModal({ open: false, item: null, loading: false });
     }
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    const data = {
-      ...formData,
-      quantity: parseInt(formData.quantity) || 0,
-      price: parseFloat(formData.price) || 0
-    };
-
-    if (usingDemoData) {
-      // Demo mode: simulate save locally
-      if (editingItem) {
-        setItems(prev => prev.map(item => item.id === editingItem.id ? { ...data, id: item.id } : item));
-      } else {
-        const newId = Math.max(...items.map(i => i.id), 0) + 1;
-        setItems(prev => [...prev, { ...data, id: newId }]);
-      }
-      setShowModal(false);
-      return;
-    }
-    
-    try {
-      if (editingItem) {
-        await inventoryApi.updateItem(editingItem.id, data);
-      } else {
-        await inventoryApi.createItem(data);
-      }
-      
-      setShowModal(false);
-      await fetchItems(false); // Refresh without full loading
-    } catch (err) {
-      console.error("API save failed, falling back to demo mode:", err);
-      
-      // Fallback to demo mode - save locally
-      setUsingDemoData(true);
-      
-      if (editingItem) {
-        setItems(prev => prev.map(item => item.id === editingItem.id ? { ...data, id: item.id } : item));
-      } else {
-        const newId = Math.max(...items.map(i => parseInt(i.id) || 0), 0) + 1;
-        setItems(prev => [...prev, { ...data, id: String(newId) }]);
-      }
-      
-      setShowModal(false);
-      alert(`Item ${editingItem ? 'updated' : 'created'} in DEMO mode (API unavailable). Changes are local only.`);
-    }
-  };
-
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
   const renderSortIcon = (key) => {
@@ -340,6 +393,46 @@ const InventoryProducts = () => {
           <span className="stat-label">Selected</span>
         </div>
       </div>
+
+      {/* AI Reorder Suggestions Panel */}
+      {reorderSuggestions.length > 0 && (
+        <div className="ai-suggestion-panel">
+          <div className="ai-header">
+            <div>
+              <h3>Smart Reorder Suggestions</h3>
+              <p>System-generated stock recommendations based on reorder level.</p>
+            </div>
+            <span>{reorderSuggestions.length} alert{reorderSuggestions.length > 1 ? "s" : ""}</span>
+          </div>
+
+          <div className="ai-list">
+            {reorderSuggestions.slice(0, 5).map((item) => (
+              <div key={item.id} className={`ai-item ${item.priority}`}>
+                <div className="ai-item-info">
+                  <strong>{item.name}</strong>
+                  <p>
+                    Current stock: {item.quantity} • Reorder level: {item.reorder_level} • Suggested: {item.suggestedQty}
+                  </p>
+                </div>
+
+                <div className="ai-item-actions">
+                  <span className={`ai-priority ${item.priority}`}>
+                    {item.priority}
+                  </span>
+
+                  <button
+                    className="btn-reorder"
+                    onClick={() => handleAutoReorder(item)}
+                    disabled={reorderLoading === item.id}
+                  >
+                    {reorderLoading === item.id ? "Sending..." : "Create Request"}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Toolbar */}
       <div className="products-toolbar">
@@ -414,15 +507,18 @@ const InventoryProducts = () => {
 
       {/* Loading */}
       {loading && (
-        <div className="loading-overlay">
-          <div className="spinner"></div>
-          <p>Loading products...</p>
+        <div className="products-loading">
+          <div className="skeleton-row"></div>
+          <div className="skeleton-row"></div>
+          <div className="skeleton-row"></div>
+          <div className="skeleton-row"></div>
         </div>
       )}
 
       {/* Table */}
-      <div className="products-table-container">
-        <table className="products-table advanced-table">
+      <div className="inventory-table-card">
+        <div className="inventory-table-wrapper">
+          <table className="products-table advanced-table">
           <thead>
             <tr>
               <th className="checkbox-col">
@@ -521,12 +617,16 @@ const InventoryProducts = () => {
         </table>
 
         {paginatedItems.length === 0 && !loading && (
-          <div className="empty-state">
+          <div className="products-empty-state">
             <div className="empty-icon">📦</div>
             <h3>No products found</h3>
-            <p>Try adjusting your search or filters</p>
+            <p>Try adjusting your search or filters, or add your first product to get started.</p>
+            <button className="empty-action-btn" onClick={handleAdd}>
+              + Add First Product
+            </button>
           </div>
         )}
+        </div>
       </div>
 
       {/* Pagination */}
@@ -564,196 +664,44 @@ const InventoryProducts = () => {
         </div>
       )}
 
-      {/* Add/Edit Modal - Professional */}
-      {showModal && (
-        <div className="modal-overlay" onClick={() => setShowModal(false)}>
-          <div className="modal-content modal-lg" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <div className="modal-title">
-                <div className="modal-icon">
-                  {editingItem ? "✏️" : "➕"}
-                </div>
-                <div>
-                  <h3>{editingItem ? "Edit Product" : "Add New Product"}</h3>
-                  <p>{editingItem ? "Update product information" : "Create a new inventory item"}</p>
-                </div>
-              </div>
-              <button className="btn-close" onClick={() => setShowModal(false)}>×</button>
-            </div>
-            
-            <form onSubmit={handleSubmit}>
-              <div className="modal-body">
-                {/* Basic Info Section */}
-                <div className="form-section">
-                  <div className="section-header">
-                    <span className="section-icon">📋</span>
-                    <h4>Basic Information</h4>
-                  </div>
-                  <div className="form-grid">
-                    <div className="form-group">
-                      <label>
-                        Product Name <span className="required">*</span>
-                      </label>
-                      <input 
-                        type="text" 
-                        name="name" 
-                        value={formData.name} 
-                        onChange={handleChange} 
-                        placeholder="Enter product name"
-                        required 
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label>
-                        SKU <span className="required">*</span>
-                        <small className="hint">Unique product code</small>
-                      </label>
-                      <input 
-                        type="text" 
-                        name="sku" 
-                        value={formData.sku} 
-                        onChange={handleChange} 
-                        placeholder="e.g., PRD-001"
-                        required 
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label>Category</label>
-                      <select name="category" value={formData.category} onChange={handleChange}>
-                        <option value="">Select category</option>
-                        <option value="Food">🍖 Food</option>
-                        <option value="Accessories">🦴 Accessories</option>
-                        <option value="Grooming">✂️ Grooming</option>
-                        <option value="Toys">🎾 Toys</option>
-                        <option value="Health">💊 Health</option>
-                        <option value="Services">🩺 Services</option>
-                      </select>
-                    </div>
-                    <div className="form-group">
-                      <label>Brand</label>
-                      <input 
-                        type="text" 
-                        name="brand" 
-                        value={formData.brand} 
-                        onChange={handleChange} 
-                        placeholder="Brand name"
-                      />
-                    </div>
-                  </div>
-                </div>
+      {/* Add/Edit Modal */}
+      <AddProductModal
+        isOpen={showModal}
+        onClose={() => {
+          setShowModal(false);
+          setEditingItem(null);
+        }}
+        onSuccess={() => {
+          fetchItems(false);
+          setToast({
+            show: true,
+            type: "success",
+            title: editingItem ? "Product Updated" : "Product Added",
+            message: editingItem
+              ? "The product details were updated successfully."
+              : "The new product was added to your inventory.",
+          });
+        }}
+        editItem={editingItem}
+      />
 
-                {/* Inventory Section */}
-                <div className="form-section">
-                  <div className="section-header">
-                    <span className="section-icon">📦</span>
-                    <h4>Inventory Details</h4>
-                  </div>
-                  <div className="form-grid inventory-grid">
-                    <div className="form-group">
-                      <label>
-                        Quantity <span className="required">*</span>
-                      </label>
-                      <div className="input-with-icon">
-                        <input 
-                          type="number" 
-                          name="quantity" 
-                          value={formData.quantity} 
-                          onChange={handleChange} 
-                          min="0"
-                          placeholder="0"
-                          required 
-                        />
-                        <span className="input-suffix">units</span>
-                      </div>
-                    </div>
-                    <div className="form-group">
-                      <label>
-                        Price <span className="required">*</span>
-                      </label>
-                      <div className="input-with-icon">
-                        <span className="input-prefix">₱</span>
-                        <input 
-                          type="number" 
-                          step="0.01" 
-                          name="price" 
-                          value={formData.price} 
-                          onChange={handleChange} 
-                          min="0"
-                          placeholder="0.00"
-                          required 
-                        />
-                      </div>
-                    </div>
-                    <div className="form-group">
-                      <label>Status</label>
-                      <div className="status-options">
-                        {[
-                          { value: "In stock", label: "In Stock", color: "#10b981" },
-                          { value: "Low stock", label: "Low Stock", color: "#f59e0b" },
-                          { value: "Out of stock", label: "Out of Stock", color: "#ef4444" },
-                        ].map((status) => (
-                          <button
-                            key={status.value}
-                            type="button"
-                            className={`status-option ${formData.status === status.value ? "active" : ""}`}
-                            style={{ 
-                              borderColor: status.color,
-                              background: formData.status === status.value ? `${status.color}20` : "white",
-                              color: formData.status === status.value ? status.color : "#64748b"
-                            }}
-                            onClick={() => setFormData(prev => ({ ...prev, status: status.value }))}
-                          >
-                            <span className="status-dot" style={{ background: status.color }}></span>
-                            {status.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="form-group">
-                      <label>Expiration Date</label>
-                      <input 
-                        type="date" 
-                        name="expiration" 
-                        value={formData.expiration} 
-                        onChange={handleChange}
-                      />
-                    </div>
-                  </div>
-                </div>
+      {/* Toast Notification */}
+      <PremiumToast
+        show={toast.show}
+        type={toast.type}
+        title={toast.title}
+        message={toast.message}
+        onClose={() => setToast((prev) => ({ ...prev, show: false }))}
+      />
 
-                {/* Supplier Section */}
-                <div className="form-section">
-                  <div className="section-header">
-                    <span className="section-icon">🚚</span>
-                    <h4>Supplier Information</h4>
-                  </div>
-                  <div className="form-grid">
-                    <div className="form-group full-width">
-                      <label>Supplier</label>
-                      <input 
-                        type="text" 
-                        name="supplier" 
-                        value={formData.supplier} 
-                        onChange={handleChange} 
-                        placeholder="Supplier company name"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="modal-actions">
-                <button type="button" className="btn-secondary" onClick={() => setShowModal(false)}>
-                  Cancel
-                </button>
-                <button type="submit" className="btn-primary btn-lg">
-                  {editingItem ? "💾 Update Product" : "➕ Add Product"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmModal
+        isOpen={deleteModal.open}
+        itemName={deleteModal.item?.name || "this item"}
+        loading={deleteModal.loading}
+        onClose={() => setDeleteModal({ open: false, item: null, loading: false })}
+        onConfirm={confirmDelete}
+      />
     </div>
   );
 };

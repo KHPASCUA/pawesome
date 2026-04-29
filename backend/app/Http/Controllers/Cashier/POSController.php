@@ -9,6 +9,7 @@ use App\Models\Payment;
 use App\Models\Invoice;
 use App\Models\InventoryItem;
 use App\Models\Service;
+use App\Services\InventoryService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -94,12 +95,16 @@ class POSController extends Controller
                     'total_price' => $finalTotal,
                 ]);
 
-                // Update inventory for products with logging
+                // Update inventory for products using centralized InventoryService
                 if ($item['item_type'] === 'product' && !empty($item['item_id'])) {
-                    $product = InventoryItem::find($item['item_id']);
-                    if ($product) {
-                        $product->decrementStock($item['quantity'], 'Sale', 'sale', $sale->id);
-                    }
+                    $inventoryService = new InventoryService();
+                    $inventoryService->deductStock(
+                        $item['item_id'],
+                        $item['quantity'],
+                        'POS Sale',
+                        'pos_sale',
+                        $sale->id
+                    );
                 }
             }
 
@@ -308,13 +313,17 @@ class POSController extends Controller
                 ], 400);
             }
 
-            // Restore inventory for products with logging
+            // Restore inventory for products using centralized InventoryService
             foreach ($sale->items as $item) {
                 if ($item->item_type === 'product' && $item->product_id) {
-                    $product = InventoryItem::find($item->product_id);
-                    if ($product) {
-                        $product->incrementStock($item->quantity, 'Sale Cancellation', 'cancellation', $sale->id);
-                    }
+                    $inventoryService = new InventoryService();
+                    $inventoryService->addStock(
+                        $item->product_id,
+                        $item->quantity,
+                        'Sale Cancellation - ' . $request->reason,
+                        'cancellation',
+                        $sale->id
+                    );
                 }
             }
 

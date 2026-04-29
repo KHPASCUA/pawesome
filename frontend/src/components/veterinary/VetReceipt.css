@@ -1,26 +1,32 @@
-/* Veterinary Receipt Styles */
+/* VetReceipt.css */
+/* Global theme version: uses app-content, premium-card, CSS variables */
+
 .vet-receipt {
   padding: 32px;
-  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  background: var(--color-bg-gradient);
   min-height: calc(100vh - 80px);
 }
 
 .receipt-container {
   max-width: 800px;
   margin: 0 auto;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(12px);
-  border-radius: 20px;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(255, 255, 255, 0.5) inset;
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  overflow: hidden;
+}
+
+.receipt-card {
+  padding: 32px;
 }
 
 .receipt-header {
-  background: linear-gradient(135deg, #0d9488 0%, #14b8a6 100%);
+  background: linear-gradient(
+    135deg,
+    var(--color-primary),
+    var(--color-primary-light)
+  );
   color: white;
   padding: 30px;
   text-align: center;
+  border-radius: 16px 16px 0 0;
+  margin: -32px -32px 0 -32px;
 }
 
 .receipt-header h1 {
@@ -36,7 +42,7 @@
 }
 
 .receipt-body {
-  padding: 30px;
+  padding: 30px 0;
 }
 
 .receipt-section {
@@ -45,9 +51,9 @@
 
 .receipt-section h3 {
   margin: 0 0 15px 0;
-  color: #0f172a;
+  color: var(--color-heading);
   font-size: 18px;
-  border-bottom: 2px solid #0d9488;
+  border-bottom: 2px solid var(--color-primary);
   padding-bottom: 10px;
 }
 
@@ -60,18 +66,18 @@
 
 .info-label {
   font-weight: 600;
-  color: #333;
+  color: var(--color-text);
   font-size: 16px;
 }
 
 .info-value {
-  color: #333;
+  color: var(--color-text);
   font-size: 16px;
 }
 
 .service-item {
-  background: #f8f9fa;
-  border: 1px solid #e9ecef;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
   border-radius: 8px;
   padding: 15px;
   margin-bottom: 10px;
@@ -86,26 +92,28 @@
 
 .service-name {
   font-weight: 600;
-  color: #333;
+  color: var(--color-text);
   font-size: 16px;
 }
 
 .service-price {
   font-weight: bold;
-  color: #0d9488;
+  color: var(--color-primary);
   font-size: 18px;
 }
 
 .service-details {
-  color: #666;
+  color: var(--color-muted);
   font-size: 14px;
   line-height: 1.5;
 }
 
 .receipt-footer {
-  background: #f8f9fa;
+  background: var(--color-card);
   padding: 20px 30px;
-  border-top: 2px solid #e9ecef;
+  border-top: 2px solid var(--color-border);
+  border-radius: 0 0 16px 16px;
+  margin: 0 -32px -32px -32px;
 }
 
 .total-section {
@@ -118,17 +126,17 @@
 .total-label {
   font-size: 18px;
   font-weight: 600;
-  color: #333;
+  color: var(--color-text);
 }
 
 .total-amount {
   font-size: 24px;
   font-weight: bold;
-  color: #0d9488;
+  color: var(--color-primary);
 }
 
 .payment-info {
-  color: #666;
+  color: var(--color-muted);
   font-size: 14px;
   line-height: 1.5;
 }
@@ -139,147 +147,50 @@
   margin-top: 20px;
 }
 
-.btn-print {
-  flex: 1;
-  padding: 12px 20px;
-  background: linear-gradient(135deg, #0d9488 0%, #14b8a6 100%);
-  color: white;
-  border: none;
-  border-radius: 12px;
-  font-size: 16px;
+/* Status badges */
+.status-badge {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 999px;
   font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 12px rgba(13, 148, 136, 0.3);
+  font-size: 0.75rem;
+  text-transform: uppercase;
 }
 
-.btn-print:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(13, 148, 136, 0.4);
+.status-badge.status-paid {
+  background: rgba(16, 185, 129, 0.15);
+  color: #059669;
 }
 
-.btn-download {
-  flex: 1;
-  padding: 12px 20px;
-  background: linear-gradient(135deg, #64748b 0%, #475569 100%);
-  color: white;
-  border: none;
-  border-radius: 12px;
-  font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 12px rgba(100, 116, 139, 0.3);
+.status-badge.status-pending {
+  background: rgba(245, 158, 11, 0.15);
+  color: #d97706;
 }
 
-.btn-download:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(100, 116, 139, 0.4);
+.status-badge.status-cancelled {
+  background: rgba(239, 68, 68, 0.15);
+  color: #dc2626;
 }
 
-.loading-spinner {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  height: 400px;
-  gap: 16px;
-  color: #64748b;
-  font-size: 16px;
-  font-weight: 500;
-}
+/* Print styles */
+@media print {
+  .receipt-actions {
+    display: none !important;
+  }
 
-.spinner-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #0d9488;
-  font-size: 48px;
-}
+  .vet-receipt {
+    padding: 0;
+    background: white;
+  }
 
-.spinner-icon svg {
-  color: #0d9488;
-  font-size: 48px;
-}
+  .premium-card {
+    box-shadow: none !important;
+    border: 1px solid #ddd !important;
+  }
 
-.spin-animation {
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-.loading-spinner span {
-  white-space: nowrap;
-}
-
-.error-message {
-  background: rgba(254, 226, 226, 0.9);
-  color: #991b1b;
-  padding: 16px 24px;
-  border-radius: 12px;
-  margin: 20px 0;
-  text-align: center;
-  font-weight: 500;
-  border: 1px solid rgba(254, 202, 202, 0.5);
-}
-
-.no-receipt {
-  text-align: center;
-  padding: 60px 20px;
-  color: #666;
-}
-
-.no-receipt svg {
-  width: 80px;
-  height: 80px;
-  margin-bottom: 20px;
-  opacity: 0.5;
-}
-
-/* Dark theme */
-.vet-receipt.dark {
-  background: #1a1a2e;
-  color: #ffffff;
-}
-
-.vet-receipt.dark .receipt-container {
-  background: #16213e;
-  color: #ffffff;
-}
-
-.vet-receipt.dark .receipt-section h3 {
-  color: #ffffff;
-  border-bottom-color: #ff6b9d;
-}
-
-.vet-receipt.dark .info-label {
-  color: #b8bec3;
-}
-
-.vet-receipt.dark .info-value {
-  color: #ffffff;
-}
-
-.vet-receipt.dark .service-name {
-  color: #ffffff;
-}
-
-.vet-receipt.dark .service-details {
-  color: #b8bec3;
-}
-
-.vet-receipt.dark .receipt-footer {
-  background: #16213e;
-  border-top-color: #2d3436;
-}
-
-.vet-receipt.dark .total-label {
-  color: #ffffff;
-}
-
-.vet-receipt.dark .payment-info {
-  color: #b8bec3;
+  .receipt-header {
+    background: #ec4899 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
 }

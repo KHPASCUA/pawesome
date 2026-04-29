@@ -31,10 +31,10 @@ const VetRoutes = () => (
 
         {/* Nested routes */}
         <Route path="appointments" element={<VetAppointments />} />
-        <Route path="history" element={<VetHistory history={[]} />} />
+        <Route path="history" element={<VetHistory />} />
         <Route path="customer-profiles" element={<VetCustomerProfiles />} />
-        <Route path="reports" element={<VetReports appointments={[]} />} />
-        <Route path="receipt" element={<VetReceipt receipt={{}} />} />
+        <Route path="reports" element={<VetReports />} />
+        <Route path="receipt" element={<VetReceipt />} />
         <Route path="current-boarders" element={<VetCurrentBoarders />} />
         <Route path="profile" element={<VetProfile />} />
       </Route>

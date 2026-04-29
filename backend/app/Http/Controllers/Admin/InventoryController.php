@@ -210,4 +210,35 @@ class InventoryController extends Controller
     {
         return response()->json($this->inventoryService->getSummary());
     }
+
+    /**
+     * Get sellable products for POS and Customer Store
+     * Only returns items that are sellable and have stock > 0
+     */
+    public function sellable()
+    {
+        $items = InventoryItem::where('is_sellable', true)
+            ->where('stock', '>', 0)
+            ->orderBy('name')
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'id' => $item->id,
+                    'name' => $item->name,
+                    'category' => $item->category,
+                    'description' => $item->description,
+                    'price' => (float) $item->price,
+                    'stock' => $item->stock,
+                    'reorder_level' => $item->reorder_level,
+                    'status' => $item->status,
+                    'is_sellable' => $item->is_sellable,
+                ];
+            });
+
+        return response()->json([
+            'success' => true,
+            'products' => $items,
+            'count' => $items->count(),
+        ]);
+    }
 }

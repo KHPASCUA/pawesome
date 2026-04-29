@@ -1,93 +1,117 @@
-/**
- * UNIFIED INVENTORY DATA
- * 
- * This file now imports from the centralized inventorySync.js
- * to ensure all dashboards (Admin, Inventory, Cashier, Customer)
- * use the SAME demo fallback data.
- * 
- * TO ADD NEW ITEMS: Edit /src/components/shared/inventorySync.js
- */
-
-import { sharedProducts, sharedServices } from '../shared/inventorySync';
-
-// Transform shared products to inventory format (with IDs as strings)
-const transformToInventoryFormat = (item) => ({
-  id: item.sku || `INV-${String(item.id).padStart(3, '0')}`,
-  name: item.name,
-  sku: item.sku,
-  brand: item.brand,
-  supplier: item.supplier,
-  category: item.category,
-  price: item.price,
-  quantity: item.stock,
-  expiration: item.expiration,
-  status: item.stock === 0 ? 'Out of stock' : item.stock <= item.minStock ? 'Low stock' : 'In stock',
-  description: item.description,
-});
-
-// Export unified inventory items (products + services)
-export const inventoryItems = [
-  ...sharedProducts.map(transformToInventoryFormat),
-  ...sharedServices.map(transformToInventoryFormat)
+export const demoItems = [
+  {
+    id: 1,
+    name: "Premium Dog Food",
+    sku: "PET-001",
+    category: "Pet Food",
+    brand: "Royal Paw",
+    supplier: "Pet Supplies Inc.",
+    quantity: 25,
+    stock: 25,
+    reorder_level: 10,
+    price: 850,
+    unit_price: 850,
+    expiration: "2026-12-31",
+    status: "In Stock",
+    description: "Premium dry food for adult dogs.",
+  },
+  {
+    id: 2,
+    name: "Cat Shampoo",
+    sku: "GRM-002",
+    category: "Grooming",
+    brand: "CleanPaws",
+    supplier: "Grooming Depot",
+    quantity: 8,
+    stock: 8,
+    reorder_level: 10,
+    price: 220,
+    unit_price: 220,
+    expiration: "2027-03-15",
+    status: "Low Stock",
+    description: "Gentle shampoo for cats.",
+  },
+  {
+    id: 3,
+    name: "Pet Vitamins",
+    sku: "HLT-003",
+    category: "Health",
+    brand: "VitaPet",
+    supplier: "VetCare Supplies",
+    quantity: 0,
+    stock: 0,
+    reorder_level: 5,
+    price: 350,
+    unit_price: 350,
+    expiration: "2026-09-20",
+    status: "Out of Stock",
+    description: "Daily vitamins for pets.",
+  },
 ];
 
-// Re-export for backward compatibility
-export { sharedProducts, sharedServices };
+export const inventoryProducts = demoItems;
 
-// Pet store inventory history
-export const inventoryHistory = [
+export const stockMovements = [
   {
-    id: "HIS-001",
-    date: "2026-03-30 09:45",
-    product: "Premium Dog Food 5kg",
-    action: "Restocked",
-    quantity: 24,
-    user: "Admin",
-    note: "Weekly delivery",
+    id: 1,
+    item_name: "Premium Dog Food",
+    action: "Stock Added",
+    quantity: 25,
+    created_at: new Date().toISOString(),
+    status: "completed",
   },
   {
-    id: "HIS-002",
-    date: "2026-03-29 15:12",
-    product: "Cat Kibble 2kg",
-    action: "Sale",
-    quantity: 8,
-    user: "Cashier",
-    note: "Customer purchase",
+    id: 2,
+    item_name: "Cat Shampoo",
+    action: "Stock Adjusted",
+    quantity: -2,
+    created_at: new Date(Date.now() - 86400000).toISOString(),
+    status: "completed",
   },
-  {
-    id: "HIS-003",
-    date: "2026-03-28 11:30",
-    product: "Pet Shampoo 500ml",
-    action: "Restocked",
-    quantity: 30,
-    user: "Admin",
-    note: "Grooming supplies",
-  },
-  {
-    id: "HIS-004",
-    date: "2026-03-27 18:05",
-    product: "Leather Dog Collar",
-    action: "Sale",
-    quantity: 5,
-    user: "Cashier",
-    note: "Evening sales",
-  },
-  {
-    id: "HIS-005",
-    date: "2026-03-26 14:20",
-    product: "Flea Treatment",
-    action: "Restocked",
-    quantity: 20,
-    user: "Admin",
-    note: "Health products",
-  },
-  {
-    id: "HIS-006",
-    date: "2026-03-25 10:10",
-    product: "Squeaky Toy Set",
-    action: "Sale",
-    quantity: 12,
-    user: "Cashier",
-    note: "Morning rush",
-  },
+];
+
+export const inventoryHistory = stockMovements;
+
+export const inventoryReports = {
+  totalProducts: demoItems.length,
+  total_items: demoItems.length,
+
+  lowStock: demoItems.filter(
+    (item) => item.stock > 0 && item.stock <= item.reorder_level
+  ).length,
+  low_stock_items: demoItems.filter(
+    (item) => item.stock > 0 && item.stock <= item.reorder_level
+  ).length,
+
+  outOfStock: demoItems.filter((item) => item.stock === 0).length,
+  out_of_stock_items: demoItems.filter((item) => item.stock === 0).length,
+
+  totalValue: demoItems.reduce(
+    (sum, item) => sum + item.stock * item.unit_price,
+    0
+  ),
+  total_stock_value: demoItems.reduce(
+    (sum, item) => sum + item.stock * item.unit_price,
+    0
+  ),
+
+  recent_transactions: stockMovements,
+  critical_items: demoItems.filter(
+    (item) => item.stock <= item.reorder_level
+  ),
+};
+
+export const inventoryCategories = [
+  "Pet Food",
+  "Grooming",
+  "Health",
+  "Toys",
+  "Accessories",
+  "Services",
+];
+
+export const suppliers = [
+  "Pet Supplies Inc.",
+  "Grooming Depot",
+  "VetCare Supplies",
 ];

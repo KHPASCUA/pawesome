@@ -4,6 +4,8 @@ namespace App\Services;
 
 use App\Models\InventoryItem;
 use App\Models\InventoryLog;
+use App\Models\Notification;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -92,6 +94,9 @@ class InventoryService
             $reason = $this->getStockAdjustmentReason($item, $addStock, $delta);
             $referenceType = $this->getStockReferenceType($item, $addStock);
             $this->logStockChange($item->id, $delta, $reason, $referenceType);
+
+            // Check for low/out of stock and create notifications
+            $this->checkAndCreateStockNotifications($item->fresh());
         }
 
         return [
@@ -149,9 +154,82 @@ class InventoryService
         // Log the adjustment
         $this->logStockChange($item->id, $quantity, $reason, 'adjustment');
 
+        // Check for low/out of stock and create notifications
+        $this->checkAndCreateStockNotifications($item->fresh());
+
         return [
             'message' => 'Stock adjusted successfully',
             'item' => $item->fresh(),
+        ];
+    }
+
+    /**
+     * Deduct stock for sales/orders with proper logging
+     * Centralized method used by POS and Customer Order systems
+     */
+    public function deductStock(int $itemId, int $quantity, string $reason = 'Sale', string $referenceType = 'sale', ?int $referenceId = null): array
+    {
+        $item = InventoryItem::findOrFail($itemId);
+
+        // Check stock availability
+        if ($item->stock < $quantity) {
+            throw new \Exception("Insufficient stock for {$item->name}. Available: {$item->stock}, Requested: {$quantity}");
+        }
+
+        $stockBefore = $item->stock;
+        $item->decrement('stock', $quantity);
+        $item = $item->fresh();
+
+        // Log the stock deduction with before/after values
+        InventoryLog::create([
+            'inventory_item_id' => $itemId,
+            'type' => $referenceType,
+            'quantity' => -$quantity,
+            'stock_before' => $stockBefore,
+            'stock_after' => $item->stock,
+            'reference' => $reason . ($referenceId ? " (#{$referenceId})" : ''),
+        ]);
+
+        // Check for low/out of stock and create notifications
+        $this->checkAndCreateStockNotifications($item);
+
+        return [
+            'message' => 'Stock deducted successfully',
+            'item' => $item,
+            'deducted' => $quantity,
+            'stock_before' => $stockBefore,
+            'stock_after' => $item->stock,
+        ];
+    }
+
+    /**
+     * Add stock (restock) with proper logging
+     * Centralized method for inventory restocking
+     */
+    public function addStock(int $itemId, int $quantity, string $reason = 'Restock', string $referenceType = 'restock', ?int $referenceId = null): array
+    {
+        $item = InventoryItem::findOrFail($itemId);
+
+        $stockBefore = $item->stock;
+        $item->increment('stock', $quantity);
+        $item = $item->fresh();
+
+        // Log the stock addition with before/after values
+        InventoryLog::create([
+            'inventory_item_id' => $itemId,
+            'type' => $referenceType,
+            'quantity' => $quantity,
+            'stock_before' => $stockBefore,
+            'stock_after' => $item->stock,
+            'reference' => $reason . ($referenceId ? " (#{$referenceId})" : ''),
+        ]);
+
+        return [
+            'message' => 'Stock added successfully',
+            'item' => $item,
+            'added' => $quantity,
+            'stock_before' => $stockBefore,
+            'stock_after' => $item->stock,
         ];
     }
 
@@ -369,5 +447,47 @@ class InventoryService
         $random = strtoupper(Str::random(4));
         $timestamp = date('ym');
         return "{$prefix}-{$random}{$timestamp}";
+    }
+
+    /**
+     * Check stock levels and create notifications for admin/inventory users
+     */
+    private function checkAndCreateStockNotifications(InventoryItem $item): void
+    {
+        $newStock = $item->stock;
+        $reorderLevel = $item->reorder_level ?? 10;
+
+        // Only notify if stock is low or out
+        if ($newStock > $reorderLevel) {
+            return;
+        }
+
+        // Get all admins and inventory managers
+        $users = User::whereIn('role', ['admin', 'inventory'])->get();
+
+        foreach ($users as $user) {
+            // OUT OF STOCK
+            if ($newStock <= 0) {
+                Notification::create([
+                    'user_id' => $user->id,
+                    'title' => 'Out of Stock Alert',
+                    'message' => "{$item->name} is now OUT OF STOCK.",
+                    'type' => 'error',
+                    'related_type' => 'inventory',
+                    'related_id' => $item->id,
+                ]);
+            }
+            // LOW STOCK
+            else {
+                Notification::create([
+                    'user_id' => $user->id,
+                    'title' => 'Low Stock Alert',
+                    'message' => "{$item->name} is running low ({$newStock} left, reorder at {$reorderLevel}).",
+                    'type' => 'warning',
+                    'related_type' => 'inventory',
+                    'related_id' => $item->id,
+                ]);
+            }
+        }
     }
 }

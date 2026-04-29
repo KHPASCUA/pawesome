@@ -13,6 +13,7 @@ class Notification extends Model
 
     protected $fillable = [
         'user_id',
+        'role',
         'title',
         'message',
         'type',
@@ -67,6 +68,19 @@ class Notification extends Model
     public function scopeForUser($query, $userId)
     {
         return $query->where('user_id', $userId);
+    }
+
+    public function scopeForRole($query, $role)
+    {
+        return $query->where('role', $role);
+    }
+
+    public function scopeForUserOrRole($query, $userId, $role)
+    {
+        return $query->where(function ($q) use ($userId, $role) {
+            $q->where('user_id', $userId)
+              ->orWhere('role', $role);
+        });
     }
 
     public function scopeRecent($query, $limit = 20)

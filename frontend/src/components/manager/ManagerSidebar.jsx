@@ -3,18 +3,17 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faHome,
+  faChartLine,
   faUsers,
-  faHistory,
-  faChartBar,
-  faSignOutAlt,
-  faBars,
-  faUser,
   faClipboardList,
-  faTasks,
+  faMoneyBillWave,
+  faFileAlt,
+  faUserCircle,
+  faSignOutAlt,
 } from "@fortawesome/free-solid-svg-icons";
 import "./ManagerSidebar.css";
 
-const ManagerSidebar = ({ collapsed, onToggleCollapse }) => {
+const ManagerSidebar = () => {
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -25,105 +24,64 @@ const ManagerSidebar = ({ collapsed, onToggleCollapse }) => {
   };
 
   return (
-    <aside className={`app-sidebar ${collapsed ? "collapsed" : ""}`}>
+    <aside className="app-sidebar manager-sidebar">
       <div className="sidebar-header">
-        <button className="collapse-btn" onClick={onToggleCollapse}>
-          <FontAwesomeIcon icon={faBars} />
-        </button>
-        {!collapsed && (
-          <div className="sidebar-logo">
-            <FontAwesomeIcon icon={faUsers} />
-            <span>Manager Portal</span>
-          </div>
-        )}
+        <div className="sidebar-logo">
+          <FontAwesomeIcon icon={faChartLine} />
+          <span>Manager Portal</span>
+        </div>
       </div>
 
       <nav className="sidebar-nav">
         <ul className="nav-list">
           <li className="nav-item">
-            <NavLink
-              to="/manager"
-              className={({ isActive }) => (isActive ? "active" : "")}
-              end
-              title="Dashboard"
-            >
+            <NavLink to="/manager" end>
               <FontAwesomeIcon icon={faHome} />
-              {!collapsed && <span>Dashboard</span>}
-            </NavLink>
-          </li>
-          
-          <li className="nav-item">
-            <NavLink
-              to="/manager/staff"
-              className={({ isActive }) => (isActive ? "active" : "")}
-              title="Staff"
-            >
-              <FontAwesomeIcon icon={faUsers} />
-              {!collapsed && <span>Staff</span>}
-            </NavLink>
-          </li>
-          
-          <li className="nav-item">
-            <NavLink
-              to="/manager/attendance"
-              className={({ isActive }) => (isActive ? "active" : "")}
-              title="Attendance"
-            >
-              <FontAwesomeIcon icon={faClipboardList} />
-              {!collapsed && <span>Attendance</span>}
-            </NavLink>
-          </li>
-          
-          <li className="nav-item">
-            <NavLink
-              to="/manager/reports"
-              className={({ isActive }) => (isActive ? "active" : "")}
-              title="Reports"
-            >
-              <FontAwesomeIcon icon={faTasks} />
-              {!collapsed && <span>Reports</span>}
-            </NavLink>
-          </li>
-          
-          <li className="nav-item">
-            <NavLink
-              to="/manager/attendance-history"
-              className={({ isActive }) => (isActive ? "active" : "")}
-              title="Attendance History"
-            >
-              <FontAwesomeIcon icon={faHistory} />
-              {!collapsed && <span>Attendance Log</span>}
-            </NavLink>
-          </li>
-          
-          <li className="nav-item">
-            <NavLink
-              to="/manager/analytics"
-              className={({ isActive }) => (isActive ? "active" : "")}
-              title="Analytics"
-            >
-              <FontAwesomeIcon icon={faChartBar} />
-              {!collapsed && <span>Analytics</span>}
+              <span>Dashboard</span>
             </NavLink>
           </li>
 
           <li className="nav-item">
-            <NavLink
-              to="/manager/profile"
-              className={({ isActive }) => (isActive ? "active" : "")}
-              title="Profile"
-            >
-              <FontAwesomeIcon icon={faUser} />
-              {!collapsed && <span>Profile</span>}
+            <NavLink to="/manager/staff">
+              <FontAwesomeIcon icon={faUsers} />
+              <span>Staff</span>
+            </NavLink>
+          </li>
+
+          <li className="nav-item">
+            <NavLink to="/manager/attendance">
+              <FontAwesomeIcon icon={faClipboardList} />
+              <span>Attendance</span>
+            </NavLink>
+          </li>
+
+          <li className="nav-item">
+            <NavLink to="/manager/payroll">
+              <FontAwesomeIcon icon={faMoneyBillWave} />
+              <span>Payroll</span>
+            </NavLink>
+          </li>
+
+          <li className="nav-item">
+            <NavLink to="/manager/reports">
+              <FontAwesomeIcon icon={faFileAlt} />
+              <span>Reports</span>
+            </NavLink>
+          </li>
+
+          <li className="nav-item">
+            <NavLink to="/manager/profile">
+              <FontAwesomeIcon icon={faUserCircle} />
+              <span>Profile</span>
             </NavLink>
           </li>
         </ul>
       </nav>
 
       <div className="sidebar-footer">
-        <button className="logout-btn" onClick={handleLogout} title="Logout">
+        <button className="logout-btn" onClick={handleLogout}>
           <FontAwesomeIcon icon={faSignOutAlt} />
-          {!collapsed && <span>Logout</span>}
+          <span>Logout</span>
         </button>
       </div>
     </aside>

@@ -9,13 +9,12 @@ import {
   faChartBar,
   faSignOutAlt,
   faListCheck,
-  faBars,
   faUser,
   faCog,
 } from "@fortawesome/free-solid-svg-icons";
 import "./InventorySidebar.css";
 
-const InventorySidebar = ({ collapsed, onToggleCollapse }) => {
+const InventorySidebar = () => {
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -26,111 +25,71 @@ const InventorySidebar = ({ collapsed, onToggleCollapse }) => {
   };
 
   return (
-    <aside className={`app-sidebar ${collapsed ? "collapsed" : ""}`}>
+    <aside className="app-sidebar inventory-sidebar">
       <div className="sidebar-header">
-        <button className="collapse-btn" onClick={onToggleCollapse}>
-          <FontAwesomeIcon icon={faBars} />
-        </button>
-        {!collapsed && (
-          <div className="sidebar-logo">
-            <FontAwesomeIcon icon={faWarehouse} />
-            <span>Inventory Portal</span>
-          </div>
-        )}
+        <div className="sidebar-logo">
+          <FontAwesomeIcon icon={faWarehouse} />
+          <span>Inventory Portal</span>
+        </div>
       </div>
 
       <nav className="sidebar-nav">
         <ul className="nav-list">
           <li className="nav-item">
-            <NavLink
-              to="/inventory"
-              className={({ isActive }) => isActive ? "active" : ""}
-              end
-              title="Dashboard"
-            >
+            <NavLink to="/inventory" className={({ isActive }) => isActive ? "active" : ""} end>
               <FontAwesomeIcon icon={faHome} />
-              {!collapsed && <span>Dashboard</span>}
+              <span>Dashboard</span>
             </NavLink>
           </li>
-          
+
           <li className="nav-item">
-            <NavLink
-              to="/inventory/products"
-              className={({ isActive }) => isActive ? "active" : ""}
-              end
-              title="Products"
-            >
+            <NavLink to="/inventory/products" className={({ isActive }) => isActive ? "active" : ""} end>
               <FontAwesomeIcon icon={faBoxes} />
-              {!collapsed && <span>Products</span>}
+              <span>Products</span>
             </NavLink>
           </li>
-          
+
           <li className="nav-item">
-            <NavLink
-              to="/inventory/stock"
-              className={({ isActive }) => isActive ? "active" : ""}
-              end
-              title="Stock Management"
-            >
+            <NavLink to="/inventory/stock" className={({ isActive }) => isActive ? "active" : ""} end>
               <FontAwesomeIcon icon={faListCheck} />
-              {!collapsed && <span>Stock Management</span>}
+              <span>Stock Management</span>
             </NavLink>
           </li>
 
           <li className="nav-item">
-            <NavLink
-              to="/inventory/management"
-              className={({ isActive }) => isActive ? "active" : ""}
-              end
-              title="Inventory Management"
-            >
+            <NavLink to="/inventory/management" className={({ isActive }) => isActive ? "active" : ""} end>
               <FontAwesomeIcon icon={faCog} />
-              {!collapsed && <span>Management</span>}
-            </NavLink>
-          </li>
-          
-          <li className="nav-item">
-            <NavLink
-              to="/inventory/history"
-              className={({ isActive }) => isActive ? "active" : ""}
-              end
-              title="History"
-            >
-              <FontAwesomeIcon icon={faHistory} />
-              {!collapsed && <span>History</span>}
-            </NavLink>
-          </li>
-          
-          <li className="nav-item">
-            <NavLink
-              to="/inventory/reports"
-              className={({ isActive }) => isActive ? "active" : ""}
-              end
-              title="Reports"
-            >
-              <FontAwesomeIcon icon={faChartBar} />
-              {!collapsed && <span>Reports</span>}
+              <span>Management</span>
             </NavLink>
           </li>
 
           <li className="nav-item">
-            <NavLink
-              to="/inventory/profile"
-              className={({ isActive }) => isActive ? "active" : ""}
-              end
-              title="Profile"
-            >
+            <NavLink to="/inventory/history" className={({ isActive }) => isActive ? "active" : ""} end>
+              <FontAwesomeIcon icon={faHistory} />
+              <span>History</span>
+            </NavLink>
+          </li>
+
+          <li className="nav-item">
+            <NavLink to="/inventory/reports" className={({ isActive }) => isActive ? "active" : ""} end>
+              <FontAwesomeIcon icon={faChartBar} />
+              <span>Reports</span>
+            </NavLink>
+          </li>
+
+          <li className="nav-item">
+            <NavLink to="/inventory/profile" className={({ isActive }) => isActive ? "active" : ""} end>
               <FontAwesomeIcon icon={faUser} />
-              {!collapsed && <span>Profile</span>}
+              <span>Profile</span>
             </NavLink>
           </li>
         </ul>
       </nav>
 
       <div className="sidebar-footer">
-        <button className="logout-btn" onClick={handleLogout} title="Logout">
+        <button className="logout-btn" onClick={handleLogout}>
           <FontAwesomeIcon icon={faSignOutAlt} />
-          {!collapsed && <span>Logout</span>}
+          <span>Logout</span>
         </button>
       </div>
     </aside>

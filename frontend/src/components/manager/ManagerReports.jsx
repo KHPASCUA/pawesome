@@ -8,6 +8,20 @@ import {
   faUserTimes,
   faCalendarAlt,
 } from "@fortawesome/free-solid-svg-icons";
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+} from "recharts";
 import { apiRequest } from "../../api/client";
 import { formatCurrency } from "../../utils/currency";
 import ReportFilters from "../shared/ReportFilters";
@@ -99,7 +113,11 @@ const ManagerReports = () => {
         transactionsData = demoTransactions;
       }
 
-      setStaff(Array.isArray(staffData) ? staffData : staffData.users || demoStaff);
+      setStaff(
+        Array.isArray(staffData)
+          ? staffData
+          : staffData?.users || staffData?.data || demoStaff
+      );
       setRevenue(revenueData?.revenue || demoRevenue);
       setTransactions(
         Array.isArray(transactionsData) ? transactionsData : transactionsData?.transactions || demoTransactions
@@ -136,7 +154,12 @@ const ManagerReports = () => {
     }
 
     if (statusFilter !== "all") {
-      filtered = filtered.filter((s) => (s.active ? "active" : "inactive") === statusFilter);
+      filtered = filtered.filter(
+        (s) =>
+          (s.status === "active" || s.active === true || s.is_active === true
+            ? "active"
+            : "inactive") === statusFilter
+      );
     }
 
     return filtered;
@@ -153,7 +176,9 @@ const ManagerReports = () => {
   }, [transactions, startDate, endDate]);
 
   // Calculate summaries
-  const activeStaff = filteredStaff.filter((s) => s.active).length;
+  const activeStaff = filteredStaff.filter(
+    (s) => s.status === "active" || s.active === true || s.is_active === true
+  ).length;
   const inactiveStaff = filteredStaff.length - activeStaff;
 
   const totalRevenue = useMemo(() => {
@@ -228,12 +253,28 @@ const ManagerReports = () => {
     exportToExcel(filteredStaff, columns, "manager-staff-report");
   };
 
+  // Chart data
+  const revenueChartData = Object.entries(monthlyRevenue).map(([month, amount]) => ({
+    month,
+    revenue: amount,
+  }));
+
+  const roleChartData = Object.entries(roleDistribution).map(([role, count]) => ({
+    role,
+    count,
+  }));
+
+  const staffStatusData = [
+    { name: "Active", value: activeStaff, color: "#ff5f93" },
+    { name: "Inactive", value: inactiveStaff, color: "#ffb3c8" },
+  ];
+
   return (
     <div className="manager-reports">
       <div className="reports-header">
         <div className="header-content">
-          <h1>Manager Reports</h1>
-          <p>Business analytics, staff overview, and revenue insights</p>
+          <h1 className="reports-title">Manager Reports</h1>
+          <p className="reports-subtitle">Business analytics, staff overview, and revenue insights</p>
         </div>
       </div>
 
@@ -305,20 +346,6 @@ const ManagerReports = () => {
           <div className="stat-icon">
             <FontAwesomeIcon icon={faMoneyBillWave} />
           </div>
-          <div className="stat-content">
-            <div className="stat-value">{formatCurrency(totalRevenue)}</div>
-            <div className="stat-label">Revenue</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Revenue Summary */}
-      <div className="revenue-summary-section">
-        <h3>
-          <FontAwesomeIcon icon={faChartLine} />
-          Revenue Summary
-        </h3>
-        <div className="total-revenue-card">
           <div className="revenue-icon">
             <FontAwesomeIcon icon={faMoneyBillWave} />
           </div>
@@ -327,6 +354,61 @@ const ManagerReports = () => {
             <span className="revenue-value">{formatCurrency(totalRevenue)}</span>
             <span className="revenue-period">For selected period</span>
           </div>
+        </div>
+      </div>
+
+      {/* Premium Charts Grid */}
+      <div className="premium-reports-chart-grid">
+        <div className="premium-chart-card wide">
+          <h3>Revenue Trend</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={revenueChartData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="month" />
+              <YAxis />
+              <Tooltip formatter={(value) => formatCurrency(value)} />
+              <Line
+                type="monotone"
+                dataKey="revenue"
+                stroke="#ff5f93"
+                strokeWidth={4}
+                dot={{ r: 5 }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div className="premium-chart-card">
+          <h3>Staff Status</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <PieChart>
+              <Pie
+                data={staffStatusData}
+                dataKey="value"
+                nameKey="name"
+                outerRadius={95}
+                label
+              >
+                {staffStatusData.map((entry, index) => (
+                  <Cell key={index} fill={entry.color} />
+                ))}
+              </Pie>
+              <Tooltip />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div className="premium-chart-card full">
+          <h3>Role Distribution</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={roleChartData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="role" />
+              <YAxis />
+              <Tooltip />
+              <Bar dataKey="count" fill="#ff8db5" radius={[12, 12, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
         </div>
       </div>
 
@@ -429,8 +511,16 @@ const ManagerReports = () => {
                       <span className="role-badge">{s.role}</span>
                     </td>
                     <td>
-                      <span className={`status-badge ${s.active ? "active" : "inactive"}`}>
-                        {s.active ? "Active" : "Inactive"}
+                      <span
+                        className={`status-badge ${
+                          s.status === "active" || s.active === true || s.is_active === true
+                            ? "active"
+                            : "inactive"
+                        }`}
+                      >
+                        {s.status === "active" || s.active === true || s.is_active === true
+                          ? "Active"
+                          : "Inactive"}
                       </span>
                     </td>
                     <td>{s.created_at ? new Date(s.created_at).toLocaleDateString() : "N/A"}</td>

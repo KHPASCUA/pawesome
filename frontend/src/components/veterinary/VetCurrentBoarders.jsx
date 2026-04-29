@@ -24,13 +24,23 @@ const VetCurrentBoarders = () => {
 
   useEffect(() => {
     fetchCurrentBoarders();
+
+    // Real-time updates: poll every 5 seconds
+    const interval = setInterval(() => {
+      fetchCurrentBoarders();
+    }, 5000);
+
+    return () => clearInterval(interval);
   }, []);
 
   const fetchCurrentBoarders = async () => {
     try {
       setLoading(true);
       const data = await apiRequest("/veterinary/boardings/current-boarders");
-      setBoarders(data.boarders || []);
+      const boardersData = Array.isArray(data)
+        ? data
+        : data.boarders || data.data || [];
+      setBoarders(boardersData);
       setError("");
     } catch (err) {
       console.error("Failed to fetch current boarders:", err);
@@ -44,10 +54,10 @@ const VetCurrentBoarders = () => {
   const filteredBoarders = boarders.filter((boarder) => {
     const searchLower = searchTerm.toLowerCase();
     return (
-      boarder.pet?.name?.toLowerCase().includes(searchLower) ||
-      boarder.customer?.name?.toLowerCase().includes(searchLower) ||
-      boarder.hotel_room?.room_number?.toLowerCase().includes(searchLower) ||
-      boarder.pet?.species?.toLowerCase().includes(searchLower)
+      (boarder.pet?.name || "").toLowerCase().includes(searchLower) ||
+      (boarder.customer?.name || "").toLowerCase().includes(searchLower) ||
+      (boarder.hotel_room?.room_number || "").toLowerCase().includes(searchLower) ||
+      (boarder.pet?.species || "").toLowerCase().includes(searchLower)
     );
   });
 
@@ -61,44 +71,40 @@ const VetCurrentBoarders = () => {
 
   if (loading) {
     return (
-      <div className="vet-current-boarders">
-        <div className="loading-spinner">
-          <div className="spinner-icon">
-            <FontAwesomeIcon icon={faSpinner} className="spin-animation" />
-          </div>
+      <section className="app-content vet-current-boarders">
+        <div className="premium-card vet-loading-state">
+          <FontAwesomeIcon icon={faSpinner} className="spin-animation" />
           <span>Loading current boarders...</span>
         </div>
-      </div>
+      </section>
     );
   }
 
   if (error) {
     return (
-      <div className="vet-current-boarders">
-        <div className="error-message">
+      <section className="app-content vet-current-boarders">
+        <div className="premium-card vet-error-state">
           <FontAwesomeIcon icon={faExclamationTriangle} />
           <span>{error}</span>
         </div>
-      </div>
+      </section>
     );
   }
 
   return (
-    <div className="vet-current-boarders">
-      <div className="boarders-header">
-        <div className="header-content">
-          <h2>
+    <section className="app-content vet-current-boarders">
+      <div className="premium-card vet-boarders-header">
+        <div>
+          <h2 className="premium-title">
             <FontAwesomeIcon icon={faHotel} /> Current Boarders
           </h2>
-          <p>Pets currently staying at the hotel - for emergency access</p>
+          <p className="premium-muted">Pets currently staying at the hotel - for emergency access</p>
         </div>
-        <div className="boarders-count">
-          <span className="count-badge">{boarders.length} Active</span>
-        </div>
+        <span className="badge badge-success">{boarders.length} Active</span>
       </div>
 
-      <div className="search-bar">
-        <div className="search-input-wrapper">
+      <div className="premium-card vet-boarders-search">
+        <div className="vet-search-box">
           <FontAwesomeIcon icon={faPaw} />
           <input
             type="text"
@@ -110,149 +116,126 @@ const VetCurrentBoarders = () => {
       </div>
 
       {filteredBoarders.length === 0 ? (
-        <div className="no-boarders">
+        <div className="premium-card vet-empty-state">
           <FontAwesomeIcon icon={faBed} />
           <h3>No current boarders</h3>
           <p>There are no pets currently checked in at the hotel.</p>
         </div>
       ) : (
-        <div className="boarders-grid">
+        <div className="vet-boarders-grid">
           {filteredBoarders.map((boarder) => (
-            <div key={boarder.id} className="boarder-card animate-fade-in">
-              <div className="boarder-header">
-                <div className="pet-icon">
-                  <FontAwesomeIcon icon={faPaw} />
+            <article key={boarder.id} className="premium-card vet-boarder-card">
+              <div className="vet-boarder-top">
+                <div className="vet-boarder-pet">
+                  <div className="vet-pet-icon">
+                    <FontAwesomeIcon icon={faPaw} />
+                  </div>
+                  <div>
+                    <h4>{boarder.pet?.name || "Unknown Pet"}</h4>
+                    <p>{boarder.pet?.species} - {boarder.pet?.breed}</p>
+                    <p className="vet-pet-meta">
+                      Room {boarder.hotel_room?.room_number || "N/A"}
+                    </p>
+                  </div>
                 </div>
-                <div className="pet-info">
-                  <h4>{boarder.pet?.name || "Unknown Pet"}</h4>
-                  <span className="pet-species">
-                    {boarder.pet?.species} - {boarder.pet?.breed}
-                  </span>
-                </div>
-                <span className="status-badge checked-in">Checked In</span>
+                <span className="badge badge-success">
+                  {boarder.status || "Checked In"}
+                </span>
               </div>
 
-              <div className="boarder-details">
-                <div className="detail-row">
+              <div className="vet-boarder-details">
+                <div className="vet-boarder-row">
                   <FontAwesomeIcon icon={faUser} />
-                  <span className="label">Owner:</span>
-                  <span className="value">{boarder.customer?.name || "N/A"}</span>
+                  <strong>Owner:</strong>
+                  <span>{boarder.customer?.name || "N/A"}</span>
                 </div>
-                <div className="detail-row">
+                <div className="vet-boarder-row">
                   <FontAwesomeIcon icon={faHotel} />
-                  <span className="label">Room:</span>
-                  <span className="value">
-                    {boarder.hotel_room?.room_number || "N/A"} ({boarder.hotel_room?.type})
-                  </span>
+                  <strong>Room:</strong>
+                  <span>{boarder.hotel_room?.room_number || "N/A"} ({boarder.hotel_room?.type})</span>
                 </div>
-                <div className="detail-row">
+                <div className="vet-boarder-row">
                   <FontAwesomeIcon icon={faCalendarAlt} />
-                  <span className="label">Check-out:</span>
-                  <span className="value">
+                  <strong>Check-out:</strong>
+                  <span>
                     {boarder.check_out
                       ? new Date(boarder.check_out).toLocaleDateString()
                       : "N/A"}
                   </span>
                 </div>
                 {boarder.emergency_phone && (
-                  <div className="detail-row emergency">
+                  <div className="vet-boarder-row vet-emergency">
                     <FontAwesomeIcon icon={faPhone} />
-                    <span className="label">Emergency:</span>
-                    <span className="value">{boarder.emergency_phone}</span>
+                    <strong>Emergency:</strong>
+                    <span>{boarder.emergency_phone}</span>
                   </div>
                 )}
               </div>
 
-              <div className="boarder-actions">
-                <button
-                  className="view-details-btn"
-                  onClick={() => handleViewDetails(boarder)}
-                >
-                  <FontAwesomeIcon icon={faStethoscope} /> View Medical Info
-                </button>
-              </div>
-            </div>
+              <button
+                className="btn-primary vet-view-btn"
+                onClick={() => handleViewDetails(boarder)}
+                type="button"
+              >
+                <FontAwesomeIcon icon={faStethoscope} /> View Medical Info
+              </button>
+            </article>
           ))}
         </div>
       )}
 
       {/* Boarder Details Modal */}
       {selectedBoarder && (
-        <div className="modal-overlay" onClick={handleCloseDetails}>
-          <div className="modal boarder-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
+        <div className="app-modal-overlay" onClick={handleCloseDetails} role="dialog">
+          <div className="app-modal vet-boarder-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="app-modal-header">
               <h3>
                 <FontAwesomeIcon icon={faPaw} /> {selectedBoarder.pet?.name}
               </h3>
-              <button className="close-btn" onClick={handleCloseDetails}>
+              <button className="app-modal-close" onClick={handleCloseDetails} type="button">
                 ×
               </button>
             </div>
-            <div className="modal-body">
-              <div className="info-section">
+            <div className="app-modal-body">
+              <div className="vet-info-section">
                 <h4>Pet Information</h4>
-                <p>
-                  <strong>Name:</strong> {selectedBoarder.pet?.name}
-                </p>
-                <p>
-                  <strong>Species:</strong> {selectedBoarder.pet?.species}
-                </p>
-                <p>
-                  <strong>Breed:</strong> {selectedBoarder.pet?.breed}
-                </p>
+                <p><strong>Name:</strong> {selectedBoarder.pet?.name}</p>
+                <p><strong>Species:</strong> {selectedBoarder.pet?.species}</p>
+                <p><strong>Breed:</strong> {selectedBoarder.pet?.breed}</p>
               </div>
-              <div className="info-section">
+              <div className="vet-info-section">
                 <h4>Owner Information</h4>
-                <p>
-                  <strong>Name:</strong> {selectedBoarder.customer?.name}
-                </p>
-                <p>
-                  <strong>Phone:</strong> {selectedBoarder.customer?.phone || "N/A"}
-                </p>
-                <p>
-                  <strong>Email:</strong> {selectedBoarder.customer?.email || "N/A"}
-                </p>
+                <p><strong>Name:</strong> {selectedBoarder.customer?.name}</p>
+                <p><strong>Phone:</strong> {selectedBoarder.customer?.phone || "N/A"}</p>
+                <p><strong>Email:</strong> {selectedBoarder.customer?.email || "N/A"}</p>
               </div>
-              <div className="info-section">
+              <div className="vet-info-section">
                 <h4>Stay Details</h4>
-                <p>
-                  <strong>Room:</strong> {selectedBoarder.hotel_room?.room_number} ({selectedBoarder.hotel_room?.type})
-                </p>
-                <p>
-                  <strong>Check-in:</strong>{" "}
-                  {new Date(selectedBoarder.check_in).toLocaleDateString()}
-                </p>
-                <p>
-                  <strong>Check-out:</strong>{" "}
-                  {new Date(selectedBoarder.check_out).toLocaleDateString()}
-                </p>
-                <p>
-                  <strong>Total Amount:</strong>{" "}
-                  {formatCurrency(selectedBoarder.total_amount)}
-                </p>
+                <p><strong>Room:</strong> {selectedBoarder.hotel_room?.room_number} ({selectedBoarder.hotel_room?.type})</p>
+                <p><strong>Check-in:</strong> {new Date(selectedBoarder.check_in).toLocaleDateString()}</p>
+                <p><strong>Check-out:</strong> {new Date(selectedBoarder.check_out).toLocaleDateString()}</p>
+                <p><strong>Total Amount:</strong> {selectedBoarder.total_amount
+                  ? formatCurrency(selectedBoarder.total_amount)
+                  : "N/A"}</p>
               </div>
               {selectedBoarder.special_requests && (
-                <div className="info-section">
+                <div className="vet-info-section">
                   <h4>Special Requests</h4>
-                  <p className="special-requests">{selectedBoarder.special_requests}</p>
+                  <p className="vet-special-requests">{selectedBoarder.special_requests}</p>
                 </div>
               )}
               {selectedBoarder.emergency_contact && (
-                <div className="info-section emergency">
+                <div className="vet-info-section vet-emergency">
                   <h4>Emergency Contact</h4>
-                  <p>
-                    <strong>Name:</strong> {selectedBoarder.emergency_contact}
-                  </p>
-                  <p>
-                    <strong>Phone:</strong> {selectedBoarder.emergency_phone}
-                  </p>
+                  <p><strong>Name:</strong> {selectedBoarder.emergency_contact}</p>
+                  <p><strong>Phone:</strong> {selectedBoarder.emergency_phone}</p>
                 </div>
               )}
             </div>
           </div>
         </div>
       )}
-    </div>
+    </section>
   );
 };
 

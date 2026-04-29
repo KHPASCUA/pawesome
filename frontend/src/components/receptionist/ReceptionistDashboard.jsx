@@ -71,14 +71,19 @@ const ReceptionistDashboard = () => {
   }, [requests]);
 
   const filteredRequests = useMemo(() => {
-    return requests.filter((item) => {
-      const keyword = searchTerm.toLowerCase();
+    const safeSearch = (searchTerm || "").toLowerCase();
+
+    return (requests || []).filter((item) => {
+      const customer = (item.customer || "").toLowerCase();
+      const pet = (item.pet || "").toLowerCase();
+      const service = (item.service || "").toLowerCase();
+      const id = (item.id || "").toLowerCase();
 
       const matchesSearch =
-        item.customer.toLowerCase().includes(keyword) ||
-        item.pet.toLowerCase().includes(keyword) ||
-        item.service.toLowerCase().includes(keyword) ||
-        item.id.toLowerCase().includes(keyword);
+        customer.includes(safeSearch) ||
+        pet.includes(safeSearch) ||
+        service.includes(safeSearch) ||
+        id.includes(safeSearch);
 
       const matchesStatus =
         statusFilter === "all" || item.status === statusFilter;

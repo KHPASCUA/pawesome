@@ -1,432 +1,202 @@
-/* =============================================
-   Veterinary Customer Profiles - PREMIUM EDITION
-   Glassmorphism • Gradients • Premium Interactions
-   ============================================= */
+/* VetCustomerProfiles.css */
+/* Clean global version: uses premium-card, app-content */
 
 .vet-customer-profiles {
-  padding: 32px;
-  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-  min-height: calc(100vh - 80px);
+  display: grid;
+  gap: 24px;
 }
 
-.vet-customer-profiles h2 {
-  margin: 0 0 8px 0;
-  color: #0f172a;
-  font-size: 1.75rem;
-  font-weight: 700;
+/* HEADER */
+
+.vet-profiles-header h2 {
+  margin: 0 0 0.4rem;
   display: flex;
   align-items: center;
-  gap: 12px;
-  letter-spacing: -0.5px;
+  gap: 0.7rem;
 }
 
-.vet-customer-profiles h2::before {
-  content: '';
-  width: 4px;
-  height: 28px;
-  background: linear-gradient(180deg, #0d9488 0%, #14b8a6 100%);
-  border-radius: 2px;
-}
-
-.customer-list {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-  margin-top: 20px;
-}
-
-.customer-item {
-  background: #ffffff;
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
-  border: 1px solid #e5e7eb;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  position: relative;
-}
-
-.customer-item::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 4px;
-  height: 100%;
-  background: linear-gradient(180deg, #0d9488 0%, #14b8a6 100%);
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.customer-item:hover {
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.06);
-  border-color: #d1d5db;
-}
-
-.customer-item:hover::before {
-  opacity: 1;
-}
-
-.customer-avatar {
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #0d9488, #14b8a6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-weight: bold;
-  font-size: 22px;
-  flex-shrink: 0;
-  box-shadow: 0 8px 16px rgba(13, 148, 136, 0.3);
-}
-
-.customer-info {
-  flex: 1;
-}
-
-.customer-info h3 {
-  margin: 0 0 8px 0;
-  color: #0f172a;
-  font-size: 1.1rem;
-  font-weight: 700;
-}
-
-.customer-info p {
-  margin: 4px 0;
-  color: #64748b;
-  font-size: 14px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.customer-info svg {
-  width: 14px;
-  height: 14px;
-  color: #0d9488;
-}
-
-/* Simple Loading Animation */
-.loading-spinner {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 60px 20px;
-  height: 400px;
-  gap: 16px;
-}
-
-.loading-spinner::before {
-  content: "";
-  width: 32px;
-  height: 32px;
-  border: 3px solid #e2e8f0;
-  border-top: 3px solid #0d9488;
-  border-radius: 50%;
-  animation: simpleSpin 1s linear infinite;
-  display: block;
-  box-sizing: border-box;
-}
-
-@keyframes simpleSpin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-.loading-spinner span {
-  font-size: 14px;
-  font-weight: 500;
-  color: #64748b;
-}
-
-.spinner-icon {
-  display: none; /* Hide font awesome spinner */
-}
-
-.spin-animation {
-  animation: professionalSpin 1.2s cubic-bezier(0.68, -0.55, 0.265, 1.55) infinite;
-}
-
-.error-message {
-  background: rgba(254, 226, 226, 0.9);
-  color: #991b1b;
-  padding: 16px 24px;
-  border-radius: 12px;
-  margin: 20px 0;
-  text-align: center;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  font-weight: 500;
-  border: 1px solid rgba(254, 202, 202, 0.5);
-}
-
-.no-records {
-  text-align: center;
-  padding: 60px 24px;
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(12px);
-  border-radius: 20px;
-  border: 2px dashed #e2e8f0;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-}
-
-.no-records svg {
-  width: 60px;
-  height: 60px;
-  margin-bottom: 20px;
-  opacity: 0.5;
-  color: #cbd5e1;
-}
-
-.no-records h3 {
-  margin: 0 0 10px 0;
-  color: #475569;
-  font-weight: 600;
-}
-
-.no-records p {
+.vet-profiles-header p {
   margin: 0;
-  color: #94a3b8;
 }
 
-.search-bar {
-  margin-bottom: 20px;
-}
+/* SEARCH */
 
-.search-input-wrapper {
+.vet-profiles-search .vet-search-box {
   position: relative;
   max-width: 500px;
-  margin: 0 auto;
 }
 
-.search-input-wrapper svg {
+.vet-profiles-search .vet-search-box svg {
   position: absolute;
   left: 16px;
   top: 50%;
   transform: translateY(-50%);
-  color: #94a3b8;
-  width: 18px;
-  height: 18px;
+  color: var(--color-muted);
 }
 
-.search-bar input {
+.vet-profiles-search input {
   width: 100%;
   padding: 14px 20px 14px 48px;
-  border: 1px solid #e2e8f0;
-  border-radius: 16px;
-  font-size: 16px;
-  transition: all 0.3s ease;
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(12px);
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
 }
 
-.search-bar input:focus {
-  outline: none;
-  border-color: #0d9488;
-  box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.1), 0 4px 12px rgba(13, 148, 136, 0.15);
+/* CUSTOMER LIST */
+
+.vet-customer-list {
+  display: grid;
+  gap: 16px;
 }
 
-/* Dark theme */
-.vet-customer-profiles.dark {
-  background: #1a1a2e;
-  color: #ffffff;
+/* CUSTOMER CARD */
+
+.vet-customer-card {
+  display: flex;
+  align-items: center;
+  gap: 1.2rem;
+  position: relative;
+  overflow: hidden;
 }
 
-.vet-customer-profiles.dark h2 {
-  color: #ffffff;
+.vet-customer-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 5px;
+  background: linear-gradient(180deg, var(--color-primary), var(--color-primary-light));
+  opacity: 0;
+  transition: 0.25s ease;
 }
 
-.vet-customer-profiles.dark .customer-item {
-  background: #16213e;
-  color: #ffffff;
+.vet-customer-card:hover::before {
+  opacity: 1;
 }
 
-.vet-customer-profiles.dark .customer-info h3 {
-  color: #ffffff;
+.vet-customer-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+  display: grid;
+  place-items: center;
+  color: white;
+  font-weight: 950;
+  font-size: 1.4rem;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-primary);
 }
 
-.vet-customer-profiles.dark .customer-info p {
-  color: #b8bec3;
+.vet-customer-info {
+  flex: 1;
 }
 
-.vet-customer-profiles.dark .search-bar input {
-  background: #2d3436;
-  border-color: #2d3436;
-  color: #ffffff;
+.vet-customer-info h3 {
+  margin: 0 0 0.5rem;
+  color: var(--color-heading);
+  font-weight: 950;
+  font-size: 1.1rem;
 }
 
-.vet-customer-profiles.dark .no-records h3 {
-  color: #ffffff;
+.vet-customer-info p {
+  margin: 0.25rem 0;
+  color: var(--color-muted);
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
-/* Responsive Design */
+.vet-customer-info svg {
+  color: var(--color-primary);
+  width: 14px;
+  height: 14px;
+}
+
+/* EMPTY / LOADING / ERROR STATES */
+
+.vet-empty-state,
+.vet-loading-state,
+.vet-error-state {
+  min-height: 260px;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  gap: 0.75rem;
+  border-style: dashed;
+}
+
+.vet-empty-state svg,
+.vet-loading-state svg,
+.vet-error-state svg {
+  font-size: 3rem;
+  color: var(--color-primary);
+}
+
+.vet-empty-state h3 {
+  margin: 0;
+  color: var(--color-heading);
+  font-weight: 950;
+}
+
+.vet-empty-state p,
+.vet-loading-state span,
+.vet-error-state span {
+  margin: 0;
+  color: var(--color-muted);
+  font-weight: 750;
+}
+
+.vet-error-state svg,
+.vet-error-state span {
+  color: var(--color-danger);
+}
+
+.spin-animation {
+  animation: vetSpin 1s linear infinite;
+}
+
+@keyframes vetSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* DARK MODE */
+
+[data-theme="dark"] .vet-customer-card {
+  background: rgba(15, 23, 42, 0.94);
+}
+
+[data-theme="dark"] .vet-customer-avatar {
+  box-shadow: 0 8px 16px rgba(255, 95, 147, 0.2);
+}
+
+/* RESPONSIVE */
+
 @media (max-width: 768px) {
-  .vet-customer-profiles {
-    padding: 16px;
-  }
-
-  .vet-customer-profiles h2 {
-    font-size: 1.5rem;
-    margin-bottom: 16px;
-  }
-
-  .vet-customer-profiles h2::before {
-    width: 3px;
-    height: 24px;
-  }
-
-  .customer-item {
-    padding: 16px;
-    gap: 12px;
+  .vet-customer-card {
     flex-direction: column;
     align-items: flex-start;
+    gap: 1rem;
   }
 
-  .customer-avatar {
+  .vet-customer-avatar {
     width: 56px;
     height: 56px;
-    font-size: 20px;
-  }
-
-  .customer-info h3 {
-    font-size: 1rem;
-    margin-bottom: 6px;
-  }
-
-  .customer-info p {
-    font-size: 13px;
-    margin: 3px 0;
-  }
-
-  .customer-info svg {
-    width: 12px;
-    height: 12px;
-  }
-
-  .search-bar input {
-    padding: 12px 16px 12px 44px;
-    font-size: 15px;
-    border-radius: 12px;
-  }
-
-  .search-input-wrapper svg {
-    width: 16px;
-    height: 16px;
-    left: 14px;
-  }
-
-  .no-records {
-    padding: 40px 20px;
-  }
-
-  .no-records svg {
-    width: 48px;
-    height: 48px;
-  }
-
-  .no-records h3 {
-    font-size: 1.1rem;
-  }
-
-  .no-records p {
-    font-size: 0.9rem;
+    font-size: 1.25rem;
   }
 }
 
 @media (max-width: 480px) {
-  .vet-customer-profiles {
-    padding: 12px;
-  }
-
-  .vet-customer-profiles h2 {
-    font-size: 1.25rem;
-    margin-bottom: 12px;
-  }
-
-  .vet-customer-profiles h2::before {
-    width: 2px;
-    height: 20px;
-  }
-
-  .customer-item {
-    padding: 12px;
-    gap: 10px;
-    border-radius: 8px;
-  }
-
-  .customer-avatar {
+  .vet-customer-avatar {
     width: 48px;
     height: 48px;
-    font-size: 18px;
+    font-size: 1.1rem;
   }
 
-  .customer-info h3 {
-    font-size: 0.95rem;
-    margin-bottom: 4px;
-  }
-
-  .customer-info p {
-    font-size: 12px;
-    margin: 2px 0;
-  }
-
-  .customer-info svg {
-    width: 10px;
-    height: 10px;
-  }
-
-  .search-bar input {
-    padding: 10px 14px 10px 40px;
-    font-size: 14px;
-    border-radius: 10px;
-  }
-
-  .search-input-wrapper svg {
-    width: 14px;
-    height: 14px;
-    left: 12px;
-  }
-
-  .no-records {
-    padding: 32px 16px;
-    border-radius: 12px;
-  }
-
-  .no-records svg {
-    width: 40px;
-    height: 40px;
-  }
-
-  .no-records h3 {
+  .vet-customer-info h3 {
     font-size: 1rem;
   }
 
-  .no-records p {
+  .vet-customer-info p {
     font-size: 0.85rem;
-  }
-}
-
-@media (min-width: 769px) and (max-width: 1024px) {
-  .vet-customer-profiles {
-    padding: 24px;
-  }
-
-  .customer-item {
-    padding: 18px;
-    gap: 14px;
-  }
-
-  .customer-avatar {
-    width: 60px;
-    height: 60px;
-    font-size: 21px;
   }
 }

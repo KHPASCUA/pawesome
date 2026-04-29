@@ -1,0 +1,263 @@
+/* ===== GLOBAL DESIGN SYSTEM (PINK PREMIUM) ===== */
+
+:root {
+  --color-primary: #ff5f93;
+  --color-primary-light: #ff8db5;
+  --color-primary-soft: #ffc8dd;
+
+  --color-bg-gradient: linear-gradient(
+    135deg,
+    #ffc8dd,
+    #ffd6e8,
+    #fff1f7
+  );
+
+  --color-surface: rgba(255, 255, 255, 0.9);
+  --color-border: rgba(255, 95, 147, 0.18);
+
+  --color-text: #1f2937;
+  --color-muted: #64748b;
+
+  --shadow-card: 0 18px 45px rgba(255, 95, 147, 0.15);
+}
+
+/* ===== GLOBAL BACKGROUND ===== */
+
+body {
+  background: var(--color-bg-gradient);
+  color: var(--color-text);
+}
+
+/* ===== MAIN LAYOUT ===== */
+
+.app-main,
+.manager-main,
+.vet-main {
+  background: transparent;
+}
+
+/* ===== NAVBAR (ALL DASHBOARDS) ===== */
+
+.top-navbar,
+.manager-navbar,
+.vet-navbar {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(18px);
+
+  border-bottom: 1px solid var(--color-border);
+  box-shadow: 0 14px 35px rgba(255, 95, 147, 0.12);
+}
+
+/* ===== CARDS ===== */
+
+.card,
+.panel,
+.overview-card,
+.metric-card,
+.boarder-card,
+.premium-chart-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 22px;
+  box-shadow: var(--shadow-card);
+}
+
+/* ===== BUTTONS ===== */
+
+.btn-primary,
+.export-btn,
+.action-btn-primary {
+  background: linear-gradient(
+    135deg,
+    var(--color-primary),
+    var(--color-primary-light)
+  );
+  color: white;
+  border: none;
+  border-radius: 14px;
+}
+
+.btn-secondary {
+  background: rgba(255,255,255,0.7);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+}
+
+/* ===== INPUTS ===== */
+
+input,
+select,
+textarea {
+  border-radius: 999px;
+  border: 1px solid rgba(255, 95, 147, 0.25);
+  background: white;
+}
+
+input:focus,
+select:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(255, 95, 147, 0.15);
+}
+
+/* ===== ICON BUTTONS ===== */
+
+.icon-btn,
+.theme-toggle-btn,
+.notif-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: rgba(255,255,255,0.9);
+  color: var(--color-primary);
+
+  box-shadow: 0 10px 24px rgba(255, 95, 147, 0.12);
+}
+
+/* ===== TABLES ===== */
+
+table {
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+thead {
+  background: rgba(255, 95, 147, 0.08);
+}
+
+tbody tr:hover {
+  background: rgba(255, 95, 147, 0.05);
+}
+
+/* ===== BADGES ===== */
+
+.badge,
+.status-badge {
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-weight: 600;
+}
+
+/* ===== SCROLLBAR ===== */
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 95, 147, 0.4);
+  border-radius: 999px;
+}
+
+/* ===== GLOBAL DARK MODE SYSTEM ===== */
+
+[data-theme="dark"],
+body.dark,
+.app.dark {
+  --color-bg-gradient: linear-gradient(135deg, #111827, #1f2937, #3b1224);
+
+  --color-surface: rgba(15, 23, 42, 0.9);
+  --color-border: rgba(255, 141, 181, 0.26);
+
+  --color-text: #f8fafc;
+  --color-muted: #cbd5e1;
+
+  --shadow-card: 0 18px 45px rgba(0, 0, 0, 0.35);
+}
+
+[data-theme="dark"] body,
+body.dark {
+  background: var(--color-bg-gradient);
+  color: var(--color-text);
+}
+
+[data-theme="dark"] .top-navbar,
+[data-theme="dark"] .manager-navbar,
+[data-theme="dark"] .vet-navbar,
+body.dark .top-navbar,
+body.dark .manager-navbar,
+body.dark .vet-navbar {
+  background: rgba(15, 23, 42, 0.9) !important;
+  border-bottom: 1px solid var(--color-border) !important;
+}
+
+[data-theme="dark"] .card,
+[data-theme="dark"] .panel,
+[data-theme="dark"] .overview-card,
+[data-theme="dark"] .metric-card,
+[data-theme="dark"] .boarder-card,
+[data-theme="dark"] .premium-chart-card,
+body.dark .card,
+body.dark .panel,
+body.dark .overview-card,
+body.dark .metric-card,
+body.dark .boarder-card,
+body.dark .premium-chart-card {
+  background: var(--color-surface) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+}
+
+[data-theme="dark"] h1,
+[data-theme="dark"] h2,
+[data-theme="dark"] h3,
+[data-theme="dark"] h4,
+[data-theme="dark"] p,
+[data-theme="dark"] span,
+[data-theme="dark"] label,
+body.dark h1,
+body.dark h2,
+body.dark h3,
+body.dark h4,
+body.dark p,
+body.dark span,
+body.dark label {
+  color: inherit;
+}
+
+[data-theme="dark"] input,
+[data-theme="dark"] select,
+[data-theme="dark"] textarea,
+body.dark input,
+body.dark select,
+body.dark textarea {
+  background: rgba(15, 23, 42, 0.94) !important;
+  color: #f8fafc !important;
+  border-color: var(--color-border) !important;
+}
+
+[data-theme="dark"] input::placeholder,
+body.dark input::placeholder {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .icon-btn,
+[data-theme="dark"] .theme-toggle-btn,
+[data-theme="dark"] .notif-btn,
+body.dark .icon-btn,
+body.dark .theme-toggle-btn,
+body.dark .notif-btn {
+  background: rgba(15, 23, 42, 0.94) !important;
+  color: #ff8db5 !important;
+  border: 1px solid var(--color-border) !important;
+}
+
+[data-theme="dark"] table,
+body.dark table {
+  color: #f8fafc;
+}
+
+[data-theme="dark"] thead,
+body.dark thead {
+  background: rgba(255, 141, 181, 0.14) !important;
+}
+
+[data-theme="dark"] tbody tr:hover,
+body.dark tbody tr:hover {
+  background: rgba(255, 141, 181, 0.08) !important;
+}

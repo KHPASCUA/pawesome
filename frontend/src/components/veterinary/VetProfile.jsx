@@ -2,10 +2,6 @@ import React, { useState, useEffect } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faUser,
-  faEnvelope,
-  faPhone,
-  faMapMarkerAlt,
-  faCalendarAlt,
   faCamera,
   faSave,
   faTimes,
@@ -14,15 +10,14 @@ import {
   faEyeSlash,
   faSpinner,
 } from "@fortawesome/free-solid-svg-icons";
+import toast from "react-hot-toast";
 import { apiRequest } from "../../api/client";
+import usePolling from "../../hooks/usePolling";
 import "./VetProfile.css";
 
 const VetProfile = () => {
   const [isEditing, setIsEditing] = useState(false);
-  const [message, setMessage] = useState("");
-  const [messageType, setMessageType] = useState("");
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
 
@@ -102,7 +97,6 @@ const VetProfile = () => {
   // Fetch user profile data
   const fetchUserProfile = () => {
     setLoading(true);
-    setError("");
     console.log("=== Starting VeterinaryProfile fetch ===");
     
     // Check if token exists
@@ -111,7 +105,7 @@ const VetProfile = () => {
     
     if (!token) {
       console.log("No token found, cannot fetch profile");
-      setError("No authentication token found. Please log in again.");
+      toast.error("No authentication token found. Please log in again.");
       setLoading(false);
       return;
     }
@@ -120,56 +114,58 @@ const VetProfile = () => {
     apiRequest("/auth/me")
       .then(response => {
         console.log("User data received:", response);
-        
-        if (response) {
-          console.log("Setting profile data with:", response);
-          console.log("User role:", response.role);
-          console.log("Role type:", typeof response.role);
-          console.log("Role value:", JSON.stringify(response.role));
-          
-          // Only proceed if user is veterinary or admin
-          if (response.role !== 'veterinary' && response.role !== 'admin') {
-            console.error("Access denied: User is not veterinary");
-            console.error("Expected: 'veterinary' or 'admin', got:", response.role);
-            if (response.role === 'admin') {
-              setError("Admin users should use AdminProfile, not VeterinaryProfile");
-            } else {
-              setError("Access denied: User role does not match veterinary profile");
-            }
-            setLoading(false);
-            return;
-          }
-          
-          setProfileData({
-            id: response.id,
-            name: response.name || "",
-            first_name: response.first_name || "",
-            middle_name: response.middle_name || "",
-            last_name: response.last_name || "",
-            email: response.email || "",
-            username: response.username || "",
-            phone: response.phone || "",
-            address: response.address || "",
-            city: response.city || "",
-            state: response.state || "",
-            zip_code: response.zip_code || "",
-            country: response.country || "",
-            bio: response.bio || "",
-            role: response.role || "",
-            is_active: response.is_active !== undefined ? response.is_active : true,
-            created_at: response.created_at || "",
-            updated_at: response.updated_at || "",
-            profileImage: response.profile_image || null,
-          });
-          
-          // Store original values for validation
-          setOriginalEmail(response.email || "");
-          setOriginalUsername(response.username || "");
-          console.log("Profile data set successfully");
+
+        if (!response || typeof response !== "object") {
+          throw new Error("Invalid profile response");
         }
+
+        console.log("Setting profile data with:", response);
+        console.log("User role:", response.role);
+        console.log("Role type:", typeof response.role);
+        console.log("Role value:", JSON.stringify(response.role));
+
+        // Only proceed if user is veterinary or admin
+        if (!["veterinary", "admin"].includes(response.role)) {
+          console.error("Access denied: User is not veterinary");
+          console.error("Expected: 'veterinary' or 'admin', got:", response.role);
+          if (response.role === 'admin') {
+            toast.error("Admin users should use AdminProfile, not VeterinaryProfile");
+          } else {
+            toast.error("Access denied: User role does not match veterinary profile");
+          }
+          setLoading(false);
+          return;
+        }
+
+        setProfileData({
+          id: response.id,
+          name: response.name || "",
+          first_name: response.first_name || "",
+          middle_name: response.middle_name || "",
+          last_name: response.last_name || "",
+          email: response.email || "",
+          username: response.username || "",
+          phone: response.phone || "",
+          address: response.address || "",
+          city: response.city || "",
+          state: response.state || "",
+          zip_code: response.zip_code || "",
+          country: response.country || "",
+          bio: response.bio || "",
+          role: response.role || "",
+          is_active: response.is_active !== undefined ? response.is_active : true,
+          created_at: response.created_at || "",
+          updated_at: response.updated_at || "",
+          profileImage: response.profile_image || null,
+        });
+
+        // Store original values for validation
+        setOriginalEmail(response.email || "");
+        setOriginalUsername(response.username || "");
+        console.log("Profile data set successfully");
       })
-      .catch(err => {
-        setError(err.message || "Failed to load profile data");
+    .catch(err => {
+        toast.error(err.message || "Failed to load profile data");
         console.error("Profile fetch error:", err);
       })
       .finally(() => {
@@ -181,23 +177,18 @@ const VetProfile = () => {
   const handleSaveProfile = () => {
     // Validation
     if (!profileData.first_name || !profileData.last_name || !profileData.email) {
-      setMessage("Please fill in all required fields.");
-      setMessageType("error");
-      setTimeout(() => setMessage(""), 3000);
+      toast.error("Please fill in all required fields.");
       return;
     }
 
     // Email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(profileData.email)) {
-      setMessage("Please enter a valid email address.");
-      setMessageType("error");
-      setTimeout(() => setMessage(""), 3000);
+      toast.error("Please enter a valid email address.");
       return;
     }
 
     setSaving(true);
-    setError("");
     console.log("=== Starting VeterinaryProfile save ===");
     
     // Prepare update data
@@ -233,13 +224,11 @@ const VetProfile = () => {
     })
       .then(response => {
         console.log("API response:", response);
-        setMessage("Profile updated successfully!");
-        setMessageType("success");
+        toast.success("Profile updated successfully!");
         setIsEditing(false);
         
         // Refresh profile data
         fetchUserProfile();
-        setTimeout(() => setMessage(""), 3000);
       })
       .catch(err => {
         console.error("=== Profile update error ===");
@@ -248,9 +237,7 @@ const VetProfile = () => {
         console.error("Error status:", err.status);
         console.error("Error response:", err.response);
         
-        setMessage(err.message || "Failed to update profile");
-        setMessageType("error");
-        setTimeout(() => setMessage(""), 3000);
+        toast.error(err.message || "Failed to update profile");
       })
       .finally(() => {
         setSaving(false);
@@ -262,53 +249,42 @@ const VetProfile = () => {
   const handleChangePassword = () => {
     // Validation
     if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
-      setMessage("Please fill in all password fields.");
-      setMessageType("error");
-      setTimeout(() => setMessage(""), 3000);
+      toast.error("Please fill in all password fields.");
       return;
     }
 
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      setMessage("New passwords do not match.");
-      setMessageType("error");
-      setTimeout(() => setMessage(""), 3000);
+      toast.error("New passwords do not match.");
       return;
     }
 
     if (passwordData.newPassword.length < 8) {
-      setMessage("Password must be at least 8 characters long.");
-      setMessageType("error");
-      setTimeout(() => setMessage(""), 3000);
+      toast.error("Password must be at least 8 characters long.");
       return;
     }
 
     setChangingPassword(true);
-    setError("");
     
     // Change password via API
     apiRequest("/auth/change-password", {
       method: "POST",
       body: JSON.stringify({
-        current_password: passwordData.currentPassword,
-        new_password: passwordData.newPassword,
-        new_password_confirmation: passwordData.confirmPassword,
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword,
+        confirmPassword: passwordData.confirmPassword,
       })
     })
       .then(() => {
-        setMessage("Password changed successfully!");
-        setMessageType("success");
+        toast.success("Password changed successfully!");
         setPasswordData({
           currentPassword: "",
           newPassword: "",
           confirmPassword: "",
         });
-        setTimeout(() => setMessage(""), 3000);
       })
       .catch(err => {
-        setMessage(err.message || "Failed to change password");
-        setMessageType("error");
+        toast.error(err.message || "Failed to change password");
         console.error("Password change error:", err);
-        setTimeout(() => setMessage(""), 3000);
       })
       .finally(() => {
         setChangingPassword(false);
@@ -318,13 +294,11 @@ const VetProfile = () => {
   // Cancel editing
   const handleCancel = () => {
     setIsEditing(false);
-    setMessage("");
   };
 
   // Toggle edit mode
   const toggleEditMode = () => {
     setIsEditing(!isEditing);
-    setMessage("");
   };
 
   // Toggle password visibility
@@ -340,46 +314,43 @@ const VetProfile = () => {
     fetchUserProfile();
   }, []);
 
+  // Real-time updates: poll every 10 seconds
+  usePolling(fetchUserProfile, 10000);
+
   return (
-    <div className="vet-profile">
+    <section className="app-content vet-profile">
       {/* Profile Header */}
-      <div className="profile-header">
-        <h2>
+      <div className="premium-card vet-profile-header">
+        <h2 className="premium-title">
           <FontAwesomeIcon icon={faUser} /> Veterinary Profile
         </h2>
-        <p>Manage your personal information and preferences</p>
+        <p className="premium-muted">Manage your personal information and preferences</p>
       </div>
 
-      {/* Success/Error Messages */}
-      {message && (
-        <div className={`${messageType}-message`}>
-          {message}
-        </div>
-      )}
 
       {loading ? (
-        <div className="loading-container">
-          <FontAwesomeIcon icon={faSpinner} spin size="2x" />
-          <p>Loading your profile...</p>
+        <div className="premium-card vet-loading-state">
+          <FontAwesomeIcon icon={faSpinner} className="spin-animation" />
+          <span>Loading your profile...</span>
         </div>
       ) : (
         <>
           {/* Profile Form */}
-          <div className="profile-card">
-            <div className="profile-section">
+          <div className="premium-card vet-profile-card">
+            <div className="vet-profile-section">
               <h3>Personal Information</h3>
               
               {/* Profile Image */}
-              <div className="profile-avatar-section">
-                <div className="avatar-container">
+              <div className="vet-avatar-section">
+                <div className="vet-avatar-container">
                   {profileData.profileImage ? (
                     <img 
                       src={profileData.profileImage} 
                       alt="Profile" 
-                      className="avatar-img"
+                      className="vet-avatar-img"
                     />
                   ) : (
-                    <div className="avatar-img">
+                    <div className="vet-avatar-img">
                       <FontAwesomeIcon icon={faUser} size="3x" />
                     </div>
                   )}
@@ -392,7 +363,7 @@ const VetProfile = () => {
                         onChange={handleImageUpload}
                         style={{ display: 'none' }}
                       />
-                      <label htmlFor="avatar-upload" className="avatar-upload-btn">
+                      <label htmlFor="avatar-upload" className="btn-secondary">
                         <FontAwesomeIcon icon={faCamera} /> Change Photo
                       </label>
                     </div>
@@ -401,8 +372,8 @@ const VetProfile = () => {
               </div>
 
               {/* Form Fields */}
-              <div className="form-row">
-                <div className="form-group">
+              <div className="vet-form-row">
+                <div className="vet-form-group">
                   <label>First Name *</label>
                   <input
                     type="text"
@@ -413,7 +384,7 @@ const VetProfile = () => {
                     placeholder="Enter your first name"
                   />
                 </div>
-                <div className="form-group">
+                <div className="vet-form-group">
                   <label>Middle Name</label>
                   <input
                     type="text"
@@ -424,7 +395,7 @@ const VetProfile = () => {
                     placeholder="Enter your middle name"
                   />
                 </div>
-                <div className="form-group">
+                <div className="vet-form-group">
                   <label>Last Name *</label>
                   <input
                     type="text"
@@ -437,7 +408,7 @@ const VetProfile = () => {
                 </div>
               </div>
 
-              <div className="form-group">
+              <div className="vet-form-group">
                 <label>Username *</label>
                 <input
                   type="text"
@@ -449,7 +420,7 @@ const VetProfile = () => {
                 />
               </div>
 
-              <div className="form-group">
+              <div className="vet-form-group">
                 <label>Email Address *</label>
                 <input
                   type="email"
@@ -461,7 +432,7 @@ const VetProfile = () => {
                 />
               </div>
 
-              <div className="form-group">
+              <div className="vet-form-group">
                 <label>Phone Number</label>
                 <input
                   type="tel"
@@ -473,7 +444,7 @@ const VetProfile = () => {
                 />
               </div>
 
-              <div className="form-group">
+              <div className="vet-form-group">
                 <label>Bio</label>
                 <textarea
                   name="bio"
@@ -485,10 +456,10 @@ const VetProfile = () => {
               </div>
             </div>
 
-            <div className="profile-section">
+            <div className="vet-profile-section">
               <h3>Address Information</h3>
-              <div className="form-row">
-                <div className="form-group">
+              <div className="vet-form-row">
+                <div className="vet-form-group">
                   <label>Street Address</label>
                   <input
                     type="text"
@@ -499,7 +470,7 @@ const VetProfile = () => {
                     placeholder="Enter your street address"
                   />
                 </div>
-                <div className="form-group">
+                <div className="vet-form-group">
                   <label>City</label>
                   <input
                     type="text"
@@ -512,8 +483,8 @@ const VetProfile = () => {
                 </div>
               </div>
 
-              <div className="form-row">
-                <div className="form-group">
+              <div className="vet-form-row">
+                <div className="vet-form-group">
                   <label>State</label>
                   <input
                     type="text"
@@ -524,7 +495,7 @@ const VetProfile = () => {
                     placeholder="Enter your state"
                   />
                 </div>
-                <div className="form-group">
+                <div className="vet-form-group">
                   <label>ZIP Code</label>
                   <input
                     type="text"
@@ -537,7 +508,7 @@ const VetProfile = () => {
                 </div>
               </div>
 
-              <div className="form-group">
+              <div className="vet-form-group">
                 <label>Country</label>
                 <input
                   type="text"
@@ -551,62 +522,58 @@ const VetProfile = () => {
             </div>
 
             {/* Account Info */}
-            <div className="profile-section">
+            <div className="vet-profile-section">
               <h3>Account Information</h3>
-              <div className="form-row">
-                <div className="form-group">
+              <div className="vet-form-row">
+                <div className="vet-form-group">
                   <label>Role</label>
                   <input
                     type="text"
                     value="Veterinarian"
                     disabled
-                    style={{ backgroundColor: '#f8f9fa' }}
                   />
                 </div>
-                <div className="form-group">
+                <div className="vet-form-group">
                   <label>Status</label>
                   <input
                     type="text"
                     value="Active"
                     disabled
-                    style={{ backgroundColor: '#f8f9fa' }}
                   />
                 </div>
               </div>
-              <div className="form-row">
-                <div className="form-group">
+              <div className="vet-form-row">
+                <div className="vet-form-group">
                   <label>Member Since</label>
                   <input
                     type="text"
-                    value={profileData.created_at ? new Date(profileData.created_at).toLocaleDateString() : "Unknown"}
+                    value={profileData.created_at ? new Date(profileData.created_at).toLocaleDateString() : "N/A"}
                     disabled
-                    style={{ backgroundColor: '#f8f9fa' }}
                   />
                 </div>
-                <div className="form-group">
+                <div className="vet-form-group">
                   <label>Last Updated</label>
                   <input
                     type="text"
-                    value={profileData.updated_at ? new Date(profileData.updated_at).toLocaleDateString() : "Today"}
+                    value={profileData.updated_at ? new Date(profileData.updated_at).toLocaleDateString() : "N/A"}
                     disabled
-                    style={{ backgroundColor: '#f8f9fa' }}
                   />
                 </div>
               </div>
             </div>
 
             {/* Action Buttons */}
-            <div className="btn-group">
+            <div className="vet-profile-actions">
               {!isEditing ? (
-                <button className="btn-primary" onClick={toggleEditMode}>
+                <button className="btn-primary" onClick={toggleEditMode} type="button">
                   <FontAwesomeIcon icon={faUser} /> Edit Profile
                 </button>
               ) : (
-                <div>
-                  <button className="btn-primary" onClick={handleSaveProfile} disabled={saving}>
+                <div className="vet-profile-actions-edit">
+                  <button className="btn-primary" onClick={handleSaveProfile} disabled={saving} type="button">
                     {saving ? (
                       <>
-                        <FontAwesomeIcon icon={faSpinner} spin /> Saving...
+                        <FontAwesomeIcon icon={faSpinner} className="spin-animation" /> Saving...
                       </>
                     ) : (
                       <>
@@ -614,7 +581,7 @@ const VetProfile = () => {
                       </>
                     )}
                   </button>
-                  <button className="btn-secondary" onClick={handleCancel}>
+                  <button className="btn-secondary" onClick={handleCancel} type="button">
                     <FontAwesomeIcon icon={faTimes} /> Cancel
                   </button>
                 </div>
@@ -623,14 +590,14 @@ const VetProfile = () => {
           </div>
 
           {/* Password Change Section */}
-          <div className="profile-card password-section">
-            <div className="profile-section">
+          <div className="premium-card vet-password-section">
+            <div className="vet-profile-section">
               <h3>
                 <FontAwesomeIcon icon={faLock} /> Change Password
               </h3>
-              <div className="form-group">
+              <div className="vet-form-group">
                 <label>Current Password</label>
-                <div className="password-input-wrapper">
+                <div className="vet-password-wrapper">
                   <input
                     type={showPasswords.currentPassword ? "text" : "password"}
                     name="currentPassword"
@@ -640,7 +607,7 @@ const VetProfile = () => {
                   />
                   <button
                     type="button"
-                    className="password-toggle-btn"
+                    className="vet-password-toggle"
                     onClick={() => togglePasswordVisibility('currentPassword')}
                   >
                     <FontAwesomeIcon icon={showPasswords.currentPassword ? faEyeSlash : faEye} />
@@ -648,9 +615,9 @@ const VetProfile = () => {
                 </div>
               </div>
 
-              <div className="form-group">
+              <div className="vet-form-group">
                 <label>New Password</label>
-                <div className="password-input-wrapper">
+                <div className="vet-password-wrapper">
                   <input
                     type={showPasswords.newPassword ? "text" : "password"}
                     name="newPassword"
@@ -660,7 +627,7 @@ const VetProfile = () => {
                   />
                   <button
                     type="button"
-                    className="password-toggle-btn"
+                    className="vet-password-toggle"
                     onClick={() => togglePasswordVisibility('newPassword')}
                   >
                     <FontAwesomeIcon icon={showPasswords.newPassword ? faEyeSlash : faEye} />
@@ -668,9 +635,9 @@ const VetProfile = () => {
                 </div>
               </div>
 
-              <div className="form-group">
+              <div className="vet-form-group">
                 <label>Confirm New Password</label>
-                <div className="password-input-wrapper">
+                <div className="vet-password-wrapper">
                   <input
                     type={showPasswords.confirmPassword ? "text" : "password"}
                     name="confirmPassword"
@@ -680,7 +647,7 @@ const VetProfile = () => {
                   />
                   <button
                     type="button"
-                    className="password-toggle-btn"
+                    className="vet-password-toggle"
                     onClick={() => togglePasswordVisibility('confirmPassword')}
                   >
                     <FontAwesomeIcon icon={showPasswords.confirmPassword ? faEyeSlash : faEye} />
@@ -688,15 +655,15 @@ const VetProfile = () => {
                 </div>
               </div>
 
-              <div className="password-requirements">
+              <div className="vet-password-requirements">
                 Password must be at least 8 characters long and contain both letters and numbers.
               </div>
 
-              <div className="btn-group">
-                <button className="btn-primary" onClick={handleChangePassword} disabled={changingPassword}>
+              <div className="vet-profile-actions">
+                <button className="btn-primary" onClick={handleChangePassword} disabled={changingPassword} type="button">
                   {changingPassword ? (
                     <>
-                      <FontAwesomeIcon icon={faSpinner} spin /> Changing Password...
+                      <FontAwesomeIcon icon={faSpinner} className="spin-animation" /> Changing Password...
                     </>
                   ) : (
                     <>
@@ -709,7 +676,7 @@ const VetProfile = () => {
           </div>
         </>
       )}
-    </div>
+    </section>
   );
 };
 
