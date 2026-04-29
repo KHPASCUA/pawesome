@@ -20,6 +20,7 @@ const Register = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
 
@@ -27,12 +28,50 @@ const Register = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleNextStep = () => setCurrentStep(currentStep + 1);
+  const handleNextStep = () => {
+    if (currentStep === 1) {
+      if (!formData.firstName || !formData.lastName || !formData.emailAddress) {
+        return alert("Please complete personal information");
+      }
+      if (!formData.emailAddress.includes("@")) {
+        return alert("Invalid email address");
+      }
+    }
+
+    if (currentStep === 2) {
+      if (!formData.username || !formData.password || !formData.confirmPassword) {
+        return alert("Please complete account details");
+      }
+      if (formData.password.length < 6) {
+        return alert("Password must be at least 6 characters");
+      }
+      if (formData.password !== formData.confirmPassword) {
+        return alert("Passwords do not match");
+      }
+    }
+
+    setCurrentStep(currentStep + 1);
+  };
+
   const handlePrevStep = () => setCurrentStep(currentStep - 1);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    if (!formData.firstName || !formData.lastName) {
+      return alert("Please enter your full name");
+    }
+    if (!formData.emailAddress.includes("@")) {
+      return alert("Invalid email address");
+    }
+    if (formData.password.length < 6) {
+      return alert("Password must be at least 6 characters");
+    }
+    if (formData.password !== formData.confirmPassword) {
+      return alert("Passwords do not match");
+    }
+
+    setLoading(true);
     try {
       const res = await apiRequest("/auth/register", {
         method: "POST",
@@ -46,9 +85,12 @@ const Register = () => {
       });
 
       localStorage.setItem("token", res.token);
+      alert("Registration successful!");
       navigate("/customer");
     } catch (err) {
-      alert("Registration failed");
+      alert(err.message || "Registration failed");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -94,13 +136,13 @@ const Register = () => {
 
                 <div className="form-row">
                   <div className="form-group">
-                    <label>First Name</label>
-                    <input name="firstName" onChange={handleChange} />
+                    <label>First Name *</label>
+                    <input name="firstName" required onChange={handleChange} />
                   </div>
 
                   <div className="form-group">
-                    <label>Last Name</label>
-                    <input name="lastName" onChange={handleChange} />
+                    <label>Last Name *</label>
+                    <input name="lastName" required onChange={handleChange} />
                   </div>
                 </div>
 
@@ -112,13 +154,20 @@ const Register = () => {
 
                   <div className="form-group">
                     <label>Contact Number</label>
-                    <input name="contactNumber" onChange={handleChange} />
+                    <input
+                      name="contactNumber"
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/\D/g, "");
+                        setFormData({ ...formData, contactNumber: value });
+                      }}
+                      placeholder="e.g. 09171234567"
+                    />
                   </div>
                 </div>
 
                 <div className="form-group">
-                  <label>Email Address</label>
-                  <input name="emailAddress" onChange={handleChange} />
+                  <label>Email Address *</label>
+                  <input name="emailAddress" type="email" required onChange={handleChange} />
                 </div>
               </div>
             )}
@@ -129,26 +178,46 @@ const Register = () => {
                 <h3>Account Setup</h3>
 
                 <div className="form-group">
-                  <label>Username</label>
-                  <input name="username" onChange={handleChange} />
+                  <label>Username *</label>
+                  <input name="username" required onChange={handleChange} />
                 </div>
 
                 <div className="form-group">
-                  <label>Password</label>
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    name="password"
-                    onChange={handleChange}
-                  />
+                  <label>Password *</label>
+                  <div className="password-input-group">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      name="password"
+                      required
+                      onChange={handleChange}
+                    />
+                    <button
+                      type="button"
+                      className="password-toggle"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? "🙈" : "👁"}
+                    </button>
+                  </div>
                 </div>
 
                 <div className="form-group">
-                  <label>Confirm Password</label>
-                  <input
-                    type={showConfirmPassword ? "text" : "password"}
-                    name="confirmPassword"
-                    onChange={handleChange}
-                  />
+                  <label>Confirm Password *</label>
+                  <div className="password-input-group">
+                    <input
+                      type={showConfirmPassword ? "text" : "password"}
+                      name="confirmPassword"
+                      required
+                      onChange={handleChange}
+                    />
+                    <button
+                      type="button"
+                      className="password-toggle"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    >
+                      {showConfirmPassword ? "🙈" : "👁"}
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -179,14 +248,14 @@ const Register = () => {
               )}
 
               {currentStep < 3 && (
-                <button type="button" className="next-btn" onClick={handleNextStep}>
+                <button type="button" className="next-btn" onClick={handleNextStep} disabled={loading}>
                   Next
                 </button>
               )}
 
               {currentStep === 3 && (
-                <button type="submit" className="register-btn">
-                  Create Account
+                <button type="submit" className="register-btn" disabled={loading}>
+                  {loading ? "Creating..." : "Create Account"}
                 </button>
               )}
 

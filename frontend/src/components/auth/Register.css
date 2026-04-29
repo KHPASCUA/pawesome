@@ -538,6 +538,61 @@
   }
 }
 
+/* Password Input Group */
+.password-input-group {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.password-input-group input {
+  flex: 1;
+  padding-right: 3rem;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 0.75rem;
+  background: none;
+  border: none;
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 0.25rem;
+  opacity: 0.6;
+  transition: opacity 0.2s ease;
+}
+
+.password-toggle:hover {
+  opacity: 1;
+}
+
+/* Form Section Animation */
+.form-section {
+  animation: fadeUp 0.35s ease;
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Input Hover Effect */
+.form-group input:hover {
+  border-color: #ff8db5;
+}
+
+/* Required Field Indicator */
+.form-group label:has(+ input[required])::after,
+.form-group label:contains("*") {
+  color: #ff5f93;
+}
+
 @media (max-width: 480px) {
   .register-content {
     padding: 2rem 1rem;
@@ -551,5 +606,9 @@
 
   .register-header p {
     font-size: 0.9rem;
+  }
+
+  .password-input-group input {
+    padding-right: 2.5rem;
   }
 }
