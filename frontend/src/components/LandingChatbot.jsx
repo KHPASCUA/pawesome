@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X, Send } from "lucide-react";
+import { FaTimes, FaPaperPlane } from "react-icons/fa";
 import chatbotLogo from "../assets/pawesome-icon.png";
 import "./LandingChatbot.css";
 
@@ -104,7 +104,7 @@ export default function LandingChatbot() {
               <span>For new users</span>
             </div>
             <button onClick={() => setOpen(false)}>
-              <X size={18} />
+              <FaTimes size={18} />
             </button>
           </div>
 
@@ -132,7 +132,7 @@ export default function LandingChatbot() {
               placeholder="Ask something..."
             />
             <button onClick={() => sendMessage()}>
-              <Send size={18} />
+              <FaPaperPlane size={18} />
             </button>
           </div>
         </div>

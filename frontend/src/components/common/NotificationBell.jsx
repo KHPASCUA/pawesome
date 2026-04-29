@@ -1,17 +1,17 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Bell, X, Check, AlertCircle, Info, CheckCircle, AlertTriangle } from 'lucide-react';
+import { FaBell, FaTimes, FaCheck, FaExclamationCircle, FaInfoCircle, FaCheckCircle, FaExclamationTriangle } from 'react-icons/fa';
 import { notificationApi } from '../../api/notifications';
 
 const NotificationIcon = ({ type }) => {
   switch (type) {
     case 'success':
-      return <CheckCircle className="w-5 h-5 text-green-500" />;
+      return <FaCheckCircle className="w-5 h-5 text-green-500" />;
     case 'warning':
-      return <AlertTriangle className="w-5 h-5 text-yellow-500" />;
+      return <FaExclamationTriangle className="w-5 h-5 text-yellow-500" />;
     case 'error':
-      return <AlertCircle className="w-5 h-5 text-red-500" />;
+      return <FaExclamationCircle className="w-5 h-5 text-red-500" />;
     default:
-      return <Info className="w-5 h-5 text-blue-500" />;
+      return <FaInfoCircle className="w-5 h-5 text-blue-500" />;
   }
 };
 
@@ -84,7 +84,7 @@ const NotificationBell = () => {
         onClick={() => setIsOpen(!isOpen)}
         className="relative p-2 rounded-full hover:bg-gray-100 transition-colors"
       >
-        <Bell className="w-6 h-6 text-gray-600" />
+        <FaBell className="w-6 h-6 text-gray-600" />
         {unreadCount > 0 && (
           <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full">
             {unreadCount > 9 ? '9+' : unreadCount}
@@ -101,7 +101,7 @@ const NotificationBell = () => {
                 onClick={markAllAsRead}
                 className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
               >
-                <Check className="w-4 h-4" />
+                <FaCheck className="w-4 h-4" />
                 Mark all read
               </button>
             )}
@@ -110,7 +110,7 @@ const NotificationBell = () => {
           <div className="max-h-96 overflow-y-auto">
             {notifications.length === 0 ? (
               <div className="p-8 text-center text-gray-500">
-                <Bell className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                <FaBell className="w-12 h-12 mx-auto mb-3 text-gray-300" />
                 <p>No new notifications</p>
               </div>
             ) : (
