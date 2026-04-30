@@ -4,7 +4,6 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faMoon,
   faSun,
-  faUserCircle,
   faCalendarAlt,
   faBox,
 } from "@fortawesome/free-solid-svg-icons";
@@ -22,7 +21,8 @@ import {
 import InventorySidebar from "./InventorySidebar";
 import RoleAwareChatbot from "../chatbot/RoleAwareChatbot";
 import NotificationDropdown from "../shared/NotificationDropdown";
-import { apiRequest } from "../../api/client";
+import DashboardProfile from "../shared/DashboardProfile";
+import { apiRequest, uploadProfilePhoto } from "../../api/client";
 import { formatCurrency } from "../../utils/currency";
 import "./InventoryDashboard.css";
 
@@ -42,10 +42,28 @@ const demoDashboardData = {
 
 const InventoryDashboard = () => {
   const name = localStorage.getItem("name") || "Inventory Manager";
-  const [theme, setTheme] = useState("light");
+  const profilePhoto = localStorage.getItem("profile_photo") || "";
+  const [theme, setTheme] = useState(
+    localStorage.getItem("theme") || "light"
+  );
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [dashboardData, setDashboardData] = useState(null);
   const location = useLocation();
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem("theme", theme);
+  }, [theme]);
+
+  const handleProfilePhotoUpload = async (file) => {
+    try {
+      const data = await uploadProfilePhoto(file);
+      localStorage.setItem("profile_photo", data.url || data.profile_photo);
+      window.location.reload();
+    } catch (err) {
+      alert("Failed to upload profile photo: " + err.message);
+    }
+  };
 
   const normalizedPath = location.pathname.replace(/\/+$/, "");
   const showOverview = normalizedPath === "/inventory";
@@ -152,7 +170,7 @@ const InventoryDashboard = () => {
   const pieColors = ["#ff5f93", "#f59e0b", "#ef4444"];
 
   return (
-    <div className={`inventory-dashboard ${theme} ${sidebarCollapsed ? "collapsed" : ""}`}>
+    <div className={`inventory-dashboard ${sidebarCollapsed ? "collapsed" : ""}`}>
       <InventorySidebar
         collapsed={sidebarCollapsed}
         onToggleCollapse={() => setSidebarCollapsed((prev) => !prev)}
@@ -173,15 +191,12 @@ const InventoryDashboard = () => {
           </div>
 
           <div className="navbar-actions">
-            <NavLink to="/inventory/profile" className="inventory-profile-btn">
-              <span className="profile-avatar-icon">
-                <FontAwesomeIcon icon={faUserCircle} />
-              </span>
-              <span className="profile-info">
-                <span className="profile-action-name">{name}</span>
-                <span className="profile-action-role">Inventory</span>
-              </span>
-            </NavLink>
+            <DashboardProfile
+              name={name}
+              role="Inventory"
+              image={profilePhoto}
+              onUpload={handleProfilePhotoUpload}
+            />
 
             <NotificationDropdown />
 

@@ -65,6 +65,7 @@ Route::middleware('throttle:auth')->prefix('auth')->group(function () {
     Route::middleware('auth.api')->group(function () {
         Route::get('me', [AuthController::class, 'me']);
         Route::put('profile', [AuthController::class, 'updateProfile']);
+        Route::post('profile-photo', [AuthController::class, 'uploadProfilePhoto']);
         Route::post('change-password', [AuthController::class, 'changePassword']);
         Route::post('logout', [AuthController::class, 'logout']);
         Route::post('telegram/unlink', [AuthController::class, 'unlinkTelegram']);

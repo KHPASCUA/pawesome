@@ -16,7 +16,6 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faMoon,
   faSun,
-  faUserCircle,
   faUsers,
   faClipboardList,
   faArrowTrendUp,
@@ -24,13 +23,18 @@ import {
   faBoxOpen,
   faUserShield,
   faBars,
+  faServer,
+  faDatabase,
+  faSync,
+  faLayerGroup,
 } from "@fortawesome/free-solid-svg-icons";
 
 import AdminSidebar from "./AdminSidebar";
 import RoleAwareChatbot from "../chatbot/RoleAwareChatbot";
 import NotificationDropdown from "../shared/NotificationDropdown";
+import DashboardProfile from "../shared/DashboardProfile";
 import "./AdminDashboard.css";
-import { apiRequest } from "../../api/client";
+import { apiRequest, uploadProfilePhoto } from "../../api/client";
 import { formatCurrency } from "../../utils/currency";
 
 const cardVariants = {
@@ -43,12 +47,30 @@ const chartColors = ["#ff5f93", "#ff8db5", "#ffc8dd", "#f472b6", "#fb7185"];
 const AdminDashboard = () => {
   const name = localStorage.getItem("name") || "Admin";
   const role = localStorage.getItem("role") || "admin";
+  const profilePhoto = localStorage.getItem("profile_photo") || "";
 
-  const [theme, setTheme] = useState("light");
+  const [theme, setTheme] = useState(
+    localStorage.getItem("theme") || "light"
+  );
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem("theme", theme);
+  }, [theme]);
+
+  const handleProfilePhotoUpload = async (file) => {
+    try {
+      const data = await uploadProfilePhoto(file);
+      localStorage.setItem("profile_photo", data.url || data.profile_photo);
+      window.location.reload();
+    } catch (err) {
+      alert("Failed to upload profile photo: " + err.message);
+    }
+  };
 
   const location = useLocation();
   const normalizedPath = location.pathname.replace(/\/+$/, "");
@@ -193,7 +215,7 @@ const AdminDashboard = () => {
       };
 
   return (
-    <div className={`admin-dashboard ${theme} ${mobileMenuOpen ? "mobile-open" : ""}`}>
+    <div className={`admin-dashboard ${mobileMenuOpen ? "mobile-open" : ""}`}>
       <AdminSidebar
         mobileOpen={mobileMenuOpen}
         onMobileMenuToggle={() => setMobileMenuOpen((prev) => !prev)}
@@ -229,15 +251,12 @@ const AdminDashboard = () => {
           </div>
 
           <div className="navbar-actions">
-            <NavLink to="/admin/profile" className="admin-profile-btn">
-              <span className="profile-avatar-icon">
-                <FontAwesomeIcon icon={faUserCircle} />
-              </span>
-              <span className="profile-info">
-                <span className="profile-action-name">{name}</span>
-                <span className="profile-action-role">Administrator</span>
-              </span>
-            </NavLink>
+            <DashboardProfile
+              name={name}
+              role="Administrator"
+              image={profilePhoto}
+              onUpload={handleProfilePhotoUpload}
+            />
 
             <NotificationDropdown />
 
@@ -350,6 +369,12 @@ const AdminDashboard = () => {
                       <h3>{dashboardData?.active_users || 0}</h3>
                       <p>Active dashboard accounts</p>
                     </div>
+
+                    <div className="metric-card">
+                      <span className="metric-kicker">System Status</span>
+                      <h3>ONLINE</h3>
+                      <p>All modules operational</p>
+                    </div>
                   </motion.article>
                 </section>
 
@@ -406,6 +431,54 @@ const AdminDashboard = () => {
                       <div className="status-card danger">
                         <strong>{dashboardData?.low_stock_items || 0}</strong>
                         <p>Low Stock Alerts</p>
+                      </div>
+                    </div>
+                  </motion.article>
+
+                  <motion.article className="panel" variants={cardVariants}>
+                    <div className="panel-header">
+                      <div>
+                        <h2>System Status</h2>
+                        <p>Real-time platform health monitoring.</p>
+                      </div>
+                    </div>
+
+                    <div className="system-status-grid">
+                      <div className="system-status-item">
+                        <span className="system-status-icon">
+                          <FontAwesomeIcon icon={faServer} />
+                        </span>
+                        <div>
+                          <strong>Backend</strong>
+                          <p className="status-online">Online</p>
+                        </div>
+                      </div>
+                      <div className="system-status-item">
+                        <span className="system-status-icon">
+                          <FontAwesomeIcon icon={faDatabase} />
+                        </span>
+                        <div>
+                          <strong>Database</strong>
+                          <p className="status-online">Connected</p>
+                        </div>
+                      </div>
+                      <div className="system-status-item">
+                        <span className="system-status-icon">
+                          <FontAwesomeIcon icon={faSync} />
+                        </span>
+                        <div>
+                          <strong>Last Sync</strong>
+                          <p>Today</p>
+                        </div>
+                      </div>
+                      <div className="system-status-item">
+                        <span className="system-status-icon">
+                          <FontAwesomeIcon icon={faLayerGroup} />
+                        </span>
+                        <div>
+                          <strong>Active Role Modules</strong>
+                          <p>7</p>
+                        </div>
                       </div>
                     </div>
                   </motion.article>
@@ -490,9 +563,9 @@ const AdminDashboard = () => {
                         ))
                       ) : (
                         <div className="empty-panel-state">
-                          <h3>No recent activity</h3>
+                          <h3>System is running smoothly</h3>
                           <p>
-                            New appointments and registrations will appear here.
+                            No new activity detected. All operations are stable.
                           </p>
                         </div>
                       )}

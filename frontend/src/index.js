@@ -10,6 +10,9 @@ import './styles/modal.css';
 import './styles/animation.css';
 import './styles/responsive.css';
 import './styles/globalTheme.css';
+import './styles/unifiedDashboard.css';
+import './styles/unifiedSidebar.css';
+import './styles/unifiedReports.css';
 import App from './App'; // 
 import reportWebVitals from './reportWebVitals'; // 
 

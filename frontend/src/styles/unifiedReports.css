@@ -1,0 +1,125 @@
+.admin-reports-page,
+.cashier-reports-page,
+.customer-reports,
+.inventory-reports-page,
+.manager-reports,
+.reports-container,
+.vet-reports {
+  background: var(--color-bg-gradient) !important;
+  color: var(--color-text) !important;
+}
+
+.reports-header,
+.filters-section,
+.report-section,
+.report-card,
+.summary-card,
+.stat-card,
+.metric-card,
+.inventory-card,
+.reception-card,
+.vet-metric-card,
+.customer-stat-card,
+.manager-stat-card,
+.chart-section,
+.premium-card,
+.transactions-list,
+.payment-breakdown-card,
+.daily-trend-card,
+.reports-panel,
+.revenue-summary-section,
+.staff-table-section,
+.total-revenue-card,
+.reports-menu-panel,
+.reports-content-panel {
+  background: var(--color-surface) !important;
+  color: var(--color-text) !important;
+  border: 1px solid var(--color-border) !important;
+  border-radius: var(--radius-card) !important;
+  box-shadow: var(--shadow-card) !important;
+  backdrop-filter: blur(18px) !important;
+}
+
+.reports-header h1,
+.reports-header h2,
+.reports-title,
+.page-title,
+.section-title,
+.report-section h3,
+.report-card h4,
+.stat-label,
+.metric-title,
+.inventory-label,
+.reception-label,
+.vet-metric-title,
+.customer-stat-title,
+.manager-stat-title {
+  color: var(--color-heading) !important;
+}
+
+.reports-header p,
+.reports-subtitle,
+.page-subtitle,
+.report-section p,
+.report-card p,
+.stat-label,
+.card-label,
+.small-label {
+  color: var(--color-muted) !important;
+}
+
+.stat-value,
+.metric-value,
+.inventory-value,
+.reception-value,
+.vet-metric-value,
+.customer-stat-value,
+.manager-stat-value,
+.card-value {
+  color: var(--color-primary) !important;
+}
+
+input,
+select,
+textarea,
+.search-input,
+.date-input,
+.status-filter {
+  background: var(--color-surface-solid) !important;
+  color: var(--color-text) !important;
+  border: 1px solid var(--color-border) !important;
+  border-radius: var(--radius-pill) !important;
+}
+
+button,
+.export-btn,
+.quick-filter-btn,
+.nav-tab,
+.view-full-btn,
+.action-btn,
+.btn-primary,
+.btn-secondary {
+  border-radius: var(--radius-pill) !important;
+}
+
+.view-full-btn,
+.btn-primary,
+.export-btn.active,
+.quick-filter-btn.active,
+.nav-tab.active {
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light)) !important;
+  color: #fff !important;
+  border: none !important;
+}
+
+/* DARK MODE */
+[data-theme="dark"] .admin-reports-page,
+[data-theme="dark"] .cashier-reports-page,
+[data-theme="dark"] .customer-reports,
+[data-theme="dark"] .inventory-reports-page,
+[data-theme="dark"] .manager-reports,
+[data-theme="dark"] .reports-container,
+[data-theme="dark"] .vet-reports {
+  background: var(--color-bg-gradient) !important;
+  color: var(--color-text) !important;
+}
