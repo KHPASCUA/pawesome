@@ -395,8 +395,8 @@ const CashierPOS = () => {
       const payload = {
         order_type: orderType,
         customer_name: customerName || "Walk-in Customer",
-        payment_method: paymentMethod,
-        amount_received: Number(amountReceived) || total,
+        payment_method: paymentMethod.toLowerCase(),
+        cash_received: Number(amountReceived) || total,
         subtotal,
         tax,
         discount: discountAmount,
@@ -405,13 +405,12 @@ const CashierPOS = () => {
         voucher_discount_type: validatedVoucher?.type || null,
         voucher_discount_value: validatedVoucher?.value || 0,
         items: cart.map((item) => ({
-          product_id: item.id,
-          name: item.name,
+          item_type: 'product',
+          item_id: item.id,
+          item_name: item.name,
           quantity: item.quantity,
           unit_price: Number(item.price) || 0,
-          discount: Number(item.discount) || 0,
-          final_price: getDiscountedPrice(item),
-          line_total: getDiscountedPrice(item) * item.quantity,
+          discount_amount: Number(item.discount) || 0,
         })),
       };
 

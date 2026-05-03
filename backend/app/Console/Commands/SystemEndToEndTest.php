@@ -266,7 +266,7 @@ class SystemEndToEndTest extends Command
         ]);
         
         // Test Product Scanning
-        $this->testEndpoint('/api/cashier/pos/scan/' . $this->testData['inventory_items']->first()->sku, 
+        $this->testEndpoint('/api/cashier/pos/scan/' . $this->testData['inventory_items']->first()->id,
             'GET', $cashier->api_token, 'Cashier - Product Scan');
         
         $this->info('✅ Cashier Dashboard testing completed');
@@ -369,7 +369,7 @@ class SystemEndToEndTest extends Command
         $this->testEndpoint('/api/admin/inventory', 'POST', $admin->api_token, 'Inventory - Create Item', $createData);
         
         // Test Stock Adjustment
-        $this->testEndpoint('/api/admin/inventory/1/adjust-stock', 'POST', $admin->api_token, 'Inventory - Adjust Stock', [
+        $this->testEndpoint('/api/admin/inventory/' . $this->testData['inventory_items']->first()->id . '/adjust-stock', 'POST', $admin->api_token, 'Inventory - Adjust Stock', [
             'stock' => 100,
             'reason' => 'Stock adjustment test',
         ]);
@@ -532,7 +532,7 @@ class SystemEndToEndTest extends Command
         $this->info("📊 TEST SUMMARY:");
         $this->info("   Total Tests: $totalTests");
         $this->info("   Passed: $passedTests ✅");
-        $this->info("   Failed: $failedTests " . ($failedTests > 0 ? '❌' : '✅');
+        $this->info("   Failed: $failedTests " . ($failedTests > 0 ? '❌' : '✅'));
         $this->info("   Success Rate: " . round(($passedTests / $totalTests) * 100, 2) . "%");
         
         if ($failedTests > 0) {

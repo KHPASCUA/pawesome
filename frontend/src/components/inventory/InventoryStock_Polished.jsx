@@ -69,10 +69,10 @@ const InventoryStock = () => {
   // Calculate stats
   const stats = useMemo(() => {
     const totalItems = items.length;
-    const totalQuantity = items.reduce((sum, item) => sum + (item.quantity || 0), 0);
-    const totalValue = items.reduce((sum, item) => sum + ((item.quantity || 0) * (item.price || 0)), 0);
-    const lowStock = items.filter(item => (item.quantity || 0) <= 10 && (item.quantity || 0) > 0).length;
-    const outOfStock = items.filter(item => (item.quantity || 0) === 0).length;
+    const totalQuantity = items.reduce((sum, item) => sum + (item.stock || item.quantity || 0), 0);
+    const totalValue = items.reduce((sum, item) => sum + ((item.stock || item.quantity || 0) * (item.price || 0)), 0);
+    const lowStock = items.filter(item => (item.stock || item.quantity || 0) <= 10 && (item.stock || item.quantity || 0) > 0).length;
+    const outOfStock = items.filter(item => (item.stock || item.quantity || 0) === 0).length;
     const expiringSoon = items.filter(item => {
       if (!item.expiration) return false;
       const exp = new Date(item.expiration);
@@ -94,9 +94,9 @@ const InventoryStock = () => {
       
       const matchesStatus = 
         filterStatus === "all" || 
-        (filterStatus === "low" && (item.quantity || 0) <= 10 && (item.quantity || 0) > 0) ||
-        (filterStatus === "out" && (item.quantity || 0) === 0) ||
-        (filterStatus === "good" && (item.quantity || 0) > 10);
+        (filterStatus === "low" && (item.stock || item.quantity || 0) <= 10 && (item.stock || item.quantity || 0) > 0) ||
+        (filterStatus === "out" && (item.stock || item.quantity || 0) === 0) ||
+        (filterStatus === "good" && (item.stock || item.quantity || 0) > 10);
       
       return matchesSearch && matchesStatus;
     });
@@ -192,7 +192,7 @@ const InventoryStock = () => {
           message:
             type === "out"
               ? `${item.name} is out of stock.`
-              : `${item.name} is running low. Current stock: ${item.quantity}`,
+              : `${item.name} is running low. Current stock: ${item.stock || item.quantity || 0}`,
           module: "Inventory",
           type,
           priority: type === "out" ? "high" : "medium",
@@ -213,7 +213,7 @@ const InventoryStock = () => {
     );
 
     items.forEach((item) => {
-      const quantity = item.quantity || 0;
+      const quantity = item.stock || item.quantity || 0;
 
       if (quantity === 0 && notified[item.id] !== "out") {
         createInventoryNotification(item, "out");
@@ -358,8 +358,9 @@ const InventoryStock = () => {
           </thead>
           <tbody>
             {filteredItems.map((item) => {
-              const badge = getStatusBadge(item.quantity || 0);
-              const bar = getQuantityBar(item.quantity || 0);
+              const stockLevel = item.stock || item.quantity || 0;
+              const badge = getStatusBadge(stockLevel);
+              const bar = getQuantityBar(stockLevel);
               const isExpiring = item.expiration && new Date(item.expiration) <= new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
               
               return (
@@ -385,7 +386,7 @@ const InventoryStock = () => {
                     </div>
                   </td>
                   <td className="numeric">
-                    <span className="quantity-value">{item.quantity || 0}</span>
+                    <span className="quantity-value">{stockLevel}</span>
                   </td>
                   <td>
                     <span className={`expiration ${isExpiring ? "expiring-soon" : ""}`}>
