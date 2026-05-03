@@ -156,16 +156,13 @@ const InventoryStock = () => {
     try {
       const response = await inventoryApi.getItems();
       const apiItems = response.items || response.data || [];
-      if (apiItems.length > 0) {
-        setItems(apiItems);
-        setUsingDemoData(false);
-      } else {
-        setItems(demoItems);
-        setUsingDemoData(true);
-      }
+      setItems(apiItems);
+      setUsingDemoData(false);
     } catch (err) {
       console.error("Stock refresh failed:", err);
     }
+    // Close modal and clear selection
+    setShowAdjustModal(false);
     setSelectedItem(null);
   };
 

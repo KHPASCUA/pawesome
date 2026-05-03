@@ -291,40 +291,30 @@ export const inventoryApi = {
    * Adjusts stock quantity for an item with reason tracking.
    * @async
    * @param {string|number} id - Inventory item ID
-   * @param {number} quantity - Quantity to adjust (positive or negative)
-   * @param {string|Object} data - Reason string or object with reason + audit data
+   * @param {string} type - Adjustment type: "add", "remove", or "set"
+   * @param {number} quantity - Quantity value (adjustment amount for add/remove, final value for set)
+   * @param {string} reason - Reason for the adjustment
    * @returns {Promise<Object>} Updated item with adjustment record
    * @throws {Error} When validation fails or request fails
    */
-  adjustStock: async (id, quantity, data) => {
+  adjustStock: async (id, type, quantity, reason = "Manual stock adjustment") => {
     validateId(id, "Item ID");
 
-    if (typeof quantity !== "number" || isNaN(quantity)) {
-      throw new Error("Quantity must be a valid number");
+    if (!["add", "remove", "set"].includes(type)) {
+      throw new Error("Type must be 'add', 'remove', or 'set'");
     }
 
-    const reasonString = typeof data === "string" ? data : data?.reason;
-
-    if (!reasonString || reasonString.trim().length === 0) {
-      throw new Error("Reason is required for stock adjustment");
+    if (typeof quantity !== "number" || isNaN(quantity) || quantity < 0) {
+      throw new Error("Quantity must be a valid positive number");
     }
 
     try {
-      return await apiRequest(`/inventory/items/${id}/adjust`, {
-        method: "POST",
+      return await apiRequest(`/inventory/${id}/stock`, {
+        method: "PATCH",
         body: JSON.stringify({
-          quantity,
-          reason: reasonString.trim(),
-
-          ...(typeof data === "object" &&
-            data !== null && {
-              type: data.type,
-              previous: data.previous,
-              new: data.new,
-              performed_by: data.performed_by,
-              role: data.role,
-              user_id: data.user_id,
-            }),
+          type,
+          quantity: Number(quantity),
+          reason,
         }),
       });
     } catch (error) {

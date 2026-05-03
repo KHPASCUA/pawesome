@@ -111,27 +111,18 @@ const StockAdjustmentModal = ({ isOpen, onClose, item, onSuccess }) => {
           newStock = currentStock;
       }
 
-      // Calculate adjustment amount for clearer API call
-      const adjustmentAmount = newStock - currentStock;
       const finalReason = reason === "Other" ? customReason : reason;
 
-      // Use the adjustStock API with enhanced audit data + user tracking
-      await inventoryApi.adjustStock(item.id, adjustmentAmount, {
-        reason: finalReason,
-        type: adjustmentType,
-        previous: currentStock,
-        new: newStock,
-        performed_by: localStorage.getItem("name") || localStorage.getItem("username") || "System",
-        role: localStorage.getItem("role") || "Staff",
-        user_id: localStorage.getItem("user_id") || null,
-      });
+      // Use the adjustStock API: (id, type, quantity, reason)
+      // For "set", quantity is the final value. For "add"/"remove", quantity is the adjustment amount.
+      await inventoryApi.adjustStock(item.id, adjustmentType, qty, finalReason);
 
       // Trigger notification if stock is now low or out of stock
       await createStockNotification(newStock);
 
       // Refresh UI and close modal
-      await onSuccess?.();
-      onClose?.();
+      if (onSuccess) await onSuccess();
+      if (onClose) onClose();
     } catch (err) {
       console.error("Stock adjustment failed:", err);
       setError(err.message || "Failed to adjust stock. Please try again.");
@@ -141,17 +132,17 @@ const StockAdjustmentModal = ({ isOpen, onClose, item, onSuccess }) => {
   };
 
   const getNewStockPreview = () => {
-    if (!quantity || isNaN(parseInt(quantity))) return item?.quantity || 0;
+    if (!quantity || isNaN(parseInt(quantity))) return currentStock;
     const qty = parseInt(quantity);
     switch (adjustmentType) {
       case "add":
-        return (item?.quantity || 0) + qty;
+        return currentStock + qty;
       case "remove":
-        return Math.max(0, (item?.quantity || 0) - qty);
+        return Math.max(0, currentStock - qty);
       case "set":
         return qty;
       default:
-        return item?.quantity || 0;
+        return currentStock;
     }
   };
 

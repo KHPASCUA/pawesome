@@ -8,8 +8,9 @@ use App\Models\InventoryLog;
 use App\Services\InventoryService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Str;
 use Illuminate\Validation\ValidationException;
 
 class InventoryController extends Controller
@@ -153,29 +154,40 @@ class InventoryController extends Controller
      */
     public function updateStock(Request $request, $id)
     {
-        $request->validate([
-            'quantity' => 'required|numeric',
-            'stock' => 'nullable|numeric',
-            'reason' => 'nullable|string',
+        $validated = $request->validate([
+            'type' => 'required|in:add,remove,set',
+            'quantity' => 'required|integer|min:0',
+            'reason' => 'nullable|string|max:255',
         ]);
 
         try {
             $item = InventoryItem::findOrFail($id);
-            $adjustment = (int) $request->quantity;
-            $currentStock = $item->stock ?? $item->quantity ?? 0;
-            $newStock = $request->stock ?? max(0, $currentStock + $adjustment);
+            $current = (int) ($item->quantity ?? $item->stock ?? 0);
+            $qty = (int) $validated['quantity'];
 
-            $item->stock = $newStock;
-            $item->quantity = $newStock; // Sync both fields
+            if ($validated['type'] === 'add') {
+                $newStock = $current + $qty;
+            } elseif ($validated['type'] === 'remove') {
+                $newStock = max(0, $current - $qty);
+            } else {
+                $newStock = $qty;
+            }
+
+            $item->quantity = $newStock;
+
+            if (Schema::hasColumn($item->getTable(), 'stock')) {
+                $item->stock = $newStock;
+            }
+
             $item->save();
 
             // Log the adjustment
             InventoryLog::create([
                 'inventory_item_id' => $item->id,
-                'delta' => $adjustment,
-                'reason' => $request->reason ?? 'Manual stock adjustment',
-                'reference_type' => 'adjustment',
-                'previous_stock' => $currentStock,
+                'delta' => $newStock - $current,
+                'reason' => $validated['reason'] ?? 'Manual stock adjustment',
+                'reference_type' => $validated['type'],
+                'previous_stock' => $current,
                 'new_stock' => $newStock,
                 'performed_by' => auth()->user()->name ?? 'System',
                 'role' => auth()->user()->role ?? 'Staff',
@@ -186,9 +198,9 @@ class InventoryController extends Controller
                 'success' => true,
                 'message' => 'Stock adjusted successfully',
                 'item' => $item->fresh(),
-                'previous_stock' => $currentStock,
+                'previous_stock' => $current,
                 'new_stock' => $newStock,
-                'adjustment' => $adjustment,
+                'adjustment' => $newStock - $current,
             ]);
         } catch (\Exception $e) {
             return response()->json(['errors' => [$e->getMessage()]], 422);
