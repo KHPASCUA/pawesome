@@ -82,50 +82,29 @@ const StockAdjustmentModal = ({ isOpen, onClose, item, onSuccess }) => {
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const validationError = validateForm();
-    if (validationError) {
-      setError(validationError);
+  const handleSubmit = async () => {
+    if (Number(quantity) <= 0) {
+      alert("Please enter quantity greater than 0.");
+      return;
+    }
+
+    if (!reason) {
+      alert("Please select a reason.");
       return;
     }
 
     setLoading(true);
-    setError(null);
 
     try {
-      const qty = parseInt(quantity);
-      let newStock;
-
-      switch (adjustmentType) {
-        case "add":
-          newStock = currentStock + qty;
-          break;
-        case "remove":
-          newStock = Math.max(0, currentStock - qty);
-          break;
-        case "set":
-          newStock = qty;
-          break;
-        default:
-          newStock = currentStock;
-      }
-
       const finalReason = reason === "Other" ? customReason : reason;
 
-      // Use the adjustStock API: (id, type, quantity, reason)
-      // For "set", quantity is the final value. For "add"/"remove", quantity is the adjustment amount.
-      await inventoryApi.adjustStock(item.id, adjustmentType, qty, finalReason);
+      await inventoryApi.adjustStock(item.id, adjustmentType, Number(quantity), finalReason);
 
-      // Trigger notification if stock is now low or out of stock
-      await createStockNotification(newStock);
-
-      // Refresh UI and close modal
-      if (onSuccess) await onSuccess();
-      if (onClose) onClose();
+      await onSuccess?.();
+      onClose?.();
     } catch (err) {
       console.error("Stock adjustment failed:", err);
-      setError(err.message || "Failed to adjust stock. Please try again.");
+      alert(err.message || "Failed to adjust stock. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -413,27 +392,23 @@ const StockAdjustmentModal = ({ isOpen, onClose, item, onSuccess }) => {
             </div>
           </div>
 
-          <div className="modal-footer">
-            <button type="button" className="btn-secondary" onClick={handleClose} disabled={loading}>
+          <div className="adjust-stock-footer">
+            <button
+              type="button"
+              className="cancel-adjustment-btn"
+              onClick={handleClose}
+              disabled={loading}
+            >
               Cancel
             </button>
+
             <button
-              type="submit"
-              className={`btn-primary ${adjustmentType}`}
+              type="button"
+              className="save-adjustment-btn"
+              onClick={handleSubmit}
               disabled={loading || !quantity || !reason}
             >
-              {loading ? (
-                <>
-                  <span className="spinner"></span>
-                  Processing...
-                </>
-              ) : (
-                <>
-                  {adjustmentType === "add" && "➕ Add Stock"}
-                  {adjustmentType === "remove" && "➖ Remove Stock"}
-                  {adjustmentType === "set" && "📝 Set Stock Level"}
-                </>
-              )}
+              {loading ? "Processing..." : "Save Adjustment"}
             </button>
           </div>
         </form>
