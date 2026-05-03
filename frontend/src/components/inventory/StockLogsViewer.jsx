@@ -3,12 +3,16 @@ import { inventoryApi } from "../../api/inventory";
 import { generateInventoryAuditPdf } from "../../utils/inventoryAuditPdf";
 import "./StockLogsViewer.css";
 
-const StockLogsViewer = ({ itemId = null }) => {
+const StockLogsViewer = ({ itemId = null, filterAction = null, search = null }) => {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all"); // all, adjustment, sale, restock
   const [searchTerm, setSearchTerm] = useState("");
   const [dateRange, setDateRange] = useState({ start: "", end: "" });
+
+  // Use external props if provided, otherwise use internal state
+  const activeFilter = filterAction !== null ? filterAction.toLowerCase().replace(" ", "_") : filter;
+  const activeSearch = search !== null ? search : searchTerm;
 
   useEffect(() => {
     const fetchLogs = async () => {
@@ -106,12 +110,12 @@ const StockLogsViewer = ({ itemId = null }) => {
 
   const getFilteredLogs = () => {
     return logs.filter((log) => {
-      // Filter by action type
-      if (filter !== "all" && log.action !== filter) return false;
+      // Filter by action type (use external prop if provided)
+      if (activeFilter !== "all" && log.action !== activeFilter) return false;
 
-      // Filter by search term
-      if (searchTerm) {
-        const search = searchTerm.toLowerCase();
+      // Filter by search term (use external prop if provided)
+      if (activeSearch) {
+        const searchLower = activeSearch.toLowerCase();
         const searchable = [
           log.item_name,
           log.reason,
@@ -121,7 +125,7 @@ const StockLogsViewer = ({ itemId = null }) => {
           .filter(Boolean)
           .join(" ")
           .toLowerCase();
-        if (!searchable.includes(search)) return false;
+        if (!searchable.includes(searchLower)) return false;
       }
 
       // Filter by date range

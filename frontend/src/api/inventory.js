@@ -292,24 +292,39 @@ export const inventoryApi = {
    * @async
    * @param {string|number} id - Inventory item ID
    * @param {number} quantity - Quantity to adjust (positive or negative)
-   * @param {string} reason - Reason for the adjustment
+   * @param {string|Object} data - Reason string or object with reason + audit data
    * @returns {Promise<Object>} Updated item with adjustment record
    * @throws {Error} When validation fails or request fails
    */
-  adjustStock: async (id, quantity, reason) => {
+  adjustStock: async (id, quantity, data) => {
     validateId(id, "Item ID");
+
     if (typeof quantity !== "number" || isNaN(quantity)) {
       throw new Error("Quantity must be a valid number");
     }
-    if (!reason || typeof reason !== "string" || reason.trim().length === 0) {
+
+    const reasonString = typeof data === "string" ? data : data?.reason;
+
+    if (!reasonString || reasonString.trim().length === 0) {
       throw new Error("Reason is required for stock adjustment");
     }
+
     try {
       return await apiRequest(`/inventory/items/${id}/adjust`, {
         method: "POST",
         body: JSON.stringify({
           quantity,
-          reason: reason.trim(),
+          reason: reasonString.trim(),
+
+          ...(typeof data === "object" &&
+            data !== null && {
+              type: data.type,
+              previous: data.previous,
+              new: data.new,
+              performed_by: data.performed_by,
+              role: data.role,
+              user_id: data.user_id,
+            }),
         }),
       });
     } catch (error) {

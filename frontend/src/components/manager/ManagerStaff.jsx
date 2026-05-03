@@ -348,17 +348,6 @@ const ManagerStaff = () => {
     return { total, active, onLeave, avgPerformance };
   }, [staff]);
 
-  if (loading) {
-    return (
-      <div className="manager-staff loading">
-        <div className="loading-spinner">
-          <FontAwesomeIcon icon={faSpinner} className="spinning" />
-          <span>Loading staff data...</span>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="manager-staff">
       {/* Header */}
@@ -395,45 +384,54 @@ const ManagerStaff = () => {
         </div>
       </div>
 
-      {/* Statistics Cards */}
-      <div className="stats-grid">
-        <div className="stat-card">
-          <div className="stat-icon">
-            <FontAwesomeIcon icon={faUsers} />
+      {loading ? (
+        <div className="loading-state">
+          <div className="loading-spinner">
+            <FontAwesomeIcon icon={faSpinner} className="spinning" />
           </div>
-          <div className="stat-info">
-            <h3>{statistics.total}</h3>
-            <p>Total Staff</p>
-          </div>
+          <p>Loading staff data...</p>
         </div>
-        <div className="stat-card active">
-          <div className="stat-icon">
-            <FontAwesomeIcon icon={faUserCheck} />
+      ) : (
+        <>
+          {/* Statistics Cards */}
+          <div className="stats-grid">
+            <div className="stat-card">
+              <div className="stat-icon">
+                <FontAwesomeIcon icon={faUsers} />
+              </div>
+              <div className="stat-info">
+                <h3>{statistics.total}</h3>
+                <p>Total Staff</p>
+              </div>
+            </div>
+            <div className="stat-card active">
+              <div className="stat-icon">
+                <FontAwesomeIcon icon={faUserCheck} />
+              </div>
+              <div className="stat-info">
+                <h3>{statistics.active}</h3>
+                <p>Active</p>
+              </div>
+            </div>
+            <div className="stat-card leave">
+              <div className="stat-icon">
+                <FontAwesomeIcon icon={faCalendarAlt} />
+              </div>
+              <div className="stat-info">
+                <h3>{statistics.onLeave}</h3>
+                <p>On Leave</p>
+              </div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-icon">
+                <FontAwesomeIcon icon={faStar} />
+              </div>
+              <div className="stat-info">
+                <h3>{statistics.avgPerformance.toFixed(1)}</h3>
+                <p>Avg Performance</p>
+              </div>
+            </div>
           </div>
-          <div className="stat-info">
-            <h3>{statistics.active}</h3>
-            <p>Active</p>
-          </div>
-        </div>
-        <div className="stat-card leave">
-          <div className="stat-icon">
-            <FontAwesomeIcon icon={faCalendarAlt} />
-          </div>
-          <div className="stat-info">
-            <h3>{statistics.onLeave}</h3>
-            <p>On Leave</p>
-          </div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon">
-            <FontAwesomeIcon icon={faStar} />
-          </div>
-          <div className="stat-info">
-            <h3>{statistics.avgPerformance.toFixed(1)}</h3>
-            <p>Avg Performance</p>
-          </div>
-        </div>
-      </div>
 
       {/* Search and Filters */}
       <div className="search-filters">
@@ -823,6 +821,8 @@ const ManagerStaff = () => {
             </div>
           </div>
         </div>
+      )}
+        </>
       )}
     </div>
   );

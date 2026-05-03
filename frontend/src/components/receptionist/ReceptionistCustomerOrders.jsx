@@ -134,10 +134,6 @@ export default function ReceptionistCustomerOrders() {
     return colors[status] || "#6b7280";
   };
 
-  if (loading) {
-    return <div className="loading">Loading orders...</div>;
-  }
-
   return (
     <div className="customer-orders">
       <div className="orders-header">
@@ -170,7 +166,12 @@ export default function ReceptionistCustomerOrders() {
         </select>
       </div>
 
-      {filteredOrders.length === 0 ? (
+      {loading ? (
+        <div className="loading-state">
+          <div className="loading-spinner"></div>
+          <p>Loading orders...</p>
+        </div>
+      ) : filteredOrders.length === 0 ? (
         <div className="no-orders">
           <p>No matching orders found.</p>
         </div>

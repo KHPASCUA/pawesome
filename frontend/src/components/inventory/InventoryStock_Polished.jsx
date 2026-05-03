@@ -25,17 +25,11 @@ const InventoryStock = () => {
         setLoading(true);
         const response = await inventoryApi.getItems();
         const apiItems = response.items || response.data || [];
-        
-        if (apiItems.length > 0) {
-          setItems(apiItems);
-          setUsingDemoData(false);
-        } else {
-          // Empty API response - use demo data
-          setItems(demoItems);
-          setUsingDemoData(true);
-        }
+        setItems(apiItems);
+        setUsingDemoData(false);
       } catch (err) {
         console.error("Stock API failed, using demo:", err);
+        // Only use demo data on API failure, not empty response
         setItems(demoItems);
         setUsingDemoData(true);
       } finally {
@@ -66,13 +60,16 @@ const InventoryStock = () => {
     return () => clearInterval(interval);
   }, []);
 
+  // Helper to get stock value from multiple possible field names
+  const getStock = (item) => Number(item.stock ?? item.quantity ?? item.stock_quantity ?? item.current_stock ?? 0);
+
   // Calculate stats
   const stats = useMemo(() => {
     const totalItems = items.length;
-    const totalQuantity = items.reduce((sum, item) => sum + (item.quantity || 0), 0);
-    const totalValue = items.reduce((sum, item) => sum + ((item.quantity || 0) * (item.price || 0)), 0);
-    const lowStock = items.filter(item => (item.quantity || 0) <= 10 && (item.quantity || 0) > 0).length;
-    const outOfStock = items.filter(item => (item.quantity || 0) === 0).length;
+    const totalQuantity = items.reduce((sum, item) => sum + getStock(item), 0);
+    const totalValue = items.reduce((sum, item) => sum + (getStock(item) * (item.price || 0)), 0);
+    const lowStock = items.filter(item => getStock(item) <= 10 && getStock(item) > 0).length;
+    const outOfStock = items.filter(item => getStock(item) === 0).length;
     const expiringSoon = items.filter(item => {
       if (!item.expiration) return false;
       const exp = new Date(item.expiration);
@@ -94,9 +91,9 @@ const InventoryStock = () => {
       
       const matchesStatus = 
         filterStatus === "all" || 
-        (filterStatus === "low" && (item.quantity || 0) <= 10 && (item.quantity || 0) > 0) ||
-        (filterStatus === "out" && (item.quantity || 0) === 0) ||
-        (filterStatus === "good" && (item.quantity || 0) > 10);
+        (filterStatus === "low" && getStock(item) <= 10 && getStock(item) > 0) ||
+        (filterStatus === "out" && getStock(item) === 0) ||
+        (filterStatus === "good" && getStock(item) > 10);
       
       return matchesSearch && matchesStatus;
     });
@@ -154,24 +151,21 @@ const InventoryStock = () => {
     setShowAdjustModal(true);
   };
 
-  const handleAdjustSuccess = () => {
+  const handleAdjustSuccess = async () => {
     // Refresh items after adjustment
-    const fetchItems = async () => {
-      try {
-        const response = await inventoryApi.getItems();
-        const apiItems = response.items || response.data || [];
-        if (apiItems.length > 0) {
-          setItems(apiItems);
-          setUsingDemoData(false);
-        } else {
-          setItems(demoItems);
-          setUsingDemoData(true);
-        }
-      } catch (err) {
-        console.error("Stock refresh failed:", err);
+    try {
+      const response = await inventoryApi.getItems();
+      const apiItems = response.items || response.data || [];
+      if (apiItems.length > 0) {
+        setItems(apiItems);
+        setUsingDemoData(false);
+      } else {
+        setItems(demoItems);
+        setUsingDemoData(true);
       }
-    };
-    fetchItems();
+    } catch (err) {
+      console.error("Stock refresh failed:", err);
+    }
     setSelectedItem(null);
   };
 
@@ -192,7 +186,7 @@ const InventoryStock = () => {
           message:
             type === "out"
               ? `${item.name} is out of stock.`
-              : `${item.name} is running low. Current stock: ${item.quantity}`,
+              : `${item.name} is running low. Current stock: ${getStock(item)}`,
           module: "Inventory",
           type,
           priority: type === "out" ? "high" : "medium",
@@ -213,7 +207,7 @@ const InventoryStock = () => {
     );
 
     items.forEach((item) => {
-      const quantity = item.quantity || 0;
+      const quantity = getStock(item);
 
       if (quantity === 0 && notified[item.id] !== "out") {
         createInventoryNotification(item, "out");
@@ -334,96 +328,98 @@ const InventoryStock = () => {
         </div>
       </div>
 
-      {/* Loading */}
-      {loading && (
-        <div className="loading-overlay">
-          <div className="spinner"></div>
-          <p>Loading stock...</p>
-        </div>
-      )}
-
       {/* Stock Table */}
       <div className="stock-table-container">
-        <table className="stock-table polished">
-          <thead>
-            <tr>
-              <th>Product</th>
-              <th>SKU</th>
-              <th>Stock Level</th>
-              <th className="numeric">Qty</th>
-              <th>Expiration</th>
-              <th>Status</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredItems.map((item) => {
-              const badge = getStatusBadge(item.quantity || 0);
-              const bar = getQuantityBar(item.quantity || 0);
-              const isExpiring = item.expiration && new Date(item.expiration) <= new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-              
-              return (
-                <tr key={item.id} className={badge.class}>
-                  <td>
-                    <div className="product-cell">
-                      <span className="product-name">{item.name}</span>
-                      <span className="product-brand">{item.brand || "No Brand"}</span>
-                    </div>
-                  </td>
-                  <td>
-                    <code className="sku-code">{item.sku}</code>
-                  </td>
-                  <td>
-                    <div className="stock-level">
-                      <div className="stock-bar-bg">
-                        <div 
-                          className="stock-bar-fill" 
-                          style={{ width: bar.width, backgroundColor: bar.color }}
-                        ></div>
-                      </div>
-                      <small className="stock-percentage">{Math.round(bar.percentage)}%</small>
-                    </div>
-                  </td>
-                  <td className="numeric">
-                    <span className="quantity-value">{item.quantity || 0}</span>
-                  </td>
-                  <td>
-                    <span className={`expiration ${isExpiring ? "expiring-soon" : ""}`}>
-                      {item.expiration || "N/A"}
-                      {isExpiring && " ⚠️"}
-                    </span>
-                    {item.last_updated && (
-                      <small className="last-updated">
-                        Updated: {new Date(item.last_updated).toLocaleTimeString()}
-                      </small>
-                    )}
-                  </td>
-                  <td>
-                    <span className={`status-badge ${badge.class}`}>
-                      <span className="badge-icon">{badge.icon}</span>
-                      {badge.label}
-                    </span>
-                  </td>
-                  <td>
-                    <button 
-                      className="btn-adjust"
-                      onClick={() => handleAdjustClick(item)}
-                    >
-                      ⚖️ Adjust
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-
-        {filteredItems.length === 0 && !loading && (
-          <div className="empty-state">
-            <div className="empty-icon">📦</div>
-            <h3>No stock items found</h3>
-            <p>Try adjusting your search or filters</p>
+        {loading ? (
+          <div className="table-loading">
+            <div className="spinner"></div>
+            <p>Loading stock...</p>
           </div>
+        ) : (
+          <>
+            <table className="stock-table polished">
+              <thead>
+                <tr>
+                  <th>Product</th>
+                  <th>SKU</th>
+                  <th>Stock Level</th>
+                  <th className="numeric">Qty</th>
+                  <th>Expiration</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredItems.map((item) => {
+                  const stockValue = getStock(item);
+                  const badge = getStatusBadge(stockValue);
+                  const bar = getQuantityBar(stockValue);
+                  const isExpiring = item.expiration && new Date(item.expiration) <= new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+                  
+                  return (
+                    <tr key={item.id} className={badge.class}>
+                      <td>
+                        <div className="product-cell">
+                          <span className="product-name">{item.name}</span>
+                          <span className="product-brand">{item.brand || "No Brand"}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <code className="sku-code">{item.sku}</code>
+                      </td>
+                      <td>
+                        <div className="stock-level">
+                          <div className="stock-bar-bg">
+                            <div 
+                              className="stock-bar-fill" 
+                              style={{ width: bar.width, backgroundColor: bar.color }}
+                            ></div>
+                          </div>
+                          <small className="stock-percentage">{Math.round(bar.percentage)}%</small>
+                        </div>
+                      </td>
+                      <td className="numeric">
+                        <span className="quantity-value">{stockValue}</span>
+                      </td>
+                      <td>
+                        <span className={`expiration ${isExpiring ? "expiring-soon" : ""}`}>
+                          {item.expiration || "N/A"}
+                          {isExpiring && " ⚠️"}
+                        </span>
+                        {item.last_updated && (
+                          <small className="last-updated">
+                            Updated: {new Date(item.last_updated).toLocaleTimeString()}
+                          </small>
+                        )}
+                      </td>
+                      <td>
+                        <span className={`status-badge ${badge.class}`}>
+                          <span className="badge-icon">{badge.icon}</span>
+                          {badge.label}
+                        </span>
+                      </td>
+                      <td>
+                        <button 
+                          className="btn-adjust"
+                          onClick={() => handleAdjustClick(item)}
+                        >
+                          ⚖️ Adjust
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+
+            {filteredItems.length === 0 && (
+              <div className="empty-state">
+                <div className="empty-icon">📦</div>
+                <h3>No stock items found</h3>
+                <p>Try adjusting your search or filters</p>
+              </div>
+            )}
+          </>
         )}
       </div>
 

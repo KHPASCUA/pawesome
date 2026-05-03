@@ -132,7 +132,15 @@ class InventoryController extends Controller
             $result = $this->inventoryService->adjustStock(
                 $id,
                 $request->quantity,
-                $request->reason
+                $request->reason,
+                [
+                    'type' => $request->type,
+                    'previous' => $request->previous,
+                    'new' => $request->new,
+                    'performed_by' => $request->performed_by,
+                    'role' => $request->role,
+                    'user_id' => $request->user_id,
+                ]
             );
             return response()->json($result);
         } catch (\Exception $e) {

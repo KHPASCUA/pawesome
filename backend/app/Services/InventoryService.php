@@ -137,7 +137,7 @@ class InventoryService
     /**
      * Adjust stock for an item
      */
-    public function adjustStock(int $id, int $quantity, string $reason): array
+    public function adjustStock(int $id, int $quantity, string $reason, ?array $auditData = null): array
     {
         $item = InventoryItem::findOrFail($id);
 
@@ -146,10 +146,22 @@ class InventoryService
             throw new \Exception('Adjustment would result in negative stock');
         }
 
+        $previousStock = $item->stock;
         $item->increment('stock', $quantity);
+        $newStock = $item->fresh()->stock;
 
-        // Log the adjustment
-        $this->logStockChange($item->id, $quantity, $reason, 'adjustment');
+        // Log the adjustment with audit data
+        InventoryLog::create([
+            'inventory_item_id' => $item->id,
+            'delta' => $quantity,
+            'reason' => $reason,
+            'reference_type' => $auditData['type'] ?? 'adjustment',
+            'previous_stock' => $auditData['previous'] ?? $previousStock,
+            'new_stock' => $auditData['new'] ?? $newStock,
+            'performed_by' => $auditData['performed_by'] ?? null,
+            'role' => $auditData['role'] ?? null,
+            'user_id' => $auditData['user_id'] ?? null,
+        ]);
 
         // Check for low/out of stock and create notifications
         $this->checkAndCreateStockNotifications($item->fresh());
@@ -157,6 +169,9 @@ class InventoryService
         return [
             'message' => 'Stock adjusted successfully',
             'item' => $item->fresh(),
+            'previous_stock' => $previousStock,
+            'new_stock' => $newStock,
+            'adjustment' => $quantity,
         ];
     }
 

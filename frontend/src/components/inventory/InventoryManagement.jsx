@@ -71,6 +71,8 @@ const InventoryManagement = () => {
   const [showModal, setShowModal] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [formData, setFormData] = useState(INITIAL_FORM_DATA);
+  const [formTouched, setFormTouched] = useState({});
+  const [saving, setSaving] = useState(false);
   
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
@@ -203,10 +205,34 @@ const InventoryManagement = () => {
     }));
   };
 
+  // Validate form
+  const validateForm = () => {
+    const errors = {};
+
+    if (!formData.name?.trim()) errors.name = "Product name is required";
+    if (!formData.sku?.trim()) errors.sku = "SKU is required";
+    if (!formData.category?.trim()) errors.category = "Category is required";
+    if (formData.price === "" || Number(formData.price) < 0) errors.price = "Valid price is required";
+    if (formData.stock_quantity === "" || Number(formData.stock_quantity) < 0) {
+      errors.stock_quantity = "Valid stock quantity is required";
+    }
+
+    return errors;
+  };
+
+  const formErrors = validateForm();
+  const isFormValid = Object.keys(formErrors).length === 0;
+
+  const handleBlur = (e) => {
+    const { name } = e.target;
+    setFormTouched((prev) => ({ ...prev, [name]: true }));
+  };
+
   // Open modal for new item
   const handleAddNew = () => {
     setEditingItem(null);
     setFormData(INITIAL_FORM_DATA);
+    setFormTouched({});
     setShowModal(true);
   };
 
@@ -226,15 +252,27 @@ const InventoryManagement = () => {
       expiration_date: item.expiration_date || item.expiration || '',
       location: item.location || ''
     });
+    setFormTouched({});
     setShowModal(true);
   };
 
   // Save item (create or update)
   const handleSave = async (e) => {
     e.preventDefault();
+
+    if (!isFormValid) {
+      setFormTouched({
+        name: true,
+        sku: true,
+        category: true,
+        price: true,
+        stock_quantity: true,
+      });
+      return;
+    }
     
     try {
-      setLoading(true);
+      setSaving(true);
       
       if (editingItem) {
         // Update existing item
@@ -243,36 +281,37 @@ const InventoryManagement = () => {
         // Create new item
         await inventoryApi.createItem(formData);
       }
-      
-      // Refresh data
+
       await fetchInventory();
+
       setShowModal(false);
       setFormData(INITIAL_FORM_DATA);
       setEditingItem(null);
-      
+      setFormTouched({});
+
       addActivityLog(
-        editingItem ? 'update' : 'create',
+        editingItem ? "update" : "create",
         editingItem
-          ? `${formData.name} was updated.` 
-          : `${formData.name} was added to inventory.` 
+          ? `${formData.name} was updated.`
+          : `${formData.name} was added to inventory.`
       );
-      
+
       setToast({
         show: true,
-        type: 'success',
-        title: editingItem ? 'Item Updated' : 'Item Created',
-        message: `Item ${editingItem ? 'updated' : 'created'} successfully! All dashboards will sync automatically.`
+        type: "success",
+        title: editingItem ? "Item Updated" : "Item Created",
+        message: `Item ${editingItem ? "updated" : "created"} successfully!`,
       });
     } catch (err) {
       console.error('Failed to save item:', err);
       setToast({
         show: true,
-        type: 'error',
-        title: 'Save Failed',
-        message: `Failed to ${editingItem ? 'update' : 'create'} item: ${err.message}`
+        type: "error",
+        title: "Save Failed",
+        message: `Failed to ${editingItem ? "update" : "create"} item: ${err.message}`,
       });
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
@@ -547,38 +586,50 @@ const InventoryManagement = () => {
             
             <form onSubmit={handleSave} className="item-form">
               <div className="form-row">
-                <div className="form-group">
+                <div className={`form-group ${formTouched.name && formErrors.name ? "has-error" : ""}`}>
                   <label>Product Name *</label>
                   <input
                     type="text"
                     name="name"
                     value={formData.name}
                     onChange={handleInputChange}
+                    onBlur={handleBlur}
                     required
                     placeholder="e.g., Premium Dog Food 5kg"
+                    autoFocus
                   />
+                  {formTouched.name && formErrors.name && (
+                    <small className="form-error">{formErrors.name}</small>
+                  )}
                 </div>
-                <div className="form-group">
+                <div className={`form-group ${formTouched.sku && formErrors.sku ? "has-error" : ""}`}>
                   <label>SKU *</label>
                   <input
                     type="text"
                     name="sku"
                     value={formData.sku}
                     onChange={handleInputChange}
+                    onBlur={handleBlur}
                     required
                     placeholder="e.g., PDF-5KG-001"
                   />
+                  {formTouched.sku && formErrors.sku && (
+                    <small className="form-error">{formErrors.sku}</small>
+                  )}
                 </div>
               </div>
 
               <div className="form-row">
-                <div className="form-group">
+                <div className={`form-group ${formTouched.category && formErrors.category ? "has-error" : ""}`}>
                   <label>Category *</label>
-                  <select name="category" value={formData.category} onChange={handleInputChange} required>
+                  <select name="category" value={formData.category} onChange={handleInputChange} onBlur={handleBlur} required>
                     {CATEGORIES.map(cat => (
                       <option key={cat.value} value={cat.value}>{cat.icon} {cat.label}</option>
                     ))}
                   </select>
+                  {formTouched.category && formErrors.category && (
+                    <small className="form-error">{formErrors.category}</small>
+                  )}
                 </div>
                 <div className="form-group">
                   <label>Location</label>
@@ -593,30 +644,38 @@ const InventoryManagement = () => {
               </div>
 
               <div className="form-row">
-                <div className="form-group">
+                <div className={`form-group ${formTouched.price && formErrors.price ? "has-error" : ""}`}>
                   <label>Price (₱) *</label>
                   <input
                     type="number"
                     name="price"
                     value={formData.price}
                     onChange={handleInputChange}
+                    onBlur={handleBlur}
                     required
                     min="0"
                     step="0.01"
                     placeholder="0.00"
                   />
+                  {formTouched.price && formErrors.price && (
+                    <small className="form-error">{formErrors.price}</small>
+                  )}
                 </div>
-                <div className="form-group">
+                <div className={`form-group ${formTouched.stock_quantity && formErrors.stock_quantity ? "has-error" : ""}`}>
                   <label>Stock Quantity *</label>
                   <input
                     type="number"
                     name="stock_quantity"
                     value={formData.stock_quantity}
                     onChange={handleInputChange}
+                    onBlur={handleBlur}
                     required
                     min="0"
                     placeholder="0"
                   />
+                  {formTouched.stock_quantity && formErrors.stock_quantity && (
+                    <small className="form-error">{formErrors.stock_quantity}</small>
+                  )}
                 </div>
               </div>
 
@@ -681,9 +740,9 @@ const InventoryManagement = () => {
                 <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-primary" disabled={loading}>
+                <button type="submit" className="btn btn-primary" disabled={saving || !isFormValid}>
                   <FontAwesomeIcon icon={faSave} />
-                  {loading ? 'Saving...' : (editingItem ? 'Update Item' : 'Create Item')}
+                  {saving ? 'Saving...' : (editingItem ? 'Update Item' : 'Create Item')}
                 </button>
               </div>
             </form>
