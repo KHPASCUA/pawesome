@@ -99,6 +99,7 @@ Route::middleware(['auth.api', 'throttle:api', 'role:admin'])->prefix('admin')->
     Route::delete('inventory/items/{id}', [InventoryController::class, 'destroy']); // Frontend compatibility
     Route::post('inventory/{id}/adjust-stock', [InventoryController::class, 'adjustStock']);
     Route::post('inventory/items/{id}/adjust', [InventoryController::class, 'adjustStock']); // Frontend compatibility
+    Route::patch('inventory/{id}/stock', [InventoryController::class, 'updateStock']); // Simple stock update
     Route::get('inventory/{id}/history', [InventoryController::class, 'stockHistory']);
     Route::get('inventory/items/{id}/logs', [InventoryController::class, 'stockHistory']);
     Route::get('inventory/history', [InventoryController::class, 'getHistory']); // Frontend compatibility

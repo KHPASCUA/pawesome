@@ -149,6 +149,53 @@ class InventoryController extends Controller
     }
 
     /**
+     * Simple stock update (for PATCH /inventory/{id}/stock)
+     */
+    public function updateStock(Request $request, $id)
+    {
+        $request->validate([
+            'quantity' => 'required|numeric',
+            'stock' => 'nullable|numeric',
+            'reason' => 'nullable|string',
+        ]);
+
+        try {
+            $item = InventoryItem::findOrFail($id);
+            $adjustment = (int) $request->quantity;
+            $currentStock = $item->stock ?? $item->quantity ?? 0;
+            $newStock = $request->stock ?? max(0, $currentStock + $adjustment);
+
+            $item->stock = $newStock;
+            $item->quantity = $newStock; // Sync both fields
+            $item->save();
+
+            // Log the adjustment
+            InventoryLog::create([
+                'inventory_item_id' => $item->id,
+                'delta' => $adjustment,
+                'reason' => $request->reason ?? 'Manual stock adjustment',
+                'reference_type' => 'adjustment',
+                'previous_stock' => $currentStock,
+                'new_stock' => $newStock,
+                'performed_by' => auth()->user()->name ?? 'System',
+                'role' => auth()->user()->role ?? 'Staff',
+                'user_id' => auth()->id(),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Stock adjusted successfully',
+                'item' => $item->fresh(),
+                'previous_stock' => $currentStock,
+                'new_stock' => $newStock,
+                'adjustment' => $adjustment,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['errors' => [$e->getMessage()]], 422);
+        }
+    }
+
+    /**
      * Get low stock items (reorder alerts)
      */
     public function lowStock()
