@@ -11,7 +11,7 @@ const Grooming = lazy(() => import("../components/receptionist/ReceptionistGroom
 const ReceptionistBookings = lazy(() => import("../components/receptionist/ReceptionistBookings"));
 const CustomerManagement = lazy(() => import("../components/receptionist/ReceptionistCustomerManagement"));
 const CustomersProfile = lazy(() => import("../components/receptionist/ReceptionistCustomersProfile"));
-const ReceptionistProfile = lazy(() => import("../components/receptionist/ReceptionistProfile"));
+const ProfileSettings = lazy(() => import("../components/shared/ProfileSettings"));
 const AppointmentList = lazy(() => import("../components/receptionist/ReceptionistAppointmentList"));
 const CheckInForm = lazy(() => import("../components/receptionist/ReceptionistCheckInForm"));
 const CheckOutForm = lazy(() => import("../components/receptionist/ReceptionistCheckOutForm"));
@@ -48,7 +48,7 @@ const ReceptionistRoutes = () => (
         <Route path="customers" element={<CustomerManagement />} />
         <Route path="orders" element={<CustomerOrders />} />
         <Route path="approvals" element={<Approvals />} />
-        <Route path="profile" element={<ReceptionistProfile />} />
+        <Route path="profile" element={<ProfileSettings />} />
         <Route path="reports" element={<Reports />} />
       </Route>
       <Route

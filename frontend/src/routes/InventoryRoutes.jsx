@@ -6,7 +6,7 @@ import InventoryProducts from "../components/inventory/InventoryProducts";
 import InventoryStock from "../components/inventory/InventoryStock_Polished";
 import InventoryReports from "../components/inventory/InventoryReports";
 import InventoryHistory from "../components/inventory/InventoryHistory_Polished";
-import InventoryProfile from "../components/inventory/InventoryProfile";
+import ProfileSettings from "../components/shared/ProfileSettings";
 import InventoryManagement from "../components/inventory/InventoryManagement";
 
 const InventoryRoutes = () => (
@@ -26,7 +26,7 @@ const InventoryRoutes = () => (
       <Route path="history" element={<InventoryHistory />} />
       <Route path="analytics" element={<InventoryReports />} />
       <Route path="reports" element={<InventoryReports />} />
-      <Route path="profile" element={<InventoryProfile />} />
+      <Route path="profile" element={<ProfileSettings />} />
     </Route>
   </Routes>
 );

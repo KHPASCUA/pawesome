@@ -10,7 +10,7 @@ import CustomerPets from "../components/customers/CustomerPets";
 import CustomerStore from "../components/customers/CustomerStore";
 import CustomerChatbot from "../components/customers/CustomerChatbot";
 import CustomerUserInfo from "../components/customers/CustomerUserInfo";
-import CustomerProfile from "../components/customers/CustomerProfile";
+import ProfileSettings from "../components/shared/ProfileSettings";
 import CustomerPayments from "../components/customers/CustomerPayments";
 import HotelForm from "../components/customers/HotelForm";
 import GroomingForm from "../components/customers/GroomingForm";
@@ -42,7 +42,7 @@ const CustomerRoutes = () => (
       <Route path="store" element={<CustomerStore />} />
       <Route path="chatbot" element={<CustomerChatbot />} />
       <Route path="userinfo" element={<CustomerUserInfo />} />
-      <Route path="profile" element={<CustomerProfile />} />
+      <Route path="profile" element={<ProfileSettings />} />
       <Route path="history" element={<CustomerReports />} />
 
       {/* Nested under reports */}

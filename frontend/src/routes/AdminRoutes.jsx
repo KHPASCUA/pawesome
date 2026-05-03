@@ -9,7 +9,7 @@ const ManageUsers = lazy(() => import("../components/admin/ManageUsers"));
 const CreateUser = lazy(() => import("../components/admin/CreateUser"));
 const History = lazy(() => import("../components/admin/History"));
 const Attendance = lazy(() => import("../components/admin/Attendance"));
-const AdminProfile = lazy(() => import("../components/admin/AdminProfile"));
+const ProfileSettings = lazy(() => import("../components/shared/ProfileSettings"));
 const ChatbotLogs = lazy(() => import("../components/admin/ChatbotLogs"));
 const AdminSettings = lazy(() => import("../components/admin/AdminSettings"));
 
@@ -47,7 +47,7 @@ const AdminRoutes = () => (
         <Route index element={<AdminReports />} />
 
         {/* Core admin routes */}
-        <Route path="profile" element={<AdminProfile />} />
+        <Route path="profile" element={<ProfileSettings />} />
         <Route path="users" element={<ManageUsers />} />
         <Route path="users/create" element={<CreateUser />} />
         <Route path="reports" element={<AdminReports />} />

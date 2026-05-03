@@ -6,7 +6,9 @@ import {
   faEye, faEyeSlash, faSpinner, faExclamationTriangle,
   faCheckCircle, faMapMarkerAlt, faPhone, faEnvelope,
   faShieldAlt, faCalendarAlt, faPencilAlt, faKey,
-  faIdBadge, faGlobe, faHeart, faStore,
+  faIdBadge, faGlobe, faHeart, faStore, faShoppingCart,
+  faCashRegister, faHistory, faCreditCard, faBell,
+  faCog, faPalette, faLanguage, faMoon, faSun,
 } from "@fortawesome/free-solid-svg-icons";
 import { apiRequest } from "../../api/client";
 import styled, { createGlobalStyle, keyframes } from "styled-components";
@@ -44,7 +46,7 @@ const THEME = {
 };
 
 /* ─────────────────────────────────────────────────────────────
-   Styled Components - No CSS File Needed
+   Styled Components
 ───────────────────────────────────────────────────────────── */
 const GlobalStyle = createGlobalStyle`
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
@@ -608,16 +610,93 @@ const PasswordRequirements = styled.div`
   margin-top: 8px;
 `;
 
+const SettingsGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 16px;
+`;
+
+const SettingItem = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.5);
+  border: 1px solid ${THEME.glassBorder};
+  transition: all 0.3s ease;
+  
+  &:hover {
+    background: rgba(255,255,255,0.8);
+    border-color: ${THEME.primary};
+  }
+`;
+
+const SettingLabel = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: ${THEME.textPrimary};
+`;
+
+const ToggleSwitch = styled.label`
+  position: relative;
+  width: 48px;
+  height: 24px;
+  cursor: pointer;
+  
+  input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+  
+  .slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: ${THEME.textMuted};
+    transition: .4s;
+    border-radius: 24px;
+    
+    &:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+  }
+  
+  input:checked + .slider {
+    background-color: ${THEME.primary};
+  }
+  
+  input:checked + .slider:before {
+    transform: translateX(24px);
+  }
+`;
+
 /* ─────────────────────────────────────────────────────────────
    Component
 ───────────────────────────────────────────────────────────── */
-const AdminProfile = () => {
+const ProfileSettings = () => {
   const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [userRole, setUserRole] = useState("");
 
   const [profileData, setProfileData] = useState({
     id: null,
@@ -642,20 +721,76 @@ const AdminProfile = () => {
     profileImage: null,
   });
 
-  // Auto-login for admin if no token exists
-  const autoLoginAdmin = async () => {
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+
+  const [showPasswords, setShowPasswords] = useState({
+    currentPassword: false,
+    newPassword: false,
+    confirmPassword: false,
+  });
+
+  const [pwLoading, setPwLoading] = useState(false);
+
+  // Role-specific settings
+  const [settings, setSettings] = useState({
+    emailNotifications: true,
+    pushNotifications: false,
+    darkMode: false,
+    language: "en",
+    autoSave: true,
+    twoFactorAuth: false,
+  });
+
+  // Get role-specific icons and titles
+  const getRoleConfig = (role) => {
+    const configs = {
+      admin: {
+        icon: faShieldAlt,
+        title: "Admin Profile",
+        subtitle: "Manage your admin account and system settings",
+        showAdvancedSettings: true,
+        showAccountDetails: true,
+        showPasswordChange: true,
+      },
+      customer: {
+        icon: faUser,
+        title: "My Profile",
+        subtitle: "Manage your personal information and preferences",
+        showAdvancedSettings: false,
+        showAccountDetails: true,
+        showPasswordChange: true,
+      },
+      cashier: {
+        icon: faCashRegister,
+        title: "Cashier Profile",
+        subtitle: "Manage your cashier account and POS settings",
+        showAdvancedSettings: false,
+        showAccountDetails: true,
+        showPasswordChange: true,
+      },
+    };
+    return configs[role] || configs.customer;
+  };
+
+  // Auto-login function for testing
+  const autoLoginUser = async (role = "customer") => {
     try {
-      console.log("Attempting auto-login for admin...");
+      const credentials = {
+        admin: { email: "admin@example.com", password: "admin123" },
+        customer: { email: "customer@example.com", password: "customer123" },
+        cashier: { email: "cashier@example.com", password: "cashier123" },
+      };
+      
       const response = await apiRequest("/auth/login", {
         method: "POST",
-        body: JSON.stringify({
-          email: "admin@example.com",
-          password: "admin123"
-        })
+        body: JSON.stringify(credentials[role]),
       });
       
       if (response.user && response.token) {
-        console.log("Auto-login successful, storing token");
         localStorage.setItem("token", response.token);
         localStorage.setItem("role", response.user.role);
         localStorage.setItem("name", response.user.name);
@@ -663,97 +798,63 @@ const AdminProfile = () => {
         localStorage.setItem("email", response.user.email);
         return response.token;
       }
-    } catch (err) {
-      console.error("Auto-login failed:", err);
+    } catch {
       return null;
     }
   };
 
-  // Fetch current user profile from API
+  // Fetch user profile
   const fetchUserProfile = async () => {
-    console.log("=== Starting profile fetch ===");
-    
     try {
       setLoading(true);
       setError("");
-      
-      // Check if token exists
       let token = localStorage.getItem("token");
-      console.log("Token exists:", !!token);
-      console.log("Token value:", token);
+      const storedRole = localStorage.getItem("role") || "customer";
       
-      // If no token, try auto-login for admin
       if (!token) {
-        console.log("No token found, attempting auto-login");
-        token = await autoLoginAdmin();
-        
-        if (!token) {
-          setError("Authentication failed. Please use Test Login button.");
-          return;
-        }
+        token = await autoLoginUser(storedRole);
       }
       
-      // Get current user info from auth endpoint
-      console.log("Fetching user profile...");
+      if (!token) {
+        setError("Authentication failed. Please login again.");
+        return;
+      }
+
       const userData = await apiRequest("/auth/me");
-      console.log("User data received:", userData);
-      
-      // Validate that we got user data
       if (!userData || !userData.id) {
-        console.error("No user data received from API");
-        setError("Failed to load user profile. Please try logging in again.");
+        setError("Failed to load profile.");
         return;
       }
-      
-      // Set profile data if user exists
-      if (userData && userData.id) {
-        console.log("Setting profile data for user:", userData.email, userData.username, userData.id);
-        setProfileData({
-          id: userData.id,
-          name: userData.name || "",
-          first_name: userData.first_name || "",
-          middle_name: userData.middle_name || "",
-          last_name: userData.last_name || "",
-          email: userData.email || "",
-          username: userData.username || "",
-          phone: userData.phone || "",
-          address: userData.address || "",
-          city: userData.city || "",
-          state: userData.state || "",
-          zip_code: userData.zip_code || "",
-          country: userData.country || "",
-          bio: userData.bio || "",
-          role: userData.role || "",
-          is_active: userData.is_active !== undefined ? userData.is_active : true,
-          created_at: userData.created_at || "",
-          updated_at: userData.updated_at || "",
-          profileImage: userData.profile_image || null,
-        });
-      } else {
-        console.error("No valid user data available");
-        setError("No user profile data available. Please use Test Login button.");
-      }
+
+      setUserRole(userData.role || storedRole);
+      setProfileData({
+        id: userData.id,
+        name: userData.name || "",
+        first_name: userData.first_name || "",
+        middle_name: userData.middle_name || "",
+        last_name: userData.last_name || "",
+        email: userData.email || "",
+        username: userData.username || "",
+        phone: userData.phone || "",
+        address: userData.address || "",
+        city: userData.city || "",
+        state: userData.state || "",
+        zip_code: userData.zip_code || "",
+        country: userData.country || "",
+        bio: userData.bio || "",
+        role: userData.role || storedRole,
+        is_active: userData.is_active !== undefined ? userData.is_active : true,
+        created_at: userData.created_at || "",
+        updated_at: userData.updated_at || "",
+        profileImage: userData.profile_image || null,
+      });
     } catch (err) {
-      console.error("Profile fetch error:", err);
-      
-      // Handle different types of errors
-      if (err.message && err.message.includes('401')) {
-        setError("Authentication expired. Please log in again.");
+      if (err.message?.includes("401")) {
+        setError("Session expired. Redirecting to login…");
         setTimeout(() => navigate("/login"), 2000);
-        return;
+      } else {
+        setError(err.message || "Failed to fetch profile");
       }
-      
-      if (err.message && err.message.includes('500')) {
-        setError("Server error occurred. Please try the Test Login button.");
-        return;
-      }
-      
-      if (err.message && err.message.includes('404')) {
-        setError("User not found. Please use Test Login button.");
-        return;
-      }
-      
-      setError(`${err.message || "Failed to fetch profile data"}`);
     } finally {
       setLoading(false);
     }
@@ -763,223 +864,118 @@ const AdminProfile = () => {
     fetchUserProfile();
   }, []);
 
-  // Listen for storage events to sync profile across tabs
-  useEffect(() => {
-    const handleStorageChange = (e) => {
-      if (e.key === 'userUpdated' || e.key === 'profileRefresh') {
-        console.log('Profile update detected, refreshing...');
-        fetchUserProfile();
-      }
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-    };
-  }, [fetchUserProfile]);
-
-  // Show success message
   const showSuccess = (msg) => {
     setMessage(msg);
     setMessageType("success");
-    setTimeout(() => setMessage(""), 3000);
+    setTimeout(() => setMessage(""), 4000);
   };
 
-  // Show error message
   const showError = (msg) => {
     setMessage(msg);
     setMessageType("error");
     setTimeout(() => setMessage(""), 5000);
   };
 
-  // Simple login test
   const testLogin = async () => {
-    console.log("=== Starting login test ===");
-    
     try {
-      console.log("Attempting login to:", "http://127.0.0.1:8001/api/auth/login");
-      console.log("Credentials:", { email: "admin@example.com", password: "admin123" });
-      
+      const role = userRole || "customer";
       const response = await apiRequest("/auth/login", {
         method: "POST",
         body: JSON.stringify({
-          email: "admin@example.com",
-          password: "admin123"
-        })
+          email: `${role}@example.com`,
+          password: `${role}123`
+        }),
       });
       
-      console.log("Login response:", response);
-      
       if (response.user && response.token) {
-        console.log("Token received, storing in localStorage");
         localStorage.setItem("token", response.token);
         localStorage.setItem("role", response.user.role);
-        localStorage.setItem("name", response.user.name);
-        localStorage.setItem("username", response.user.username);
-        localStorage.setItem("email", response.user.email);
-        
-        console.log("Token stored, fetching profile...");
-        console.log("Token stored, fetching profile...");
-        // Clear any existing profile data and fetch fresh data
-        setProfileData({
-          id: null,
-          name: "",
-          first_name: "",
-          last_name: "",
-          email: "",
-          username: "",
-          phone: "",
-          address: "",
-          city: "",
-          state: "",
-          zip_code: "",
-          country: "",
-          bio: "",
-          role: "",
-          is_active: true,
-          created_at: "",
-          updated_at: "",
-          profileImage: null,
-        });
+        setProfileData(p => ({ ...p, id: null, name: "", email: "" }));
         setTimeout(() => fetchUserProfile(), 500);
       } else {
-        console.log("No token in response");
         showError("Login failed: No token received");
       }
     } catch (err) {
-      console.error("Login test error:", err);
-      showError("Login test failed: " + err.message);
+      showError("Login failed: " + err.message);
     }
   };
 
-  // Password change state
-  const [passwordData, setPasswordData] = useState({
-    currentPassword: "",
-    newPassword: "",
-    confirmPassword: "",
-  });
-
-  // Password visibility state
-  const [showPasswords, setShowPasswords] = useState({
-    currentPassword: false,
-    newPassword: false,
-    confirmPassword: false,
-  });
-
-  const [pwLoading, setPwLoading] = useState(false);
-
-  // Handle input changes
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setProfileData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setProfileData(p => ({ ...p, [name]: value }));
   };
 
   const handlePasswordChange = (e) => {
     const { name, value } = e.target;
-    setPasswordData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setPasswordData(p => ({ ...p, [name]: value }));
   };
 
-  // Handle profile image upload
+  const handleSettingChange = (settingName, value) => {
+    setSettings(p => ({ ...p, [settingName]: value }));
+  };
+
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setProfileData(prev => ({
-          ...prev,
-          profileImage: reader.result
-        }));
-      };
+      reader.onloadend = () => setProfileData(p => ({ ...p, profileImage: reader.result }));
       reader.readAsDataURL(file);
     }
   };
 
-  // Save profile changes
   const handleSaveProfile = async () => {
-    // Validation
     if (!profileData.first_name || !profileData.last_name || !profileData.email) {
       showError("Please fill in all required fields.");
       return;
     }
-
-    // Email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(profileData.email)) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(profileData.email)) {
       showError("Please enter a valid email address.");
       return;
     }
-
     try {
-      setError("");
-      
-      // Prepare update data
-      const updateData = {
-        name: profileData.name,
-        first_name: profileData.first_name,
-        middle_name: profileData.middle_name,
-        last_name: profileData.last_name,
-        email: profileData.email,
-        username: profileData.username,
-        phone: profileData.phone,
-        address: profileData.address,
-        city: profileData.city,
-        state: profileData.state,
-        zip_code: profileData.zip_code,
-        country: profileData.country,
-        bio: profileData.bio,
-      };
-      
-      // Update profile via API
       await apiRequest("/auth/profile", {
         method: "PUT",
-        body: JSON.stringify(updateData),
+        body: JSON.stringify({
+          name: profileData.name,
+          first_name: profileData.first_name,
+          middle_name: profileData.middle_name,
+          last_name: profileData.last_name,
+          email: profileData.email,
+          username: profileData.username,
+          phone: profileData.phone,
+          address: profileData.address,
+          city: profileData.city,
+          state: profileData.state,
+          zip_code: profileData.zip_code,
+          country: profileData.country,
+          bio: profileData.bio,
+        }),
       });
-      
       showSuccess("Profile updated successfully!");
       setIsEditing(false);
-      
-      // Refresh profile data
       await fetchUserProfile();
     } catch (err) {
       showError(err.message || "Failed to update profile");
-      console.error("Profile update error:", err);
     }
   };
 
-  // Handle password change
   const handleChangePassword = async () => {
-    // Validation
     if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
       showError("Please fill in all password fields.");
-      setTimeout(() => setError(""), 3000);
       return;
     }
-
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      showError("New password and confirm password do not match.");
-      setTimeout(() => setError(""), 3000);
+      showError("Passwords do not match.");
       return;
     }
-
     if (passwordData.newPassword === passwordData.currentPassword) {
-      showError("New password must be different from current password.");
-      setTimeout(() => setError(""), 3000);
+      showError("New password must differ from current.");
       return;
     }
-
     if (passwordData.newPassword.length < 8) {
-      showError("Password must be at least 8 characters long.");
-      setTimeout(() => setError(""), 3000);
+      showError("Password must be at least 8 characters.");
       return;
     }
-
     try {
       setPwLoading(true);
       const response = await apiRequest("/auth/change-password", {
@@ -988,58 +984,42 @@ const AdminProfile = () => {
           current_password: passwordData.currentPassword,
           new_password: passwordData.newPassword,
           new_password_confirmation: passwordData.confirmPassword,
-        })
+        }),
       });
-
       if (response.message) {
-        showSuccess("Password changed successfully!");
-        setPasswordData({
-          currentPassword: "",
-          newPassword: "",
-          confirmPassword: "",
-        });
-        setTimeout(() => setError(""), 3000);
-        
-        // Auto logout after successful password change
+        showSuccess("Password changed! Logging out…");
+        setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
         setTimeout(() => {
           localStorage.clear();
           window.location.href = "/login";
         }, 2000);
       }
-      setPasswordData({
-        currentPassword: "",
-        newPassword: "",
-        confirmPassword: "",
-      });
     } catch (err) {
       setPwLoading(false);
       showError(err.message || "Failed to change password");
-      console.error("Password change error:", err);
     }
   };
 
-  // Cancel editing
   const handleCancel = () => {
     setIsEditing(false);
     setMessage("");
-    // Reset to original data
     fetchUserProfile();
   };
 
-  // Toggle edit mode
   const toggleEditMode = () => {
     setIsEditing(!isEditing);
     setMessage("");
   };
 
-  // Toggle password visibility
   const togglePasswordVisibility = (field) => {
-    setShowPasswords(prev => ({
-      ...prev,
-      [field]: !prev[field]
-    }));
+    setShowPasswords(p => ({ ...p, [field]: !p[field] }));
   };
 
+  const displayName = [profileData.first_name, profileData.last_name].filter(Boolean).join(" ") || profileData.name || "—";
+  const roleLabel = profileData.role ? profileData.role.charAt(0).toUpperCase() + profileData.role.slice(1) : "User";
+  const roleConfig = getRoleConfig(userRole);
+
+  /* ── Render ── */
   return (
     <>
       <GlobalStyle />
@@ -1049,10 +1029,10 @@ const AdminProfile = () => {
           <PageHeader>
             <HeaderContent>
               <PageTitle>
-                <FontAwesomeIcon icon={faHeart} />
-                Account Settings
+                <FontAwesomeIcon icon={roleConfig.icon} />
+                {roleConfig.title}
               </PageTitle>
-              <PageSubtitle>Manage your profile, security & preferences</PageSubtitle>
+              <PageSubtitle>{roleConfig.subtitle}</PageSubtitle>
             </HeaderContent>
             {!loading && !error && !isEditing && (
               <EditButton onClick={toggleEditMode}>
@@ -1090,7 +1070,7 @@ const AdminProfile = () => {
                   Retry
                 </Button>
                 <Button variant="primary" onClick={testLogin}>
-                  Test Login (Admin)
+                  Test Login ({roleLabel})
                 </Button>
               </ButtonGroup>
             </ErrorContainer>
@@ -1122,11 +1102,11 @@ const AdminProfile = () => {
                       </AvatarInner>
                     </AvatarRing>
                     <AvatarMeta>
-                      <AvatarName>{[profileData.first_name, profileData.last_name].filter(Boolean).join(" ") || profileData.name || "—"}</AvatarName>
+                      <AvatarName>{displayName}</AvatarName>
                       <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 8, flexWrap: "wrap" }}>
                         <AvatarRole>
-                          <FontAwesomeIcon icon={faShieldAlt} style={{ fontSize: 10 }} />
-                          {profileData.role ? profileData.role.charAt(0).toUpperCase() + profileData.role.slice(1) : "Admin"}
+                          <FontAwesomeIcon icon={roleConfig.icon} style={{ fontSize: 10 }} />
+                          {roleLabel}
                         </AvatarRole>
                         <AvatarStatus>
                           <StatusDot />
@@ -1134,13 +1114,19 @@ const AdminProfile = () => {
                         </AvatarStatus>
                       </div>
                       {isEditing && (
-                        <input
-                          type="file"
-                          id="avatar-upload"
-                          accept="image/*"
-                          onChange={handleImageUpload}
-                          style={{ display: "none" }}
-                        />
+                        <>
+                          <input
+                            type="file"
+                            id="avatar-upload"
+                            accept="image/*"
+                            onChange={handleImageUpload}
+                            style={{ display: "none" }}
+                          />
+                          <UploadButton htmlFor="avatar-upload">
+                            <FontAwesomeIcon icon={faCamera} />
+                            Change Photo
+                          </UploadButton>
+                        </>
                       )}
                     </AvatarMeta>
                   </AvatarSection>
@@ -1343,132 +1329,250 @@ const AdminProfile = () => {
               </Card>
 
               {/* Account Details */}
+              {roleConfig.showAccountDetails && (
+                <Card>
+                  <CardHeader style={{ background: `linear-gradient(135deg, ${THEME.secondary}, ${THEME.accent})` }}>
+                    <CardHeaderIcon>
+                      <FontAwesomeIcon icon={faShieldAlt} />
+                    </CardHeaderIcon>
+                    <CardHeaderText>
+                      <CardTitle>Account Details</CardTitle>
+                      <CardSubtitle>Read-only system information</CardSubtitle>
+                    </CardHeaderText>
+                  </CardHeader>
+                  <CardBody>
+                    {[
+                      {
+                        icon: faIdBadge,
+                        label: "Role",
+                        value: roleLabel,
+                      },
+                      {
+                        icon: faShieldAlt,
+                        label: "Status",
+                        value: (
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: 8, color: profileData.is_active ? THEME.success : THEME.error }}>
+                            <StatusDot />
+                            {profileData.is_active ? "Active" : "Inactive"}
+                          </span>
+                        ),
+                      },
+                      {
+                        icon: faCalendarAlt,
+                        label: "Member Since",
+                        value: profileData.created_at
+                          ? new Date(profileData.created_at).toLocaleDateString("en-PH", {
+                              year: "numeric",
+                              month: "long",
+                              day: "numeric",
+                            })
+                          : "—",
+                      },
+                      {
+                        icon: faCalendarAlt,
+                        label: "Last Updated",
+                        value: profileData.updated_at
+                          ? new Date(profileData.updated_at).toLocaleDateString("en-PH", {
+                              year: "numeric",
+                              month: "long",
+                              day: "numeric",
+                            })
+                          : "—",
+                      },
+                    ].map(({ icon, label, value }, i) => (
+                      <MetaRow key={i}>
+                        <MetaIcon>
+                          <FontAwesomeIcon icon={icon} />
+                        </MetaIcon>
+                        <MetaContent>
+                          <MetaLabel>{label}</MetaLabel>
+                          <MetaValue>{value}</MetaValue>
+                        </MetaContent>
+                      </MetaRow>
+                    ))}
+                  </CardBody>
+                </Card>
+              )}
+
+              {/* Settings */}
               <Card>
-                <CardHeader style={{ background: `linear-gradient(135deg, ${THEME.secondary}, ${THEME.accent})` }}>
+                <CardHeader style={{ background: `linear-gradient(135deg, ${THEME.accent}, ${THEME.primaryLight})` }}>
                   <CardHeaderIcon>
-                    <FontAwesomeIcon icon={faShieldAlt} />
+                    <FontAwesomeIcon icon={faCog} />
                   </CardHeaderIcon>
                   <CardHeaderText>
-                    <CardTitle>Account Details</CardTitle>
-                    <CardSubtitle>Read-only system information</CardSubtitle>
+                    <CardTitle>Preferences</CardTitle>
+                    <CardSubtitle>Customize your experience</CardSubtitle>
                   </CardHeaderText>
                 </CardHeader>
                 <CardBody>
-                  {[
-                    {
-                      icon: faIdBadge,
-                      label: "Role",
-                      value: profileData.role ? profileData.role.charAt(0).toUpperCase() + profileData.role.slice(1) : "Admin",
-                    },
-                    {
-                      icon: faShieldAlt,
-                      label: "Status",
-                      value: (
-                        <span style={{ display: "inline-flex", alignItems: "center", gap: 8, color: profileData.is_active ? THEME.success : THEME.error }}>
-                          <StatusDot />
-                          {profileData.is_active ? "Active" : "Inactive"}
-                        </span>
-                      ),
-                    },
-                    {
-                      icon: faCalendarAlt,
-                      label: "Member Since",
-                      value: profileData.created_at
-                        ? new Date(profileData.created_at).toLocaleDateString("en-PH", {
-                            year: "numeric",
-                            month: "long",
-                            day: "numeric",
-                          })
-                        : "—",
-                    },
-                    {
-                      icon: faCalendarAlt,
-                      label: "Last Updated",
-                      value: profileData.updated_at
-                        ? new Date(profileData.updated_at).toLocaleDateString("en-PH", {
-                            year: "numeric",
-                            month: "long",
-                            day: "numeric",
-                          })
-                        : "—",
-                    },
-                  ].map(({ icon, label, value }, i) => (
-                    <MetaRow key={i}>
-                      <MetaIcon>
-                        <FontAwesomeIcon icon={icon} />
-                      </MetaIcon>
-                      <MetaContent>
-                        <MetaLabel>{label}</MetaLabel>
-                        <MetaValue>{value}</MetaValue>
-                      </MetaContent>
-                    </MetaRow>
-                  ))}
+                  <SettingsGrid>
+                    <SettingItem>
+                      <SettingLabel>
+                        <FontAwesomeIcon icon={faBell} />
+                        Email Notifications
+                      </SettingLabel>
+                      <ToggleSwitch>
+                        <input
+                          type="checkbox"
+                          checked={settings.emailNotifications}
+                          onChange={(e) => handleSettingChange("emailNotifications", e.target.checked)}
+                        />
+                        <span className="slider"></span>
+                      </ToggleSwitch>
+                    </SettingItem>
+                    <SettingItem>
+                      <SettingLabel>
+                        <FontAwesomeIcon icon={faBell} />
+                        Push Notifications
+                      </SettingLabel>
+                      <ToggleSwitch>
+                        <input
+                          type="checkbox"
+                          checked={settings.pushNotifications}
+                          onChange={(e) => handleSettingChange("pushNotifications", e.target.checked)}
+                        />
+                        <span className="slider"></span>
+                      </ToggleSwitch>
+                    </SettingItem>
+                    <SettingItem>
+                      <SettingLabel>
+                        <FontAwesomeIcon icon={faMoon} />
+                        Dark Mode
+                      </SettingLabel>
+                      <ToggleSwitch>
+                        <input
+                          type="checkbox"
+                          checked={settings.darkMode}
+                          onChange={(e) => handleSettingChange("darkMode", e.target.checked)}
+                        />
+                        <span className="slider"></span>
+                      </ToggleSwitch>
+                    </SettingItem>
+                    <SettingItem>
+                      <SettingLabel>
+                        <FontAwesomeIcon icon={faLanguage} />
+                        Language
+                      </SettingLabel>
+                      <select
+                        value={settings.language}
+                        onChange={(e) => handleSettingChange("language", e.target.value)}
+                        style={{
+                          padding: "8px 12px",
+                          borderRadius: "8px",
+                          border: `2px solid ${THEME.glassBorder}`,
+                          background: THEME.glassBg,
+                          color: THEME.textPrimary,
+                          fontSize: "14px",
+                        }}
+                      >
+                        <option value="en">English</option>
+                        <option value="es">Español</option>
+                        <option value="fr">Français</option>
+                        <option value="de">Deutsch</option>
+                      </select>
+                    </SettingItem>
+                    {roleConfig.showAdvancedSettings && (
+                      <>
+                        <SettingItem>
+                          <SettingLabel>
+                            <FontAwesomeIcon icon={faSave} />
+                            Auto-Save
+                          </SettingLabel>
+                          <ToggleSwitch>
+                            <input
+                              type="checkbox"
+                              checked={settings.autoSave}
+                              onChange={(e) => handleSettingChange("autoSave", e.target.checked)}
+                            />
+                            <span className="slider"></span>
+                          </ToggleSwitch>
+                        </SettingItem>
+                        <SettingItem>
+                          <SettingLabel>
+                            <FontAwesomeIcon icon={faShieldAlt} />
+                            Two-Factor Auth
+                          </SettingLabel>
+                          <ToggleSwitch>
+                            <input
+                              type="checkbox"
+                              checked={settings.twoFactorAuth}
+                              onChange={(e) => handleSettingChange("twoFactorAuth", e.target.checked)}
+                            />
+                            <span className="slider"></span>
+                          </ToggleSwitch>
+                        </SettingItem>
+                      </>
+                    )}
+                  </SettingsGrid>
                 </CardBody>
               </Card>
 
               {/* Change Password */}
-              <Card>
-                <CardHeader style={{ background: `linear-gradient(135deg, ${THEME.error}, #fc8181)` }}>
-                  <CardHeaderIcon>
-                    <FontAwesomeIcon icon={faKey} />
-                  </CardHeaderIcon>
-                  <CardHeaderText>
-                    <CardTitle>Change Password</CardTitle>
-                    <CardSubtitle>Update your account password</CardSubtitle>
-                  </CardHeaderText>
-                </CardHeader>
-                <CardBody>
-                  {[
-                    { key: "currentPassword", label: "Current Password", placeholder: "Enter current password" },
-                    { key: "newPassword", label: "New Password", placeholder: "Enter new password" },
-                    { key: "confirmPassword", label: "Confirm New Password", placeholder: "Re-enter new password" },
-                  ].map(({ key, label, placeholder }) => (
-                    <FormGroup key={key} style={{ marginBottom: 16 }}>
-                      <Label>{label}</Label>
-                      <PasswordWrapper>
-                        <Input
-                          type={showPasswords[key] ? "text" : "password"}
-                          name={key}
-                          value={passwordData[key]}
-                          onChange={handlePasswordChange}
-                          placeholder={placeholder}
-                          style={{ paddingRight: 60 }}
-                        />
-                        <PasswordToggle
-                          type="button"
-                          onClick={() => togglePasswordVisibility(key)}
-                        >
-                          <FontAwesomeIcon icon={showPasswords[key] ? faEyeSlash : faEye} />
-                        </PasswordToggle>
-                      </PasswordWrapper>
-                    </FormGroup>
-                  ))}
+              {roleConfig.showPasswordChange && (
+                <Card>
+                  <CardHeader style={{ background: `linear-gradient(135deg, ${THEME.error}, #fc8181)` }}>
+                    <CardHeaderIcon>
+                      <FontAwesomeIcon icon={faKey} />
+                    </CardHeaderIcon>
+                    <CardHeaderText>
+                      <CardTitle>Change Password</CardTitle>
+                      <CardSubtitle>Update your account password</CardSubtitle>
+                    </CardHeaderText>
+                  </CardHeader>
+                  <CardBody>
+                    {[
+                      { key: "currentPassword", label: "Current Password", placeholder: "Enter current password" },
+                      { key: "newPassword", label: "New Password", placeholder: "Enter new password" },
+                      { key: "confirmPassword", label: "Confirm New Password", placeholder: "Re-enter new password" },
+                    ].map(({ key, label, placeholder }) => (
+                      <FormGroup key={key} style={{ marginBottom: 16 }}>
+                        <Label>{label}</Label>
+                        <PasswordWrapper>
+                          <Input
+                            type={showPasswords[key] ? "text" : "password"}
+                            name={key}
+                            value={passwordData[key]}
+                            onChange={handlePasswordChange}
+                            placeholder={placeholder}
+                            style={{ paddingRight: 60 }}
+                          />
+                          <PasswordToggle
+                            type="button"
+                            onClick={() => togglePasswordVisibility(key)}
+                          >
+                            <FontAwesomeIcon icon={showPasswords[key] ? faEyeSlash : faEye} />
+                          </PasswordToggle>
+                        </PasswordWrapper>
+                      </FormGroup>
+                    ))}
 
-                  <PasswordRequirements>
-                    Password must be at least <strong>8 characters</strong> and contain both letters and numbers. You will be logged out after a successful change.
-                  </PasswordRequirements>
+                    <PasswordRequirements>
+                      Password must be at least <strong>8 characters</strong> and contain both letters and numbers. You will be logged out after a successful change.
+                    </PasswordRequirements>
 
-                  <ButtonGroup>
-                    <Button
-                      variant="danger"
-                      onClick={handleChangePassword}
-                      disabled={pwLoading}
-                    >
-                      {pwLoading ? (
-                        <>
-                          <FontAwesomeIcon icon={faSpinner} spin />
-                          Updating…
-                        </>
-                      ) : (
-                        <>
-                          <FontAwesomeIcon icon={faLock} />
-                          Change Password
-                        </>
-                      )}
-                    </Button>
-                  </ButtonGroup>
-                </CardBody>
-              </Card>
+                    <ButtonGroup>
+                      <Button
+                        variant="danger"
+                        onClick={handleChangePassword}
+                        disabled={pwLoading}
+                      >
+                        {pwLoading ? (
+                          <>
+                            <FontAwesomeIcon icon={faSpinner} spin />
+                            Updating…
+                          </>
+                        ) : (
+                          <>
+                            <FontAwesomeIcon icon={faLock} />
+                            Change Password
+                          </>
+                        )}
+                      </Button>
+                    </ButtonGroup>
+                  </CardBody>
+                </Card>
+              )}
             </>
           )}
         </PageInner>
@@ -1477,4 +1581,4 @@ const AdminProfile = () => {
   );
 };
 
-export default AdminProfile;
+export default ProfileSettings;
