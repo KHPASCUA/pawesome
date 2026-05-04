@@ -9,9 +9,6 @@ import {
   faSignOutAlt,
   faUser,
   faBone,
-  faHotel,
-  faCut,
-  faStethoscope,
 } from "@fortawesome/free-solid-svg-icons";
 import "./CustomerSidebar.css";
 
@@ -22,11 +19,43 @@ const CustomerSidebar = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("role");
     localStorage.removeItem("name");
+    localStorage.removeItem("email");
     navigate("/");
   };
 
+  const navItems = [
+    {
+      to: "/customer",
+      label: "Dashboard",
+      icon: faHome,
+      end: true,
+    },
+    {
+      to: "/customer/bookings",
+      label: "Bookings",
+      icon: faCalendarCheck,
+    },
+    {
+      to: "/customer/pets",
+      label: "My Pets",
+      icon: faPaw,
+      end: true,
+    },
+    {
+      to: "/customer/store",
+      label: "Store",
+      icon: faShoppingCart,
+      end: true,
+    },
+    {
+      to: "/customer/profile",
+      label: "Profile",
+      icon: faUser,
+    },
+  ];
+
   return (
-    <aside className="app-sidebar">
+    <aside className="app-sidebar customer-sidebar">
       <div className="sidebar-header">
         <div className="sidebar-logo">
           <FontAwesomeIcon icon={faBone} />
@@ -36,61 +65,20 @@ const CustomerSidebar = () => {
 
       <nav className="sidebar-nav">
         <ul className="nav-list">
-          <li className="nav-item">
-            <NavLink to="/customer" end className={({ isActive }) => `sidebar-link ${isActive ? "active" : ""}`}>
-              <FontAwesomeIcon icon={faHome} />
-              <span>Dashboard</span>
-            </NavLink>
-          </li>
-
-          <li className="nav-item">
-            <NavLink to="/customer/bookings" className={({ isActive }) => `sidebar-link ${isActive ? "active" : ""}`}>
-              <FontAwesomeIcon icon={faCalendarCheck} />
-              <span>Bookings</span>
-            </NavLink>
-          </li>
-
-          <li className="nav-item">
-            <NavLink to="/customer/pets" end className={({ isActive }) => `sidebar-link ${isActive ? "active" : ""}`}>
-              <FontAwesomeIcon icon={faPaw} />
-              <span>My Pets</span>
-            </NavLink>
-          </li>
-
-          <li className="nav-item">
-            <NavLink to="/customer/hotel" end className={({ isActive }) => `sidebar-link ${isActive ? "active" : ""}`}>
-              <FontAwesomeIcon icon={faHotel} />
-              <span>Hotel</span>
-            </NavLink>
-          </li>
-
-          <li className="nav-item">
-            <NavLink to="/customer/grooming" end className={({ isActive }) => `sidebar-link ${isActive ? "active" : ""}`}>
-              <FontAwesomeIcon icon={faCut} />
-              <span>Grooming</span>
-            </NavLink>
-          </li>
-
-          <li className="nav-item">
-            <NavLink to="/customer/vet" end className={({ isActive }) => `sidebar-link ${isActive ? "active" : ""}`}>
-              <FontAwesomeIcon icon={faStethoscope} />
-              <span>Vet</span>
-            </NavLink>
-          </li>
-
-          <li className="nav-item">
-            <NavLink to="/customer/store" end className={({ isActive }) => `sidebar-link ${isActive ? "active" : ""}`}>
-              <FontAwesomeIcon icon={faShoppingCart} />
-              <span>Store</span>
-            </NavLink>
-          </li>
-
-          <li className="nav-item">
-            <NavLink to="/customer/profile" className={({ isActive }) => `sidebar-link ${isActive ? "active" : ""}`}>
-              <FontAwesomeIcon icon={faUser} />
-              <span>Profile</span>
-            </NavLink>
-          </li>
+          {navItems.map((item) => (
+            <li className="nav-item" key={item.to}>
+              <NavLink
+                to={item.to}
+                end={item.end}
+                className={({ isActive }) =>
+                  `sidebar-link ${isActive ? "active" : ""}`
+                }
+              >
+                <FontAwesomeIcon icon={item.icon} />
+                <span>{item.label}</span>
+              </NavLink>
+            </li>
+          ))}
         </ul>
       </nav>
 
