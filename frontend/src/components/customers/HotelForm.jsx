@@ -10,6 +10,7 @@ import {
   faTimesCircle,
 } from "@fortawesome/free-solid-svg-icons";
 import "./HotelForm.css";
+import { apiRequest } from "../../api/client";
 
 const HotelForm = () => {
   const [activeTab, setActiveTab] = useState("book");
@@ -42,10 +43,7 @@ const HotelForm = () => {
         return;
       }
 
-      const response = await fetch(
-        `http://127.0.0.1:8000/api/customer/my-requests?email=${customerEmail}`
-      );
-      const data = await response.json();
+      const data = await apiRequest(`/customer/my-requests?email=${customerEmail}`);
 
       // Filter only hotel requests
       const hotelOnly = data.requests.filter(item => item.type === "hotel");
@@ -71,15 +69,10 @@ const HotelForm = () => {
       setLoading(true);
       setError("");
 
-      const response = await fetch("http://127.0.0.1:8000/api/customer/requests", {
+      const data = await apiRequest("/customer/requests", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
         body: JSON.stringify(bookingForm),
       });
-
-      const data = await response.json();
 
       if (data.success) {
         setSuccessMessage("Hotel reservation submitted successfully!");
@@ -114,16 +107,10 @@ const HotelForm = () => {
     
     try {
       setLoading(true);
-      await fetch(
-        `http://127.0.0.1:8000/api/receptionist/requests/${bookingId}/status`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ status: "rejected" }),
-        }
-      );
+      await apiRequest(`/receptionist/requests/${bookingId}/status`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: "rejected" }),
+      });
       
       setSuccessMessage("Reservation cancelled successfully");
       fetchMyBookings();

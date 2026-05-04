@@ -12,9 +12,9 @@ import {
   faHistory,
 } from "@fortawesome/free-solid-svg-icons";
 import "./ReceptionistBookings.css";
+import { API_URL } from "../../api/client";
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_URL?.replace(/\/$/, "") || "http://127.0.0.1:8000/api";
+const API_BASE_URL = API_URL.replace(/\/$/, "");
 
 const ReceptionistBookings = () => {
   const [showNewBookingModal, setShowNewBookingModal] = useState(false);

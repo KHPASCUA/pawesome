@@ -4,6 +4,7 @@ import { formatCurrency } from "../../utils/currency";
 import { exportToCSV } from "../../utils/reportExport";
 import { demoItems } from "./inventoryData";
 import StockAdjustmentModal from "./StockAdjustmentModal";
+import ExpiryAlerts from "./ExpiryAlerts";
 import { useNavigate } from "react-router-dom";
 import "./InventoryStock_Polished.css";
 
@@ -100,39 +101,85 @@ const InventoryStock = () => {
   };
 
   // Get expiration status for a date
-  const getExpirationStatus = (dateStr) => {
-    if (!dateStr) return { status: 'none', label: 'No Expiry', color: '#6b7280' };
+  const getExpirationStatus = (date) => {
+    if (!date) return { label: "No Expiry", color: "#64748b", status: "none" };
     
-    const expDate = new Date(dateStr);
     const today = new Date();
-    const diffDays = Math.ceil((expDate - today) / (1000 * 60 * 60 * 24));
+    const expDate = new Date(date);
+    const daysUntilExpiry = Math.ceil((expDate - today) / (1000 * 60 * 60 * 24));
     
-    if (diffDays < 0) return { status: 'expired', label: 'Expired', color: '#ef4444' };
-    if (diffDays <= 30) return { status: 'expiring', label: `Expiring Soon (${diffDays}d)`, color: '#f97316' };
-    return { status: 'good', label: 'Good', color: '#22c55e' };
+    if (daysUntilExpiry <= 0) {
+      return { label: "Expired", color: "#ef4444", status: "expired" };
+    } else if (daysUntilExpiry <= 7) {
+      return { label: "Expires Soon", color: "#f59e0b", status: "critical" };
+    } else if (daysUntilExpiry <= 30) {
+      return { label: "Expiring", color: "#eab308", status: "warning" };
+    } else {
+      return { label: "Good", color: "#10b981", status: "safe" };
+    }
   };
 
-  // Calculate stats
+  
+  // Filter out service items from stock management
+  const physicalItems = useMemo(() => {
+    return items.filter((item) => {
+      const category = String(item.category || "").toLowerCase();
+      const type = String(item.type || item.item_type || "").toLowerCase();
+
+      return (
+        category !== "services" &&
+        category !== "service" &&
+        type !== "service"
+      );
+    });
+  }, [items]);
+
+  // Statistics
   const stats = useMemo(() => {
-    const totalItems = items.length;
-    const totalQuantity = items.reduce((sum, item) => sum + getStock(item), 0);
-    const totalValue = items.reduce((sum, item) => sum + (getStock(item) * (item.price || 0)), 0);
-    const lowStock = items.filter(item => getStock(item) <= 10 && getStock(item) > 0).length;
-    const outOfStock = items.filter(item => getStock(item) === 0).length;
-    const expiringSoon = items.filter(item => {
-      if (!item.expiration) return false;
-      const exp = new Date(item.expiration);
+    const totalItems = physicalItems.length;
+    const totalQuantity = physicalItems.reduce((sum, item) => sum + getStock(item), 0);
+    const totalValue = physicalItems.reduce(
+      (sum, item) => sum + getStock(item) * Number(item.price || item.unit_price || 0),
+      0
+    );
+
+    const lowStock = physicalItems.filter(
+      (item) => getStock(item) <= 10 && getStock(item) > 0
+    ).length;
+
+    const outOfStock = physicalItems.filter(
+      (item) => getStock(item) === 0
+    ).length;
+
+    const expiringSoon = physicalItems.filter((item) => {
+      const expiry =
+        item.nearest_expiration ||
+        item.expiration_date ||
+        item.expiration ||
+        null;
+
+      if (!expiry) return false;
+
+      const exp = new Date(expiry);
       const today = new Date();
       const diffDays = Math.ceil((exp - today) / (1000 * 60 * 60 * 24));
+
       return diffDays <= 30 && diffDays > 0;
     }).length;
 
-    return { totalItems, totalQuantity, totalValue, lowStock, outOfStock, expiringSoon };
-  }, [items]);
+    return {
+      totalItems,
+      totalQuantity,
+      totalValue,
+      lowStock,
+      outOfStock,
+      expiringSoon,
+    };
+  }, [physicalItems]);
 
   // Filter items
   const filteredItems = useMemo(() => {
-    return items.filter(item => {
+    return physicalItems.filter(item => {
       const matchesSearch = 
         (item.name?.toLowerCase() || "").includes(search.toLowerCase()) ||
         (item.sku?.toLowerCase() || "").includes(search.toLowerCase()) ||
@@ -146,7 +193,7 @@ const InventoryStock = () => {
       
       return matchesSearch && matchesStatus;
     });
-  }, [items, search, filterStatus]);
+  }, [physicalItems, search, filterStatus]);
 
   // Export to CSV
   const handleExportCSV = () => {
@@ -189,10 +236,10 @@ const InventoryStock = () => {
 
   // Top moving products
   const topMovingItems = useMemo(() => {
-    return [...items]
+    return [...physicalItems]
       .sort((a, b) => (b.sold || 0) - (a.sold || 0))
       .slice(0, 5);
-  }, [items]);
+  }, [physicalItems]);
 
   // Handle adjust stock
   const handleAdjustClick = (item) => {
@@ -354,6 +401,9 @@ const InventoryStock = () => {
         </div>
       </div>
 
+      {/* Expiry Alerts Section */}
+      <ExpiryAlerts />
+
       {/* Filters */}
       <div className="stock-filters">
         <div className="search-box">
@@ -405,11 +455,13 @@ const InventoryStock = () => {
                   const batches = itemBatches[item.id] || [];
                   const loadingBatch = loadingBatches[item.id];
                   
-                  // Get nearest expiration from batches or item
-                  const nearestExp = batches.length > 0 
-                    ? batches.filter(b => b.status === 'active' && b.remaining_quantity > 0)
-                        .sort((a, b) => new Date(a.expiration_date || '9999-12-31') - new Date(b.expiration_date || '9999-12-31'))[0]?.expiration_date
-                    : item.expiration;
+                  // Get nearest expiration from backend field or fallback to batches
+                  const nearestExp = item.nearest_expiration 
+                    ? item.nearest_expiration
+                    : batches.length > 0 
+                      ? batches.filter(b => b.status === 'active' && b.remaining_quantity > 0)
+                          .sort((a, b) => new Date(a.expiration_date || '9999-12-31') - new Date(b.expiration_date || '9999-12-31'))[0]?.expiration_date
+                      : null;
                   const expStatus = getExpirationStatus(nearestExp);
                   
                   return (

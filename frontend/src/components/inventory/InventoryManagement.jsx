@@ -274,12 +274,20 @@ const InventoryManagement = () => {
     try {
       setSaving(true);
       
+      // Prepare payload with both stock and quantity for backend compatibility
+      const payload = {
+        ...formData,
+        stock: parseInt(formData.stock_quantity) || 0,
+        quantity: parseInt(formData.stock_quantity) || 0,
+        stock_quantity: parseInt(formData.stock_quantity) || 0,
+      };
+      
       if (editingItem) {
         // Update existing item
-        await inventoryApi.updateItem(editingItem.id, formData);
+        await inventoryApi.updateItem(editingItem.id, payload);
       } else {
         // Create new item
-        await inventoryApi.createItem(formData);
+        await inventoryApi.createItem(payload);
       }
 
       await fetchInventory();

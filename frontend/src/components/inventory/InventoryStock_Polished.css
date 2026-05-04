@@ -1195,6 +1195,75 @@
   font-size: 12px;
 }
 
+/* ===== FINAL STOCK MANAGEMENT WIDTH + SCROLL FIX ===== */
+
+.inventory-stock-page.polished {
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow-x: hidden !important;
+}
+
+.stock-header,
+.realtime-indicator,
+.stock-stats,
+.expiry-alerts-card,
+.stock-filters,
+.stock-table-container,
+.top-moving-section {
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.stock-stats {
+  grid-template-columns: repeat(6, minmax(150px, 1fr)) !important;
+  overflow-x: auto !important;
+  padding-bottom: 4px;
+}
+
+.stock-table-container {
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow-x: auto !important;
+  overflow-y: visible !important;
+}
+
+.stock-table.polished {
+  min-width: 1050px !important;
+}
+
+.stat-value {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 1280px) {
+  .stock-stats {
+    grid-template-columns: repeat(3, minmax(180px, 1fr)) !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .stock-stats {
+    grid-template-columns: 1fr !important;
+    overflow-x: visible !important;
+  }
+
+  .stock-header {
+    align-items: stretch !important;
+  }
+
+  .header-actions {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .header-actions button {
+    width: 100%;
+  }
+}
+
 /* Product Category Tag */
 .product-category {
   display: inline-block;

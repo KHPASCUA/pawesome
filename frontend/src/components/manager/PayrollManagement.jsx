@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { payrollApi } from "../../api/payroll";
+import { apiRequest } from "../../api/client";
 import { formatCurrency } from "../../utils/currency";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -28,12 +29,8 @@ import "./PayrollManagement.css";
 // Notification helper for payroll events
 const createPayrollNotification = async (message, priority = "high") => {
   try {
-    await fetch("http://127.0.0.1:8000/api/notifications", {
+    await apiRequest("/notifications", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
-      },
       body: JSON.stringify({
         type: "payroll",
         message,

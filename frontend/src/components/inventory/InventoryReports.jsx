@@ -8,7 +8,6 @@ import {
   faTags,
   faSpinner,
 } from "@fortawesome/free-solid-svg-icons";
-import ReportFilters from "../shared/ReportFilters";
 import { inventoryApi } from "../../api/inventory";
 import {
   exportToCSV,
@@ -32,7 +31,7 @@ import {
 } from "recharts";
 
 const InventoryReports = () => {
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [apiItems, setApiItems] = useState([]);
 
   // Filter states
@@ -67,8 +66,48 @@ const InventoryReports = () => {
     fetchData();
   }, []);
 
-  // Use API data
-  const inventoryItems = apiItems;
+  // Filter out service items from inventory data
+  const inventoryItems = useMemo(() => {
+    return apiItems.filter((item) => {
+      const category = String(item.category || "").toLowerCase();
+      const type = String(item.type || item.item_type || "").toLowerCase();
+
+      return (
+        category !== "services" &&
+        category !== "service" &&
+        type !== "service"
+      );
+    });
+  }, [apiItems]);
+
+  // Helper functions
+  const getQuantity = (item) => Number(item.quantity ?? item.stock ?? 0);
+  const getPrice = (item) => Number(item.price ?? item.unit_price ?? 0);
+
+  const getItemStatus = (item) => {
+    const quantity = getQuantity(item);
+    const minimum = Number(item.minimum_stock_level ?? item.reorder_level ?? 10);
+
+    if (quantity <= 0) return "Out of stock";
+    if (quantity <= minimum) return "Low stock";
+    return "In stock";
+  };
+
+  const formatExpiry = (item) => {
+    const expiry =
+      item.nearest_expiration ||
+      item.expiration_date ||
+      item.expiration ||
+      null;
+
+    if (!expiry) return "No Expiry";
+
+    return new Date(expiry).toLocaleDateString("en-PH", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  };
 
   // Set default date range to current month
   useEffect(() => {
@@ -82,31 +121,22 @@ const InventoryReports = () => {
 
   // Filter inventory items
   const filteredItems = useMemo(() => {
-    let filtered = [...inventoryItems];
+    return inventoryItems.filter((item) => {
+      const matchesSearch =
+        searchTerm === "" ||
+        (item.name && item.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (item.sku && item.sku.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (item.brand && item.brand.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (item.supplier && item.supplier.toLowerCase().includes(searchTerm.toLowerCase()));
 
-    // Apply search
-    if (searchTerm) {
-      const search = searchTerm.toLowerCase();
-      filtered = filtered.filter(
-        (item) =>
-          item.name?.toLowerCase().includes(search) ||
-          item.sku?.toLowerCase().includes(search) ||
-          item.brand?.toLowerCase().includes(search) ||
-          item.supplier?.toLowerCase().includes(search)
-      );
-    }
+      const matchesCategory =
+        categoryFilter === "all" || item.category === categoryFilter;
 
-    // Apply category filter
-    if (categoryFilter !== "all") {
-      filtered = filtered.filter((item) => item.category === categoryFilter);
-    }
+      const matchesStatus =
+        statusFilter === "all" || item.status === statusFilter;
 
-    // Apply status filter
-    if (statusFilter !== "all") {
-      filtered = filtered.filter((item) => item.status?.toLowerCase() === statusFilter.toLowerCase());
-    }
-
-    return filtered;
+      return matchesSearch && matchesCategory && matchesStatus;
+    });
   }, [inventoryItems, searchTerm, categoryFilter, statusFilter]);
 
   // Calculate summaries
@@ -117,8 +147,8 @@ const InventoryReports = () => {
         summary[item.category] = { count: 0, quantity: 0, value: 0 };
       }
       summary[item.category].count += 1;
-      summary[item.category].quantity += item.quantity;
-      summary[item.category].value += item.quantity * item.price;
+      summary[item.category].quantity += getQuantity(item);
+      summary[item.category].value += getQuantity(item) * getPrice(item);
     });
     return summary;
   }, [filteredItems]);
@@ -130,29 +160,49 @@ const InventoryReports = () => {
         summary[item.brand] = { count: 0, quantity: 0, value: 0 };
       }
       summary[item.brand].count += 1;
-      summary[item.brand].quantity += item.quantity;
-      summary[item.brand].value += item.quantity * item.price;
+      summary[item.brand].quantity += getQuantity(item);
+      summary[item.brand].value += getQuantity(item) * getPrice(item);
     });
     return summary;
   }, [filteredItems]);
 
-  const statusCounts = useMemo(() => {
-    const counts = { "In stock": 0, "Low stock": 0, "Out of stock": 0 };
-    filteredItems.forEach((item) => {
-      const status = item.status || "In stock";
-      if (counts[status] !== undefined) {
-        counts[status] += 1;
-      }
-    });
-    return counts;
-  }, [filteredItems]);
+  const normalizeStatus = (item) => {
+  const qty = getQuantity(item);
+  const min = Number(item.minimum_stock_level ?? item.reorder_level ?? 10);
+  const raw = String(item.status || "").toLowerCase();
 
-  const lowStockItems = useMemo(() => filteredItems.filter((item) => item.quantity <= 10), [filteredItems]);
+  if (qty <= 0 || raw.includes("out")) return "Out of Stock";
+  if (qty <= min || raw.includes("low")) return "Low Stock";
+  return "In Stock";
+};
+
+const statusCounts = useMemo(() => {
+  const counts = { "In Stock": 0, "Low Stock": 0, "Out of Stock": 0 };
+
+  filteredItems.forEach((item) => {
+    counts[normalizeStatus(item)] += 1;
+  });
+
+  return counts;
+}, [filteredItems]);
+
+  const lowStockItems = useMemo(
+  () =>
+    filteredItems.filter((item) => {
+      const quantity = getQuantity(item);
+      const minimum = Number(item.minimum_stock_level ?? item.reorder_level ?? 10);
+      return quantity <= minimum;
+    }),
+  [filteredItems]
+);
 
   // Total values
   const totalProducts = filteredItems.length;
-  const totalStockQuantity = filteredItems.reduce((sum, item) => sum + item.quantity, 0);
-  const totalInventoryValue = filteredItems.reduce((sum, item) => sum + item.quantity * item.price, 0);
+  const totalStockQuantity = filteredItems.reduce((sum, item) => sum + getQuantity(item), 0);
+  const totalInventoryValue = filteredItems.reduce(
+    (sum, item) => sum + getQuantity(item) * getPrice(item),
+    0
+  );
 
   // Get top category and brand
   const topCategory = useMemo(() => {
@@ -187,11 +237,14 @@ const InventoryReports = () => {
   );
 
   const topStockItems = [...filteredItems]
-    .sort((a, b) => (b.quantity || 0) - (a.quantity || 0))
+    .sort((a, b) => getQuantity(b) - getQuantity(a))
     .slice(0, 6)
     .map((item) => ({
-      name: item.name,
-      stock: item.quantity || 0,
+      name:
+        item.name && item.name.length > 16
+          ? `${item.name.slice(0, 16)}...` 
+          : item.name || "Unnamed",
+      stock: getQuantity(item),
     }));
 
   const handleDateChange = (key, value) => {
@@ -495,19 +548,12 @@ const InventoryReports = () => {
 
   return (
     <div className="inventory-reports-page">
-      {/* Loading Overlay */}
-      {loading && (
-        <div className="loading-overlay">
-          <FontAwesomeIcon icon={faSpinner} spin size="3x" />
-          <p>Loading inventory analytics...</p>
-        </div>
-      )}
-
-      {/* Hero Header */}
-      <div className="reports-hero">
-        <div className="hero-left">
-          <h1>Inventory Analytics Dashboard</h1>
-          <p>Real-time stock insights, alerts, and inventory performance</p>
+      <div className="inventory-reports-inner">
+        {/* Hero Header */}
+        <div className="reports-hero">
+          <div className="hero-left">
+            <h1>Inventory Analytics Dashboard</h1>
+            <p>Real-time stock insights, alerts, and inventory performance</p>
         </div>
 
         <div className="hero-right">
@@ -523,36 +569,93 @@ const InventoryReports = () => {
 
           <div className="mini-stat">
             <span>Value</span>
-            <strong>₱{Number(totalInventoryValue || 0).toFixed(0)}</strong>
+            <strong>
+  ₱{totalInventoryValue >= 1000000
+    ? `${(totalInventoryValue / 1000000).toFixed(1)}M` 
+    : totalInventoryValue >= 1000
+    ? `${(totalInventoryValue / 1000).toFixed(1)}K` 
+    : Number(totalInventoryValue || 0).toFixed(0)}
+</strong>
           </div>
         </div>
       </div>
 
-      <ReportFilters
-        searchTerm={searchTerm}
-        onSearchChange={setSearchTerm}
-        startDate={startDate}
-        endDate={endDate}
-        onDateChange={handleDateChange}
-        statusFilter={statusFilter}
-        onStatusChange={setStatusFilter}
-        statusOptions={[
-          { value: "In stock", label: "In Stock" },
-          { value: "Low stock", label: "Low Stock" },
-          { value: "Out of stock", label: "Out of Stock" },
-        ]}
-        serviceTypeFilter={categoryFilter}
-        onServiceTypeChange={setCategoryFilter}
-        serviceTypeOptions={categories.map((cat) => ({ value: cat, label: cat }))}
-        onExportCSV={handleExportCSV}
-        onExportPDF={handleExportPDF}
-        onExportExcel={handleExportExcel}
-        loading={loading}
-        onClearFilters={handleClearFilters}
-        showServiceType={true}
-        showRole={false}
-        searchPlaceholder="Search products by name, SKU, brand, or supplier..."
+      <div className="inventory-compact-filters">
+  <div className="compact-search">
+    <input
+      type="text"
+      value={searchTerm}
+      onChange={(e) => setSearchTerm(e.target.value)}
+      placeholder="Search products by name, SKU, brand, or supplier..."
+    />
+  </div>
+
+  <div className="compact-filter-row">
+    <div className="compact-filter-group">
+      <label>From</label>
+      <input
+        type="date"
+        value={startDate}
+        onChange={(e) => handleDateChange("startDate", e.target.value)}
       />
+    </div>
+
+    <div className="compact-filter-group">
+      <label>To</label>
+      <input
+        type="date"
+        value={endDate}
+        onChange={(e) => handleDateChange("endDate", e.target.value)}
+      />
+    </div>
+
+    <div className="compact-filter-group">
+      <label>Status</label>
+      <select
+        value={statusFilter}
+        onChange={(e) => setStatusFilter(e.target.value)}
+      >
+        <option value="all">All Status</option>
+        <option value="In stock">In Stock</option>
+        <option value="Low stock">Low Stock</option>
+        <option value="Out of stock">Out of Stock</option>
+      </select>
+    </div>
+
+    <div className="compact-filter-group">
+      <label>Category</label>
+      <select
+        value={categoryFilter}
+        onChange={(e) => setCategoryFilter(e.target.value)}
+      >
+        <option value="all">All Categories</option>
+        {categories.map((cat) => (
+          <option key={cat} value={cat}>
+            {cat}
+          </option>
+        ))}
+      </select>
+    </div>
+  </div>
+
+  <div className="compact-filter-actions">
+    <button type="button" className="btn-clear-report" onClick={handleClearFilters}>
+      Clear
+    </button>
+
+    <button type="button" className="btn-export-report" onClick={handleExportCSV}>
+      Export CSV
+    </button>
+
+    <button type="button" className="btn-export-report" onClick={handleExportPDF}>
+      Export PDF
+    </button>
+
+    <button type="button" className="btn-export-report" onClick={handleExportExcel}>
+      Export Excel
+    </button>
+  </div>
+</div>
 
       {/* Executive Report Button */}
       <div className="executive-report-actions">
@@ -561,8 +664,16 @@ const InventoryReports = () => {
         </button>
       </div>
 
-      {/* Insights Row */}
-      <div className="insights-row">
+      {/* Loading State or Main Content */}
+      {loading ? (
+        <div className="reports-loading-card">
+          <div className="spinner"></div>
+          <p>Loading reports...</p>
+        </div>
+      ) : (
+        <>
+          {/* Insights Row */}
+          <div className="insights-row">
         <div className="insight-card">
           <h4>Top Category</h4>
           <p>{topCategory}</p>
@@ -630,15 +741,19 @@ const InventoryReports = () => {
             <p>Highest available stock quantities</p>
           </div>
 
-          <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={topStockItems}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-              <YAxis />
-              <Tooltip />
-              <Bar dataKey="stock" fill="#ff5f93" radius={[10, 10, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          {topStockItems.length > 0 ? (
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={topStockItems}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" tick={{ fontSize: 11 }} interval={0} />
+                <YAxis allowDecimals={false} />
+                <Tooltip />
+                <Bar dataKey="stock" fill="#ff5f93" radius={[10, 10, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="chart-empty">No stock data available</div>
+          )}
         </section>
 
         <section className="chart-card">
@@ -647,25 +762,29 @@ const InventoryReports = () => {
             <p>In stock, low stock, and out of stock count</p>
           </div>
 
-          <ResponsiveContainer width="100%" height={280}>
-            <PieChart>
-              <Pie
-                data={statusChartData}
-                dataKey="value"
-                nameKey="name"
-                outerRadius={90}
-                label
-              >
-                {statusChartData.map((entry, index) => (
-                  <Cell
-                    key={`cell-${index}`}
-                    fill={["#10b981", "#f59e0b", "#ef4444"][index]}
-                  />
-                ))}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
+          {statusChartData.some((item) => item.value > 0) ? (
+            <ResponsiveContainer width="100%" height={220}>
+              <PieChart>
+                <Pie
+                  data={statusChartData}
+                  dataKey="value"
+                  nameKey="name"
+                  outerRadius={90}
+                  label
+                >
+                  {statusChartData.map((entry, index) => (
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={["#10b981", "#f59e0b", "#ef4444"][index]}
+                    />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="chart-empty">No status data available</div>
+          )}
         </section>
       </div>
 
@@ -676,21 +795,21 @@ const InventoryReports = () => {
           <div className="status-card in-stock">
             <FontAwesomeIcon icon={faCheckCircle} />
             <div className="status-info">
-              <span className="status-count">{statusCounts["In stock"]}</span>
+              <span className="status-count">{statusCounts["In Stock"]}</span>
               <span className="status-label">In Stock</span>
             </div>
           </div>
           <div className="status-card low-stock">
             <FontAwesomeIcon icon={faExclamationTriangle} />
             <div className="status-info">
-              <span className="status-count">{statusCounts["Low stock"]}</span>
+              <span className="status-count">{statusCounts["Low Stock"]}</span>
               <span className="status-label">Low Stock</span>
             </div>
           </div>
           <div className="status-card out-stock">
             <FontAwesomeIcon icon={faBox} />
             <div className="status-info">
-              <span className="status-count">{statusCounts["Out of stock"]}</span>
+              <span className="status-count">{statusCounts["Out of Stock"]}</span>
               <span className="status-label">Out of Stock</span>
             </div>
           </div>
@@ -772,14 +891,14 @@ const InventoryReports = () => {
               </thead>
               <tbody>
                 {lowStockItems.map((item) => (
-                  <tr key={item.id} className={item.quantity <= 5 ? "critical" : "warning"}>
+                  <tr key={item.id} className={getQuantity(item) <= 5 ? "critical" : "warning"}>
                     <td>{item.name}</td>
                     <td>{item.sku}</td>
                     <td>{item.category}</td>
-                    <td className="stock-cell">{item.quantity}</td>
+                    <td className="stock-cell">{getQuantity(item)}</td>
                     <td>
-                      <span className={`alert-badge ${item.quantity <= 5 ? "critical" : "warning"}`}>
-                        {item.quantity <= 5 ? "Critical" : "Low Stock"}
+                      <span className={`alert-badge ${getQuantity(item) <= 5 ? "critical" : "warning"}`}>
+                        {getQuantity(item) <= 5 ? "Critical" : "Low Stock"}
                       </span>
                     </td>
                   </tr>
@@ -819,21 +938,40 @@ const InventoryReports = () => {
                   <td>{item.category}</td>
                   <td>{item.brand}</td>
                   <td>{item.supplier}</td>
-                  <td className={`stock-cell ${item.quantity <= 10 ? "low" : ""}`}>{item.quantity}</td>
-                  <td>₱{Number(item.price || 0).toFixed(2)}</td>
-                  <td>₱{(Number(item.quantity || 0) * Number(item.price || 0)).toFixed(2)}</td>
-                  <td>
-                    <span className={`status-badge ${item.status?.toLowerCase().replace(" ", "-")}`}>
-                      {item.status}
-                    </span>
-                  </td>
-                  <td>{item.expiration}</td>
+                  <td
+                  className={`stock-cell ${
+                    getQuantity(item) <= Number(item.minimum_stock_level ?? item.reorder_level ?? 10)
+                      ? "low"
+                      : ""
+                  }`}
+                >
+                  {getQuantity(item)}
+                </td>
+
+                <td>₱{getPrice(item).toFixed(2)}</td>
+
+                <td>₱{(getQuantity(item) * getPrice(item)).toFixed(2)}</td>
+
+                <td>
+                  <span
+                    className={`status-badge ${getItemStatus(item)
+                      .toLowerCase()
+                      .replaceAll(" ", "-")}`}
+                  >
+                    {getItemStatus(item)}
+                  </span>
+                </td>
+
+                <td>{formatExpiry(item)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       </div>
+        </>
+      )}
+    </div>
     </div>
   );
 };

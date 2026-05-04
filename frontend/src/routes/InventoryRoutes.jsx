@@ -8,6 +8,9 @@ import InventoryReports from "../components/inventory/InventoryReports";
 import InventoryHistory from "../components/inventory/InventoryHistory_Polished";
 import InventoryProfile from "../components/inventory/InventoryProfile";
 import InventoryManagement from "../components/inventory/InventoryManagement";
+import MonthlyInventoryAudit from "../components/inventory/MonthlyInventoryAudit";
+import MonthlyAuditReport from "../components/inventory/MonthlyAuditReport";
+import AuditAnalyticsDashboard from "../components/inventory/AuditAnalyticsDashboard";
 
 const InventoryRoutes = () => (
   <Routes>
@@ -26,6 +29,30 @@ const InventoryRoutes = () => (
       <Route path="history" element={<InventoryHistory />} />
       <Route path="analytics" element={<InventoryReports />} />
       <Route path="reports" element={<InventoryReports />} />
+      <Route
+        path="monthly-audit"
+        element={
+          <ProtectedRoute>
+            <MonthlyInventoryAudit />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="monthly-audit-report"
+        element={
+          <ProtectedRoute>
+            <MonthlyAuditReport />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="audit-analytics"
+        element={
+          <ProtectedRoute>
+            <AuditAnalyticsDashboard />
+          </ProtectedRoute>
+        }
+      />
       <Route path="profile" element={<InventoryProfile />} />
     </Route>
   </Routes>

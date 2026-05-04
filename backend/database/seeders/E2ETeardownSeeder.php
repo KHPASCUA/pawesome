@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Models\Customer;
 use App\Models\Pet;
 use App\Models\InventoryItem;
+use App\Models\Service;
 
 class E2ETeardownSeeder extends Seeder
 {
@@ -34,5 +35,6 @@ class E2ETeardownSeeder extends Seeder
         Customer::where('email', 'e2e-customer-profile@example.com')->delete();
         Pet::where('name', 'E2E Pet')->delete();
         InventoryItem::where('name', 'E2E Test Item')->delete();
+        Service::where('name', 'E2E Checkup')->delete();
     }
 }

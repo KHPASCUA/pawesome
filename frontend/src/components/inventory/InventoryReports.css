@@ -1,12 +1,886 @@
 .inventory-reports-page {
- padding: 0;
- background: #ffffff;
- min-height: 100vh;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden !important;
+  padding-top: 28px !important;
+  padding-bottom: 40px !important;
+  padding-left: 32px !important;
+  padding-right: 32px !important;
+  background: linear-gradient(135deg, #ffc8dd, #ffd6e8, #fff1f7) !important;
+  color: #1f2937;
+}
+
+.reports-hero {
+  margin-top: 0 !important;
+}
+
+.inventory-reports-page * {
+  box-sizing: border-box;
+}
+
+.reports-hero,
+.reports-summary-grid,
+.reports-charts-grid,
+.status-overview-section,
+.reports-detail-panel,
+.alerts-section,
+.inventory-table-section,
+.executive-report-actions {
+  max-width: 100%;
+}
+
+.reports-loading-card {
+  width: 100%;
+  margin: 1.5rem 0 !important;
+}
+
+.reports-charts-grid,
+.status-overview-section,
+.reports-detail-panel,
+.alerts-section,
+.inventory-table-section,
+.alerts-section,
+.reports-panel,
+.chart-card,
+.status-overview-section {
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.table-container,
+.alerts-table-container,
+.reports-list-wrapper {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto !important;
+}
+
+.inventory-table,
+.alerts-table {
+  min-width: 900px;
+}
+
+@media (max-width: 768px) {
+  .inventory-reports-page {
+    padding: 16px !important;
+  }
+
+  .inventory-table,
+  .alerts-table {
+    min-width: 780px;
+  }
+}
+
+.chart-empty {
+  min-height: 280px;
+  display: grid;
+  place-items: center;
+  color: #64748b;
+  font-weight: 800;
+  border-radius: 18px;
+  background: #fff7fb;
+}
+
+.status-overview-section {
+  padding: 1.25rem !important;
+  overflow: visible !important;
+}
+
+.status-grid {
+  align-items: stretch;
+}
+
+.status-card {
+  min-height: 110px;
+  overflow: visible !important;
+}
+
+.status-info {
+  min-width: 0;
+}
+
+/* ===== FINAL INVENTORY REPORTS VISIBILITY FIX ===== */
+
+.inventory-reports-page {
+  padding: 24px 32px 48px !important;
+  background: linear-gradient(135deg, #ffc8dd, #ffd6e8, #fff1f7) !important;
+  overflow-x: hidden !important;
+}
+
+/* remove excessive hidden/blank top spacing */
+.reports-hero {
+  margin-top: 0 !important;
+  margin-bottom: 18px !important;
+}
+
+.reports-charts-grid {
+  margin-top: 18px !important;
+}
+
+/* Status overview card */
+.status-overview-section {
+  padding: 1.25rem !important;
+  margin: 1.5rem 0 !important;
+  background: rgba(255, 255, 255, 0.94) !important;
+  border: 1px solid rgba(255, 95, 147, 0.14) !important;
+  border-radius: 24px !important;
+  box-shadow: 0 18px 45px rgba(255, 95, 147, 0.1) !important;
+  overflow: visible !important;
+}
+
+.status-overview-section h3 {
+  color: #111827 !important;
+  margin-bottom: 1rem !important;
+}
+
+/* Fix blank status cards */
+.status-card {
+  min-height: 120px !important;
+  padding: 1.25rem !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 1rem !important;
+  overflow: visible !important;
+}
+
+.status-card svg {
+  flex-shrink: 0 !important;
+  font-size: 1.6rem !important;
+}
+
+.status-info {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 4px !important;
+  min-width: 0 !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+.status-count {
+  display: block !important;
+  font-size: 1.8rem !important;
+  font-weight: 950 !important;
+  color: #111827 !important;
+  line-height: 1.1 !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+.status-label {
+  display: block !important;
+  font-size: 0.9rem !important;
+  font-weight: 800 !important;
+  color: #64748b !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+/* Make cards readable by type */
+.status-card.in-stock {
+  background: #f0fdf4 !important;
+  border-color: #86efac !important;
+}
+
+.status-card.low-stock {
+  background: #fffbeb !important;
+  border-color: #fcd34d !important;
+}
+
+.status-card.out-stock,
+.status-card.out-of-stock {
+  background: #fef2f2 !important;
+  border-color: #fca5a5 !important;
+}
+
+/* ===== FINAL STATUS CARDS COMPACT CENTER FIX ===== */
+
+.status-overview-section {
+  padding: 1.15rem !important;
+}
+
+.status-grid {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 1rem !important;
+}
+
+.status-card {
+  min-height: 92px !important;
+  height: 92px !important;
+  padding: 1rem 1.2rem !important;
+
+  display: grid !important;
+  grid-template-columns: 46px 1fr !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 1rem !important;
+
+  border-radius: 22px !important;
+  overflow: hidden !important;
+}
+
+.status-card svg {
+  width: 24px !important;
+  height: 24px !important;
+  font-size: 1.35rem !important;
+  justify-self: center !important;
+}
+
+.status-info {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+  gap: 3px !important;
+  width: 100% !important;
+}
+
+.status-count {
+  font-size: 1.55rem !important;
+  font-weight: 950 !important;
+  line-height: 1 !important;
+  color: #111827 !important;
+  margin: 0 !important;
+}
+
+.status-label {
+  font-size: 0.78rem !important;
+  font-weight: 900 !important;
+  line-height: 1.1 !important;
+  color: #64748b !important;
+  margin: 0 !important;
+  max-width: 90px !important;
+}
+
+/* Keep Out of Stock in one better readable block */
+.status-card.out-stock .status-label,
+.status-card.out-of-stock .status-label {
+  max-width: 95px !important;
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  .status-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .status-card {
+    height: 86px !important;
+    min-height: 86px !important;
+  }
+}
+
+/* ===== REMOVE WHOLE PAGE HORIZONTAL SCROLL ===== */
+
+html,
+body,
+#root {
+  max-width: 100%;
+  overflow-x: hidden !important;
+}
+
+.inventory-reports-page {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden !important;
+}
+
+.reports-charts-grid,
+.status-overview-section,
+.reports-detail-panel,
+.alerts-section,
+.inventory-table-section,
+.reports-summary-grid,
+.insights-row {
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.table-container,
+.alerts-table-container,
+.reports-list-wrapper {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto !important;
+}
+
+.inventory-table,
+.alerts-table,
+.summary-table {
+  max-width: 100%;
+}
+
+.chart-card {
+  min-height: 300px !important;
+  max-height: 340px !important;
+}
+
+.reports-charts-grid {
+  align-items: stretch !important;
+}
+
+/* ===== FIX REPORT FILTERS NOT FITTING ===== */
+
+.inventory-reports-page {
+  width: 100%;
+  max-width: 100%;
+  padding: 20px 28px 48px !important;
+  overflow-x: hidden !important;
+}
+
+/* Make hero fit inside content */
+.reports-hero {
+  width: 100% !important;
+  max-width: 100% !important;
+  padding: 22px 28px !important;
+  margin: 0 0 18px !important;
+  overflow: hidden !important;
+}
+
+/* This targets ReportFilters dark panel */
+.report-filters,
+.filters-container,
+.report-filters-container {
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 0 18px !important;
+  padding: 18px !important;
+  border-radius: 24px !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+}
+
+/* Search should not exceed parent */
+.report-filters input,
+.filters-container input,
+.report-filters-container input {
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+/* Date fields should fit */
+.date-range,
+.date-range-group,
+.filter-date-row {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 14px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+/* Filter dropdowns compact */
+.filters-row,
+.filter-controls,
+.filter-row {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 12px !important;
+  width: 100% !important;
+}
+
+.filter-group {
+  min-width: 190px !important;
+  max-width: 260px !important;
+  flex: 0 1 240px !important;
+}
+
+/* Export button row */
+.export-buttons,
+.export-actions,
+.report-actions {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 10px !important;
+  width: 100% !important;
+}
+
+/* Prevent page/table from causing full horizontal scroll */
+.reports-charts-grid,
+.status-overview-section,
+.reports-detail-panel,
+.alerts-section,
+.inventory-table-section,
+.reports-summary-grid,
+.insights-row {
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+}
+
+.table-container,
+.alerts-table-container,
+.reports-list-wrapper {
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow-x: auto !important;
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  .inventory-reports-page {
+    padding: 14px !important;
+  }
+
+  .reports-hero {
+    padding: 18px !important;
+  }
+
+  .date-range,
+  .date-range-group,
+  .filter-date-row {
+    grid-template-columns: 1fr !important;
+  }
+
+  .filter-group {
+    max-width: 100% !important;
+    width: 100% !important;
+    flex: 1 1 100% !important;
+  }
+
+  .export-buttons,
+  .export-actions,
+  .report-actions {
+    flex-direction: column !important;
+  }
+
+  .export-buttons button,
+  .export-actions button,
+  .report-actions button {
+    width: 100% !important;
+  }
+}
+
+/* ===== HERO MINI STATS FIT FIX ===== */
+
+.hero-right {
+  display: flex !important;
+  gap: 10px !important;
+  flex-wrap: nowrap !important;
+  max-width: 45% !important;
+  overflow: hidden !important;
+}
+
+.mini-stat {
+  min-width: 88px !important;
+  max-width: 110px !important;
+  padding: 10px 12px !important;
+}
+
+.mini-stat span {
+  font-size: 11px !important;
+}
+
+.mini-stat strong {
+  font-size: 18px !important;
+  white-space: nowrap !important;
+}
+
+@media (max-width: 1100px) {
+  .reports-hero {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+
+  .hero-right {
+    max-width: 100% !important;
+    flex-wrap: wrap !important;
+  }
+
+  .mini-stat {
+    flex: 1 !important;
+    max-width: none !important;
+  }
+}
+
+/* ===== COMPACT INVENTORY REPORT FILTERS ===== */
+
+.inventory-compact-filters {
+  width: 100%;
+  max-width: 100%;
+  margin: 0 0 18px;
+  padding: 16px;
+  border-radius: 24px;
+  background: rgba(17, 24, 39, 0.94);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.18);
+  overflow: hidden;
+}
+
+/* ===== TRUE FINAL INVENTORY REPORTS WIDTH LOCK ===== */
+
+.inventory-reports-page {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  padding: 18px 20px 48px !important;
+  overflow-x: hidden !important;
+  display: flex !important;
+  justify-content: center !important;
+  background: linear-gradient(135deg, #ffc8dd, #ffd6e8, #fff1f7) !important;
+}
+
+.inventory-reports-inner {
+  width: 100% !important;
+  max-width: 1120px !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+}
+
+.inventory-reports-inner,
+.inventory-reports-inner * {
+  box-sizing: border-box !important;
+}
+
+/* HERO */
+.inventory-reports-inner .reports-hero {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  margin: 0 0 16px !important;
+  padding: 20px 22px !important;
+  border-radius: 24px !important;
+  overflow: hidden !important;
+
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) 300px !important;
+  align-items: center !important;
+  gap: 14px !important;
+}
+
+.inventory-reports-inner .hero-left {
+  min-width: 0 !important;
+  overflow: hidden !important;
+}
+
+.inventory-reports-inner .hero-left h1 {
+  font-size: 1.45rem !important;
+  line-height: 1.15 !important;
+  margin: 0 0 6px !important;
+  white-space: normal !important;
+}
+
+.inventory-reports-inner .hero-left p {
+  font-size: 0.88rem !important;
+  line-height: 1.35 !important;
+  white-space: normal !important;
+}
+
+/* HERO STATS */
+.inventory-reports-inner .hero-right {
+  width: 300px !important;
+  max-width: 300px !important;
+  min-width: 0 !important;
+
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 8px !important;
+  overflow: hidden !important;
+}
+
+.inventory-reports-inner .mini-stat {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  padding: 8px 6px !important;
+  overflow: hidden !important;
+}
+
+.inventory-reports-inner .mini-stat span {
+  font-size: 9px !important;
+  line-height: 1.1 !important;
+  white-space: nowrap !important;
+}
+
+.inventory-reports-inner .mini-stat strong {
+  display: block !important;
+  max-width: 100% !important;
+  font-size: 14px !important;
+  line-height: 1.1 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+/* FILTERS */
+.inventory-reports-inner .inventory-compact-filters {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  padding: 16px !important;
+  margin: 0 0 16px !important;
+  overflow: hidden !important;
+}
+
+.inventory-reports-inner .compact-search {
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+.inventory-reports-inner .compact-search input {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+}
+
+.inventory-reports-inner .compact-filter-row {
+  width: 100% !important;
+  min-width: 0 !important;
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: 12px !important;
+}
+
+.inventory-reports-inner .compact-filter-group {
+  min-width: 0 !important;
+  max-width: 100% !important;
+}
+
+.inventory-reports-inner .compact-filter-group input,
+.inventory-reports-inner .compact-filter-group select {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+}
+
+.inventory-reports-inner .compact-filter-actions {
+  width: 100% !important;
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 10px !important;
+}
+
+/* PRINT BUTTON */
+.inventory-reports-inner .executive-report-actions {
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+  justify-content: flex-end !important;
+}
+
+.inventory-reports-inner .executive-report-actions .btn-primary {
+  max-width: 100% !important;
+  white-space: nowrap !important;
+}
+
+/* ALL REPORT SECTIONS */
+.inventory-reports-inner .insights-row,
+.inventory-reports-inner .reports-summary-grid,
+.inventory-reports-inner .reports-charts-grid,
+.inventory-reports-inner .status-overview-section,
+.inventory-reports-inner .reports-detail-panel,
+.inventory-reports-inner .alerts-section,
+.inventory-reports-inner .inventory-table-section {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+}
+
+/* TABLES ONLY SCROLL INSIDE */
+.inventory-reports-inner .table-container,
+.inventory-reports-inner .alerts-table-container,
+.inventory-reports-inner .reports-list-wrapper {
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow-x: auto !important;
+}
+
+/* RESPONSIVE */
+@media (max-width: 1200px) {
+  .inventory-reports-inner {
+    max-width: 100% !important;
+  }
+
+  .inventory-reports-inner .reports-hero {
+    grid-template-columns: 1fr !important;
+  }
+
+  .inventory-reports-inner .hero-right {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .inventory-reports-page {
+    padding: 14px !important;
+  }
+
+  .inventory-reports-inner .reports-hero {
+    padding: 18px !important;
+  }
+
+  .inventory-reports-inner .hero-right {
+    grid-template-columns: 1fr !important;
+  }
+
+  .inventory-reports-inner .compact-filter-row {
+    grid-template-columns: 1fr !important;
+  }
+
+  .inventory-reports-inner .compact-filter-actions {
+    flex-direction: column !important;
+  }
+
+  .inventory-reports-inner .compact-filter-actions button {
+    width: 100% !important;
+  }
+}
+
+.compact-search {
+  width: 100%;
+  margin-bottom: 12px;
+}
+
+.compact-search input {
+  width: 100%;
+  height: 48px;
+  border-radius: 999px !important;
+  border: none !important;
+  padding: 0 18px;
+  background: #ffffff !important;
+  color: #1f2937;
+  font-weight: 800;
+}
+
+.compact-filter-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(150px, 1fr));
+  gap: 12px;
+  width: 100%;
+}
+
+.compact-filter-group {
+  min-width: 0;
+}
+
+.compact-filter-group label {
+  display: block;
+  margin: 0 0 6px;
+  color: #cbd5e1;
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.compact-filter-group input,
+.compact-filter-group select {
+  width: 100%;
+  height: 46px;
+  border-radius: 999px !important;
+  border: none !important;
+  padding: 0 14px;
+  background: #ffffff !important;
+  color: #1f2937;
+  font-weight: 800;
+}
+
+.compact-filter-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.btn-clear-report,
+.btn-export-report {
+  border: none;
+  border-radius: 999px;
+  padding: 10px 16px;
+  font-weight: 900;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.btn-clear-report {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+.btn-export-report {
+  background: linear-gradient(135deg, #ff5f93, #ff8db5);
+  color: #ffffff;
+  box-shadow: 0 10px 24px rgba(255, 95, 147, 0.24);
+}
+
+.btn-clear-report:hover,
+.btn-export-report:hover {
+  transform: translateY(-2px);
+}
+
+@media (max-width: 1100px) {
+  .compact-filter-row {
+    grid-template-columns: repeat(2, minmax(150px, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .inventory-compact-filters {
+    padding: 14px;
+  }
+
+  .compact-filter-row {
+    grid-template-columns: 1fr;
+  }
+
+  .compact-filter-actions {
+    flex-direction: column;
+  }
+
+  .btn-clear-report,
+  .btn-export-report {
+    width: 100%;
+  }
+}
+
+.reports-loading-card {
+  min-height: 420px;
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.86);
+  border: 1px solid rgba(255, 95, 147, 0.18);
+  box-shadow: 0 22px 55px rgba(255, 95, 147, 0.18);
+  backdrop-filter: blur(16px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin: 2rem 0;
+}
+
+.reports-loading-card .spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid rgba(255, 95, 147, 0.18);
+  border-top-color: #ff5f93;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.reports-loading-card p {
+  margin-top: 16px;
+  color: #64748b;
+  font-weight: 800;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .reports-header {
- background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
- padding: 40px;
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  padding: 40px;
+  margin-bottom: 0;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
  margin-bottom: 0;
  position: relative;
  overflow: hidden;

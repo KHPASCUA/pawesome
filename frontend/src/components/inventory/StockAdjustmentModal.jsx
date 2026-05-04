@@ -4,10 +4,26 @@ import { formatCurrency } from "../../utils/currency";
 import "./StockAdjustmentModal.css";
 
 const StockAdjustmentModal = ({ isOpen, onClose, item, onSuccess }) => {
+  // Category-based expiry rule
+  const expiryRequiredCategories = [
+    "food",
+    "medicine", 
+    "vitamins",
+    "health",
+    "grooming",
+    "shampoo",
+    "treats",
+  ];
+
+  const needsExpiration = (itm) => {
+    const category = String(itm?.category || "").toLowerCase();
+    return expiryRequiredCategories.some((key) => category.includes(key));
+  };
   const [adjustmentType, setAdjustmentType] = useState("add"); // 'add', 'remove', 'set'
   const [quantity, setQuantity] = useState("");
   const [reason, setReason] = useState("");
   const [customReason, setCustomReason] = useState("");
+  const [expirationDate, setExpirationDate] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -20,6 +36,7 @@ const StockAdjustmentModal = ({ isOpen, onClose, item, onSuccess }) => {
     setQuantity("");
     setReason("");
     setCustomReason("");
+    setExpirationDate("");
     setError(null);
   };
 
@@ -93,18 +110,44 @@ const StockAdjustmentModal = ({ isOpen, onClose, item, onSuccess }) => {
       return;
     }
 
+    // Category-based expiration validation
+    if (adjustmentType === "add" && needsExpiration(item) && !expirationDate) {
+      alert("Expiration date is required for this item category.");
+      return;
+    }
+
     setLoading(true);
+    setError(null);
 
     try {
       const finalReason = reason === "Other" ? customReason : reason;
 
-      await inventoryApi.adjustStock(item.id, adjustmentType, Number(quantity), finalReason);
+      console.log("[StockAdjustment] Sending request:", {
+        itemId: item.id,
+        type: adjustmentType,
+        quantity: Number(quantity),
+        reason: finalReason,
+      });
+
+      const result = await inventoryApi.adjustStock(item.id, adjustmentType, Number(quantity), finalReason, {
+        expiration_date: needsExpiration(item) ? expirationDate : null
+      });
+      console.log("[StockAdjustment] Success:", result);
 
       await onSuccess?.();
       onClose?.();
     } catch (err) {
-      console.error("Stock adjustment failed:", err);
-      alert(err.message || "Failed to adjust stock. Please try again.");
+      console.error("[StockAdjustment] Failed:", err);
+      console.error("[StockAdjustment] Error details:", {
+        message: err.message,
+        response: err.response,
+        request: err.request,
+      });
+
+      // Show specific error message from backend or generic message
+      const errorMsg = err.message || "Failed to adjust stock. Please try again.";
+      setError(errorMsg);
+      alert(`Error: ${errorMsg}`);
     } finally {
       setLoading(false);
     }
@@ -302,6 +345,32 @@ const StockAdjustmentModal = ({ isOpen, onClose, item, onSuccess }) => {
                   autoFocus
                   required
                 />
+              </div>
+            )}
+
+            {/* Expiration Date - Category-based requirement */}
+            {adjustmentType === "add" && needsExpiration(item) && (
+              <div className="form-group">
+                <label>
+                  Expiration Date <span className="required">*</span>
+                </label>
+                <input
+                  type="date"
+                  value={expirationDate}
+                  onChange={(e) => setExpirationDate(e.target.value)}
+                  min={new Date().toISOString().split('T')[0]}
+                  required
+                />
+                <small className="field-hint required">
+                  This category requires an expiration date.
+                </small>
+              </div>
+            )}
+
+            {adjustmentType === "add" && !needsExpiration(item) && (
+              <div className="form-note">
+                <span className="note-icon">ℹ️</span>
+                <span>This item category does not require expiration tracking.</span>
               </div>
             )}
 

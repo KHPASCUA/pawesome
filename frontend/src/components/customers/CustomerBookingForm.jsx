@@ -63,7 +63,7 @@ const CustomerBookingForm = () => {
       const data = await apiRequest("/customer/requests", {
         method: "POST",
         body: JSON.stringify(submissionData),
-      }, "http://127.0.0.1:8000/api");
+      });
 
       if (data.success) {
         alert("Booking request submitted successfully. Please wait for receptionist approval.");

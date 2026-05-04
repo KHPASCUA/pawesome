@@ -10,6 +10,7 @@ use App\Models\Pet;
 use App\Models\Boarding;
 use App\Models\InventoryItem;
 use App\Models\Appointment;
+use App\Models\Service;
 
 class E2ESeeder extends Seeder
 {
@@ -53,7 +54,7 @@ class E2ESeeder extends Seeder
 
         $pet = Pet::updateOrCreate(
             ['name' => 'E2E Pet', 'customer_id' => $customer->id],
-            ['species' => 'Dog', 'breed' => 'Mixed', 'age' => 3]
+            ['species' => 'Dog', 'breed' => 'Mixed', 'birth_date' => now()->subYears(3)->toDateString()]
         );
 
         // Create a boarding (current boarder)
@@ -74,11 +75,16 @@ class E2ESeeder extends Seeder
             ['category' => 'Accessories', 'stock' => 10, 'reorder_level' => 5, 'price' => 9.99]
         );
 
+        $service = Service::updateOrCreate(
+            ['name' => 'E2E Checkup'],
+            ['category' => 'Consultation', 'price' => 50.00, 'duration' => 30, 'is_active' => true]
+        );
+
         // Create an appointment
         Appointment::create([
             'customer_id' => $customer->id,
             'pet_id' => $pet->id,
-            'service_id' => null,
+            'service_id' => $service->id,
             'veterinarian_id' => User::where('role', 'veterinary')->value('id'),
             'status' => 'approved',
             'scheduled_at' => now()->addDay(),

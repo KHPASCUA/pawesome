@@ -113,6 +113,11 @@ class DashboardController extends Controller
         );
     }
 
+    public function history()
+    {
+        return $this->transactions();
+    }
+
     public function searchTransactions(Request $request)
     {
         $query = $request->get('q', '');
@@ -142,21 +147,19 @@ class DashboardController extends Controller
     {
         $validated = $request->validate([
             'transaction_id' => 'required',
-            'amount' => 'required|numeric|min:0',
+            'amount' => 'nullable|numeric|min:0',
+            'refund_amount' => 'nullable|numeric|min:0',
             'reason' => 'required|string',
             'cashier_name' => 'required|string',
         ]);
 
         // Create refund record
         $refund = Sale::create([
-            'id' => 'REF-' . time(),
-            'amount' => $validated['amount'],
+            'amount' => $validated['amount'] ?? $validated['refund_amount'] ?? 0,
             'type' => 'refund',
+            'status' => 'completed',
             'payment_type' => 'refund',
-            'transaction_id' => $validated['transaction_id'],
-            'reason' => $validated['reason'],
-            'cashier_name' => $validated['cashier_name'],
-            'created_at' => now(),
+            'notes' => 'Refund for ' . $validated['transaction_id'] . ': ' . $validated['reason'],
         ]);
 
         return response()->json([
@@ -171,18 +174,18 @@ class DashboardController extends Controller
             'cash_amount' => 'required|numeric|min:0',
             'card_amount' => 'required|numeric|min:0',
             'total_amount' => 'required|numeric|min:0',
-            'transaction_id' => 'required',
+            'transaction_id' => 'nullable',
         ]);
 
         // Create multi-payment record
         $payment = Sale::create([
             'amount' => $validated['total_amount'],
             'type' => 'multi_payment',
+            'status' => 'completed',
             'payment_type' => 'multi',
             'cash_amount' => $validated['cash_amount'],
             'card_amount' => $validated['card_amount'],
-            'transaction_id' => $validated['transaction_id'],
-            'created_at' => now(),
+            'notes' => isset($validated['transaction_id']) ? 'Split payment for ' . $validated['transaction_id'] : null,
         ]);
 
         return response()->json([
@@ -195,7 +198,7 @@ class DashboardController extends Controller
     {
         $validated = $request->validate([
             'code' => 'required|string',
-            'transaction_id' => 'required',
+            'transaction_id' => 'nullable',
         ]);
 
         // Simple discount logic - in production, check against discount codes table
@@ -216,7 +219,7 @@ class DashboardController extends Controller
         }
 
         // Get transaction amount
-        $transaction = Sale::find($validated['transaction_id']);
+        $transaction = isset($validated['transaction_id']) ? Sale::find($validated['transaction_id']) : null;
         if ($transaction) {
             $discountAmount = ($transaction->amount * $discountPercent) / 100;
             $newTotal = $transaction->amount - $discountAmount;
@@ -260,6 +263,30 @@ class DashboardController extends Controller
         // For now, just return success
         return response()->json([
             'success' => true,
+        ]);
+    }
+
+    public function endShift(Request $request)
+    {
+        $data = $request->validate([
+            'cashier_name' => 'nullable|string',
+            'shift_date' => 'nullable|date',
+            'total_sales' => 'nullable|numeric|min:0',
+            'total_transactions' => 'nullable|integer|min:0',
+            'cash_collected' => 'nullable|numeric|min:0',
+            'expected_cash' => 'nullable|numeric|min:0',
+            'actual_cash' => 'nullable|numeric|min:0',
+            'cash_difference' => 'nullable|numeric',
+            'note' => 'nullable|string',
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Shift report submitted successfully',
+            'shift_report' => array_merge($data, [
+                'id' => 'SHIFT-' . now()->format('YmdHis'),
+                'submitted_at' => now()->toIso8601String(),
+            ]),
         ]);
     }
 

@@ -35,15 +35,28 @@ async function loginAs(page, role = 'admin') {
   
   const email = process.env[`E2E_${roleUpper}_EMAIL`] || defaults.email;
   const password = process.env[`E2E_${roleUpper}_PASSWORD`] || defaults.password;
-  
-  await page.goto('http://localhost:3000/login');
-  await page.fill('input[name="email"]', email);
-  await page.fill('input[name="password"]', password);
-  await page.click('button[type="submit"]');
-  
-  // Wait for redirect to role-specific dashboard
+  const apiBase = process.env.REACT_APP_API_URL || 'http://127.0.0.1:8000/api';
   const expectedPath = ROLE_DASHBOARDS[role] || '/dashboard';
-  await page.waitForURL(`**${expectedPath}`, { timeout: 10000 }).catch(() => {});
+
+  const response = await page.request.post(`${apiBase}/auth/login`, {
+    data: { login: email, password },
+    headers: { Accept: 'application/json' },
+  });
+
+  if (!response.ok()) {
+    throw new Error(`Login failed for ${role}: ${response.status()} ${await response.text()}`);
+  }
+
+  const data = await response.json();
+  await page.addInitScript(({ token, user }) => {
+    window.localStorage.setItem('token', token);
+    window.localStorage.setItem('role', user.role);
+    window.localStorage.setItem('name', user.name);
+    window.localStorage.setItem('username', user.username || user.email);
+    window.localStorage.setItem('email', user.email);
+  }, { token: data.token, user: data.user });
+  
+  await page.goto('http://localhost:3000' + expectedPath);
 }
 
 /**

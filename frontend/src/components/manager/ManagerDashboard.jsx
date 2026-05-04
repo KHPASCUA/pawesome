@@ -287,8 +287,7 @@ const ManagerDashboard = () => {
 
     const fetchHotelStats = async () => {
       try {
-        const response = await fetch("http://127.0.0.1:8000/api/receptionist/requests");
-        const data = await response.json();
+        const data = await apiRequest("/receptionist/requests");
 
         const hotelRequests = data.requests.filter(item => item.type === "hotel");
         const totalRooms = 50; // Fixed total rooms

@@ -9,6 +9,7 @@ import {
   FaPaw,
 } from "react-icons/fa";
 import "./CustomerRequestStatus.css";
+import { apiRequest } from "../../api/client";
 
 const CustomerRequestStatus = () => {
   const [requests, setRequests] = useState([]);
@@ -28,10 +29,7 @@ const CustomerRequestStatus = () => {
         return;
       }
 
-      const response = await fetch(
-        `http://127.0.0.1:8000/api/customer/my-requests?email=${email}`
-      );
-      const data = await response.json();
+      const data = await apiRequest(`/customer/my-requests?email=${email}`);
 
       if (data.success) {
         setRequests(data.requests);

@@ -1,5 +1,7 @@
+import { API_URL } from "./client";
+
 const API_BASE_URL =
-  import.meta.env.VITE_API_URL?.replace(/\/$/, "") || "http://127.0.0.1:8000/api";
+  API_URL.replace(/\/$/, "");
 
 function getToken() {
   return (

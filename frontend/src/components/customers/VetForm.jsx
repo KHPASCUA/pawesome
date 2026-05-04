@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
 import "./VetForm.css";
+import { apiRequest } from "../../api/client";
 
 const VetForm = () => {
   const [activeTab, setActiveTab] = useState("book");
@@ -22,10 +23,7 @@ const VetForm = () => {
 
   const fetchAppointments = useCallback(async () => {
     try {
-      const response = await fetch(
-        `http://127.0.0.1:8000/api/customer/my-requests?email=${customerEmail}`
-      );
-      const data = await response.json();
+      const data = await apiRequest(`/customer/my-requests?email=${customerEmail}`);
       
       // Filter only vet requests
       const vetOnly = data.requests.filter(item => item.type === "vet");
@@ -52,15 +50,10 @@ const VetForm = () => {
     try {
       setLoading(true);
 
-      const response = await fetch("http://127.0.0.1:8000/api/customer/requests", {
+      const data = await apiRequest("/customer/requests", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
         body: JSON.stringify(formData),
       });
-
-      const data = await response.json();
 
       if (data.success) {
         alert("Vet appointment submitted! Waiting for receptionist approval.");

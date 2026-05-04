@@ -104,6 +104,130 @@ class DashboardController extends Controller
         );
     }
 
+    public function reports(Request $request)
+    {
+        $summary = $this->inventoryService->getSummary();
+        $logs = InventoryLog::with('inventoryItem')
+            ->when($request->startDate, fn ($query) => $query->whereDate('created_at', '>=', $request->startDate))
+            ->when($request->endDate, fn ($query) => $query->whereDate('created_at', '<=', $request->endDate))
+            ->latest()
+            ->limit(100)
+            ->get();
+
+        return response()->json([
+            'summary' => $summary,
+            'items' => InventoryItem::orderBy('name')->get(),
+            'logs' => $logs,
+            'generated_at' => now()->toIso8601String(),
+        ]);
+    }
+
+    public function history(Request $request)
+    {
+        $query = InventoryLog::with('inventoryItem')->latest();
+
+        if ($request->filled('itemId')) {
+            $query->where('inventory_item_id', $request->itemId);
+        }
+
+        if ($request->filled('item_id')) {
+            $query->where('inventory_item_id', $request->item_id);
+        }
+
+        if ($request->filled('action')) {
+            $query->where('reference_type', $request->action);
+        }
+
+        if ($request->filled('startDate')) {
+            $query->whereDate('created_at', '>=', $request->startDate);
+        }
+
+        if ($request->filled('endDate')) {
+            $query->whereDate('created_at', '<=', $request->endDate);
+        }
+
+        $history = $query->paginate($request->integer('per_page', 50));
+
+        return response()->json([
+            'history' => $history->items(),
+            'data' => $history->items(),
+            'meta' => [
+                'current_page' => $history->currentPage(),
+                'total' => $history->total(),
+                'per_page' => $history->perPage(),
+            ],
+        ]);
+    }
+
+    public function lowStock()
+    {
+        return response()->json([
+            'data' => $this->inventoryService->getLowStockItems(),
+            'count' => count($this->inventoryService->getLowStockItems()),
+        ]);
+    }
+
+    public function adjustStock(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'type' => 'required|in:add,remove,set',
+            'quantity' => 'required|integer|min:0',
+            'reason' => 'nullable|string|max:255',
+        ]);
+
+        $item = InventoryItem::findOrFail($id);
+        $current = (int) $item->stock;
+        $quantity = (int) $validated['quantity'];
+
+        $newStock = match ($validated['type']) {
+            'add' => $current + $quantity,
+            'remove' => max(0, $current - $quantity),
+            default => $quantity,
+        };
+
+        $item->update(['stock' => $newStock]);
+
+        InventoryLog::create([
+            'inventory_item_id' => $item->id,
+            'delta' => $newStock - $current,
+            'reason' => $validated['reason'] ?? 'Manual stock adjustment',
+            'reference_type' => $validated['type'],
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Stock adjusted successfully',
+            'item' => $item->fresh(),
+            'previous_stock' => $current,
+            'new_stock' => $newStock,
+            'adjustment' => $newStock - $current,
+        ]);
+    }
+
+    public function reorderRequest(Request $request)
+    {
+        $payload = $request->validate([
+            'item_id' => 'required|integer|exists:inventory_items,id',
+            'item_name' => 'nullable|string|max:255',
+            'sku' => 'nullable|string|max:255',
+            'suggested_quantity' => 'nullable|integer|min:1',
+            'current_stock' => 'nullable|integer|min:0',
+            'reorder_level' => 'nullable|integer|min:0',
+            'priority' => 'nullable|string|max:50',
+            'status' => 'nullable|string|max:50',
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Reorder request recorded',
+            'request' => array_merge($payload, [
+                'id' => 'RR-' . now()->format('YmdHis'),
+                'status' => $payload['status'] ?? 'pending',
+                'created_at' => now()->toIso8601String(),
+            ]),
+        ], 201);
+    }
+
     public function showItem($id)
     {
         $item = InventoryItem::findOrFail($id);

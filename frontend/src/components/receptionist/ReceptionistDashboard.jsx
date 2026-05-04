@@ -43,7 +43,7 @@ const ReceptionistDashboard = () => {
       setError("");
       const data = await apiRequest("/receptionist/requests", {
         method: "GET",
-      }, "http://127.0.0.1:8000/api");
+      });
       
       // Transform backend data to match frontend format
       const requestData = Array.isArray(data) ? data : (data.requests || []);
@@ -122,7 +122,7 @@ const ReceptionistDashboard = () => {
       await apiRequest(endpoint, {
         method: "PATCH",
         body: JSON.stringify({ status: newStatus }),
-      }, "http://127.0.0.1:8000/api");
+      });
       
       // Refresh the requests after update
       await fetchRequests();

@@ -45,8 +45,7 @@ const VetAppointments = () => {
   const fetchAppointments = async () => {
     try {
       setLoading(true);
-      const response = await fetch("http://127.0.0.1:8000/api/receptionist/requests");
-      const data = await response.json();
+      const data = await apiRequest("/receptionist/requests");
       
       // Filter only vet requests
       const requestData = Array.isArray(data) ? data : (data.requests || []);
@@ -93,16 +92,10 @@ const VetAppointments = () => {
   const handleApprove = async (appointmentId) => {
     try {
       setActionLoading(true);
-      await fetch(
-        `http://127.0.0.1:8000/api/receptionist/requests/${appointmentId}/status`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ status: "approved" }),
-        }
-      );
+      await apiRequest(`/receptionist/requests/${appointmentId}/status`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: "approved" }),
+      });
       
       await fetchAppointments();
       setSelectedAppointment(null);
@@ -124,16 +117,10 @@ const VetAppointments = () => {
     
     try {
       setActionLoading(true);
-      await fetch(
-        `http://127.0.0.1:8000/api/receptionist/requests/${appointmentId}/status`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ status: "rejected" }),
-        }
-      );
+      await apiRequest(`/receptionist/requests/${appointmentId}/status`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: "rejected" }),
+      });
       
       await fetchAppointments();
       setSelectedAppointment(null);
@@ -150,16 +137,10 @@ const VetAppointments = () => {
   const handleReschedule = async (appointmentId, newDateTime) => {
     try {
       setActionLoading(true);
-      await fetch(
-        `http://127.0.0.1:8000/api/receptionist/requests/${appointmentId}/status`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ status: "rescheduled" }),
-        }
-      );
+      await apiRequest(`/receptionist/requests/${appointmentId}/status`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: "rescheduled" }),
+      });
       
       await fetchAppointments();
       setSelectedAppointment(null);

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import "./ReceptionistCustomerOrders.css";
 import Swal from "sweetalert2";
+import { API_URL } from "../../api/client";
 
 export default function ReceptionistCustomerOrders() {
   const [orders, setOrders] = useState([]);
@@ -14,9 +15,7 @@ export default function ReceptionistCustomerOrders() {
 
     try {
       const token = localStorage.getItem("token");
-      const apiUrl =
-        import.meta.env.VITE_API_URL?.replace(/\/$/, "") ||
-        "http://127.0.0.1:8000/api";
+      const apiUrl = API_URL.replace(/\/$/, "");
 
       const res = await fetch(`${apiUrl}/receptionist/orders`, {
         headers: {
@@ -81,9 +80,7 @@ export default function ReceptionistCustomerOrders() {
 
     try {
       const token = localStorage.getItem("token");
-      const apiUrl =
-        import.meta.env.VITE_API_URL?.replace(/\/$/, "") ||
-        "http://127.0.0.1:8000/api";
+      const apiUrl = API_URL.replace(/\/$/, "");
 
       const res = await fetch(`${apiUrl}/receptionist/orders/${orderId}/status`, {
         method: "PUT",

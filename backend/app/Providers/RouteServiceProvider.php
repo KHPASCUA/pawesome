@@ -46,9 +46,11 @@ class RouteServiceProvider extends ServiceProvider
             return Limit::perMinute(60)->by($request->ip());
         });
 
-        // Strict rate limit for authentication endpoints: 5 requests per minute
+        // Strict rate limit for authentication endpoints per account and IP.
         RateLimiter::for('auth', function (Request $request) {
-            return Limit::perMinute(5)->by($request->ip());
+            $login = strtolower((string) $request->input('login', $request->input('email', 'guest')));
+
+            return Limit::perMinute(5)->by($login . '|' . $request->ip());
         });
 
         // Rate limit for sensitive operations: 10 requests per minute

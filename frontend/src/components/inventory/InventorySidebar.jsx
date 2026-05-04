@@ -11,6 +11,7 @@ import {
   faListCheck,
   faUser,
   faCog,
+  faClipboardCheck,
 } from "@fortawesome/free-solid-svg-icons";
 import "./InventorySidebar.css";
 
@@ -74,6 +75,27 @@ const InventorySidebar = () => {
             <NavLink to="/inventory/reports" className={({ isActive }) => isActive ? "active" : ""} end>
               <FontAwesomeIcon icon={faChartBar} />
               <span>Reports</span>
+            </NavLink>
+          </li>
+
+          <li className="nav-item">
+            <NavLink to="/inventory/monthly-audit" className={({ isActive }) => isActive ? "active" : ""} end>
+              <FontAwesomeIcon icon={faClipboardCheck} />
+              <span>Monthly Audit</span>
+            </NavLink>
+          </li>
+
+          <li className="nav-item">
+            <NavLink to="/inventory/monthly-audit-report" className={({ isActive }) => isActive ? "active" : ""} end>
+              <FontAwesomeIcon icon={faClipboardCheck} />
+              <span>Audit Reports</span>
+            </NavLink>
+          </li>
+
+          <li className="nav-item">
+            <NavLink to="/inventory/audit-analytics" className={({ isActive }) => isActive ? "active" : ""} end>
+              <FontAwesomeIcon icon={faChartBar} />
+              <span>Audit Analytics</span>
             </NavLink>
           </li>
 

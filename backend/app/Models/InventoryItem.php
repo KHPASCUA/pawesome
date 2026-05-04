@@ -217,7 +217,7 @@ class InventoryItem extends Model
     /**
      * Add stock with batch tracking
      */
-    public function addBatchStock(int $amount, ?string $batchNo = null, ?string $expirationDate = null, string $notes = ''): InventoryBatch
+    public function addBatchStock(int $amount, ?string $batchNo = null, ?string $expirationDate = null, string $notes = '', bool $updateMainStock = true): InventoryBatch
     {
         $batch = $this->batches()->create([
             'batch_no' => $batchNo ?: 'BATCH-' . strtoupper(uniqid()),
@@ -229,9 +229,11 @@ class InventoryItem extends Model
             'notes' => $notes,
         ]);
 
-        // Update main stock count
-        $this->stock += $amount;
-        $this->save();
+        // Update main stock count (only if not handled by caller)
+        if ($updateMainStock) {
+            $this->stock += $amount;
+            $this->save();
+        }
 
         // Create log entry
         InventoryLog::create([

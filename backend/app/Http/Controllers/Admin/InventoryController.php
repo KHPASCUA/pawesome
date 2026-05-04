@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\InventoryItem;
 use App\Models\InventoryBatch;
 use App\Models\InventoryLog;
+use App\Models\InventoryMonthlyAudit;
 use App\Services\InventoryService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -159,28 +160,72 @@ class InventoryController extends Controller
             'type' => 'required|in:add,remove,set',
             'quantity' => 'required|integer|min:0',
             'reason' => 'nullable|string|max:255',
+            'expiration_date' => 'nullable|date',
         ]);
 
         try {
             $item = InventoryItem::findOrFail($id);
             $current = (int) ($item->quantity ?? $item->stock ?? 0);
             $qty = (int) $validated['quantity'];
+            $expirationDate = $validated['expiration_date'] ?? null;
+
+            // Category-based expiry validation
+            $expiryRequiredCategories = [
+                'food',
+                'medicine',
+                'vitamins',
+                'health',
+                'grooming',
+                'shampoo',
+                'treats',
+            ];
+
+            $category = strtolower($item->category ?? '');
+            $requiresExpiry = collect($expiryRequiredCategories)->contains(function ($key) use ($category) {
+                return str_contains($category, $key);
+            });
+
+            // Enforce expiry requirement for add operations
+            if ($validated['type'] === 'add' && $qty > 0 && $requiresExpiry && !$expirationDate) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Expiration date is required for this item category.',
+                ], 422);
+            }
 
             if ($validated['type'] === 'add') {
                 $newStock = $current + $qty;
+                
+                // Create new batch if expiration date is provided or required
+                if (($expirationDate || $requiresExpiry) && $qty > 0) {
+                    $this->deductFromBatches($id, $qty); // Use existing method for batch logic
+                    $item->addBatchStock($qty, null, $requiresExpiry ? $expirationDate : $expirationDate, 'Stock adjustment');
+                } else {
+                    // Simple stock addition without batch
+                    if (Schema::hasColumn($item->getTable(), 'stock')) {
+                        $item->stock = $newStock;
+                    }
+                    $item->quantity = $newStock;
+                    $item->save();
+                }
             } elseif ($validated['type'] === 'remove') {
                 $newStock = max(0, $current - $qty);
+                
+                // Deduct from batches using FEFO
+                if ($qty > 0) {
+                    $this->deductFromBatches($id, $qty);
+                }
             } else {
                 $newStock = $qty;
+                $item->quantity = $newStock;
+                if (Schema::hasColumn($item->getTable(), 'stock')) {
+                    $item->stock = $newStock;
+                }
+                $item->save();
             }
 
-            $item->quantity = $newStock;
-
-            if (Schema::hasColumn($item->getTable(), 'stock')) {
-                $item->stock = $newStock;
-            }
-
-            $item->save();
+            // Refresh item to get updated stock
+            $item = $item->fresh();
 
             // Log the adjustment
             InventoryLog::create([
@@ -296,6 +341,90 @@ class InventoryController extends Controller
     public function summary()
     {
         return response()->json($this->inventoryService->getSummary());
+    }
+
+    /**
+     * Deduct stock from batches using FEFO (First Expired, First Out) logic
+     */
+    public function deductFromBatches($itemId, $qty)
+    {
+        $needed = (int) $qty;
+
+        $batches = \App\Models\InventoryBatch::where('inventory_item_id', $itemId)
+            ->where('status', 'active')
+            ->where('remaining_quantity', '>', 0)
+            ->orderByRaw('expiration_date IS NULL, expiration_date ASC')
+            ->orderBy('received_date', 'asc')
+            ->lockForUpdate()
+            ->get();
+
+        foreach ($batches as $batch) {
+            if ($needed <= 0) break;
+
+            $deduct = min($batch->remaining_quantity, $needed);
+            $batch->remaining_quantity -= $deduct;
+
+            if ($batch->remaining_quantity <= 0) {
+                $batch->status = 'depleted';
+            }
+
+            $batch->save();
+            $needed -= $deduct;
+        }
+
+        if ($needed > 0) {
+            throw new \Exception('Not enough stock available.');
+        }
+
+        $total = \App\Models\InventoryBatch::where('inventory_item_id', $itemId)
+            ->where('status', 'active')
+            ->sum('remaining_quantity');
+
+        \App\Models\InventoryItem::where('id', $itemId)->update([
+            'stock' => $total,
+        ]);
+    }
+
+    /**
+     * Get expiry alerts for batches expiring within 30 days or already expired
+     */
+    public function expiryAlerts()
+    {
+        $today = now()->toDateString();
+        $soon = now()->addDays(30)->toDateString();
+
+        $alerts = DB::table('inventory_batches')
+            ->join('inventory_items', 'inventory_batches.inventory_item_id', '=', 'inventory_items.id')
+            ->where('inventory_batches.remaining_quantity', '>', 0)
+            ->whereNotNull('inventory_batches.expiration_date')
+            ->where(function ($q) use ($today, $soon) {
+                $q->whereDate('inventory_batches.expiration_date', '<=', $today)
+                  ->orWhereBetween('inventory_batches.expiration_date', [$today, $soon]);
+            })
+            ->select(
+                'inventory_batches.id as batch_id',
+                'inventory_batches.batch_no',
+                'inventory_batches.expiration_date',
+                'inventory_batches.remaining_quantity',
+                'inventory_items.id as item_id',
+                'inventory_items.name as item_name',
+                'inventory_items.sku as item_sku',
+                DB::raw("DATEDIFF(inventory_batches.expiration_date, CURDATE()) as days_left")
+            )
+            ->orderBy('inventory_batches.expiration_date', 'asc')
+            ->get()
+            ->map(function ($batch) {
+                $batch->alert_level = $batch->days_left <= 0
+                    ? 'expired'
+                    : ($batch->days_left <= 7 ? 'critical' : 'warning');
+
+                return $batch;
+            });
+
+        return response()->json([
+            'success' => true,
+            'alerts' => $alerts,
+        ]);
     }
 
     /**
@@ -462,5 +591,119 @@ class InventoryController extends Controller
                 'message' => $e->getMessage(),
             ], 422);
         }
+    }
+
+    public function getMonthlyAuditItems(Request $request)
+    {
+        $month = $request->query('month', now()->format('Y-m'));
+
+        $items = InventoryItem::query()
+            ->orderBy('name')
+            ->get()
+            ->map(function ($item) use ($month) {
+                $existingAudit = InventoryMonthlyAudit::where('inventory_item_id', $item->id)
+                    ->where('audit_month', $month)
+                    ->first();
+
+                return [
+                    'id' => $item->id,
+                    'name' => $item->name,
+                    'sku' => $item->sku,
+                    'category' => $item->category,
+                    'brand' => $item->brand,
+                    'system_stock' => (int) ($item->quantity ?? 0),
+                    'actual_stock' => $existingAudit ? (int) $existingAudit->actual_stock : '',
+                    'variance' => $existingAudit ? (int) $existingAudit->variance : 0,
+                    'audit_status' => $existingAudit ? $existingAudit->status : 'pending',
+                    'reason' => $existingAudit ? $existingAudit->reason : '',
+                ];
+            });
+
+        return response()->json([
+            'success' => true,
+            'month' => $month,
+            'items' => $items,
+        ]);
+    }
+
+    public function saveMonthlyAudit(Request $request)
+    {
+        $validated = $request->validate([
+            'audit_month' => 'required|string',
+            'items' => 'required|array',
+            'items.*.inventory_item_id' => 'required|exists:inventory_items,id',
+            'items.*.actual_stock' => 'required|integer|min:0',
+            'items.*.reason' => 'nullable|string',
+        ]);
+
+        return DB::transaction(function () use ($validated) {
+            $checkedBy = auth()->user()->name ?? 'Inventory Manager';
+            $saved = [];
+
+            foreach ($validated['items'] as $row) {
+                $item = InventoryItem::lockForUpdate()->findOrFail($row['inventory_item_id']);
+
+                $systemStock = (int) ($item->quantity ?? 0);
+                $actualStock = (int) $row['actual_stock'];
+                $variance = $actualStock - $systemStock;
+
+                $status = $variance === 0 ? 'matched' : 'discrepancy';
+
+                $audit = InventoryMonthlyAudit::updateOrCreate(
+                    [
+                        'inventory_item_id' => $item->id,
+                        'audit_month' => $validated['audit_month'],
+                    ],
+                    [
+                        'system_stock' => $systemStock,
+                        'actual_stock' => $actualStock,
+                        'variance' => $variance,
+                        'status' => $status,
+                        'reason' => $row['reason'] ?? null,
+                        'checked_by' => $checkedBy,
+                    ]
+                );
+
+                if ($variance !== 0) {
+                    $before = $systemStock;
+                    $after = $actualStock;
+
+                    InventoryBatch::create([
+                        'inventory_item_id' => $item->id,
+                        'batch_no' => 'AUDIT-' . strtoupper(uniqid()),
+                        'received_date' => now(),
+                        'expiration_date' => null,
+                        'quantity' => $variance > 0 ? $variance : 0,
+                        'remaining_quantity' => $variance > 0 ? $variance : 0,
+                        'status' => $variance > 0 ? 'active' : 'audit_adjusted',
+                        'notes' => 'Monthly inventory audit adjustment',
+                    ]);
+
+                    DB::table('inventory_items')
+                        ->where('id', $item->id)
+                        ->update([
+                            'quantity' => $actualStock,
+                        ]);
+
+                    InventoryLog::create([
+                        'inventory_item_id' => $item->id,
+                        'action' => 'monthly_audit',
+                        'quantity_before' => $before,
+                        'quantity_after' => $after,
+                        'quantity_change' => $variance,
+                        'reason' => $row['reason'] ?? 'Monthly inventory count correction',
+                        'user_name' => $checkedBy,
+                    ]);
+                }
+
+                $saved[] = $audit;
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Monthly inventory audit saved successfully.',
+                'audits' => $saved,
+            ]);
+        });
     }
 }

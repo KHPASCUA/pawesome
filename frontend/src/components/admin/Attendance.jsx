@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import "./Attendance.css";
 import { attendanceApi } from "../../api/attendance";
+import { API_URL } from "../../api/client";
 
 const Attendance = () => {
   const [search, setSearch] = useState("");
@@ -37,7 +38,7 @@ const Attendance = () => {
         localStorage.getItem("adminToken") ||
         localStorage.getItem("authToken");
 
-      const res = await fetch("http://127.0.0.1:8000/api/hr/employees", {
+      const res = await fetch(`${API_URL}/hr/employees`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },

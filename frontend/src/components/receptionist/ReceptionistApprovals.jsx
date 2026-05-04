@@ -6,10 +6,10 @@ import {
   FaSearch,
   FaPaw,
 } from "react-icons/fa";
-import { apiRequest } from "../../api/client";
+import { API_URL, apiRequest } from "../../api/client";
 import "./ReceptionistApprovals.css";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000/api";
+const API_BASE = API_URL;
 
 const ReceptionistApprovals = () => {
   const [requests, setRequests] = useState([]);

@@ -93,21 +93,21 @@ const ManagerReports = () => {
       let staffData, revenueData, transactionsData;
       
       try {
-        staffData = await apiRequest("/admin/users");
+        staffData = await apiRequest("/manager/staff");
       } catch (apiErr) {
         console.warn("Staff API failed, using demo:", apiErr);
         staffData = demoStaff;
       }
       
       try {
-        revenueData = await apiRequest("/admin/reports/summary");
+        revenueData = await apiRequest("/manager/reports/summary");
       } catch (apiErr) {
         console.warn("Revenue API failed, using demo:", apiErr);
         revenueData = { revenue: demoRevenue };
       }
       
       try {
-        transactionsData = await apiRequest("/cashier/transactions");
+        transactionsData = await apiRequest("/manager/reports/sales");
       } catch (apiErr) {
         console.warn("Transactions API failed, using demo:", apiErr);
         transactionsData = demoTransactions;
@@ -116,11 +116,11 @@ const ManagerReports = () => {
       setStaff(
         Array.isArray(staffData)
           ? staffData
-          : staffData?.users || staffData?.data || demoStaff
+          : staffData?.staff || staffData?.users || staffData?.data || demoStaff
       );
       setRevenue(revenueData?.revenue || demoRevenue);
       setTransactions(
-        Array.isArray(transactionsData) ? transactionsData : transactionsData?.transactions || demoTransactions
+        Array.isArray(transactionsData) ? transactionsData : transactionsData?.sales || transactionsData?.transactions || demoTransactions
       );
 
       setError("");

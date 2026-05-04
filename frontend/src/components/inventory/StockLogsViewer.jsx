@@ -192,6 +192,42 @@ const StockLogsViewer = ({ itemId = null, filterAction = null, search = null }) 
     return { additions, removals, adjustments, total: filtered.length };
   };
 
+  const getItemName = (log) =>
+  log.item_name ||
+  log.inventory_item?.name ||
+  log.inventoryItem?.name ||
+  log.product_name ||
+  log.name ||
+  `Item #${log.inventory_item_id || log.item_id}`;
+
+const getItemSku = (log) =>
+  log.item_sku ||
+  log.inventory_item?.sku ||
+  log.inventoryItem?.sku ||
+  log.sku ||
+  "No SKU";
+
+const getItemImage = (log) =>
+  log.item_image ||
+  log.image ||
+  log.inventory_item?.image ||
+  log.inventoryItem?.image ||
+  null;
+
+const getUserName = (log) =>
+  log.user_name ||
+  log.user?.name ||
+  log.performed_by ||
+  "System";
+
+const getInitials = (name) =>
+  String(name || "S")
+    .split(" ")
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
   const stats = calculateStats();
   const filteredLogs = getFilteredLogs();
 
@@ -246,7 +282,7 @@ const StockLogsViewer = ({ itemId = null, filterAction = null, search = null }) 
         <div className="analytics-row">
           <div>
             <strong>Most Active Item:</strong>{" "}
-            {filteredLogs[0]?.item_name || "N/A"}
+            {filteredLogs[0]?.item_name || filteredLogs[0]?.product_name || filteredLogs[0]?.name || filteredLogs[0]?.inventory_name || "N/A"}
           </div>
           <div>
             <strong>Top User:</strong>{" "}
@@ -348,45 +384,50 @@ const StockLogsViewer = ({ itemId = null, filterAction = null, search = null }) 
           <div className="logs-list">
             {filteredLogs.map((log) => (
               <div key={log.id} className={`log-item ${log.action}`}>
-                <div className="log-icon">{getActionIcon(log.action)}</div>
+              <div className="log-product-media">
+                {getItemImage(log) ? (
+                  <img src={getItemImage(log)} alt={getItemName(log)} />
+                ) : (
+                  <span>{getActionIcon(log.action)}</span>
+                )}
+              </div>
 
-                <div className="log-content">
-                  <div className="log-header">
+              <div className="log-content">
+                <div className="log-header">
+                  <div>
                     <span className="log-item-name">
-                      {log.item_name || `Item #${log.inventory_item_id}`}
+                      {getItemName(log)}
                       <span className="audit-badge">AUDIT LOG</span>
                     </span>
-                    <span className="log-time">{formatDate(log.created_at)}</span>
+                    <div className="log-sku">{getItemSku(log)}</div>
                   </div>
 
-                  <div className="log-details">
-                    <span
-                      className={`log-quantity ${getActionColor(
-                        log.action,
-                        log.quantity_change
-                      )}`}
-                    >
-                      {log.quantity_change > 0 ? "+" : ""}
-                      {log.quantity_change} units
-                    </span>
-                    <span className="log-arrow">→</span>
-                    <span className="log-after">{log.quantity_after} total</span>
-                    <span className="log-action">{log.action}</span>
-                  </div>
+                  <span className="log-time">{formatDate(log.created_at)}</span>
+                </div>
 
+                <div className="log-details">
+                  <span className={`log-quantity ${getActionColor(log.action, log.quantity_change)}`}>
+                    {Number(log.quantity_change) > 0 ? "+" : ""}
+                    {log.quantity_change} units
+                  </span>
+                  <span className="log-arrow">→</span>
+                  <span className="log-after">{log.quantity_after} total</span>
+                  <span className="log-action">{log.action}</span>
+                </div>
+
+                <div className="log-bottom-row">
                   <div className="log-reason">
                     <span className="reason-label">Reason:</span>
                     <span className="reason-text">{log.reason || "No reason provided"}</span>
                   </div>
 
-                  {log.user_name && (
-                    <div className="log-user">
-                      <span className="user-label">By:</span>
-                      <span className="user-name">{log.user_name}</span>
-                    </div>
-                  )}
+                  <div className="log-user-pill">
+                    <span className="log-user-avatar">{getInitials(getUserName(log))}</span>
+                    <span>{getUserName(log)}</span>
+                  </div>
                 </div>
               </div>
+            </div>
             ))}
           </div>
         )}

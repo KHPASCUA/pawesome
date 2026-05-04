@@ -100,6 +100,28 @@ class NotificationController extends Controller
         ], 201);
     }
 
+    public function bookingStatus(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'customerEmail' => 'nullable|email',
+            'customerName' => 'nullable|string|max:255',
+            'status' => 'required|string|max:50',
+            'service' => 'nullable|string|max:255',
+            'date' => 'nullable|string|max:255',
+            'message' => 'nullable|string',
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Booking status notification queued',
+            'notification' => [
+                'title' => 'Booking status updated',
+                'message' => $data['message'] ?? 'Your booking status is now ' . $data['status'],
+                'data' => $data,
+            ],
+        ], 201);
+    }
+
     /**
      * Mark a specific notification as read
      */

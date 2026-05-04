@@ -246,6 +246,21 @@ export const inventoryApi = {
   },
 
   /**
+   * Retrieves expiry alerts for batches expiring within 30 days or already expired
+   * @async
+   * @returns {Promise<Object>} Expiry alerts data
+   * @throws {Error} When the request fails
+   */
+  getExpiryAlerts: async () => {
+    try {
+      return await apiRequest("/inventory/expiry-alerts");
+    } catch (error) {
+      console.error("[InventoryAPI] Failed to fetch expiry alerts:", error.message);
+      throw error;
+    }
+  },
+
+  /**
    * Generates inventory reports with filtering and date ranges.
    * @async
    * @param {Object} [params={}] - Report parameters
@@ -297,7 +312,7 @@ export const inventoryApi = {
    * @returns {Promise<Object>} Updated item with adjustment record
    * @throws {Error} When validation fails or request fails
    */
-  adjustStock: async (id, type, quantity, reason = "Manual stock adjustment") => {
+  adjustStock: async (id, type, quantity, reason = "Manual stock adjustment", options = {}) => {
     validateId(id, "Item ID");
 
     if (!["add", "remove", "set"].includes(type)) {
@@ -315,6 +330,7 @@ export const inventoryApi = {
           type,
           quantity: Number(quantity),
           reason,
+          expiration_date: options.expiration_date || null,
         }),
       });
     } catch (error) {
@@ -477,6 +493,88 @@ export const inventoryApi = {
       });
     } catch (error) {
       console.error(`[InventoryAPI] Failed to adjust batch ${batchId}:`, error.message);
+      throw error;
+    }
+  },
+
+  /**
+   * Retrieves monthly audit items for a specific month.
+   * @async
+   * @param {string} month - Month in YYYY-MM format
+   * @returns {Promise<Object>} Monthly audit data
+   * @throws {Error} When request fails
+   */
+  getMonthlyAudit: async (month) => {
+    try {
+      const response = await apiRequest("/inventory/monthly-audit", {
+        params: { month },
+      });
+      return response.data;
+    } catch (error) {
+      console.error("[InventoryAPI] Failed to get monthly audit:", error.message);
+      throw error;
+    }
+  },
+
+  /**
+   * Saves monthly audit data.
+   * @async
+   * @param {Object} payload - Audit data payload
+   * @param {string} payload.audit_month - Audit month
+   * @param {Array} payload.items - Array of audit items
+   * @returns {Promise<Object>} Saved audit data
+   * @throws {Error} When request fails
+   */
+  saveMonthlyAudit: async (payload) => {
+    validateData(payload, "monthly audit save");
+    try {
+      const response = await apiRequest("/inventory/monthly-audit", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+      return response.data;
+    } catch (error) {
+      console.error("[InventoryAPI] Failed to save monthly audit:", error.message);
+      throw error;
+    }
+  },
+
+  /**
+   * Retrieves monthly audit report for a specific month.
+   * @async
+   * @param {string} month - Month in YYYY-MM format
+   * @returns {Promise<Object>} Monthly audit report data
+   * @throws {Error} When request fails
+   */
+  getMonthlyAuditReport: async (month) => {
+    try {
+      const response = await apiRequest("/inventory/monthly-audit-report", {
+        params: { month },
+      });
+      return response.data;
+    } catch (error) {
+      console.error("[InventoryAPI] Failed to get monthly audit report:", error.message);
+      throw error;
+    }
+  },
+
+  /**
+   * Retrieves audit analytics data for trend analysis.
+   * @async
+   * @param {Object} options - Analytics options
+   * @param {number} options.months - Number of months to analyze (default: 6)
+   * @returns {Promise<Object>} Audit analytics data with trends
+   * @throws {Error} When request fails
+   */
+  getAuditAnalytics: async (options = {}) => {
+    try {
+      const { months = 6 } = options;
+      const response = await apiRequest("/inventory/audit-analytics", {
+        params: { months },
+      });
+      return response.data;
+    } catch (error) {
+      console.error("[InventoryAPI] Failed to get audit analytics:", error.message);
       throw error;
     }
   },

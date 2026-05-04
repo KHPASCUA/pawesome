@@ -1,0 +1,134 @@
+.expiry-alerts-card {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(255, 95, 147, 0.16);
+  border-radius: 24px;
+  padding: 1.25rem;
+  box-shadow: 0 18px 45px rgba(255, 95, 147, 0.1);
+  backdrop-filter: blur(18px);
+}
+
+.expiry-alerts-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.expiry-alerts-header h3 {
+  margin: 0;
+  color: #ff5f93;
+  font-weight: 950;
+}
+
+.expiry-alerts-header p {
+  margin: 4px 0 0;
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.expiry-alerts-header button {
+  border: none;
+  border-radius: 999px;
+  padding: 10px 16px;
+  background: linear-gradient(135deg, #ff5f93, #ff8db5);
+  color: white;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.expiry-alerts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.expiry-alert-item {
+  display: grid;
+  grid-template-columns: 42px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  border-radius: 18px;
+  background: #fff7fb;
+  border: 1px solid rgba(255, 95, 147, 0.12);
+}
+
+.expiry-alert-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: white;
+  font-size: 1.2rem;
+}
+
+.expiry-alert-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.expiry-alert-info strong {
+  color: #1f2937;
+  font-weight: 700;
+}
+
+.expiry-alert-info span,
+.expiry-alert-info small {
+  color: #64748b;
+  font-weight: 700;
+}
+
+.expiry-alert-days {
+  font-weight: 950;
+  border-radius: 999px;
+  padding: 7px 10px;
+  white-space: nowrap;
+  font-size: 0.8rem;
+}
+
+.expiry-alert-item.expired .expiry-alert-days {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.expiry-alert-item.critical .expiry-alert-days {
+  background: #ffedd5;
+  color: #9a3412;
+}
+
+.expiry-alert-item.warning .expiry-alert-days {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.expiry-empty {
+  padding: 1.25rem;
+  border-radius: 18px;
+  background: #fff7fb;
+  color: #64748b;
+  font-weight: 800;
+  text-align: center;
+}
+
+@media (max-width: 768px) {
+  .expiry-alert-item {
+    grid-template-columns: 42px 1fr;
+  }
+
+  .expiry-alert-days {
+    grid-column: 1 / -1;
+    text-align: center;
+  }
+
+  .expiry-alerts-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .expiry-alerts-header button {
+    align-self: stretch;
+  }
+}

@@ -109,7 +109,10 @@ Route::middleware(['auth.api', 'throttle:api', 'role:admin'])->prefix('admin')->
     Route::get('inventory/out-of-stock', [InventoryController::class, 'outOfStock']);
     Route::get('inventory/summary', [InventoryController::class, 'summary']);
     Route::get('inventory/dashboard', [InventoryController::class, 'summary']); // Frontend compatibility
+    Route::get('inventory/expiry-alerts', [InventoryController::class, 'expiryAlerts']);
     Route::get('inventory/reports', [InventoryController::class, 'index']); // Frontend compatibility
+    Route::get('inventory/monthly-audit', [InventoryController::class, 'getMonthlyAuditItems']);
+    Route::post('inventory/monthly-audit', [InventoryController::class, 'saveMonthlyAudit']);
 
     // Batch Management Routes (FEFO/FIFO)
     Route::get('inventory/items/{id}/batches', [InventoryController::class, 'getItemBatches']);

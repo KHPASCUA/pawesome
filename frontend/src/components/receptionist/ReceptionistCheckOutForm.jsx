@@ -8,6 +8,7 @@ import {
   faUser,
 } from "@fortawesome/free-solid-svg-icons";
 import "./ReceptionistCheckOutForm.css";
+import { apiRequest } from "../../api/client";
 
 const ReceptionistCheckOutForm = () => {
   const [bookings, setBookings] = useState([]);
@@ -23,8 +24,7 @@ const ReceptionistCheckOutForm = () => {
     setError("");
 
     try {
-      const response = await fetch("http://127.0.0.1:8000/api/receptionist/requests");
-      const data = await response.json();
+      const data = await apiRequest("/receptionist/requests");
       
       // Filter only hotel requests that are checked_in (ready for check-out)
       const hotelCheckedIn = data.requests.filter(
@@ -73,16 +73,10 @@ const ReceptionistCheckOutForm = () => {
     setCheckingOutId(id);
 
     try {
-      await fetch(
-        `http://127.0.0.1:8000/api/receptionist/requests/${id}/status`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ status: "checked_out" }),
-        }
-      );
+      await apiRequest(`/receptionist/requests/${id}/status`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: "checked_out" }),
+      });
       
       setSuccess("Guest checked out successfully.");
       await loadBookings();

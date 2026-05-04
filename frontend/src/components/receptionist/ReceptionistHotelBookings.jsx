@@ -12,6 +12,7 @@ import {
   faPaw,
 } from "@fortawesome/free-solid-svg-icons";
 import "./ReceptionistHotelBookings.css";
+import { apiRequest } from "../../api/client";
 
 const HotelBookings = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -30,8 +31,7 @@ const HotelBookings = () => {
 
   const fetchBookings = async () => {
     try {
-      const response = await fetch("http://127.0.0.1:8000/api/receptionist/requests");
-      const data = await response.json();
+      const data = await apiRequest("/receptionist/requests");
       
       const hotelOnly = data.requests.filter(item => item.type === "hotel");
       
@@ -51,16 +51,10 @@ const HotelBookings = () => {
     setProcessingId(id);
 
     try {
-      await fetch(
-        `http://127.0.0.1:8000/api/receptionist/requests/${id}/status`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ status: newStatus }),
-        }
-      );
+      await apiRequest(`/receptionist/requests/${id}/status`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: newStatus }),
+      });
       
       await fetchBookings();
       setSuccessMessage(`Booking ${newStatus} successfully`);

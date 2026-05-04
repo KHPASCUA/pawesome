@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
 import "./GroomingForm.css";
+import { apiRequest } from "../../api/client";
 
 const GroomingForm = () => {
   const [activeTab, setActiveTab] = useState("book");
@@ -27,10 +28,7 @@ const GroomingForm = () => {
         return;
       }
 
-      const response = await fetch(
-        `http://127.0.0.1:8000/api/customer/my-requests?email=${customerEmail}`
-      );
-      const data = await response.json();
+      const data = await apiRequest(`/customer/my-requests?email=${customerEmail}`);
 
       // Filter only grooming requests
       const groomingOnly = data.requests.filter(item => item.type === "grooming");
@@ -56,15 +54,10 @@ const GroomingForm = () => {
     try {
       setLoading(true);
 
-      const response = await fetch("http://127.0.0.1:8000/api/customer/requests", {
+      const data = await apiRequest("/customer/requests", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
         body: JSON.stringify(formData),
       });
-
-      const data = await response.json();
 
       if (data.success) {
         alert("Grooming appointment submitted! Waiting for receptionist approval.");

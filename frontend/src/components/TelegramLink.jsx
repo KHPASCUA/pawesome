@@ -3,6 +3,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTelegram, faTelegramPlane } from '@fortawesome/free-brands-svg-icons';
 import { faCheck, faLink, faUnlink, faCopy, faExternalLinkAlt } from '@fortawesome/free-solid-svg-icons';
 import './TelegramLink.css';
+import { apiRequest } from '../api/client';
 
 /**
  * Telegram Account Linking Component
@@ -34,21 +35,10 @@ const TelegramLink = ({ user, onUpdate }) => {
 
     setLoading(true);
     try {
-      const response = await fetch('/api/user/telegram/unlink', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (response.ok) {
-        setLinked(false);
-        setTelegramUsername('');
-        if (onUpdate) onUpdate();
-      } else {
-        alert('Failed to unlink Telegram. Please try again.');
-      }
+      await apiRequest('/auth/telegram/unlink', { method: 'POST' });
+      setLinked(false);
+      setTelegramUsername('');
+      if (onUpdate) onUpdate();
     } catch (error) {
       console.error('Error unlinking Telegram:', error);
       alert('An error occurred. Please try again.');

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faSearch, faCheckCircle, faCalendarAlt, faPaw, faUser } from "@fortawesome/free-solid-svg-icons";
 import "./ReceptionistCheckInForm.css";
+import { apiRequest } from "../../api/client";
 
 const ReceptionistCheckInForm = () => {
   const [bookings, setBookings] = useState([]);
@@ -15,8 +16,7 @@ const ReceptionistCheckInForm = () => {
   const loadBookings = async () => {
     setLoading(true);
     try {
-      const response = await fetch("http://127.0.0.1:8000/api/receptionist/requests");
-      const data = await response.json();
+      const data = await apiRequest("/receptionist/requests");
       
       // Filter only hotel requests that are approved (ready for check-in)
       const hotelApproved = data.requests.filter(
@@ -59,16 +59,10 @@ const ReceptionistCheckInForm = () => {
     setSuccess("");
     setCheckingInId(id);
     try {
-      await fetch(
-        `http://127.0.0.1:8000/api/receptionist/requests/${id}/status`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ status: "checked_in" }),
-        }
-      );
+      await apiRequest(`/receptionist/requests/${id}/status`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: "checked_in" }),
+      });
       
       setSuccess("Guest checked in successfully.");
       await loadBookings();

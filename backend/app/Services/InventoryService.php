@@ -39,7 +39,7 @@ class InventoryService
      */
     public function createItem(array $data): array
     {
-        $validated = $this->validateItemData($data, true);
+        $validated = $this->validateItemData($data, true, null);
 
         // Auto-generate SKU if not provided
         if (empty($validated['sku'])) {
@@ -71,7 +71,8 @@ class InventoryService
                 $batchData['quantity'],
                 $batchData['batch_no'] ?? null,
                 $batchData['expiration_date'] ?? null,
-                $batchData['notes'] ?? 'Initial stock batch'
+                $batchData['notes'] ?? 'Initial stock batch',
+                false // Don't update main stock here
             );
         } elseif ($validated['stock'] > 0) {
             // Create default batch for non-FEFO items with stock
@@ -79,8 +80,15 @@ class InventoryService
                 $validated['stock'],
                 'INITIAL-' . strtoupper(uniqid()),
                 null,
-                'Initial stock'
+                'Initial stock',
+                false // Don't update main stock here
             );
+        }
+
+        // Ensure stock field is synchronized with batch totals
+        if ($item->batches()->exists()) {
+            $item->stock = $item->getBatchStock();
+            $item->save();
         }
 
         return [
@@ -89,6 +97,7 @@ class InventoryService
             'stock_action' => 'initial',
             'new_stock' => $item->stock,
             'has_batch' => $batchData !== null,
+            'batch_total' => $item->batches()->sum('remaining_quantity'),
         ];
     }
 
@@ -98,7 +107,7 @@ class InventoryService
     public function updateItem(int $id, array $data): array
     {
         $item = InventoryItem::findOrFail($id);
-        $validated = $this->validateItemData($data, false);
+        $validated = $this->validateItemData($data, false, $id);
 
         // Track stock change for logging
         $oldStock = $item->stock;
@@ -417,7 +426,33 @@ class InventoryService
             $query->where('stock', '>', 0);
         }
 
-        $items = $query->orderBy('name')->get();
+        // Get items with nearest batch expiration
+        $items = DB::table('inventory_items')
+            ->leftJoin('inventory_batches', function ($join) {
+                $join->on('inventory_items.id', '=', 'inventory_batches.inventory_item_id')
+                     ->where('inventory_batches.status', 'active');
+            })
+            ->select(
+                'inventory_items.*',
+                DB::raw('MIN(inventory_batches.expiration_date) as nearest_expiration')
+            )
+            ->where('inventory_items.status', self::STATUS_ACTIVE)
+            ->when(!empty($filters['category']), function ($q) use ($filters) {
+                $q->where('inventory_items.category', $filters['category']);
+            })
+            ->when(!empty($filters['search']), function ($q) use ($filters) {
+                $search = $filters['search'];
+                $q->where(function ($query) use ($search) {
+                    $query->where('inventory_items.name', 'like', "%{$search}%")
+                          ->orWhere('inventory_items.sku', 'like', "%{$search}%");
+                });
+            })
+            ->when(!empty($filters['in_stock_only']), function ($q) {
+                $q->where('inventory_items.stock', '>', 0);
+            })
+            ->groupBy('inventory_items.id')
+            ->orderBy('inventory_items.name')
+            ->get();
 
         return [
             'items' => $items,
@@ -429,11 +464,11 @@ class InventoryService
     /**
      * Validate item data
      */
-    private function validateItemData(array $data, bool $isCreate): array
+    private function validateItemData(array $data, bool $isCreate, ?int $itemId = null): array
     {
         $rules = [
             'name' => $isCreate ? 'required|string|max:255' : 'sometimes|string|max:255',
-            'sku' => $isCreate ? 'present|nullable|string|max:50|unique:inventory_items,sku' : 'sometimes|string|max:50|unique:inventory_items,sku,' . ($data['id'] ?? null),
+            'sku' => $isCreate ? 'present|nullable|string|max:50|unique:inventory_items,sku' : 'sometimes|string|max:50|unique:inventory_items,sku,' . ($itemId ?? $data['id'] ?? null),
             'category' => $isCreate ? 'required|string|max:50' : 'sometimes|string|max:50',
             'description' => 'nullable|string',
             'price' => $isCreate ? 'required|numeric|min:0' : 'sometimes|numeric|min:0',

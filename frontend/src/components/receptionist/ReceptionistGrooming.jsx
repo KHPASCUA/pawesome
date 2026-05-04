@@ -14,6 +14,7 @@ import {
   faCut as faScissors,
 } from "@fortawesome/free-solid-svg-icons";
 import "./ReceptionistGrooming.css";
+import { apiRequest } from "../../api/client";
 
 const Grooming = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -24,8 +25,7 @@ const Grooming = () => {
 
   const fetchAppointments = async () => {
     try {
-      const response = await fetch("http://127.0.0.1:8000/api/receptionist/requests");
-      const data = await response.json();
+      const data = await apiRequest("/receptionist/requests");
       
       // Filter only grooming requests
       const groomingOnly = data.requests.filter(item => item.type === "grooming");
@@ -44,16 +44,10 @@ const Grooming = () => {
     setProcessingId(id);
 
     try {
-      await fetch(
-        `http://127.0.0.1:8000/api/receptionist/requests/${id}/status`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ status: newStatus }),
-        }
-      );
+      await apiRequest(`/receptionist/requests/${id}/status`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: newStatus }),
+      });
       
       await fetchAppointments();
       alert(`Appointment ${newStatus} successfully`);

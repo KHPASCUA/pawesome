@@ -13,6 +13,7 @@ use App\Models\Service;
 use App\Services\InventoryService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 
 class POSController extends Controller
@@ -87,14 +88,14 @@ class POSController extends Controller
             $taxAmount = $subtotal * $taxRate;
             $totalAmount = $subtotal + $taxAmount - $discountAmount;
 
-            // Create the sale
-            $sale = Sale::create([
+            // Create the sale. Some upgraded databases keep payment details only
+            // in the payments table, while newer schemas also mirror it on sales.
+            $saleData = [
                 'customer_id' => $saleCustomerId,
                 'cashier_id' => $request->user()?->id ?? auth()->id(),
                 'type' => 'product',
                 'status' => 'pending',
                 'payment_type' => $payload['payment_method'],
-                'payment_method' => $payload['payment_method'],
                 'subtotal' => $subtotal,
                 'tax_amount' => $taxAmount,
                 'discount_amount' => $discountAmount,
@@ -102,7 +103,13 @@ class POSController extends Controller
                 'total_amount' => $totalAmount,
                 'amount' => $totalAmount,
                 'notes' => $payload['notes'] ?? null,
-            ]);
+            ];
+
+            if (Schema::hasColumn('sales', 'payment_method')) {
+                $saleData['payment_method'] = $payload['payment_method'];
+            }
+
+            $sale = Sale::create($saleData);
 
             // Create sale items
             foreach ($payload['items'] as $item) {

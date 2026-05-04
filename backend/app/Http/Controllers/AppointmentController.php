@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Appointment;
+use App\Models\Sale;
 use App\Models\User;
 use App\Models\Grooming;
 use App\Models\Service;
@@ -320,6 +321,34 @@ class AppointmentController extends Controller
         return response()->json([
             'message' => 'Appointment marked as completed',
             'appointment' => $appointment->load(['customer', 'pet', 'service', 'veterinarian'])
+        ]);
+    }
+
+    public function markAsPaid($id)
+    {
+        $appointment = Appointment::with(['customer', 'service'])->find($id);
+
+        if (!$appointment) {
+            return response()->json(['message' => 'Appointment not found'], 404);
+        }
+
+        $sale = Sale::create([
+            'customer_id' => $appointment->customer_id,
+            'cashier_id' => auth()->id(),
+            'type' => 'appointment',
+            'status' => 'completed',
+            'payment_type' => request('payment_type', 'cash'),
+            'subtotal' => $appointment->price,
+            'total_amount' => $appointment->price,
+            'amount' => $appointment->price,
+            'notes' => 'Payment for appointment #' . $appointment->id,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Appointment payment recorded',
+            'sale' => $sale,
+            'appointment' => $appointment,
         ]);
     }
 

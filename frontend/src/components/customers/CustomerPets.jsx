@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
 import "./CustomerPets.css";
+import { apiRequest } from "../../api/client";
 
 const CustomerPets = () => {
   const [pets, setPets] = useState([]);
@@ -19,15 +20,12 @@ const CustomerPets = () => {
 
   const fetchPets = useCallback(async () => {
     try {
-      const response = await fetch(
-        `http://127.0.0.1:8000/api/pets?email=${customerEmail}`
-      );
-      const data = await response.json();
-      setPets(data.pets || []);
+      const data = await apiRequest("/customer/pets");
+      setPets(Array.isArray(data) ? data : data.pets || []);
     } catch (error) {
       console.error("Failed to load pets:", error);
     }
-  }, [customerEmail]);
+  }, []);
 
   useEffect(() => {
     fetchPets();
@@ -45,32 +43,23 @@ const CustomerPets = () => {
 
     try {
       setLoading(true);
-      const response = await fetch("http://127.0.0.1:8000/api/pets", {
+      const data = await apiRequest("/customer/pets", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
         body: JSON.stringify(formData),
       });
 
-      const data = await response.json();
+      setFormData({
+        name: "",
+        species: "",
+        breed: "",
+        age: "",
+        gender: "",
+        notes: "",
+        customer_email: customerEmail || "",
+      });
 
-      if (data.success) {
-        setFormData({
-          name: "",
-          species: "",
-          breed: "",
-          age: "",
-          gender: "",
-          notes: "",
-          customer_email: customerEmail || "",
-        });
-
-        fetchPets();
-        alert("Pet added successfully!");
-      } else {
-        alert(data.message || "Failed to add pet");
-      }
+      fetchPets();
+      alert(data.message || "Pet added successfully!");
     } catch (error) {
       alert("Failed to add pet");
     } finally {
@@ -82,7 +71,7 @@ const CustomerPets = () => {
     if (!window.confirm("Delete this pet?")) return;
 
     try {
-      await fetch(`http://127.0.0.1:8000/api/pets/${id}`, {
+      await apiRequest(`/pets/${id}`, {
         method: "DELETE",
       });
       fetchPets();

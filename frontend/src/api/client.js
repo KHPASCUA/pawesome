@@ -1,4 +1,4 @@
-const API_URL = process.env.REACT_APP_API_URL || "http://127.0.0.1:8000/api";
+export const API_URL = process.env.REACT_APP_API_URL || "http://127.0.0.1:8000/api";
 const USE_MOCK_DATA = process.env.REACT_APP_USE_MOCK_DATA === "true" || localStorage.getItem("use_mock_data") === "true";
 
 // Mock data for testing
@@ -125,11 +125,22 @@ export async function apiRequest(path, options = {}, customBaseUrl = null) {
     }
 
     if (!response.ok) {
-      const message =
-        (data && data.message) ||
-        (data && data.errors && Object.values(data.errors).flat().join(", ")) ||
-        `Request failed with status ${response.status}`;
-      throw new Error(message);
+      let message = data?.message;
+
+      // Handle errors in various formats
+      if (!message && data?.errors) {
+        if (Array.isArray(data.errors)) {
+          // Format: { errors: ["msg1", "msg2"] }
+          message = data.errors.join(", ");
+        } else if (typeof data.errors === "object") {
+          // Format: { errors: { field: ["msg1"], field2: ["msg2"] } }
+          message = Object.values(data.errors)
+            .flat()
+            .join(", ");
+        }
+      }
+
+      throw new Error(message || `Request failed with status ${response.status}`);
     }
 
     return data;

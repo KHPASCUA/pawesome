@@ -87,7 +87,7 @@ const ReceptionistReports = () => {
         let transformedTransactions;
 
         try {
-          const data = await apiRequest("/cashier/transactions");
+          const data = await apiRequest("/receptionist/reports/transactions");
           const sales = Array.isArray(data)
             ? data
             : data.transactions || data.sales || [];

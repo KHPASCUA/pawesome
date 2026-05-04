@@ -90,6 +90,14 @@ class PayrollController extends Controller
      */
     public function generate(Request $request): JsonResponse
     {
+        if ($request->has('start_date') && !$request->has('period_start')) {
+            $request->merge(['period_start' => $request->input('start_date')]);
+        }
+
+        if ($request->has('end_date') && !$request->has('period_end')) {
+            $request->merge(['period_end' => $request->input('end_date')]);
+        }
+
         $validated = $request->validate([
             'period_start' => 'required|date',
             'period_end' => 'required|date|after_or_equal:period_start',
@@ -104,8 +112,9 @@ class PayrollController extends Controller
             'manager',
             'cashier',
             'receptionist',
-            'veterinarian',
+            'veterinary',
             'inventory',
+            'payroll',
             'staff',
             'groomer',
         ])->where('is_active', true)->get();

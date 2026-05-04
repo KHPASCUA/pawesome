@@ -8,6 +8,7 @@ use App\Models\Boarding;
 use App\Models\Customer;
 use App\Models\Pet;
 use App\Models\Service;
+use App\Models\Sale;
 use App\Models\ChatbotLog;
 use Illuminate\Support\Carbon;
 use Illuminate\Http\Request;
@@ -83,6 +84,79 @@ class PortalController extends Controller
                 ->latest('scheduled_at')
                 ->get()
         );
+    }
+
+    public function bookings()
+    {
+        $cust = $this->currentCustomer();
+        if (!$cust) return response()->json([]);
+
+        $appointments = Appointment::where('customer_id', $cust->id)
+            ->with(['pet', 'service'])
+            ->latest('scheduled_at')
+            ->get()
+            ->map(fn ($appointment) => [
+                'id' => 'appointment-' . $appointment->id,
+                'service' => $appointment->service?->name ?? 'Veterinary Appointment',
+                'type' => 'appointment',
+                'pet' => $appointment->pet?->name,
+                'date' => optional($appointment->scheduled_at)?->toDateString(),
+                'status' => $appointment->status,
+                'amount' => $appointment->price,
+            ]);
+
+        $boardingPetIds = Pet::where('customer_id', $cust->id)->pluck('id');
+        $boardings = Boarding::whereIn('pet_id', $boardingPetIds)
+            ->with('pet')
+            ->latest('check_in')
+            ->get()
+            ->map(fn ($boarding) => [
+                'id' => 'boarding-' . $boarding->id,
+                'service' => 'Hotel Boarding',
+                'type' => 'boarding',
+                'pet' => $boarding->pet?->name,
+                'date' => optional($boarding->check_in)?->toDateString(),
+                'status' => $boarding->status,
+                'amount' => $boarding->total_amount ?? $boarding->amount ?? 0,
+            ]);
+
+        return response()->json($appointments->concat($boardings)->values());
+    }
+
+    public function transactions()
+    {
+        $cust = $this->currentCustomer();
+        if (!$cust) return response()->json([]);
+
+        return response()->json(
+            Sale::where('customer_id', $cust->id)
+                ->latest()
+                ->limit(50)
+                ->get()
+                ->map(fn ($sale) => [
+                    'id' => $sale->id,
+                    'date' => optional($sale->created_at)?->toDateString(),
+                    'description' => ucfirst($sale->type ?? 'payment'),
+                    'type' => $sale->type,
+                    'amount' => $sale->amount,
+                    'status' => $sale->status,
+                ])
+        );
+    }
+
+    public function purchases()
+    {
+        $cust = $this->currentCustomer();
+        if (!$cust) return response()->json([]);
+
+        return response()->json([
+            'purchases' => Sale::with('items')
+                ->where('customer_id', $cust->id)
+                ->whereIn('type', ['product', 'mixed'])
+                ->latest()
+                ->limit(50)
+                ->get(),
+        ]);
     }
 
     public function boardings()

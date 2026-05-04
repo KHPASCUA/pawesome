@@ -114,7 +114,7 @@ const InventoryHistory = () => {
 
       {/* Loading */}
       {loading && (
-        <div className="loading-overlay">
+        <div className="history-loading-card">
           <div className="spinner"></div>
           <p>Loading history...</p>
         </div>

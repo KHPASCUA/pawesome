@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import "./CustomerBookings.css";
+import { apiRequest } from "../../api/client";
 
 const CustomerBookings = () => {
   const [selectedBooking, setSelectedBooking] = useState(null);
@@ -33,10 +34,7 @@ const CustomerBookings = () => {
         return;
       }
 
-      const response = await fetch(
-        `http://127.0.0.1:8000/api/customer/my-requests?email=${customerEmail}`
-      );
-      const data = await response.json();
+      const data = await apiRequest(`/customer/my-requests?email=${customerEmail}`);
 
       const allBookings = (data.requests || []).map(item => ({
         id: item.id,
@@ -106,15 +104,10 @@ const CustomerBookings = () => {
     setSubmitting(true);
 
     try {
-      const response = await fetch("http://127.0.0.1:8000/api/customer/requests", {
+      const data = await apiRequest("/customer/requests", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
         body: JSON.stringify(formData),
       });
-
-      const data = await response.json();
 
       if (data.success) {
         setSuccessMessage(`${selectedBooking} booking submitted successfully! Your request is pending approval.`);
