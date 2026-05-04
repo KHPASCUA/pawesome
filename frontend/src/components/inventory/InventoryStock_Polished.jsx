@@ -17,6 +17,11 @@ const InventoryStock = () => {
   const [selectedItem, setSelectedItem] = useState(null);
   const [showAdjustModal, setShowAdjustModal] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(new Date());
+  
+  // Batch view state
+  const [expandedItems, setExpandedItems] = useState(new Set());
+  const [itemBatches, setItemBatches] = useState({});
+  const [loadingBatches, setLoadingBatches] = useState({});
 
   // Fetch items from API
   useEffect(() => {
@@ -47,11 +52,9 @@ const InventoryStock = () => {
         const response = await inventoryApi.getItems();
         const apiItems = response.items || response.data || [];
 
-        if (apiItems.length > 0) {
-          setItems(apiItems);
-          setUsingDemoData(false);
-          setLastUpdated(new Date());
-        }
+        setItems(apiItems);
+        setUsingDemoData(false);
+        setLastUpdated(new Date());
       } catch (err) {
         console.log("Auto refresh failed");
       }
@@ -61,7 +64,53 @@ const InventoryStock = () => {
   }, []);
 
   // Helper to get stock value from multiple possible field names
-  const getStock = (item) => Number(item.stock ?? item.quantity ?? item.stock_quantity ?? item.current_stock ?? 0);
+  const getStock = (item) => {
+    const val = item?.stock ?? item?.quantity ?? item?.stock_quantity ?? item?.current_stock ?? 0;
+    const num = Number(val);
+    return isNaN(num) ? 0 : num;
+  };
+
+  // Fetch batches for an item
+  const fetchItemBatches = async (itemId) => {
+    if (itemBatches[itemId]) return; // Already loaded
+    
+    setLoadingBatches(prev => ({ ...prev, [itemId]: true }));
+    try {
+      const response = await inventoryApi.getItemBatches(itemId);
+      if (response.success) {
+        setItemBatches(prev => ({ ...prev, [itemId]: response.batches }));
+      }
+    } catch (err) {
+      console.error(`Failed to fetch batches for item ${itemId}:`, err);
+    } finally {
+      setLoadingBatches(prev => ({ ...prev, [itemId]: false }));
+    }
+  };
+
+  // Toggle batch view for item
+  const toggleBatchView = (itemId) => {
+    const newExpanded = new Set(expandedItems);
+    if (newExpanded.has(itemId)) {
+      newExpanded.delete(itemId);
+    } else {
+      newExpanded.add(itemId);
+      fetchItemBatches(itemId);
+    }
+    setExpandedItems(newExpanded);
+  };
+
+  // Get expiration status for a date
+  const getExpirationStatus = (dateStr) => {
+    if (!dateStr) return { status: 'none', label: 'No Expiry', color: '#6b7280' };
+    
+    const expDate = new Date(dateStr);
+    const today = new Date();
+    const diffDays = Math.ceil((expDate - today) / (1000 * 60 * 60 * 24));
+    
+    if (diffDays < 0) return { status: 'expired', label: 'Expired', color: '#ef4444' };
+    if (diffDays <= 30) return { status: 'expiring', label: `Expiring Soon (${diffDays}d)`, color: '#f97316' };
+    return { status: 'good', label: 'Good', color: '#22c55e' };
+  };
 
   // Calculate stats
   const stats = useMemo(() => {
@@ -337,11 +386,12 @@ const InventoryStock = () => {
             <table className="stock-table polished">
               <thead>
                 <tr>
+                  <th></th>
                   <th>Product</th>
                   <th>SKU</th>
                   <th>Stock Level</th>
                   <th className="numeric">Qty</th>
-                  <th>Expiration</th>
+                  <th>Nearest Expiration</th>
                   <th>Status</th>
                   <th>Actions</th>
                 </tr>
@@ -351,59 +401,139 @@ const InventoryStock = () => {
                   const stockValue = getStock(item);
                   const badge = getStatusBadge(stockValue);
                   const bar = getQuantityBar(stockValue);
-                  const isExpiring = item.expiration && new Date(item.expiration) <= new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+                  const isExpanded = expandedItems.has(item.id);
+                  const batches = itemBatches[item.id] || [];
+                  const loadingBatch = loadingBatches[item.id];
+                  
+                  // Get nearest expiration from batches or item
+                  const nearestExp = batches.length > 0 
+                    ? batches.filter(b => b.status === 'active' && b.remaining_quantity > 0)
+                        .sort((a, b) => new Date(a.expiration_date || '9999-12-31') - new Date(b.expiration_date || '9999-12-31'))[0]?.expiration_date
+                    : item.expiration;
+                  const expStatus = getExpirationStatus(nearestExp);
                   
                   return (
-                    <tr key={item.id} className={badge.class}>
-                      <td>
-                        <div className="product-cell">
-                          <span className="product-name">{item.name}</span>
-                          <span className="product-brand">{item.brand || "No Brand"}</span>
-                        </div>
-                      </td>
-                      <td>
-                        <code className="sku-code">{item.sku}</code>
-                      </td>
-                      <td>
-                        <div className="stock-level">
-                          <div className="stock-bar-bg">
-                            <div 
-                              className="stock-bar-fill" 
-                              style={{ width: bar.width, backgroundColor: bar.color }}
-                            ></div>
+                    <React.Fragment key={item.id}>
+                      <tr className={badge.class}>
+                        <td>
+                          <button 
+                            className="btn-expand"
+                            onClick={() => toggleBatchView(item.id)}
+                            title={isExpanded ? "Hide batches" : "View batches"}
+                          >
+                            {isExpanded ? "▼" : "▶"}
+                          </button>
+                        </td>
+                        <td>
+                          <div className="product-cell">
+                            <span className="product-name">{item.name}</span>
+                            <span className="product-brand">{item.brand || "No Brand"}</span>
+                            {item.category && (
+                              <small className="product-category">{item.category}</small>
+                            )}
                           </div>
-                          <small className="stock-percentage">{Math.round(bar.percentage)}%</small>
-                        </div>
-                      </td>
-                      <td className="numeric">
-                        <span className="quantity-value">{stockValue}</span>
-                      </td>
-                      <td>
-                        <span className={`expiration ${isExpiring ? "expiring-soon" : ""}`}>
-                          {item.expiration || "N/A"}
-                          {isExpiring && " ⚠️"}
-                        </span>
-                        {item.last_updated && (
-                          <small className="last-updated">
-                            Updated: {new Date(item.last_updated).toLocaleTimeString()}
-                          </small>
-                        )}
-                      </td>
-                      <td>
-                        <span className={`status-badge ${badge.class}`}>
-                          <span className="badge-icon">{badge.icon}</span>
-                          {badge.label}
-                        </span>
-                      </td>
-                      <td>
-                        <button 
-                          className="btn-adjust"
-                          onClick={() => handleAdjustClick(item)}
-                        >
-                          ⚖️ Adjust
-                        </button>
-                      </td>
-                    </tr>
+                        </td>
+                        <td>
+                          <code className="sku-code">{item.sku}</code>
+                        </td>
+                        <td>
+                          <div className="stock-level">
+                            <div className="stock-bar-bg">
+                              <div 
+                                className="stock-bar-fill" 
+                                style={{ width: bar.width, backgroundColor: bar.color }}
+                              ></div>
+                            </div>
+                            <small className="stock-percentage">{Math.round(bar.percentage)}%</small>
+                          </div>
+                        </td>
+                        <td className="numeric">
+                          <span className="quantity-value">{stockValue}</span>
+                          {batches.length > 0 && (
+                            <small className="batch-count">({batches.filter(b => b.status === 'active').length} batches)</small>
+                          )}
+                        </td>
+                        <td>
+                          {nearestExp ? (
+                            <span className="expiration-badge" style={{ color: expStatus.color }}>
+                              <span className="exp-date">{new Date(nearestExp).toLocaleDateString()}</span>
+                              <span className="exp-label">{expStatus.label}</span>
+                            </span>
+                          ) : (
+                            <span className="expiration-none">No Expiry</span>
+                          )}
+                        </td>
+                        <td>
+                          <span className={`status-badge ${badge.class}`}>
+                            <span className="badge-icon">{badge.icon}</span>
+                            {badge.label}
+                          </span>
+                        </td>
+                        <td>
+                          <button 
+                            className="btn-adjust"
+                            onClick={() => handleAdjustClick(item)}
+                          >
+                            ⚖️ Adjust
+                          </button>
+                        </td>
+                      </tr>
+                      
+                      {/* Batch Details Row */}
+                      {isExpanded && (
+                        <tr className="batch-row">
+                          <td colSpan="8">
+                            <div className="batch-details">
+                              <h4>📦 Batch Inventory (FEFO Order)</h4>
+                              {loadingBatch ? (
+                                <div className="batch-loading">Loading batches...</div>
+                              ) : batches.length > 0 ? (
+                                <table className="batch-table">
+                                  <thead>
+                                    <tr>
+                                      <th>Batch No</th>
+                                      <th>Received</th>
+                                      <th>Expiration</th>
+                                      <th>Quantity</th>
+                                      <th>Remaining</th>
+                                      <th>Status</th>
+                                      <th>Expiry Status</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {batches.map((batch) => {
+                                      const batchExpStatus = getExpirationStatus(batch.expiration_date);
+                                      return (
+                                        <tr key={batch.id} className={`batch-${batch.status}`}>
+                                          <td><code>{batch.batch_no}</code></td>
+                                          <td>{new Date(batch.received_date).toLocaleDateString()}</td>
+                                          <td>{batch.expiration_date ? new Date(batch.expiration_date).toLocaleDateString() : 'N/A'}</td>
+                                          <td>{batch.quantity}</td>
+                                          <td className={batch.remaining_quantity === 0 ? 'depleted' : ''}>
+                                            {batch.remaining_quantity}
+                                          </td>
+                                          <td>
+                                            <span className={`batch-status ${batch.status}`}>{batch.status}</span>
+                                          </td>
+                                          <td>
+                                            <span style={{ color: batchExpStatus.color }}>{batchExpStatus.label}</span>
+                                          </td>
+                                        </tr>
+                                      );
+                                    })}
+                                  </tbody>
+                                </table>
+                              ) : (
+                                <div className="no-batches">
+                                  <p>No batch tracking for this item. Stock is managed as total quantity only.</p>
+                                  <small>FEFO batch tracking is available for Food, Health, and Grooming items.</small>
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
                   );
                 })}
               </tbody>

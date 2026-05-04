@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\InventoryController;
 use App\Http\Controllers\Admin\ServiceController;
+use App\Http\Controllers\Admin\SalaryController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\CustomersController;
 use App\Http\Controllers\Admin\ChatbotController;
@@ -100,6 +101,7 @@ Route::middleware(['auth.api', 'throttle:api', 'role:admin'])->prefix('admin')->
     Route::post('inventory/{id}/adjust-stock', [InventoryController::class, 'adjustStock']);
     Route::post('inventory/items/{id}/adjust', [InventoryController::class, 'adjustStock']); // Frontend compatibility
     Route::patch('inventory/{id}/stock', [InventoryController::class, 'updateStock']); // Simple stock update
+    Route::post('inventory/{id}/stock', [InventoryController::class, 'updateStock']); // CORS workaround - same as PATCH
     Route::get('inventory/{id}/history', [InventoryController::class, 'stockHistory']);
     Route::get('inventory/items/{id}/logs', [InventoryController::class, 'stockHistory']);
     Route::get('inventory/history', [InventoryController::class, 'getHistory']); // Frontend compatibility
@@ -108,6 +110,12 @@ Route::middleware(['auth.api', 'throttle:api', 'role:admin'])->prefix('admin')->
     Route::get('inventory/summary', [InventoryController::class, 'summary']);
     Route::get('inventory/dashboard', [InventoryController::class, 'summary']); // Frontend compatibility
     Route::get('inventory/reports', [InventoryController::class, 'index']); // Frontend compatibility
+
+    // Batch Management Routes (FEFO/FIFO)
+    Route::get('inventory/items/{id}/batches', [InventoryController::class, 'getItemBatches']);
+    Route::post('inventory/items/{id}/batches', [InventoryController::class, 'addBatch']);
+    Route::post('inventory/batches/{batchId}/dispose', [InventoryController::class, 'disposeBatch']);
+    Route::post('inventory/batches/{batchId}/adjust', [InventoryController::class, 'adjustBatch']);
 
     Route::get('customers', [CustomersController::class, 'index']);
     Route::post('customers', [CustomersController::class, 'store']);
@@ -128,6 +136,12 @@ Route::middleware(['auth.api', 'throttle:api', 'role:admin'])->prefix('admin')->
 
     Route::get('reports/summary', [ReportsController::class, 'summary']);
     Route::get('reports/sales', [ReportsController::class, 'sales']);
+    Route::get('appointments', [AppointmentController::class, 'index']);
+
+    Route::get('salaries', [SalaryController::class, 'index']);
+    Route::post('salaries', [SalaryController::class, 'store']);
+    Route::put('salaries/{id}', [SalaryController::class, 'update']);
+    Route::delete('salaries/{id}', [SalaryController::class, 'destroy']);
 
     // Activity Logs
     Route::get('activity-logs', [ActivityLogController::class, 'index']);
@@ -169,6 +183,9 @@ Route::middleware(['auth.api', 'throttle:api', 'role:customer'])->prefix('custom
     Route::get('pets', [PortalController::class, 'pets']);
     Route::post('pets', [PortalController::class, 'addPet']);
     Route::get('appointments', [PortalController::class, 'appointments']);
+    Route::get('bookings', [PortalController::class, 'bookings']);
+    Route::get('transactions', [PortalController::class, 'transactions']);
+    Route::get('purchases', [PortalController::class, 'purchases']);
     Route::post('appointments', [PortalController::class, 'bookAppointment']);
     Route::get('boardings', [PortalController::class, 'boardings']);
     Route::post('boardings', [PortalController::class, 'bookBoarding']);
@@ -185,6 +202,7 @@ Route::middleware(['auth.api', 'throttle:api', 'role:cashier'])->prefix('cashier
     Route::get('dashboard/overview', [CashierDashboardController::class, 'overviewWrapped']);
     Route::get('sales', [CashierDashboardController::class, 'sales']);
     Route::get('transactions', [CashierDashboardController::class, 'transactions']);
+    Route::get('history', [CashierDashboardController::class, 'history']);
     Route::get('transactions/search', [CashierDashboardController::class, 'searchTransactions']);
 
     // Cashier Transaction Operations
@@ -192,6 +210,7 @@ Route::middleware(['auth.api', 'throttle:api', 'role:cashier'])->prefix('cashier
     Route::post('multi-payment', [CashierDashboardController::class, 'multiPayment']);
     Route::post('apply-discount', [CashierDashboardController::class, 'applyDiscount']);
     Route::post('handover', [CashierDashboardController::class, 'handover']);
+    Route::post('end-shift', [CashierDashboardController::class, 'endShift']);
     Route::post('void', [CashierDashboardController::class, 'voidTransaction']);
     Route::get('receipt/{id}', [CashierDashboardController::class, 'generateReceipt']);
 
@@ -222,6 +241,7 @@ Route::middleware(['auth.api', 'throttle:api', 'role:receptionist'])->prefix('re
     // Customer Order Management
     Route::get('orders', [ReceptionistDashboardController::class, 'orders']);
     Route::put('orders/{id}/status', [ReceptionistDashboardController::class, 'updateOrderStatus']);
+    Route::get('reports/transactions', [CashierDashboardController::class, 'transactions']);
 
     // Appointment management
     Route::get('appointment/list', [AppointmentController::class, 'index']);
@@ -263,11 +283,19 @@ Route::middleware(['auth.api', 'throttle:api', 'role:admin,inventory'])->prefix(
     Route::put('items/{id}', [InventoryDashboardController::class, 'updateItem']);
     Route::delete('items/{id}', [InventoryDashboardController::class, 'destroyItem']);
     Route::get('logs', [InventoryDashboardController::class, 'logs']);
+    Route::get('reports', [InventoryDashboardController::class, 'reports']);
+    Route::get('history', [InventoryDashboardController::class, 'history']);
+    Route::get('low-stock', [InventoryDashboardController::class, 'lowStock']);
+    Route::post('reorder-requests', [InventoryDashboardController::class, 'reorderRequest']);
+    Route::post('{id}/stock', [InventoryDashboardController::class, 'adjustStock']);
+    Route::patch('{id}/stock', [InventoryDashboardController::class, 'adjustStock']);
 });
 
 Route::middleware(['auth.api', 'throttle:api', 'role:manager'])->prefix('manager')->group(function () {
     Route::get('dashboard', [ManagerDashboardController::class, 'overview']);
     Route::get('staff', [ManagerDashboardController::class, 'staff']);
+    Route::get('reports/summary', [ReportsController::class, 'summary']);
+    Route::get('reports/sales', [ReportsController::class, 'sales']);
 });
 
 // Attendance Routes (Admin and Manager)
@@ -289,10 +317,13 @@ Route::middleware(['auth.api', 'throttle:api', 'role:admin,manager'])->prefix('a
     Route::get('/summary', [AttendanceRecordController::class, 'summary']);
 });
 
-// Payroll Routes (Admin and Manager)
-Route::middleware(['auth.api', 'throttle:api', 'role:admin,manager'])->prefix('payroll')->group(function () {
+// Payroll Routes (Admin, Manager, and Payroll)
+Route::middleware(['auth.api', 'throttle:api', 'role:admin,manager,payroll'])->prefix('payroll')->group(function () {
     Route::get('/', [ApiPayrollController::class, 'index']);
     Route::post('/generate', [ApiPayrollController::class, 'generate']);
+    Route::get('/summary', [PayrollController::class, 'summary']);
+    Route::post('/{id}/process', [PayrollController::class, 'processPayment']);
+    Route::get('/{id}/payslip', [PayrollController::class, 'payslip']);
     Route::get('/{payroll}', [ApiPayrollController::class, 'show']);
     Route::patch('/{payroll}/approve', [ApiPayrollController::class, 'approve']);
     Route::patch('/{payroll}/paid', [ApiPayrollController::class, 'markAsPaid']);
@@ -301,9 +332,6 @@ Route::middleware(['auth.api', 'throttle:api', 'role:admin,manager'])->prefix('p
     // Legacy routes using main controller
     Route::post('/', [PayrollController::class, 'store']);
     Route::put('/{id}', [PayrollController::class, 'update']);
-    Route::get('/summary', [PayrollController::class, 'summary']);
-    Route::post('/{id}/process', [PayrollController::class, 'processPayment']);
-    Route::get('/{id}/payslip', [PayrollController::class, 'payslip']);
 });
 
 // Role-based Notifications API Routes
@@ -379,6 +407,17 @@ Route::middleware(['auth.api', 'throttle:api'])->prefix('notifications')->group(
 Route::middleware(['auth.api', 'throttle:api', 'role:admin'])->prefix('notifications')->group(function () {
     Route::post('/', [NotificationController::class, 'store']);
 });
+
+Route::middleware(['auth.api', 'throttle:api', 'role:cashier,admin'])->group(function () {
+    Route::get('/customers/search', [CustomersController::class, 'search']);
+    Route::post('/customers', [CustomersController::class, 'store']);
+    Route::get('/customers/{id}/purchases', [CustomersController::class, 'purchases']);
+    Route::get('/pos/items', [POSController::class, 'getProducts']);
+    Route::get('/hr/employees', [UserController::class, 'index']);
+    Route::post('/appointments/{id}/pay', [AppointmentController::class, 'markAsPaid']);
+});
+
+Route::middleware(['auth.api', 'throttle:api', 'role:receptionist,admin,manager'])->post('/notifications/booking-status', [NotificationController::class, 'bookingStatus']);
 
 // Hotel Room Management Routes (Admin/Manager/Receptionist)
 Route::middleware(['auth.api', 'throttle:api', 'role:admin,manager,receptionist'])->prefix('hotel-rooms')->group(function () {

@@ -96,6 +96,165 @@ class InventoryItem extends Model
     }
 
     /**
+     * Get all batches for this item
+     */
+    public function batches()
+    {
+        return $this->hasMany(InventoryBatch::class);
+    }
+
+    /**
+     * Get active batches only (FEFO order for expiring items, FIFO for non-expiring)
+     */
+    public function activeBatches()
+    {
+        return $this->batches()
+            ->where('status', 'active')
+            ->where('remaining_quantity', '>', 0)
+            ->where(function ($q) {
+                $q->whereNull('expiration_date')
+                  ->orWhere('expiration_date', '>', now());
+            })
+            ->orderByRaw('COALESCE(expiration_date, "9999-12-31") ASC')
+            ->orderBy('received_date', 'asc');
+    }
+
+    /**
+     * Get total available stock from active batches (FEFO logic)
+     */
+    public function getBatchStock(): int
+    {
+        return $this->activeBatches()->sum('remaining_quantity');
+    }
+
+    /**
+     * Check if item has expiring batches
+     */
+    public function hasExpiringBatches(): bool
+    {
+        return $this->batches()
+            ->where('status', 'active')
+            ->where('remaining_quantity', '>', 0)
+            ->whereNotNull('expiration_date')
+            ->where('expiration_date', '<=', now()->addDays(30))
+            ->where('expiration_date', '>', now())
+            ->exists();
+    }
+
+    /**
+     * Check if item has expired batches
+     */
+    public function hasExpiredBatches(): bool
+    {
+        return $this->batches()
+            ->where('status', 'expired')
+            ->orWhere(function ($q) {
+                $q->where('status', 'active')
+                  ->whereNotNull('expiration_date')
+                  ->where('expiration_date', '<', now());
+            })
+            ->exists();
+    }
+
+    /**
+     * Get the next batch for FEFO deduction
+     */
+    public function getNextFefoBatch(): ?InventoryBatch
+    {
+        return $this->activeBatches()->first();
+    }
+
+    /**
+     * Deduct stock using FEFO logic from batches
+     * Returns array of batch deductions
+     */
+    public function deductStockFefo(int $amount, string $reason = ''): array
+    {
+        $deductions = [];
+        $remainingToDeduct = $amount;
+
+        // Get batches in FEFO order
+        $batches = $this->activeBatches()->get();
+
+        foreach ($batches as $batch) {
+            if ($remainingToDeduct <= 0) break;
+
+            $deductFromBatch = min($batch->remaining_quantity, $remainingToDeduct);
+            $batch->remaining_quantity -= $deductFromBatch;
+
+            // Update batch status if depleted
+            if ($batch->remaining_quantity <= 0) {
+                $batch->status = 'depleted';
+            }
+            $batch->save();
+
+            $deductions[] = [
+                'batch_id' => $batch->id,
+                'batch_no' => $batch->batch_no,
+                'amount' => $deductFromBatch,
+                'expiration_date' => $batch->expiration_date,
+            ];
+
+            $remainingToDeduct -= $deductFromBatch;
+        }
+
+        // Update main stock count
+        $this->stock -= $amount;
+        $this->save();
+
+        // Create log entry
+        InventoryLog::create([
+            'inventory_item_id' => $this->id,
+            'delta' => -$amount,
+            'reason' => $reason,
+            'reference_type' => 'sale',
+            'details' => json_encode(['batch_deductions' => $deductions]),
+        ]);
+
+        return $deductions;
+    }
+
+    /**
+     * Add stock with batch tracking
+     */
+    public function addBatchStock(int $amount, ?string $batchNo = null, ?string $expirationDate = null, string $notes = ''): InventoryBatch
+    {
+        $batch = $this->batches()->create([
+            'batch_no' => $batchNo ?: 'BATCH-' . strtoupper(uniqid()),
+            'received_date' => now(),
+            'expiration_date' => $expirationDate,
+            'quantity' => $amount,
+            'remaining_quantity' => $amount,
+            'status' => 'active',
+            'notes' => $notes,
+        ]);
+
+        // Update main stock count
+        $this->stock += $amount;
+        $this->save();
+
+        // Create log entry
+        InventoryLog::create([
+            'inventory_item_id' => $this->id,
+            'delta' => $amount,
+            'reason' => 'Batch restock',
+            'reference_type' => 'restock',
+            'details' => json_encode(['batch_id' => $batch->id, 'expiration_date' => $expirationDate]),
+        ]);
+
+        return $batch;
+    }
+
+    /**
+     * Check if this item category needs FEFO (expiration tracking)
+     */
+    public function needsFefo(): bool
+    {
+        $fefoCategories = ['Food', 'Health', 'Grooming'];
+        return in_array($this->category, $fefoCategories);
+    }
+
+    /**
      * Check if item is low on stock
      */
     public function isLowStock(): bool
