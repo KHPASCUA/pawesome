@@ -1,59 +1,335 @@
 /* VetCustomerProfiles.css */
-/* Clean global version: uses premium-card, app-content */
+/* Premium Pink Pawesome Veterinary Customer Profiles */
 
-.vet-customer-profiles {
-  display: grid;
-  gap: 24px;
+:root {
+  /* Pink Glass Theme Variables */
+  --color-primary: #ff5f93;
+  --color-primary-light: #ff8db5;
+  --color-primary-dark: #ff3d73;
+  --color-secondary: #ff8db5;
+  --color-accent: #ffb3d1;
+  
+  /* Glass Effects */
+  --color-glass-bg: rgba(255, 255, 255, 0.85);
+  --color-glass-border: rgba(255, 95, 147, 0.18);
+  --color-glass-shadow: 0 18px 45px rgba(255, 95, 147, 0.14);
+  
+  /* Backgrounds */
+  --color-page-bg: linear-gradient(135deg, #fff5f8 0%, #ffe0ec 50%, #fff5f8 100%);
+  --color-surface: var(--color-glass-bg);
+  --color-surface-solid: rgba(255, 255, 255, 0.9);
+  
+  /* Text Colors */
+  --color-text: #2d3748;
+  --color-heading: #2d3748;
+  --color-muted: #718096;
+  --color-text-secondary: #718096;
+  
+  /* Status Colors */
+  --color-success: #48bb78;
+  --color-warning: #ed8936;
+  --color-danger: #f56565;
+  --color-info: #4299e1;
+  
+  /* Background Colors for Status */
+  --color-danger-bg: rgba(245, 101, 101, 0.1);
+  --color-warning-bg: rgba(237, 137, 54, 0.1);
+  --color-success-bg: rgba(72, 187, 120, 0.1);
+  
+  /* Shadows */
+  --shadow-soft: 0 4px 12px rgba(255, 95, 147, 0.08);
+  --shadow-card: var(--color-glass-shadow);
+  --shadow-primary: 0 8px 20px rgba(255, 95, 147, 0.15);
+  
+  /* Border */
+  --color-border: var(--color-glass-border);
+  
+  /* Radius */
+  --radius-card: 24px;
+  --radius-lg: 16px;
+  --radius-md: 12px;
+  --radius-pill: 16px;
 }
 
-/* HEADER */
+/* Dark Mode Variables */
+[data-theme="dark"] {
+  --color-surface: rgba(15, 23, 42, 0.9);
+  --color-surface-solid: rgba(15, 23, 42, 0.94);
+  --color-text: #f7fafc;
+  --color-heading: #f7fafc;
+  --color-muted: #a0aec0;
+  --color-text-secondary: #a0aec0;
+  --color-border: rgba(255, 95, 147, 0.28);
+}
 
-.vet-profiles-header h2 {
+/* Base Styles */
+.vet-customer-profiles {
+  width: 100%;
+  max-width: 100%;
+  display: grid;
+  gap: 24px;
+  overflow-x: hidden;
+  color: var(--color-text);
+  background: var(--color-page-bg);
+  min-height: 100vh;
+  padding: 32px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.vet-customer-profiles,
+.vet-customer-profiles * {
+  box-sizing: border-box;
+}
+
+/* Premium Card Base */
+.premium-card {
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  border: 2px solid var(--color-border);
+  box-shadow: var(--shadow-card);
+  backdrop-filter: blur(20px);
+  overflow: hidden;
+}
+
+/* HERO */
+.vet-profiles-hero {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.25rem;
+  overflow: hidden;
+  animation: fadeInUp 0.8s ease;
+}
+
+.vet-profiles-hero::before {
+  content: "";
+  position: absolute;
+  top: -110px;
+  right: -100px;
+  width: 280px;
+  height: 280px;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(255, 95, 147, 0.24), transparent 68%);
+  pointer-events: none;
+}
+
+.vet-profiles-hero-copy,
+.vet-refresh-btn {
+  position: relative;
+  z-index: 1;
+}
+
+.vet-profiles-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: 0.55rem;
+  color: var(--color-primary);
+  font-size: 0.78rem;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.vet-profiles-hero h2 {
   margin: 0 0 0.4rem;
   display: flex;
   align-items: center;
   gap: 0.7rem;
+  line-height: 1.1;
 }
 
-.vet-profiles-header p {
+.vet-profiles-hero p {
+  max-width: 760px;
   margin: 0;
 }
 
+/* BUTTONS */
+.vet-refresh-btn,
+.vet-view-profile-btn {
+  min-height: 44px;
+  border: none;
+  padding: 0.7rem 1rem;
+  border-radius: var(--radius-pill);
+  font-size: 0.9rem;
+  font-weight: 950;
+  cursor: pointer;
+  transition: 0.25s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.vet-refresh-btn {
+  background: var(--color-surface-solid);
+  color: var(--color-primary);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-soft);
+}
+
+.vet-view-profile-btn {
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+  color: #ffffff;
+  box-shadow: var(--shadow-primary);
+}
+
+.vet-refresh-btn:hover,
+.vet-view-profile-btn:hover {
+  transform: translateY(-2px);
+}
+
+.vet-refresh-btn.refreshing svg {
+  animation: vetCustomerSpin 0.9s linear infinite;
+}
+
+@keyframes vetCustomerSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ERROR */
+.vet-error-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border-style: solid;
+  background: var(--color-danger-bg) !important;
+  color: #991b1b;
+  font-weight: 850;
+}
+
+.vet-error-banner svg {
+  color: #991b1b;
+}
+
+/* STATS */
+.vet-profile-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(180px, 1fr));
+  gap: 1rem;
+}
+
+.vet-profile-stat-card {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  min-width: 0;
+}
+
+.vet-profile-stat-card > span {
+  width: 54px;
+  height: 54px;
+  min-width: 54px;
+  display: grid;
+  place-items: center;
+  border-radius: 18px;
+  color: #ffffff;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+  box-shadow: var(--shadow-primary);
+}
+
+.vet-profile-stat-card h3 {
+  margin: 0;
+  color: var(--color-primary);
+  font-size: 1.75rem;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.vet-profile-stat-card p {
+  margin: 0.3rem 0 0;
+  color: var(--color-muted);
+  font-weight: 800;
+}
+
 /* SEARCH */
+.vet-profiles-search {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
 
 .vet-profiles-search .vet-search-box {
   position: relative;
-  max-width: 500px;
+  width: min(100%, 680px);
 }
 
-.vet-profiles-search .vet-search-box svg {
+.vet-profiles-search .vet-search-box > svg {
   position: absolute;
   left: 16px;
   top: 50%;
   transform: translateY(-50%);
-  color: var(--color-muted);
+  color: var(--color-primary);
+  pointer-events: none;
 }
 
 .vet-profiles-search input {
   width: 100%;
-  padding: 14px 20px 14px 48px;
+  min-height: 48px;
+  padding: 0.8rem 2.9rem 0.8rem 3rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-solid);
+  color: var(--color-text);
+  font-weight: 750;
+  outline: none;
+  box-shadow: var(--shadow-soft);
+  transition: 0.2s ease;
+}
+
+.vet-profiles-search input:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 4px rgba(255, 95, 147, 0.16);
+}
+
+.vet-clear-search-btn {
+  position: absolute;
+  right: 9px;
+  top: 50%;
+  width: 32px;
+  height: 32px;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 999px;
+  background: rgba(255, 95, 147, 0.1);
+  color: var(--color-primary);
+  cursor: pointer;
+}
+
+.vet-search-meta {
+  color: var(--color-muted);
+  font-size: 0.9rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.vet-search-meta strong {
+  color: var(--color-primary);
 }
 
 /* CUSTOMER LIST */
-
 .vet-customer-list {
   display: grid;
   gap: 16px;
 }
 
 /* CUSTOMER CARD */
-
 .vet-customer-card {
-  display: flex;
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) auto;
   align-items: center;
   gap: 1.2rem;
   position: relative;
   overflow: hidden;
+  transition: 0.25s ease;
 }
 
 .vet-customer-card::before {
@@ -66,6 +342,11 @@
   transition: 0.25s ease;
 }
 
+.vet-customer-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 28px 70px rgba(255, 95, 147, 0.18);
+}
+
 .vet-customer-card:hover::before {
   opacity: 1;
 }
@@ -73,7 +354,7 @@
 .vet-customer-avatar {
   width: 64px;
   height: 64px;
-  border-radius: 50%;
+  border-radius: 22px;
   background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
   display: grid;
   place-items: center;
@@ -85,39 +366,78 @@
 }
 
 .vet-customer-info {
-  flex: 1;
+  min-width: 0;
+}
+
+.vet-customer-mainline {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.9rem;
 }
 
 .vet-customer-info h3 {
-  margin: 0 0 0.5rem;
+  margin: 0 0 0.35rem;
   color: var(--color-heading);
   font-weight: 950;
-  font-size: 1.1rem;
+  font-size: 1.12rem;
 }
 
+.pet-line {
+  color: var(--color-primary) !important;
+  font-weight: 900 !important;
+}
+
+.vet-patient-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.4rem 0.75rem;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 95, 147, 0.1);
+  color: var(--color-primary);
+  border: 1px solid rgba(255, 95, 147, 0.16);
+  font-size: 0.75rem;
+  font-weight: 950;
+  white-space: nowrap;
+}
+
+.vet-contact-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.vet-contact-grid p,
 .vet-customer-info p {
-  margin: 0.25rem 0;
+  min-width: 0;
+  margin: 0;
   color: var(--color-muted);
   font-size: 0.9rem;
+  font-weight: 750;
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  word-break: break-word;
 }
 
+.vet-contact-grid svg,
 .vet-customer-info svg {
   color: var(--color-primary);
   width: 14px;
   height: 14px;
+  min-width: 14px;
 }
 
 /* EMPTY / LOADING / ERROR STATES */
-
 .vet-empty-state,
 .vet-loading-state,
 .vet-error-state {
   min-height: 260px;
   display: grid;
   place-items: center;
+  align-content: center;
   text-align: center;
   gap: 0.75rem;
   border-style: dashed;
@@ -150,18 +470,132 @@
 }
 
 .spin-animation {
-  animation: vetSpin 1s linear infinite;
+  animation: vetCustomerSpin 1s linear infinite;
 }
 
-@keyframes vetSpin {
-  to {
-    transform: rotate(360deg);
-  }
+/* MODAL */
+.vet-profile-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(15, 23, 42, 0.48);
+  backdrop-filter: blur(10px);
+}
+
+.vet-profile-modal {
+  width: min(760px, 100%);
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 1.4rem;
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-card);
+}
+
+.vet-profile-modal-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 1rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.vet-profile-modal-header h3 {
+  margin: 0;
+  color: var(--color-heading);
+  font-size: 1.45rem;
+  font-weight: 950;
+}
+
+.vet-profile-modal-header p {
+  margin: 0.25rem 0 0;
+  color: var(--color-muted);
+  font-weight: 750;
+}
+
+.vet-modal-close {
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: var(--color-surface-solid);
+  color: var(--color-heading);
+  cursor: pointer;
+}
+
+.vet-profile-modal-body {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.modal-profile-avatar {
+  width: 96px;
+  height: 96px;
+  display: grid;
+  place-items: center;
+  border-radius: 28px;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+  color: #ffffff;
+  font-size: 2rem;
+  font-weight: 950;
+  box-shadow: var(--shadow-primary);
+}
+
+.modal-profile-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.modal-profile-grid div {
+  min-width: 0;
+  padding: 0.9rem;
+  border-radius: var(--radius-md);
+  background: rgba(255, 241, 247, 0.58);
+  border: 1px solid rgba(255, 95, 147, 0.08);
+}
+
+.modal-profile-grid small {
+  display: block;
+  margin-bottom: 0.35rem;
+  color: var(--color-muted);
+  font-size: 0.78rem;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.modal-profile-grid strong {
+  color: var(--color-heading);
+  font-weight: 900;
+  word-break: break-word;
+}
+
+.vet-profile-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding-top: 1rem;
+  margin-top: 1rem;
+  border-top: 1px solid var(--color-border);
 }
 
 /* DARK MODE */
-
-[data-theme="dark"] .vet-customer-card {
+[data-theme="dark"] .vet-customer-card,
+[data-theme="dark"] .vet-profile-modal,
+[data-theme="dark"] .vet-profiles-search input,
+[data-theme="dark"] .vet-modal-close,
+[data-theme="dark"] .vet-refresh-btn {
   background: rgba(15, 23, 42, 0.94);
 }
 
@@ -169,11 +603,53 @@
   box-shadow: 0 8px 16px rgba(255, 95, 147, 0.2);
 }
 
+[data-theme="dark"] .modal-profile-grid div {
+  background: rgba(255, 255, 255, 0.06);
+}
+
 /* RESPONSIVE */
+@media (max-width: 1100px) {
+  .vet-contact-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .vet-profile-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .vet-profiles-hero,
+  .vet-profiles-search {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .vet-refresh-btn {
+    width: 100%;
+  }
+
+  .vet-search-meta {
+    white-space: normal;
+  }
+
+  .vet-customer-card {
+    grid-template-columns: 56px minmax(0, 1fr);
+  }
+
+  .vet-view-profile-btn {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+}
 
 @media (max-width: 768px) {
+  .vet-profile-stats {
+    grid-template-columns: 1fr;
+  }
+
   .vet-customer-card {
-    flex-direction: column;
+    grid-template-columns: 1fr;
     align-items: flex-start;
     gap: 1rem;
   }
@@ -181,7 +657,21 @@
   .vet-customer-avatar {
     width: 56px;
     height: 56px;
+    border-radius: 20px;
     font-size: 1.25rem;
+  }
+
+  .vet-customer-mainline {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .vet-profile-modal-body {
+    grid-template-columns: 1fr;
+  }
+
+  .modal-profile-grid {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -189,6 +679,7 @@
   .vet-customer-avatar {
     width: 48px;
     height: 48px;
+    border-radius: 16px;
     font-size: 1.1rem;
   }
 
@@ -196,7 +687,19 @@
     font-size: 1rem;
   }
 
-  .vet-customer-info p {
+  .vet-customer-info p,
+  .vet-contact-grid p {
     font-size: 0.85rem;
+  }
+
+  .vet-profile-modal {
+    padding: 1rem;
+  }
+
+  .modal-profile-avatar {
+    width: 78px;
+    height: 78px;
+    border-radius: 22px;
+    font-size: 1.55rem;
   }
 }

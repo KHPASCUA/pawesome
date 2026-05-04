@@ -1,148 +1,385 @@
 /* VetReports.css */
-/* Clean global version: uses premium-card, app-content, app-grid-3, app-stat-card, btn-primary, btn-secondary, badge */
+/* Premium Pink Pawesome Veterinary Reports */
 
 .vet-reports {
+  width: 100%;
+  max-width: 100%;
   display: grid;
   gap: 24px;
+  overflow-x: hidden;
+  color: var(--color-text);
 }
 
-.vet-chart-panel h3 {
-  margin: 0 0 1rem;
-  color: var(--color-heading);
-  font-weight: 950;
+.vet-reports,
+.vet-reports * {
+  box-sizing: border-box;
 }
 
-.vet-chart-box {
-  width: 100%;
-  height: 320px;
+/* HERO */
+
+.vet-reports-hero {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1.25rem;
+  overflow: hidden;
 }
 
-.premium-badge.live {
-  background: rgba(16, 185, 129, 0.15);
-  color: #059669;
-  font-weight: 900;
-  padding: 6px 12px;
+.vet-reports-hero::before {
+  content: "";
+  position: absolute;
+  top: -110px;
+  right: -100px;
+  width: 280px;
+  height: 280px;
   border-radius: 999px;
-  font-size: 0.75rem;
+  background: radial-gradient(circle, rgba(255, 95, 147, 0.24), transparent 68%);
+  pointer-events: none;
 }
 
-/* LOADING & ERROR */
+.vet-reports-hero-copy,
+.vet-reports-hero-actions {
+  position: relative;
+  z-index: 1;
+}
+
+.vet-reports-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: 0.55rem;
+  color: var(--color-primary);
+  font-size: 0.78rem;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.vet-reports-hero h2 {
+  margin: 0 0 0.4rem;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  line-height: 1.1;
+}
+
+.vet-reports-hero p {
+  max-width: 780px;
+  margin: 0;
+}
+
+.vet-reports-hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+/* BUTTONS / BADGES */
+
+.vet-reports-refresh-btn,
+.vet-data-source-badge {
+  min-height: 44px;
+  border: none;
+  padding: 0.7rem 1rem;
+  border-radius: var(--radius-pill);
+  font-size: 0.9rem;
+  font-weight: 950;
+  transition: 0.25s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+}
+
+.vet-reports-refresh-btn {
+  cursor: pointer;
+  background: var(--color-surface-solid);
+  color: var(--color-primary);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-soft);
+}
+
+.vet-reports-refresh-btn:hover {
+  transform: translateY(-2px);
+}
+
+.vet-reports-refresh-btn.refreshing svg {
+  animation: vetReportsSpin 0.9s linear infinite;
+}
+
+.vet-data-source-badge.live {
+  background: var(--color-success-bg);
+  color: #065f46;
+}
+
+.vet-data-source-badge.demo {
+  background: var(--color-warning-bg);
+  color: #92400e;
+}
+
+@keyframes vetReportsSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ERROR / LOADING */
 
 .vet-loading-state,
 .vet-error-banner {
   min-height: 200px;
   display: grid;
   place-items: center;
+  align-content: center;
   text-align: center;
   gap: 0.75rem;
 }
 
+.vet-loading-state svg {
+  font-size: 3rem;
+  color: var(--color-primary);
+}
+
+.vet-loading-state span {
+  color: var(--color-muted);
+  font-weight: 850;
+}
+
 .vet-error-banner {
-  border-color: var(--color-danger);
+  grid-template-columns: auto 1fr auto;
+  min-height: auto;
+  text-align: left;
+  background: var(--color-warning-bg) !important;
+  color: #92400e;
+  border-color: rgba(245, 158, 11, 0.25);
+  font-weight: 850;
+}
+
+.vet-error-banner svg {
+  color: #92400e;
 }
 
 .vet-error-banner button {
-  background: none;
+  width: 34px;
+  height: 34px;
   border: none;
-  font-size: 1.5rem;
-  color: var(--color-muted);
+  border-radius: 999px;
+  background: rgba(245, 158, 11, 0.18);
+  color: #92400e;
   cursor: pointer;
+  font-size: 1.25rem;
 }
 
 .spin-animation {
-  animation: vetSpin 1s linear infinite;
+  animation: vetReportsSpin 1s linear infinite;
 }
 
-@keyframes vetSpin {
-  to { transform: rotate(360deg); }
+/* STAT CARDS */
+
+.vet-report-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(180px, 1fr));
+  gap: 1rem;
 }
 
-/* HEADER */
-
-.vet-reports-header h2 {
-  margin: 0 0 0.4rem;
+.vet-report-stat-card {
   display: flex;
   align-items: center;
-  gap: 0.7rem;
+  gap: 0.9rem;
+  min-width: 0;
 }
 
-.vet-reports-header p {
+.vet-report-stat-card > span {
+  width: 54px;
+  height: 54px;
+  min-width: 54px;
+  display: grid;
+  place-items: center;
+  border-radius: 18px;
+  color: #ffffff;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+  box-shadow: var(--shadow-primary);
+}
+
+.vet-report-stat-card h3 {
   margin: 0;
+  color: var(--color-primary);
+  font-size: 1.3rem;
+  font-weight: 950;
+  line-height: 1.08;
+}
+
+.vet-report-stat-card p {
+  margin: 0.3rem 0 0;
+  color: var(--color-muted);
+  font-weight: 800;
+  font-size: 0.86rem;
+}
+
+/* PANEL HEADER */
+
+.vet-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.vet-panel-header h3 {
+  margin: 0;
+  color: var(--color-heading);
+  font-weight: 950;
+}
+
+.vet-panel-header p {
+  margin: 0.3rem 0 0;
+  color: var(--color-muted);
+  font-weight: 750;
+}
+
+.vet-period-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.45rem 0.8rem;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 95, 147, 0.1);
+  color: var(--color-primary);
+  font-weight: 950;
+  font-size: 0.8rem;
+  white-space: nowrap;
 }
 
 /* FINANCIAL PANEL */
 
-.vet-financial-panel h3 {
-  margin: 0 0 1.25rem;
-  color: var(--color-heading);
-  font-weight: 950;
-}
-
-.vet-financial-grid {
-  margin-bottom: 8px;
-}
-
-.vet-financial-card {
-  display: flex;
-  align-items: center;
+.vet-financial-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(180px, 1fr));
   gap: 1rem;
 }
 
-.vet-financial-icon {
-  width: 52px;
-  height: 52px;
-  border-radius: 14px;
-  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+.vet-financial-summary div {
+  padding: 1rem;
+  border-radius: var(--radius-lg);
+  background: rgba(255, 241, 247, 0.58);
+  border: 1px solid rgba(255, 95, 147, 0.08);
+}
+
+.vet-financial-summary small {
+  display: block;
+  margin-bottom: 0.35rem;
+  color: var(--color-muted);
+  font-size: 0.78rem;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.vet-financial-summary strong {
+  display: block;
+  color: var(--color-primary);
+  font-size: 1.3rem;
+  font-weight: 950;
+}
+
+/* CHARTS */
+
+.vet-report-chart-grid {
+  align-items: stretch;
+}
+
+.vet-chart-panel {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.vet-chart-box {
+  width: 100%;
+  height: 340px;
+  min-width: 0;
+}
+
+.vet-chart-box .recharts-wrapper,
+.vet-chart-box svg {
+  max-width: 100%;
+}
+
+.vet-chart-empty {
+  height: 100%;
   display: grid;
   place-items: center;
-  color: white;
-  font-size: 1.4rem;
-  box-shadow: var(--shadow-primary);
-}
-
-.vet-financial-icon.profit {
-  background: linear-gradient(135deg, #10b981, #34d399);
-}
-
-.vet-financial-card h3 {
-  margin: 0;
-  font-size: 1.4rem;
-  font-weight: 950;
-  color: var(--color-heading);
-}
-
-.vet-financial-card p {
-  margin: 0;
+  align-content: center;
+  gap: 0.75rem;
   color: var(--color-muted);
-  font-size: 0.85rem;
-  font-weight: 700;
+  border-radius: var(--radius-lg);
+  border: 2px dashed var(--color-border);
+  background: rgba(255, 255, 255, 0.45);
+  text-align: center;
+}
+
+.vet-chart-empty svg {
+  color: var(--color-primary);
+  font-size: 2.4rem;
+}
+
+.vet-chart-empty p {
+  margin: 0;
+  font-weight: 800;
 }
 
 /* SERVICES PANEL */
 
-.vet-services-panel h3 {
-  margin: 0 0 1.25rem;
-  color: var(--color-heading);
-  font-weight: 950;
-}
-
 .vet-services-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
   gap: 16px;
 }
 
 .vet-service-card {
   display: grid;
-  gap: 0.75rem;
+  gap: 0.9rem;
+  min-width: 0;
+  transition: 0.25s ease;
+}
+
+.vet-service-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 28px 70px rgba(255, 95, 147, 0.18);
 }
 
 .vet-service-header {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
-  color: var(--color-primary);
+  gap: 0.75rem;
+}
+
+.vet-service-header > span {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 16px;
+  color: #ffffff;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+  box-shadow: var(--shadow-primary);
+}
+
+.vet-service-header strong {
+  display: block;
+  color: var(--color-heading);
   font-weight: 950;
+}
+
+.vet-service-header p {
+  margin: 0.2rem 0 0;
+  color: var(--color-muted);
+  font-weight: 750;
+  font-size: 0.85rem;
 }
 
 .vet-service-stats {
@@ -153,32 +390,73 @@
 
 .vet-service-stats div {
   text-align: center;
-  padding: 0.75rem;
-  background: rgba(255, 241, 247, 0.5);
+  padding: 0.85rem;
+  background: rgba(255, 241, 247, 0.58);
+  border: 1px solid rgba(255, 95, 147, 0.08);
   border-radius: var(--radius-md);
 }
 
 .vet-service-stats strong {
   display: block;
-  font-size: 1.25rem;
+  font-size: 1.12rem;
   font-weight: 950;
   color: var(--color-heading);
+  line-height: 1.15;
 }
 
 .vet-service-stats p {
   margin: 0.25rem 0 0;
   font-size: 0.8rem;
   color: var(--color-muted);
-  font-weight: 700;
+  font-weight: 750;
 }
 
-/* EXPORT PANEL */
+.vet-service-progress {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 95, 147, 0.1);
+}
 
-.vet-export-panel h3 {
-  margin: 0 0 1rem;
+.vet-service-progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+}
+
+/* EMPTY */
+
+.vet-empty-state {
+  min-height: 220px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  text-align: center;
+  gap: 0.75rem;
+  border: 2px dashed var(--color-border);
+  border-radius: var(--radius-card);
+  background: rgba(255, 255, 255, 0.45);
+}
+
+.vet-empty-state svg {
+  font-size: 3rem;
+  color: var(--color-primary);
+}
+
+.vet-empty-state h3 {
+  margin: 0;
   color: var(--color-heading);
   font-weight: 950;
 }
+
+.vet-empty-state p {
+  margin: 0;
+  color: var(--color-muted);
+  font-weight: 750;
+}
+
+/* EXPORT PANEL */
 
 .vet-export-actions {
   display: flex;
@@ -186,29 +464,101 @@
   flex-wrap: wrap;
 }
 
-/* DARK MODE */
-
-[data-theme="dark"] .vet-service-stats div {
-  background: rgba(255, 95, 147, 0.1);
+.vet-export-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
 }
 
-[data-theme="dark"] .vet-financial-icon {
+/* DARK MODE */
+
+[data-theme="dark"] .vet-reports-refresh-btn,
+[data-theme="dark"] .vet-financial-summary div,
+[data-theme="dark"] .vet-service-stats div {
+  background: rgba(15, 23, 42, 0.94);
+}
+
+[data-theme="dark"] .vet-chart-empty,
+[data-theme="dark"] .vet-empty-state {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+[data-theme="dark"] .vet-service-header > span,
+[data-theme="dark"] .vet-report-stat-card > span {
   box-shadow: 0 8px 16px rgba(255, 95, 147, 0.2);
 }
 
 /* RESPONSIVE */
 
-@media (max-width: 768px) {
-  .vet-services-grid {
+@media (max-width: 1200px) {
+  .vet-report-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .vet-financial-summary {
     grid-template-columns: 1fr;
   }
 
-  .vet-export-actions {
+  .vet-panel-header {
     flex-direction: column;
+  }
+}
+
+@media (max-width: 900px) {
+  .vet-reports-hero {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .vet-reports-hero-actions {
+    justify-content: flex-start;
+  }
+
+  .vet-reports-refresh-btn,
+  .vet-data-source-badge {
+    width: 100%;
+  }
+
+  .vet-export-actions {
+    display: grid;
+    grid-template-columns: 1fr;
   }
 
   .vet-export-actions button {
     width: 100%;
-    justify-content: center;
+  }
+}
+
+@media (max-width: 768px) {
+  .vet-report-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .vet-services-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .vet-service-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .vet-chart-box {
+    height: 300px;
+  }
+}
+
+@media (max-width: 480px) {
+  .vet-reports-hero {
+    padding: 1.1rem;
+  }
+
+  .vet-chart-box {
+    height: 280px;
+  }
+
+  .vet-report-stat-card h3,
+  .vet-financial-summary strong {
+    font-size: 1.15rem;
   }
 }

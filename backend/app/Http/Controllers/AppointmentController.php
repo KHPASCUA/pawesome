@@ -353,6 +353,75 @@ class AppointmentController extends Controller
     }
 
     /**
+     * Update appointment status (general status update)
+     */
+    public function updateStatus(Request $request, $id)
+    {
+        $appointment = Appointment::find($id);
+        
+        if (!$appointment) {
+            return response()->json(['message' => 'Appointment not found'], 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'status' => 'required|in:pending,approved,in_progress,completed,cancelled,rejected'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Invalid status',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $newStatus = $request->input('status');
+        $oldStatus = $appointment->status;
+
+        // Validate status transitions
+        if (!$this->isValidStatusTransition($oldStatus, $newStatus)) {
+            return response()->json([
+                'message' => 'Invalid status transition',
+                'current_status' => $oldStatus,
+                'requested_status' => $newStatus
+            ], 422);
+        }
+
+        $appointment->status = $newStatus;
+
+        // Set completion timestamp if completing
+        if ($newStatus === 'completed') {
+            $appointment->completed_at = Carbon::now();
+        }
+
+        $appointment->save();
+
+        // Send notification for status change
+        NotificationService::notifyAppointmentStatusChange($appointment, $oldStatus);
+
+        return response()->json([
+            'message' => "Appointment status updated to {$newStatus}",
+            'appointment' => $appointment->load(['customer', 'pet', 'service', 'veterinarian'])
+        ]);
+    }
+
+    /**
+     * Check if status transition is valid
+     */
+    private function isValidStatusTransition($oldStatus, $newStatus)
+    {
+        $validTransitions = [
+            'pending' => ['approved', 'cancelled', 'rejected'],
+            'approved' => ['in_progress', 'completed', 'cancelled'],
+            'in_progress' => ['completed', 'cancelled'],
+            'completed' => [], // No transitions from completed
+            'cancelled' => [], // No transitions from cancelled
+            'rejected' => ['pending'] // Can re-activate rejected appointments
+        ];
+
+        return in_array($newStatus, $validTransitions[$oldStatus] ?? []);
+    }
+
+    /**
      * Update appointment (general update)
      */
     public function update(Request $request, $id)

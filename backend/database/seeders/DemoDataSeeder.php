@@ -364,9 +364,52 @@ class DemoDataSeeder extends Seeder
             'phone' => '09171234567',
             'address' => '123 Demo St'
         ]);
-        $pet = Pet::updateOrCreate(['name' => 'Buddy', 'customer_id' => $cust->id], [
-            'species' => 'Dog', 'breed' => 'Labrador'
+        
+        // Create multiple demo pets for the customer
+        $pet1 = Pet::updateOrCreate(['name' => 'Buddy', 'customer_id' => $cust->id], [
+            'species' => 'Dog', 
+            'breed' => 'Labrador',
+            'birth_date' => now()->subYears(3),
+            'notes' => 'Golden Labrador, Male, 25 kg - Friendly and energetic'
         ]);
+        
+        $pet2 = Pet::updateOrCreate(['name' => 'Luna', 'customer_id' => $cust->id], [
+            'species' => 'Cat', 
+            'breed' => 'Persian',
+            'birth_date' => now()->subYears(2),
+            'notes' => 'White Persian, Female, 4 kg - Calm and affectionate'
+        ]);
+        
+        $pet3 = Pet::updateOrCreate(['name' => 'Max', 'customer_id' => $cust->id], [
+            'species' => 'Dog', 
+            'breed' => 'German Shepherd',
+            'birth_date' => now()->subYears(4),
+            'notes' => 'Black and Tan German Shepherd, Male, 30 kg - Loyal and protective'
+        ]);
+        
+        $pet4 = Pet::updateOrCreate(['name' => 'Whiskers', 'customer_id' => $cust->id], [
+            'species' => 'Cat', 
+            'breed' => 'Siamese',
+            'birth_date' => now()->subYear(),
+            'notes' => 'Cream Siamese, Male, 3 kg - Vocal and playful'
+        ]);
+        
+        $pet5 = Pet::updateOrCreate(['name' => 'Charlie', 'customer_id' => $cust->id], [
+            'species' => 'Dog', 
+            'breed' => 'Beagle',
+            'birth_date' => now()->subYears(2),
+            'notes' => 'Tricolor Beagle, Male, 15 kg - Curious and friendly'
+        ]);
+        
+        $pet6 = Pet::updateOrCreate(['name' => 'Bella', 'customer_id' => $cust->id], [
+            'species' => 'Cat', 
+            'breed' => 'Maine Coon',
+            'birth_date' => now()->subYears(3),
+            'notes' => 'Brown Tabby Maine Coon, Female, 6 kg - Gentle and large'
+        ]);
+        
+        // Use the first pet (Buddy) for existing demo data
+        $pet = $pet1;
 
         // appointments
         Appointment::create([

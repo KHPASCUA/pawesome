@@ -6,7 +6,7 @@ import InventoryProducts from "../components/inventory/InventoryProducts";
 import InventoryStock from "../components/inventory/InventoryStock_Polished";
 import InventoryReports from "../components/inventory/InventoryReports";
 import InventoryHistory from "../components/inventory/InventoryHistory_Polished";
-import InventoryProfile from "../components/inventory/InventoryProfile";
+import ProfileSettings from "../components/shared/ProfileSettings";
 import InventoryManagement from "../components/inventory/InventoryManagement";
 import MonthlyInventoryAudit from "../components/inventory/MonthlyInventoryAudit";
 import MonthlyAuditReport from "../components/inventory/MonthlyAuditReport";
@@ -29,7 +29,7 @@ const InventoryRoutes = () => (
       <Route path="history" element={<InventoryHistory />} />
       <Route path="analytics" element={<InventoryReports />} />
       <Route path="reports" element={<InventoryReports />} />
-      <Route
+<Route
         path="monthly-audit"
         element={
           <ProtectedRoute>
@@ -53,7 +53,7 @@ const InventoryRoutes = () => (
           </ProtectedRoute>
         }
       />
-      <Route path="profile" element={<InventoryProfile />} />
+      <Route path="profile" element={<ProfileSettings />} />
     </Route>
   </Routes>
 );
