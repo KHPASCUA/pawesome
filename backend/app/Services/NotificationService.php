@@ -167,16 +167,20 @@ class NotificationService
         $messages = [
             'approved' => "Your appointment has been confirmed!\n" .
                        "Date: {$appointment->scheduled_at->format('M d, Y h:i A')}",
+            'in_progress' => "Your appointment is now in progress.",
             'completed' => "Your appointment has been completed. Thank you!",
             'cancelled' => "Your appointment has been cancelled.",
+            'rejected' => "Your appointment has been rejected.",
         ];
 
         if (!isset($messages[$appointment->status])) return;
 
         $type = match($appointment->status) {
             'approved' => 'success',
+            'in_progress' => 'info',
             'completed' => 'success',
             'cancelled' => 'error',
+            'rejected' => 'error',
             default => 'info',
         };
 

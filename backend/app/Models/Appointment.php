@@ -23,14 +23,16 @@ class Appointment extends Model
     // Status constants for consistency
     const STATUS_PENDING = 'pending';
     const STATUS_APPROVED = 'approved';
+    const STATUS_IN_PROGRESS = 'in_progress';
     const STATUS_COMPLETED = 'completed';
     const STATUS_CANCELLED = 'cancelled';
+    const STATUS_REJECTED = 'rejected';
     const STATUS_NO_SHOW = 'no_show';
 
     /**
      * Valid statuses
      */
-    public const VALID_STATUSES = [self::STATUS_PENDING, self::STATUS_APPROVED, self::STATUS_COMPLETED, self::STATUS_CANCELLED, self::STATUS_NO_SHOW];
+    public const VALID_STATUSES = [self::STATUS_PENDING, self::STATUS_APPROVED, self::STATUS_IN_PROGRESS, self::STATUS_COMPLETED, self::STATUS_CANCELLED, self::STATUS_REJECTED, self::STATUS_NO_SHOW];
 
     /**
      * Boot method for model-level validation

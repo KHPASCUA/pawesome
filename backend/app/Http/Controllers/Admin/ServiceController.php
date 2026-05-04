@@ -11,11 +11,16 @@ class ServiceController extends Controller
 {
     public function index(): JsonResponse
     {
-        return response()->json(
-            Service::query()
-                ->orderBy('name')
-                ->get()
-        );
+        $services = Service::query()
+            ->where('is_active', true)
+            ->orderBy('category')
+            ->orderBy('name')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $services
+        ]);
     }
 
     public function store(Request $request): JsonResponse

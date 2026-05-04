@@ -3,6 +3,7 @@ import { Outlet, NavLink, useLocation } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faMoon,
+  faSun,
   faCalendarAlt,
   faUsers,
   faHotel,
@@ -16,6 +17,13 @@ import {
   faArrowUp,
   faArrowDown,
   faStethoscope,
+  faSearch,
+  faRotateRight,
+  faNotesMedical,
+  faHeartbeat,
+  faCircleCheck,
+  faEye,
+  faUserDoctor,
 } from "@fortawesome/free-solid-svg-icons";
 
 import { apiRequest, uploadProfilePhoto } from "../../api/client";
@@ -24,7 +32,25 @@ import RoleAwareChatbot from "../chatbot/RoleAwareChatbot";
 import NotificationDropdown from "../shared/NotificationDropdown";
 import DashboardProfile from "../shared/DashboardProfile";
 import toast from "react-hot-toast";
-import "./VetDashboard.css";
+import styled, { createGlobalStyle } from "styled-components";
+import {
+  fadeIn, fadeInUp, slideInUp, scaleIn, pulse,
+  FadeIn, ScaleIn, SlideInUp, Spinning, Glowing,
+  useScrollAnimation, useLoadingAnimation,
+  hoverMixin, glassHoverMixin, focusMixin
+} from "../shared/animations";
+
+const GlobalStyle = createGlobalStyle`
+  body {
+    --primary-color: #FF69B4;
+    --secondary-color: #FFC5C5;
+    --background-color: #FFFFFF;
+    --text-color: #333333;
+    --glass-color: rgba(255, 255, 255, 0.2);
+    --glass-background-color: rgba(255, 255, 255, 0.1);
+    --box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  }
+`;
 
 const VetDashboard = () => {
   const name = localStorage.getItem("name") || "Veterinarian";

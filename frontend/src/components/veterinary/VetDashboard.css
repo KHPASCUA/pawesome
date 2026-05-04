@@ -1,5 +1,20 @@
 /* VetDashboard.css */
-/* Clean version: GLOBAL layout + VET-specific styles only */
+/* Premium pink veterinary dashboard */
+
+.vet-dashboard {
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+.vet-dashboard,
+.vet-main,
+.vet-content {
+  max-width: 100%;
+}
+
+.vet-dashboard * {
+  box-sizing: border-box;
+}
 
 .vet-dashboard.collapsed .app-sidebar {
   width: 90px;
@@ -16,83 +31,252 @@
   width: calc(100% - 90px);
 }
 
-/* TOPBAR CUSTOM PARTS */
+/* TOPBAR */
 
 .vet-navbar {
   position: sticky;
   top: 0;
   z-index: 100;
+  overflow: visible;
+  gap: 1rem;
+}
+
+.navbar-left {
+  min-width: 0;
 }
 
 .navbar-left h1 {
   margin: 0 0 0.35rem;
+  line-height: 1.1;
 }
 
 .navbar-left p {
   margin: 0;
 }
 
+.vet-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: 0.55rem;
+  color: var(--color-primary);
+  font-size: 0.78rem;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
 .search-group {
   flex: 1;
-  max-width: 420px;
+  max-width: 460px;
+  min-width: 260px;
+  position: relative;
+}
+
+.search-group svg {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-primary);
+  pointer-events: none;
 }
 
 .search-group input {
   width: 100%;
+  min-height: 46px;
+  padding-left: 42px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-solid);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-soft);
 }
 
 .navbar-actions {
   display: flex;
   align-items: center;
-  gap: 0.85rem;
-}
-
-.vet-profile-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.7rem;
-  text-decoration: none;
-  padding: 0.55rem 0.8rem;
-  border-radius: var(--radius-pill);
-  background: var(--color-surface-solid);
-  border: 1px solid var(--color-border);
-  color: var(--color-heading);
-  box-shadow: var(--shadow-soft);
-}
-
-.profile-avatar-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
-  color: #ffffff;
-}
-
-.profile-action-name {
-  display: block;
-  font-weight: 950;
-  font-size: 0.86rem;
-  color: var(--color-heading);
-}
-
-.profile-action-role {
-  display: block;
-  font-size: 0.76rem;
-  color: var(--color-muted);
-  font-weight: 700;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  flex-wrap: nowrap;
+  min-width: fit-content;
 }
 
 .theme-toggle-btn {
-  width: 42px;
-  height: 42px;
-  border-radius: 14px;
+  width: 46px;
+  height: 46px;
+  min-width: 46px;
+  border-radius: 16px;
   border: 1px solid var(--color-border);
   background: var(--color-surface-solid);
   color: var(--color-primary);
   cursor: pointer;
   box-shadow: var(--shadow-soft);
+  transition: 0.2s ease;
+}
+
+.theme-toggle-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-primary);
+}
+
+.theme-toggle-btn.spinning svg {
+  animation: vetSpin 0.9s linear infinite;
+}
+
+@keyframes vetSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* HERO */
+
+.vet-hero {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) auto;
+  gap: 1.25rem;
+  align-items: center;
+  margin-bottom: 24px;
+  overflow: hidden;
+}
+
+.vet-hero::before {
+  content: "";
+  position: absolute;
+  width: 320px;
+  height: 320px;
+  right: -120px;
+  top: -150px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 95, 147, 0.24), transparent 65%);
+  pointer-events: none;
+}
+
+.vet-hero-copy,
+.vet-hero-actions,
+.vet-update-pill {
+  position: relative;
+  z-index: 1;
+}
+
+.vet-hero h2 {
+  margin: 0;
+  color: var(--color-heading);
+  font-size: clamp(1.5rem, 3vw, 2.25rem);
+  font-weight: 950;
+  letter-spacing: -0.04em;
+}
+
+.vet-hero p {
+  max-width: 760px;
+  margin: 0.45rem 0 0;
+  color: var(--color-muted);
+  font-weight: 700;
+  line-height: 1.55;
+}
+
+.vet-hero-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.vet-hero-actions a,
+.view-pet-btn,
+.see-all-link,
+.appointment-footer a {
+  text-decoration: none;
+}
+
+.vet-hero-actions .btn-primary,
+.vet-hero-actions .btn-secondary,
+.view-pet-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+}
+
+.vet-update-pill {
+  grid-column: 1 / -1;
+  width: fit-content;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.55rem 0.8rem;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 95, 147, 0.1);
+  color: var(--color-primary);
+  font-weight: 900;
+  font-size: 0.83rem;
+}
+
+/* ALERTS */
+
+.vet-alerts {
+  margin-bottom: 24px;
+}
+
+.alert-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(180px, 1fr));
+  gap: 1rem;
+}
+
+.alert-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  padding: 1rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-solid);
+  box-shadow: var(--shadow-soft);
+}
+
+.alert-item > svg {
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
+  padding: 0.75rem;
+  border-radius: 15px;
+}
+
+.alert-item strong {
+  display: block;
+  color: var(--color-heading);
+  font-weight: 950;
+}
+
+.alert-item p {
+  margin: 0.25rem 0 0;
+  color: var(--color-muted);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.alert-item.success > svg {
+  background: var(--color-success-bg);
+  color: #047857;
+}
+
+.alert-item.info > svg {
+  background: var(--color-info-bg);
+  color: #1e40af;
+}
+
+.alert-item.warning > svg {
+  background: var(--color-warning-bg);
+  color: #92400e;
+}
+
+.alert-item.danger > svg {
+  background: var(--color-danger-bg);
+  color: #991b1b;
 }
 
 /* SUMMARY CARDS */
@@ -107,6 +291,7 @@
   display: flex;
   align-items: center;
   gap: 1rem;
+  min-width: 0;
 }
 
 .vet-stat-card::before {
@@ -116,7 +301,7 @@
   background: linear-gradient(
     120deg,
     transparent,
-    rgba(255, 255, 255, 0.45),
+    rgba(255, 255, 255, 0.42),
     transparent
   );
   opacity: 0;
@@ -128,10 +313,10 @@
 }
 
 .vet-stat-icon {
-  width: 54px;
-  height: 54px;
-  min-width: 54px;
-  border-radius: 18px;
+  width: 56px;
+  height: 56px;
+  min-width: 56px;
+  border-radius: 20px;
   display: grid;
   place-items: center;
   color: #ffffff;
@@ -144,6 +329,19 @@
 .vet-stat-icon.completed,
 .vet-stat-icon.pending {
   background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+}
+
+.vet-stat-body {
+  min-width: 0;
+}
+
+.vet-stat-card h3 {
+  margin: 0;
+  line-height: 1;
+}
+
+.vet-stat-card p {
+  margin: 0.25rem 0 0;
 }
 
 .vet-stat-card small {
@@ -170,16 +368,17 @@
 /* PANELS */
 
 .vet-main-grid {
-  grid-template-columns: 2fr 1fr;
+  grid-template-columns: minmax(0, 1.55fr) minmax(300px, 0.9fr);
   margin-bottom: 24px;
 }
 
 .vet-bottom-grid {
-  grid-template-columns: 2fr 1fr;
+  grid-template-columns: minmax(0, 1.45fr) minmax(300px, 0.9fr);
 }
 
 .vet-panel {
   overflow: hidden;
+  min-width: 0;
 }
 
 .panel-header {
@@ -207,43 +406,16 @@
   gap: 1rem;
 }
 
-.metric-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.metric-card {
-  padding: 1.35rem;
-  border-radius: var(--radius-lg);
-  background: var(--color-surface-solid);
-  border: 1px solid var(--color-border);
-}
-
-.metric-card.accent {
-  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
-  color: #ffffff;
-  box-shadow: var(--shadow-primary);
-}
-
-.metric-card h3 {
-  margin: 0;
-  font-size: 2rem;
+.premium-badge.live {
+  padding: 0.35rem 0.8rem;
+  border-radius: var(--radius-pill);
+  background: var(--color-success-bg);
+  color: #065f46;
   font-weight: 950;
+  font-size: 0.78rem;
 }
 
-.metric-card p {
-  margin: 0.25rem 0 0;
-  font-weight: 850;
-}
-
-.metric-card small {
-  display: block;
-  margin-top: 0.35rem;
-  opacity: 0.78;
-}
-
-/* APPOINTMENT PREVIEW */
+/* CLINICAL QUEUE */
 
 .appointments-preview {
   display: grid;
@@ -252,13 +424,24 @@
 
 .preview-appointment-item {
   display: grid;
-  grid-template-columns: 90px 1fr auto;
+  grid-template-columns: 92px minmax(0, 1fr) auto;
   align-items: center;
   gap: 1rem;
-  padding: 0.85rem 1rem;
+  padding: 0.9rem 1rem;
   border-radius: var(--radius-md);
   background: var(--color-surface-solid);
   border: 1px solid var(--color-border);
+  transition: 0.2s ease;
+}
+
+.preview-appointment-item:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-soft);
+}
+
+.apt-time-box {
+  display: grid;
+  gap: 0.15rem;
 }
 
 .apt-time {
@@ -266,14 +449,109 @@
   font-weight: 950;
 }
 
+.apt-time-box small {
+  color: var(--color-muted);
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.apt-info {
+  min-width: 0;
+  display: grid;
+  gap: 0.15rem;
+}
+
 .apt-pet {
   color: var(--color-heading);
-  font-weight: 900;
+  font-weight: 950;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .apt-service {
   color: var(--color-muted);
   font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.apt-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.btn-sm {
+  min-height: 36px;
+  padding: 0.48rem 0.75rem;
+  font-size: 0.82rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  white-space: nowrap;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  transform: none !important;
+}
+
+/* PATIENTS */
+
+.patients-preview {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.patient-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  padding: 0.85rem 1rem;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-solid);
+  border: 1px solid var(--color-border);
+}
+
+.patient-info {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.patient-info > svg {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  padding: 0.7rem;
+  border-radius: 14px;
+  background: rgba(255, 95, 147, 0.12);
+  color: var(--color-primary);
+}
+
+.patient-info strong {
+  display: block;
+  color: var(--color-heading);
+  font-weight: 950;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.patient-info p {
+  margin: 0.2rem 0 0;
+  color: var(--color-muted);
+  font-weight: 700;
+  font-size: 0.88rem;
 }
 
 /* EMPTY STATE */
@@ -284,6 +562,17 @@
   border: 2px dashed var(--color-border);
   border-radius: var(--radius-card);
   background: rgba(255, 255, 255, 0.45);
+}
+
+.empty-state.compact {
+  padding: 1.5rem;
+}
+
+.empty-state > svg {
+  width: 42px;
+  height: 42px;
+  margin-bottom: 0.8rem;
+  color: var(--color-primary);
 }
 
 .empty-state h3 {
@@ -304,10 +593,12 @@
 
 .boarders-list {
   display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1rem;
 }
 
 .boarder-card {
+  min-width: 0;
   padding: 1.25rem;
   border-radius: var(--radius-lg);
   background: var(--color-surface-solid);
@@ -324,6 +615,7 @@
 }
 
 .boarder-pet-info {
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 0.85rem;
@@ -333,6 +625,9 @@
   margin: 0;
   color: var(--color-heading);
   font-weight: 950;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .boarder-pet-info p {
@@ -344,6 +639,7 @@
 .pet-icon {
   width: 44px;
   height: 44px;
+  min-width: 44px;
   padding: 0.75rem;
   border-radius: 16px;
   background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
@@ -361,6 +657,7 @@
   color: #1e3a8a;
   font-weight: 900;
   font-size: 0.8rem;
+  white-space: nowrap;
 }
 
 .boarder-details {
@@ -371,6 +668,10 @@
   border-radius: var(--radius-md);
   background: rgba(255, 241, 247, 0.7);
   margin-bottom: 1rem;
+}
+
+.detail-item {
+  min-width: 0;
 }
 
 .detail-item strong {
@@ -385,6 +686,7 @@
   margin: 0.25rem 0 0;
   color: var(--color-heading);
   font-weight: 850;
+  word-break: break-word;
 }
 
 .special-requests {
@@ -400,8 +702,7 @@
 }
 
 .view-pet-btn {
-  display: inline-flex;
-  text-decoration: none;
+  width: fit-content;
 }
 
 /* APPOINTMENTS */
@@ -442,15 +743,23 @@
 .status-badge {
   padding: 0.35rem 0.75rem;
   border-radius: var(--radius-pill);
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   font-weight: 950;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .status-badge.confirmed,
-.status-badge.completed {
+.status-badge.completed,
+.status-badge.done {
   background: var(--color-success-bg);
   color: #065f46;
+}
+
+.status-badge.in_progress,
+.status-badge.ongoing {
+  background: var(--color-info-bg);
+  color: #1e3a8a;
 }
 
 .status-badge.pending {
@@ -459,7 +768,11 @@
 }
 
 .status-badge.cancelled,
-.status-badge.rejected {
+.status-badge.canceled,
+.status-badge.rejected,
+.status-badge.missed,
+.status-badge.no-show,
+.status-badge.no_show {
   background: var(--color-danger-bg);
   color: #991b1b;
 }
@@ -520,15 +833,6 @@
   font-weight: 850;
 }
 
-.premium-badge.live {
-  padding: 0.35rem 0.8rem;
-  border-radius: var(--radius-pill);
-  background: var(--color-success-bg);
-  color: #065f46;
-  font-weight: 950;
-  font-size: 0.78rem;
-}
-
 .mini-chart {
   height: 140px;
   display: flex;
@@ -547,10 +851,24 @@
   background: linear-gradient(180deg, var(--color-primary-light), var(--color-primary));
 }
 
+.activity-summary {
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 1rem;
+}
+
 .activity-summary p {
-  margin: 1rem 0 0;
+  margin: 0;
   color: var(--color-muted);
   font-weight: 800;
+}
+
+/* SEE ALL */
+
+.see-all-link {
+  color: var(--color-primary);
+  font-weight: 950;
+  white-space: nowrap;
 }
 
 /* LOADING */
@@ -583,12 +901,13 @@
 
 /* DARK MODE */
 
-[data-theme="dark"] .vet-profile-btn,
+[data-theme="dark"] .search-group input,
 [data-theme="dark"] .theme-toggle-btn,
 [data-theme="dark"] .preview-appointment-item,
+[data-theme="dark"] .patient-row,
 [data-theme="dark"] .boarder-card,
 [data-theme="dark"] .appointment-card,
-[data-theme="dark"] .metric-card {
+[data-theme="dark"] .status-card {
   background: rgba(15, 23, 42, 0.94);
 }
 
@@ -598,7 +917,26 @@
   background: rgba(255, 255, 255, 0.06);
 }
 
+[data-theme="dark"] .alert-item {
+  background: rgba(15, 23, 42, 0.94);
+}
+
+[data-theme="dark"] .loading-skeleton {
+  background: linear-gradient(90deg, #1f2937 25%, #3b1224 50%, #1f2937 75%);
+  background-size: 200% 100%;
+}
+
 /* RESPONSIVE */
+
+@media (max-width: 1300px) {
+  .alert-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .boarders-list {
+    grid-template-columns: 1fr;
+  }
+}
 
 @media (max-width: 1200px) {
   .vet-main-grid,
@@ -606,8 +944,33 @@
     grid-template-columns: 1fr;
   }
 
+  .vet-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .vet-hero-actions {
+    justify-content: flex-start;
+  }
+
   .search-group {
-    max-width: 320px;
+    max-width: 360px;
+  }
+}
+
+@media (max-width: 900px) {
+  .vet-navbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .search-group {
+    max-width: none;
+    min-width: 0;
+  }
+
+  .navbar-actions {
+    justify-content: flex-start;
+    flex-wrap: wrap;
   }
 }
 
@@ -618,32 +981,54 @@
     width: 100%;
   }
 
-  .vet-navbar {
-    align-items: stretch;
+  .vet-content {
+    padding-inline: 14px;
   }
 
-  .navbar-actions {
-    flex-wrap: wrap;
+  .vet-hero,
+  .vet-alerts,
+  .vet-panel {
+    border-radius: 22px;
   }
 
-  .search-group {
-    max-width: none;
+  .vet-hero-actions {
+    display: grid;
+    grid-template-columns: 1fr;
   }
 
-  .profile-info {
-    display: none;
+  .vet-hero-actions .btn-primary,
+  .vet-hero-actions .btn-secondary {
+    width: 100%;
+  }
+
+  .alert-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .space-between,
+  .boarder-card-top,
+  .appointment-card-top {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .preview-appointment-item {
     grid-template-columns: 1fr;
-    gap: 0.35rem;
+    gap: 0.7rem;
   }
 
-  .boarder-card-top,
-  .space-between,
-  .appointment-card-top {
-    flex-direction: column;
+  .apt-actions {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .apt-actions .btn-sm {
+    flex: 1;
+  }
+
+  .patient-row {
     align-items: flex-start;
+    flex-direction: column;
   }
 
   .boarder-details {
@@ -652,5 +1037,53 @@
 
   .activity-metrics {
     grid-template-columns: 1fr;
+  }
+
+  .appointment-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .appointment-footer .btn-secondary {
+    width: 100%;
+  }
+
+  .view-pet-btn {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .vet-content {
+    padding-inline: 10px;
+  }
+
+  .navbar-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, auto));
+    justify-content: flex-start;
+  }
+
+  .theme-toggle-btn {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+  }
+
+  .vet-hero {
+    padding: 1.1rem;
+  }
+
+  .vet-hero h2 {
+    font-size: 1.45rem;
+  }
+
+  .alert-item {
+    padding: 0.9rem;
+  }
+
+  .boarder-card,
+  .appointment-card {
+    padding: 1rem;
   }
 }

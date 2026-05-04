@@ -16,7 +16,7 @@ class Service extends Model
         'price',
         'description',
         'is_active',
-        'duration',
+        'duration_minutes',
     ];
 
     protected $casts = [

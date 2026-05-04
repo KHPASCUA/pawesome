@@ -3,7 +3,6 @@
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\InventoryController;
 use App\Http\Controllers\Admin\ServiceController;
-use App\Http\Controllers\Admin\SalaryController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\CustomersController;
 use App\Http\Controllers\Admin\ChatbotController;
@@ -138,11 +137,7 @@ Route::middleware(['auth.api', 'throttle:api', 'role:admin'])->prefix('admin')->
     Route::get('reports/sales', [ReportsController::class, 'sales']);
     Route::get('appointments', [AppointmentController::class, 'index']);
 
-    Route::get('salaries', [SalaryController::class, 'index']);
-    Route::post('salaries', [SalaryController::class, 'store']);
-    Route::put('salaries/{id}', [SalaryController::class, 'update']);
-    Route::delete('salaries/{id}', [SalaryController::class, 'destroy']);
-
+    
     // Activity Logs
     Route::get('activity-logs', [ActivityLogController::class, 'index']);
     Route::get('activity-logs/statistics', [ActivityLogController::class, 'statistics']);
@@ -372,6 +367,12 @@ Route::middleware(['auth.api', 'throttle:api', 'role:veterinary'])->prefix('vete
     Route::get('pets/{petId}/medical-records', [MedicalRecordController::class, 'forPet']);
     Route::get('pets/{petId}/vaccinations', [MedicalRecordController::class, 'petVaccinations']);
     Route::post('pets/{petId}/vaccinations', [MedicalRecordController::class, 'createVaccination']);
+    
+    // Customers Access for Appointments
+    Route::get('customers', [CustomersController::class, 'index']);
+    Route::get('customers/search', [CustomersController::class, 'search']);
+    Route::get('customers/{id}', [CustomersController::class, 'show']);
+    Route::get('customers/{id}/pets', [CustomersController::class, 'pets']);
 });
 
 // Public Inventory Read Routes (available to all authenticated users for store/pos)
@@ -508,6 +509,22 @@ Route::middleware(['auth.api', 'throttle:api'])->group(function () {
     // Legacy appointments endpoint (alias to receptionist appointments)
     Route::get('/appointments', [AppointmentController::class, 'index']);
     Route::post('/appointments', [AppointmentController::class, 'store']);
+    
+    // Public appointment status update endpoint
+    Route::patch('/appointments/{id}/status', [AppointmentController::class, 'updateStatus']);
+    Route::put('/appointments/{id}', [AppointmentController::class, 'update']);
+    
+    // Public services endpoint (accessible to all authenticated users)
+    Route::get('/services', [ServiceController::class, 'index']);
+    
+    // Public customers endpoint (accessible to all authenticated users)
+    Route::get('/customers', [CustomersController::class, 'index']);
+    
+    // Public pets endpoint (accessible to all authenticated users)
+    Route::get('/pets', [PetController::class, 'index']);
+    
+    // Public customer pets endpoint (accessible to all authenticated users)
+    Route::get('/customers/{id}/pets', [CustomersController::class, 'pets']);
 });
 
 // Telegram Bot Webhook (public - receives updates from Telegram, rate limited)
