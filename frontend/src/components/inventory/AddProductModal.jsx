@@ -17,7 +17,16 @@ const AddProductModal = ({ isOpen, onClose, onSuccess, editItem = null }) => {
     expiration: "",
     status: "In stock",
     description: "",
+    // Batch fields
+    batch_no: "",
+    batch_quantity: "",
+    received_date: new Date().toISOString().split('T')[0],
+    expiration_date: "",
   });
+
+  // Categories that need batch tracking (FEFO)
+  const fefoCategories = ['Pet Food', 'Health', 'Grooming'];
+  const needsBatchTracking = fefoCategories.includes(formData.category);
 
   const [errors, setErrors] = useState({});
 
@@ -49,6 +58,10 @@ const AddProductModal = ({ isOpen, onClose, onSuccess, editItem = null }) => {
         expiration: "",
         status: "In stock",
         description: "",
+        batch_no: "",
+        batch_quantity: "",
+        received_date: new Date().toISOString().split('T')[0],
+        expiration_date: "",
       });
     }
     setErrors({});
@@ -83,12 +96,29 @@ const AddProductModal = ({ isOpen, onClose, onSuccess, editItem = null }) => {
     if (!validateForm()) return;
 
     setLoading(true);
+    const stock = parseInt(formData.quantity) || 0;
     const data = {
       ...formData,
-      quantity: parseInt(formData.quantity),
+      quantity: stock,
+      stock: stock,
       reorder_level: parseInt(formData.reorder_level) || 10,
       price: parseFloat(formData.price),
     };
+
+    // Add batch data for FEFO categories
+    if (needsBatchTracking && !editItem) {
+      const batchQty = parseInt(formData.batch_quantity) || stock;
+      data.batchData = {
+        batch_no: formData.batch_no || `BATCH-${Date.now()}`,
+        received_date: formData.received_date,
+        expiration_date: formData.expiration_date || null,
+        quantity: batchQty,
+        notes: 'Initial stock batch',
+      };
+      // Use batch quantity as the stock quantity
+      data.quantity = batchQty;
+      data.stock = batchQty;
+    }
 
     try {
       if (editItem) {
@@ -255,6 +285,64 @@ const AddProductModal = ({ isOpen, onClose, onSuccess, editItem = null }) => {
                 </div>
               </div>
             </div>
+
+            {/* Batch Information - Only for FEFO categories */}
+            {needsBatchTracking && !editItem && (
+              <div className="form-section batch-section">
+                <h4>📦 Batch Information (FEFO Tracking)</h4>
+                <div className="form-grid">
+                  <div className="form-group">
+                    <label>Batch Number</label>
+                    <input
+                      type="text"
+                      name="batch_no"
+                      value={formData.batch_no}
+                      onChange={handleChange}
+                      placeholder="e.g., BATCH-001"
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label>
+                      Batch Quantity <span className="required">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      name="batch_quantity"
+                      value={formData.batch_quantity}
+                      onChange={handleChange}
+                      placeholder="0"
+                      min="0"
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label>Received Date</label>
+                    <input
+                      type="date"
+                      name="received_date"
+                      value={formData.received_date}
+                      onChange={handleChange}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label>
+                      Expiration Date <span className="required">*</span>
+                    </label>
+                    <input
+                      type="date"
+                      name="expiration_date"
+                      value={formData.expiration_date}
+                      onChange={handleChange}
+                    />
+                  </div>
+                </div>
+                <small className="batch-hint">
+                  ℹ️ This batch will be tracked using FEFO (First Expired, First Out). Items with nearest expiration will be sold first.
+                </small>
+              </div>
+            )}
 
             <div className="form-section">
               <h4>🏢 Supplier Information</h4>

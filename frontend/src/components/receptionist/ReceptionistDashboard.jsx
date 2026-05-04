@@ -13,16 +13,29 @@ import {
   FaStethoscope,
   FaCashRegister,
 } from "react-icons/fa";
+import DashboardProfile from "../shared/DashboardProfile";
 import "./ReceptionistDashboard.css";
-import { apiRequest } from "../../api/client";
+import { apiRequest, uploadProfilePhoto } from "../../api/client";
 
 const ReceptionistDashboard = () => {
+  const name = localStorage.getItem("name") || "Receptionist";
+  const profilePhoto = localStorage.getItem("profile_photo") || "";
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedRequest, setSelectedRequest] = useState(null);
+
+  const handleProfilePhotoUpload = async (file) => {
+    try {
+      const data = await uploadProfilePhoto(file);
+      localStorage.setItem("profile_photo", data.url || data.profile_photo);
+      window.location.reload();
+    } catch (err) {
+      alert("Failed to upload profile photo: " + err.message);
+    }
+  };
 
   const fetchRequests = async () => {
     try {
@@ -128,6 +141,20 @@ const ReceptionistDashboard = () => {
 
   return (
     <div className="receptionist-dashboard">
+      <header className="receptionist-navbar">
+        <div className="navbar-left">
+          <h1>Receptionist Dashboard</h1>
+        </div>
+        <div className="navbar-actions">
+          <DashboardProfile
+            name={name}
+            role="Receptionist"
+            image={profilePhoto}
+            onUpload={handleProfilePhotoUpload}
+          />
+        </div>
+      </header>
+
       {loading ? (
         <div className="loading-state">
           <div className="loading-spinner">Loading requests...</div>

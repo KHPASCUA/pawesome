@@ -11,7 +11,13 @@ import {
   faCog, faPalette, faLanguage, faMoon, faSun,
 } from "@fortawesome/free-solid-svg-icons";
 import { apiRequest } from "../../api/client";
-import styled, { createGlobalStyle, keyframes } from "styled-components";
+import styled, { createGlobalStyle } from "styled-components";
+import {
+  fadeIn, pulse,
+  FadeIn, ScaleIn, Spinning, Glowing,
+  useScrollAnimation, useLoadingAnimation,
+  hoverMixin, glassHoverMixin, focusMixin
+} from "./animations";
 
 /* ─────────────────────────────────────────────────────────────
    Pink Glass Theme Design Tokens
@@ -63,15 +69,6 @@ const GlobalStyle = createGlobalStyle`
   }
 `;
 
-const fadeIn = keyframes`
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
-`;
-
-const pulse = keyframes`
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.7; }
-`;
 
 const PageContainer = styled.div`
   min-height: 100vh;
@@ -149,14 +146,13 @@ const EditButton = styled.button`
   }
 `;
 
-const Card = styled.div`
+const Card = styled(FadeIn)`
   background: ${THEME.glassBg};
   border: 2px solid ${THEME.glassBorder};
   border-radius: 24px;
   overflow: hidden;
   backdrop-filter: blur(20px);
   box-shadow: ${THEME.glassShadow};
-  animation: ${fadeIn} 0.6s ease;
 `;
 
 const CardHeader = styled.div`
@@ -371,10 +367,7 @@ const Input = styled.input`
     opacity: 0.7;
   }
   
-  &:focus:not(:disabled) {
-    border-color: ${THEME.primary};
-    box-shadow: 0 0 0 4px rgba(255,95,147,0.15), 0 8px 20px rgba(255,95,147,0.12);
-  }
+  ${focusMixin()}
   
   &::placeholder {
     color: ${THEME.textMuted};
@@ -405,10 +398,7 @@ const Textarea = styled.textarea`
     opacity: 0.7;
   }
   
-  &:focus:not(:disabled) {
-    border-color: ${THEME.primary};
-    box-shadow: 0 0 0 4px rgba(255,95,147,0.15), 0 8px 20px rgba(255,95,147,0.12);
-  }
+  ${focusMixin()}
   
   &::placeholder {
     color: ${THEME.textMuted};
@@ -464,7 +454,6 @@ const Button = styled.button`
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s ease;
   letter-spacing: "0.3px";
   
   ${props => {
@@ -473,34 +462,21 @@ const Button = styled.button`
         background: linear-gradient(135deg, ${THEME.primary}, ${THEME.primaryLight});
         color: white;
         box-shadow: ${THEME.glassShadow};
-        
-        &:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 22px 55px rgba(255,95,147,0.18);
-        }
+        ${hoverMixin()}
       `;
     } else if (props.variant === 'secondary') {
       return `
         background: ${THEME.glassBg};
         color: ${THEME.textSecondary};
         border: 2px solid ${THEME.glassBorder};
-        
-        &:hover {
-          border-color: ${THEME.primary};
-          color: ${THEME.primary};
-          background: rgba(255,95,147,0.05);
-        }
+        ${glassHoverMixin()}
       `;
     } else if (props.variant === 'danger') {
       return `
         background: linear-gradient(135deg, ${THEME.error}, #fc8181);
         color: white;
         box-shadow: 0 8px 20px rgba(245,101,101,0.22);
-        
-        &:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 12px 30px rgba(245,101,101,0.3);
-        }
+        ${hoverMixin('0 12px 30px rgba(245,101,101,0.3)', 'translateY(-2px)')}
       `;
     }
   }}

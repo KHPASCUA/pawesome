@@ -11,6 +11,10 @@ const StockAdjustmentModal = ({ isOpen, onClose, item, onSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  // Helper to get stock value from multiple possible field names
+  const getStock = (itm) => Number(itm?.stock ?? itm?.quantity ?? itm?.stock_quantity ?? itm?.current_stock ?? 0);
+  const currentStock = getStock(item);
+
   const resetForm = () => {
     setAdjustmentType("add");
     setQuantity("");
@@ -21,14 +25,14 @@ const StockAdjustmentModal = ({ isOpen, onClose, item, onSuccess }) => {
 
   // Auto-suggest quantity based on adjustment type
   useEffect(() => {
-    if (adjustmentType === "remove" && item?.quantity > 0) {
-      setQuantity(Math.min(item.quantity, 5).toString());
+    if (adjustmentType === "remove" && currentStock > 0) {
+      setQuantity(Math.min(currentStock, 5).toString());
     } else if (adjustmentType === "add") {
       setQuantity("");
     } else if (adjustmentType === "set") {
-      setQuantity((item?.quantity || 0).toString());
+      setQuantity(currentStock.toString());
     }
-  }, [adjustmentType, item]);
+  }, [adjustmentType, item, currentStock]);
 
 
   const handleClose = () => {
@@ -43,8 +47,8 @@ const StockAdjustmentModal = ({ isOpen, onClose, item, onSuccess }) => {
     if (!reason.trim()) {
       return "Please provide a reason for this adjustment";
     }
-    if (adjustmentType === "remove" && parseInt(quantity) > (item?.quantity || 0)) {
-      return `Cannot remove more than current stock (${item?.quantity || 0})`;
+    if (adjustmentType === "remove" && parseInt(quantity) > currentStock) {
+      return `Cannot remove more than current stock (${currentStock})`;
     }
     return null;
   };
@@ -78,75 +82,46 @@ const StockAdjustmentModal = ({ isOpen, onClose, item, onSuccess }) => {
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const validationError = validateForm();
-    if (validationError) {
-      setError(validationError);
+  const handleSubmit = async () => {
+    if (Number(quantity) <= 0) {
+      alert("Please enter quantity greater than 0.");
+      return;
+    }
+
+    if (!reason) {
+      alert("Please select a reason.");
       return;
     }
 
     setLoading(true);
-    setError(null);
 
     try {
-      const qty = parseInt(quantity);
-      let newStock;
-
-      switch (adjustmentType) {
-        case "add":
-          newStock = (item.quantity || 0) + qty;
-          break;
-        case "remove":
-          newStock = Math.max(0, (item.quantity || 0) - qty);
-          break;
-        case "set":
-          newStock = qty;
-          break;
-        default:
-          newStock = item.quantity || 0;
-      }
-
-      // Calculate adjustment amount for clearer API call
-      const adjustmentAmount = newStock - (item.quantity || 0);
       const finalReason = reason === "Other" ? customReason : reason;
 
-      // Use the adjustStock API with enhanced audit data + user tracking
-      await inventoryApi.adjustStock(item.id, adjustmentAmount, {
-        reason: finalReason,
-        type: adjustmentType,
-        previous: item.quantity || 0,
-        new: newStock,
-        performed_by: localStorage.getItem("name") || localStorage.getItem("username") || "System",
-        role: localStorage.getItem("role") || "Staff",
-        user_id: localStorage.getItem("user_id") || null,
-      });
+      await inventoryApi.adjustStock(item.id, adjustmentType, Number(quantity), finalReason);
 
-      // Trigger notification if stock is now low or out of stock
-      await createStockNotification(newStock);
-
-      onSuccess?.();
-      handleClose();
+      await onSuccess?.();
+      onClose?.();
     } catch (err) {
       console.error("Stock adjustment failed:", err);
-      setError(err.message || "Failed to adjust stock. Please try again.");
+      alert(err.message || "Failed to adjust stock. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
   const getNewStockPreview = () => {
-    if (!quantity || isNaN(parseInt(quantity))) return item?.quantity || 0;
+    if (!quantity || isNaN(parseInt(quantity))) return currentStock;
     const qty = parseInt(quantity);
     switch (adjustmentType) {
       case "add":
-        return (item?.quantity || 0) + qty;
+        return currentStock + qty;
       case "remove":
-        return Math.max(0, (item?.quantity || 0) - qty);
+        return Math.max(0, currentStock - qty);
       case "set":
         return qty;
       default:
-        return item?.quantity || 0;
+        return currentStock;
     }
   };
 
@@ -210,8 +185,8 @@ const StockAdjustmentModal = ({ isOpen, onClose, item, onSuccess }) => {
               </div>
               <div className="current-stock">
                 <span className="label">Current Stock:</span>
-                <span className={`value ${item.quantity <= 10 ? "low" : ""}`}>
-                  {item.quantity || 0} units
+                <span className={`value ${currentStock <= 10 ? "low" : ""}`}>
+                  {currentStock} units
                 </span>
               </div>
             </div>
@@ -350,7 +325,7 @@ const StockAdjustmentModal = ({ isOpen, onClose, item, onSuccess }) => {
               <div className="adjustment-preview">
                 <div className="preview-row">
                   <span>Current:</span>
-                  <strong>{item.quantity || 0} units</strong>
+                  <strong>{currentStock} units</strong>
                 </div>
                 <div className="preview-row adjustment">
                   <span>
@@ -417,27 +392,23 @@ const StockAdjustmentModal = ({ isOpen, onClose, item, onSuccess }) => {
             </div>
           </div>
 
-          <div className="modal-footer">
-            <button type="button" className="btn-secondary" onClick={handleClose} disabled={loading}>
+          <div className="adjust-stock-footer">
+            <button
+              type="button"
+              className="cancel-adjustment-btn"
+              onClick={handleClose}
+              disabled={loading}
+            >
               Cancel
             </button>
+
             <button
-              type="submit"
-              className={`btn-primary ${adjustmentType}`}
+              type="button"
+              className="save-adjustment-btn"
+              onClick={handleSubmit}
               disabled={loading || !quantity || !reason}
             >
-              {loading ? (
-                <>
-                  <span className="spinner"></span>
-                  Processing...
-                </>
-              ) : (
-                <>
-                  {adjustmentType === "add" && "➕ Add Stock"}
-                  {adjustmentType === "remove" && "➖ Remove Stock"}
-                  {adjustmentType === "set" && "📝 Set Stock Level"}
-                </>
-              )}
+              {loading ? "Processing..." : "Save Adjustment"}
             </button>
           </div>
         </form>

@@ -291,25 +291,30 @@ export const inventoryApi = {
    * Adjusts stock quantity for an item with reason tracking.
    * @async
    * @param {string|number} id - Inventory item ID
-   * @param {number} quantity - Quantity to adjust (positive or negative)
+   * @param {string} type - Adjustment type: "add", "remove", or "set"
+   * @param {number} quantity - Quantity value (adjustment amount for add/remove, final value for set)
    * @param {string} reason - Reason for the adjustment
    * @returns {Promise<Object>} Updated item with adjustment record
    * @throws {Error} When validation fails or request fails
    */
-  adjustStock: async (id, quantity, reason) => {
+  adjustStock: async (id, type, quantity, reason = "Manual stock adjustment") => {
     validateId(id, "Item ID");
-    if (typeof quantity !== "number" || isNaN(quantity)) {
-      throw new Error("Quantity must be a valid number");
+
+    if (!["add", "remove", "set"].includes(type)) {
+      throw new Error("Type must be 'add', 'remove', or 'set'");
     }
-    if (!reason || typeof reason !== "string" || reason.trim().length === 0) {
-      throw new Error("Reason is required for stock adjustment");
+
+    if (typeof quantity !== "number" || isNaN(quantity) || quantity < 0) {
+      throw new Error("Quantity must be a valid positive number");
     }
+
     try {
-      return await apiRequest(`/inventory/items/${id}/adjust`, {
+      return await apiRequest(`/inventory/${id}/stock`, {
         method: "POST",
         body: JSON.stringify({
-          quantity,
-          reason: reason.trim(),
+          type,
+          quantity: Number(quantity),
+          reason,
         }),
       });
     } catch (error) {
@@ -381,6 +386,97 @@ export const inventoryApi = {
       });
     } catch (error) {
       console.error("[InventoryAPI] Failed to create notification:", error.message);
+      throw error;
+    }
+  },
+
+  // ==========================================
+  // BATCH MANAGEMENT API
+  // ==========================================
+
+  /**
+   * Get all batches for an inventory item.
+   * @async
+   * @param {string|number} itemId - Inventory item ID
+   * @returns {Promise<Object>} Item batches with expiration info
+   * @throws {Error} When request fails
+   */
+  getItemBatches: async (itemId) => {
+    validateId(itemId, "Item ID");
+    try {
+      return await apiRequest(`/inventory/items/${itemId}/batches`);
+    } catch (error) {
+      console.error(`[InventoryAPI] Failed to get batches for item ${itemId}:`, error.message);
+      throw error;
+    }
+  },
+
+  /**
+   * Add a new batch to an inventory item.
+   * @async
+   * @param {string|number} itemId - Inventory item ID
+   * @param {Object} batchData - Batch data
+   * @param {string} batchData.batch_no - Batch number
+   * @param {string} batchData.received_date - Received date (YYYY-MM-DD)
+   * @param {string} [batchData.expiration_date] - Expiration date (YYYY-MM-DD)
+   * @param {number} batchData.quantity - Batch quantity
+   * @param {string} [batchData.notes] - Batch notes
+   * @returns {Promise<Object>} Created batch
+   * @throws {Error} When validation fails or request fails
+   */
+  addBatch: async (itemId, batchData) => {
+    validateId(itemId, "Item ID");
+    validateData(batchData, "add batch");
+    try {
+      return await apiRequest(`/inventory/items/${itemId}/batches`, {
+        method: "POST",
+        body: JSON.stringify(batchData),
+      });
+    } catch (error) {
+      console.error(`[InventoryAPI] Failed to add batch for item ${itemId}:`, error.message);
+      throw error;
+    }
+  },
+
+  /**
+   * Dispose of an expired or damaged batch.
+   * @async
+   * @param {string|number} batchId - Batch ID
+   * @param {string} [reason] - Disposal reason
+   * @returns {Promise<Object>} Disposal confirmation
+   * @throws {Error} When request fails
+   */
+  disposeBatch: async (batchId, reason = "Expired") => {
+    validateId(batchId, "Batch ID");
+    try {
+      return await apiRequest(`/inventory/batches/${batchId}/dispose`, {
+        method: "POST",
+        body: JSON.stringify({ reason }),
+      });
+    } catch (error) {
+      console.error(`[InventoryAPI] Failed to dispose batch ${batchId}:`, error.message);
+      throw error;
+    }
+  },
+
+  /**
+   * Adjust batch stock quantity.
+   * @async
+   * @param {string|number} batchId - Batch ID
+   * @param {number} newQuantity - New quantity value
+   * @param {string} [reason] - Adjustment reason
+   * @returns {Promise<Object>} Updated batch
+   * @throws {Error} When request fails
+   */
+  adjustBatchStock: async (batchId, newQuantity, reason = "Manual adjustment") => {
+    validateId(batchId, "Batch ID");
+    try {
+      return await apiRequest(`/inventory/batches/${batchId}/adjust`, {
+        method: "POST",
+        body: JSON.stringify({ quantity: newQuantity, reason }),
+      });
+    } catch (error) {
+      console.error(`[InventoryAPI] Failed to adjust batch ${batchId}:`, error.message);
       throw error;
     }
   },

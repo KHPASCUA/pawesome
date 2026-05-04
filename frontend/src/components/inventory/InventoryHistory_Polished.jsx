@@ -30,14 +30,8 @@ const InventoryHistory = () => {
         const response = await inventoryApi.getStockHistory();
         const apiHistory = response.history || response.data || [];
 
-        if (apiHistory.length > 0) {
-          setHistory(apiHistory);
-          setUsingDemoData(false);
-        } else {
-          // API returned empty - use demo data
-          setHistory(demoHistory);
-          setUsingDemoData(true);
-        }
+        setHistory(apiHistory);
+        setUsingDemoData(false);
       } catch (err) {
         console.error("History API failed, using demo:", err);
         setHistory(demoHistory);
@@ -127,7 +121,7 @@ const InventoryHistory = () => {
       )}
 
       {/* Stock Logs Viewer */}
-      {!loading && <StockLogsViewer />}
+      {!loading && <StockLogsViewer search={search} filterAction={filterAction} />}
     </div>
   );
 };

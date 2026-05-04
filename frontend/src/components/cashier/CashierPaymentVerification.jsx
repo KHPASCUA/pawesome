@@ -10,10 +10,17 @@ const CashierPaymentVerification = () => {
   const fetchRequests = async () => {
     try {
       setLoading(true);
-      const data = await apiRequest("/api/cashier/payment-requests");
-      setRequests(data || []);
+
+      const data = await apiRequest("/cashier/payment-requests");
+
+      const list = Array.isArray(data)
+        ? data
+        : data?.requests || data?.data || [];
+
+      setRequests(list);
     } catch (err) {
       console.error("Failed to load payment requests:", err);
+      setRequests([]);
     } finally {
       setLoading(false);
     }
@@ -21,9 +28,10 @@ const CashierPaymentVerification = () => {
 
   const verifyPayment = async (id) => {
     try {
-      await apiRequest(`/api/cashier/payment-requests/${id}/verify`, {
+      await apiRequest(`/cashier/payment-requests/${id}/verify`, {
         method: "PUT",
       });
+
       fetchRequests();
     } catch (err) {
       console.error("Failed to verify payment:", err);
@@ -36,10 +44,8 @@ const CashierPaymentVerification = () => {
   }, []);
 
   return (
-    <div className="app-dashboard">
-      <aside className="app-sidebar">
-        <CashierSidebar />
-      </aside>
+    <div className="app-dashboard cashier-payment-page">
+      <CashierSidebar />
 
       <main className="app-main">
         <header className="app-topbar">
@@ -84,18 +90,19 @@ const CashierPaymentVerification = () => {
                     <tbody>
                       {requests.map((item) => (
                         <tr key={item.id}>
-                          <td>{item.customer_name}</td>
-                          <td>{item.request_type}</td>
-                          <td>{item.service_name}</td>
-                          <td>{item.request_date}</td>
+                          <td>{item.customer_name || item.customer?.name || "Customer"}</td>
+                          <td>{item.request_type || item.type || "Request"}</td>
+                          <td>{item.service_name || item.service?.name || item.order_name || "N/A"}</td>
+                          <td>{item.request_date || item.date || "N/A"}</td>
                           <td>
-                            <span className={`status-badge ${item.status}`}>
-                              {item.status}
+                            <span className={`status-badge ${String(item.status || "pending").toLowerCase()}`}>
+                              {item.status || "pending"}
                             </span>
                           </td>
                           <td className="payment-actions">
                             <button
                               className="verify-btn"
+                              type="button"
                               onClick={() => verifyPayment(item.id)}
                             >
                               Verify Payment

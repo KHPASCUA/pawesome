@@ -4,7 +4,6 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faMoon,
   faSun,
-  faUserCircle,
   faPaw,
   faCalendarAlt,
   faHeart,
@@ -22,17 +21,36 @@ import {
 import CustomerSidebar from "./CustomerSidebar";
 import CustomerDashboardChatbot from "../CustomerDashboardChatbot";
 import NotificationDropdown from "../shared/NotificationDropdown";
-import { apiRequest } from "../../api/client";
+import DashboardProfile from "../shared/DashboardProfile";
+import { apiRequest, uploadProfilePhoto } from "../../api/client";
 import "../../styles/dashboardGlobal.css";
 import "./CustomerDashboard.css";
 
 const CustomerDashboard = () => {
   const name = localStorage.getItem("name") || "Customer";
-  const [theme, setTheme] = useState("light");
+  const profilePhoto = localStorage.getItem("profile_photo") || "";
+  const [theme, setTheme] = useState(
+    localStorage.getItem("theme") || "light"
+  );
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem("theme", theme);
+  }, [theme]);
+
+  const handleProfilePhotoUpload = async (file) => {
+    try {
+      const data = await uploadProfilePhoto(file);
+      localStorage.setItem("profile_photo", data.url || data.profile_photo);
+      window.location.reload();
+    } catch (err) {
+      alert("Failed to upload profile photo: " + err.message);
+    }
+  };
 
   const location = useLocation();
   const normalizedPath = location.pathname.replace(/\/+$/, "");
@@ -154,7 +172,7 @@ const CustomerDashboard = () => {
   ];
 
   return (
-    <div className={`customer-dashboard ${theme} ${sidebarCollapsed ? "collapsed" : ""}`}>
+    <div className={`customer-dashboard ${sidebarCollapsed ? "collapsed" : ""}`}>
       <CustomerSidebar
         collapsed={sidebarCollapsed}
         onToggleCollapse={() => setSidebarCollapsed((prev) => !prev)}
@@ -173,15 +191,12 @@ const CustomerDashboard = () => {
           </div>
 
           <div className="navbar-actions">
-            <NavLink to="/customer/profile" className="customer-profile-btn">
-              <span className="profile-avatar-icon">
-                <FontAwesomeIcon icon={faUserCircle} />
-              </span>
-              <span className="profile-info">
-                <span className="profile-action-name">{name}</span>
-                <span className="profile-action-role">Customer</span>
-              </span>
-            </NavLink>
+            <DashboardProfile
+              name={name}
+              role="Customer"
+              image={profilePhoto}
+              onUpload={handleProfilePhotoUpload}
+            />
 
             <NotificationDropdown />
 
@@ -369,7 +384,7 @@ const CustomerDashboard = () => {
                     </div>
 
                     <div className="metric-card">
-                      <FontAwesomeIcon icon={faUserCircle} />
+                      <FontAwesomeIcon icon={faHeart} />
                       <h3>{dashboardData?.member_status || "Standard"}</h3>
                       <p>Member Status</p>
                     </div>

@@ -128,6 +128,34 @@ class AuthController extends Controller
         return response()->json($user);
     }
 
+    public function uploadProfilePhoto(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'photo' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $user = $request->user();
+
+        if ($request->hasFile('photo')) {
+            $file = $request->file('photo');
+            $filename = time() . '_' . $file->getClientOriginalName();
+            $path = $file->storeAs('profile-photos', $filename, 'public');
+
+            $user->update(['profile_photo' => $path]);
+
+            return response()->json([
+                'profile_photo' => $path,
+                'url' => asset('storage/' . $path)
+            ]);
+        }
+
+        return response()->json(['message' => 'No file uploaded'], 400);
+    }
+
     public function logout(Request $request)
     {
         $user = $request->user();

@@ -4,7 +4,6 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faMoon,
   faSun,
-  faUserCircle,
   faShoppingCart,
   faReceipt,
   faCalendarAlt,
@@ -34,8 +33,9 @@ import {
 import CashierSidebar from "./CashierSidebar";
 import RoleAwareChatbot from "../chatbot/RoleAwareChatbot";
 import NotificationDropdown from "../shared/NotificationDropdown";
+import DashboardProfile from "../shared/DashboardProfile";
 import "./CashierDashboard.css";
-import { apiRequest } from "../../api/client";
+import { apiRequest, uploadProfilePhoto } from "../../api/client";
 import { formatCurrency } from "../../utils/currency";
 
 const toNumber = (value) => {
@@ -75,7 +75,18 @@ const getTypeIcon = (type) => {
 
 const CashierDashboard = () => {
   const name = localStorage.getItem("name") || "Cashier";
+  const profilePhoto = localStorage.getItem("profile_photo") || "";
   const savedTheme = localStorage.getItem("cashierTheme") || "light";
+
+  const handleProfilePhotoUpload = async (file) => {
+    try {
+      const data = await uploadProfilePhoto(file);
+      localStorage.setItem("profile_photo", data.url || data.profile_photo);
+      window.location.reload();
+    } catch (err) {
+      alert("Failed to upload profile photo: " + err.message);
+    }
+  };
 
   const [theme, setTheme] = useState(savedTheme);
   const [dashboardData, setDashboardData] = useState(null);
@@ -916,15 +927,12 @@ Thank you for choosing Pawesome!
           </div>
 
           <div className="navbar-actions">
-            <NavLink to="/cashier/profile" className="btn-secondary">
-              <span className="profile-avatar-icon">
-                <FontAwesomeIcon icon={faUserCircle} />
-              </span>
-              <span className="profile-info">
-                <span className="profile-action-name">{name}</span>
-                <span className="profile-action-role">Cashier</span>
-              </span>
-            </NavLink>
+            <DashboardProfile
+              name={name}
+              role="Cashier"
+              image={profilePhoto}
+              onUpload={handleProfilePhotoUpload}
+            />
 
             <NotificationDropdown />
 

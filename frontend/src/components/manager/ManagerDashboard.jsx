@@ -15,12 +15,9 @@ import {
 import {
   faMoon,
   faSun,
-  faUserCircle,
   faUsers,
-  faClipboardList,
   faCalendarAlt,
   faArrowUp,
-  faArrowDown,
   faSearch,
   faTimes,
   faCheck,
@@ -30,28 +27,26 @@ import {
   faExclamationTriangle,
   faSpinner,
   faRefresh,
-  faFilter,
-  faDownload,
-  faEye,
-  faEdit,
-  faTrash,
-  faPlus,
   faChartLine,
   faHotel,
   faFileInvoice,
   faArrowRight,
   faMoneyBill,
 } from "@fortawesome/free-solid-svg-icons";
-import { apiRequest } from "../../api/client";
+import { apiRequest, uploadProfilePhoto } from "../../api/client";
 import { formatCurrency } from "../../utils/currency";
 import ManagerSidebar from "./ManagerSidebar";
 import RoleAwareChatbot from "../chatbot/RoleAwareChatbot";
 import NotificationDropdown from "../shared/NotificationDropdown";
+import DashboardProfile from "../shared/DashboardProfile";
 import "./ManagerDashboard.css";
 
 const ManagerDashboard = () => {
   const name = localStorage.getItem("name") || "Manager";
-  const [theme, setTheme] = useState("light");
+  const profilePhoto = localStorage.getItem("profile_photo") || "";
+  const [theme, setTheme] = useState(
+    localStorage.getItem("theme") || "light"
+  );
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [refreshing, setRefreshing] = useState(false);
@@ -65,25 +60,36 @@ const ManagerDashboard = () => {
     todayCheckOuts: 0,
     revenue: 0,
   });
-  const location = useLocation();
-
-  // Enhanced data with more realistic metrics
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  
   const [staffStats, setStaffStats] = useState({
     onlineStaff: 0,
     totalTasks: 0,
     completedTasks: 0,
     pendingTasks: 0,
   });
+  const location = useLocation();
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem("theme", theme);
+  }, [theme]);
+
+  const handleProfilePhotoUpload = async (file) => {
+    try {
+      const data = await uploadProfilePhoto(file);
+      localStorage.setItem("profile_photo", data.url || data.profile_photo);
+      window.location.reload();
+    } catch (err) {
+      alert("Failed to upload profile photo: " + err.message);
+    }
+  };
 
   const normalizedPath = location.pathname.replace(/\/+$/, "");
   const showOverview =
     normalizedPath === "/manager" || normalizedPath === "/manager/";
 
-  // Chart data
   const revenueChartData = [
     { month: "Jan", revenue: 125000 },
     { month: "Feb", revenue: 145000 },
@@ -101,59 +107,57 @@ const ManagerDashboard = () => {
     { department: "Manager", staff: 1 },
   ];
 
-  // Fetch dashboard data from backend
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        setLoading(true);
-        let data;
-        
-        try {
-          data = await apiRequest("/manager/dashboard");
-        } catch (err) {
-          console.warn("Using demo dashboard data");
-          data = {
-            total_staff: 12,
-            active_staff: 9,
-            today_appointments: 18,
-            completed_appointments: 14,
-            pending_appointments: 4,
-            today_revenue: 12500,
-            monthly_revenue: 158000,
-            recent_tasks: [
-              {
-                title: "Inventory restock",
-                status: "completed",
-                department: "Inventory",
-                due_date: "Today"
-              },
-              {
-                title: "Staff meeting",
-                status: "pending",
-                department: "HR",
-                due_date: "Tomorrow"
-              }
-            ],
-            staff_performance: []
-          };
-        }
-        
-        setDashboardData(data);
-        setError("");
-      } catch (err) {
-        setError(err.message || "Failed to load dashboard data");
-        console.error("Manager dashboard fetch error:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      let data;
 
+      try {
+        data = await apiRequest("/manager/dashboard");
+      } catch (err) {
+        console.warn("Using demo dashboard data");
+        data = {
+          total_staff: 12,
+          active_staff: 9,
+          today_appointments: 18,
+          completed_appointments: 14,
+          pending_appointments: 4,
+          today_revenue: 12500,
+          monthly_revenue: 158000,
+          recent_tasks: [
+            {
+              title: "Inventory restock",
+              status: "completed",
+              department: "Inventory",
+              due_date: "Today",
+            },
+            {
+              title: "Staff meeting",
+              status: "pending",
+              department: "HR",
+              due_date: "Tomorrow",
+            },
+          ],
+          staff_performance: [],
+        };
+      }
+
+      setDashboardData(data);
+      setError("");
+    } catch (err) {
+      setError(err.message || "Failed to load dashboard data");
+      console.error("Manager dashboard fetch error:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     if (showOverview) {
       fetchDashboardData();
     }
   }, [showOverview]);
 
-  // Enhanced summary cards with real-time data
   const summaryCards = useMemo(() => dashboardData ? [
     {
       title: "Team Members",
@@ -204,11 +208,9 @@ const ManagerDashboard = () => {
 
   const [teamPerformance, setTeamPerformance] = useState([]);
 
-  // Transform backend staff_performance to frontend format
   const transformStaffPerformance = (staffData) => {
     if (!staffData || !Array.isArray(staffData)) return [];
-    
-    // Group staff by role/department
+
     const byRole = staffData.reduce((acc, staff) => {
       const role = staff.role || 'Other';
       if (!acc[role]) {
@@ -224,7 +226,6 @@ const ManagerDashboard = () => {
       return acc;
     }, {});
 
-    // Calculate efficiency and format
     return Object.values(byRole).map(dept => ({
       department: dept.department,
       efficiency: Math.round((dept.active / Math.max(dept.staff, 1)) * 100),
@@ -237,7 +238,6 @@ const ManagerDashboard = () => {
     }));
   };
 
-  // Refresh dashboard data
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
@@ -246,12 +246,10 @@ const ManagerDashboard = () => {
         apiRequest("/manager/staff")
       ]);
       setDashboardData(dashData);
-      
-      // Transform staff_performance from dashboard or staff endpoint
+
       const staffList = dashData.staff_performance || staffData?.staff || [];
       setTeamPerformance(transformStaffPerformance(staffList));
-      
-      // Create staff stats from data
+
       const activeStaff = staffList.filter(s => s.is_active).length;
       setStaffStats({
         onlineStaff: activeStaff,
@@ -266,7 +264,6 @@ const ManagerDashboard = () => {
     }
   }, []);
 
-  // Filtered data for search functionality
   const filteredTeamPerformance = useMemo(() => {
     if (!searchTerm) return teamPerformance;
     return teamPerformance.filter(dept => 
@@ -274,7 +271,6 @@ const ManagerDashboard = () => {
     );
   }, [teamPerformance, searchTerm]);
 
-  // Loading state component
   const LoadingSpinner = () => (
     <div className="loading-spinner">
       <FontAwesomeIcon icon={faSpinner} className="spinning" />
@@ -282,27 +278,23 @@ const ManagerDashboard = () => {
     </div>
   );
 
-  // Fetch data on mount
   useEffect(() => {
     handleRefresh();
   }, [handleRefresh]);
 
-  // Animation effect with hotel stats fetch
   useEffect(() => {
     const timer = setTimeout(() => setAnimatedStats(true), 100);
-    
-    // Fetch hotel occupancy stats from Laravel
+
     const fetchHotelStats = async () => {
       try {
         const response = await fetch("http://127.0.0.1:8000/api/receptionist/requests");
         const data = await response.json();
-        
-        // Calculate hotel stats from service_requests
+
         const hotelRequests = data.requests.filter(item => item.type === "hotel");
         const totalRooms = 50; // Fixed total rooms
         const occupiedRooms = hotelRequests.filter(r => r.status === "checked_in").length;
         const occupancyRate = Math.round((occupiedRooms / totalRooms) * 100);
-        
+
         setHotelStats({
           totalRooms,
           occupiedRooms,
@@ -315,13 +307,13 @@ const ManagerDashboard = () => {
         console.error("Failed to fetch hotel stats:", error);
       }
     };
-    
+
     fetchHotelStats();
     return () => clearTimeout(timer);
   }, []);
 
   return (
-    <div className={`manager-dashboard ${theme} ${sidebarCollapsed ? "collapsed" : ""}`}>
+    <div className={`manager-dashboard ${sidebarCollapsed ? "collapsed" : ""}`}>
       <ManagerSidebar
         collapsed={sidebarCollapsed}
         onToggleCollapse={() => setSidebarCollapsed((prev) => !prev)}
@@ -356,18 +348,14 @@ const ManagerDashboard = () => {
           </div>
 
           <div className="navbar-actions">
-            <div className="time-range-selector">
-              <select 
-                value={selectedTimeRange}
-                onChange={(e) => setSelectedTimeRange(e.target.value)}
-                className="time-range-select"
-              >
-                <option value="today">Today</option>
-                <option value="week">This Week</option>
-                <option value="month">This Month</option>
-                <option value="quarter">This Quarter</option>
-              </select>
-            </div>
+            <DashboardProfile
+              name={name}
+              role="Manager"
+              image={profilePhoto}
+              onUpload={handleProfilePhotoUpload}
+            />
+
+            <NotificationDropdown />
 
             <button 
               className="icon-btn refresh-btn"
@@ -377,18 +365,6 @@ const ManagerDashboard = () => {
             >
               <FontAwesomeIcon icon={refreshing ? faSpinner : faRefresh} className={refreshing ? "spinning" : ""} />
             </button>
-
-            <NotificationDropdown />
-
-            <NavLink to="/manager/profile" className="manager-profile-btn">
-              <span className="profile-avatar-icon">
-                <FontAwesomeIcon icon={faUserCircle} />
-              </span>
-              <span className="profile-info">
-                <span className="profile-action-name">{name}</span>
-                <span className="profile-action-role">Manager</span>
-              </span>
-            </NavLink>
 
             <button
               className="theme-toggle-btn"

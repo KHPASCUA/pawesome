@@ -144,4 +144,25 @@ export async function apiRequest(path, options = {}, customBaseUrl = null) {
   }
 }
 
+export async function uploadProfilePhoto(file) {
+  const token = localStorage.getItem("token");
+  const formData = new FormData();
+  formData.append("photo", file);
+
+  const response = await fetch(`${API_URL}/auth/profile-photo`, {
+    method: "POST",
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const data = await response.json();
+    throw new Error(data.message || "Failed to upload profile photo");
+  }
+
+  return response.json();
+}
+
 export { USE_MOCK_DATA };

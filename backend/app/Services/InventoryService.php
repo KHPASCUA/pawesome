@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\InventoryItem;
+use App\Models\InventoryBatch;
 use App\Models\InventoryLog;
 use App\Models\Notification;
 use App\Models\User;
@@ -47,18 +48,47 @@ class InventoryService
 
         // Use quantity or stock_quantity if stock is not provided (frontend compatibility)
         $stock = $validated['stock'] ?? $validated['stock_quantity'] ?? ($validated['quantity'] ?? 0);
-        $validated['stock'] = $stock;
+        $validated['stock'] = (int) $stock;
+
+        // Remove extra fields that don't exist in database
+        unset($validated['stock_quantity'], $validated['quantity']);
+
+        // Handle batch data if provided (for FEFO items)
+        $batchData = $data['batchData'] ?? null;
+        if ($batchData) {
+            // Use batch quantity as the stock quantity
+            $validated['stock'] = (int) ($batchData['quantity'] ?? $stock);
+        }
 
         // Set default status
         $validated['status'] = $validated['status'] ?? self::STATUS_ACTIVE;
 
         $item = InventoryItem::create($validated);
 
+        // Create initial batch if batch data provided
+        if ($batchData && $validated['stock'] > 0) {
+            $item->addBatchStock(
+                $batchData['quantity'],
+                $batchData['batch_no'] ?? null,
+                $batchData['expiration_date'] ?? null,
+                $batchData['notes'] ?? 'Initial stock batch'
+            );
+        } elseif ($validated['stock'] > 0) {
+            // Create default batch for non-FEFO items with stock
+            $item->addBatchStock(
+                $validated['stock'],
+                'INITIAL-' . strtoupper(uniqid()),
+                null,
+                'Initial stock'
+            );
+        }
+
         return [
             'message' => 'Item created successfully',
-            'item' => $item,
+            'item' => $item->fresh()->load('batches'),
             'stock_action' => 'initial',
-            'new_stock' => $stock,
+            'new_stock' => $item->stock,
+            'has_batch' => $batchData !== null,
         ];
     }
 
@@ -72,7 +102,7 @@ class InventoryService
 
         // Track stock change for logging
         $oldStock = $item->stock;
-        $inputStock = $validated['stock'] ?? ($validated['quantity'] ?? null);
+        $inputStock = $validated['stock'] ?? $validated['stock_quantity'] ?? ($validated['quantity'] ?? null);
         $addStock = $validated['add_stock'] ?? false;
 
         // Determine new stock value
@@ -80,8 +110,8 @@ class InventoryService
         $newStock = $this->calculateNewStock($item, $inputStock, $addStock);
         $validated['stock'] = $newStock;
 
-        // Remove fields that shouldn't be in update
-        unset($validated['quantity'], $validated['add_stock']);
+        // Remove fields that don't exist in database
+        unset($validated['quantity'], $validated['stock_quantity'], $validated['add_stock']);
 
         $item->update($validated);
 
@@ -137,7 +167,7 @@ class InventoryService
     /**
      * Adjust stock for an item
      */
-    public function adjustStock(int $id, int $quantity, string $reason): array
+    public function adjustStock(int $id, int $quantity, string $reason, ?array $auditData = null): array
     {
         $item = InventoryItem::findOrFail($id);
 
@@ -146,10 +176,22 @@ class InventoryService
             throw new \Exception('Adjustment would result in negative stock');
         }
 
+        $previousStock = $item->stock;
         $item->increment('stock', $quantity);
+        $newStock = $item->fresh()->stock;
 
-        // Log the adjustment
-        $this->logStockChange($item->id, $quantity, $reason, 'adjustment');
+        // Log the adjustment with audit data
+        InventoryLog::create([
+            'inventory_item_id' => $item->id,
+            'delta' => $quantity,
+            'reason' => $reason,
+            'reference_type' => $auditData['type'] ?? 'adjustment',
+            'previous_stock' => $auditData['previous'] ?? $previousStock,
+            'new_stock' => $auditData['new'] ?? $newStock,
+            'performed_by' => $auditData['performed_by'] ?? null,
+            'role' => $auditData['role'] ?? null,
+            'user_id' => $auditData['user_id'] ?? null,
+        ]);
 
         // Check for low/out of stock and create notifications
         $this->checkAndCreateStockNotifications($item->fresh());
@@ -157,16 +199,25 @@ class InventoryService
         return [
             'message' => 'Stock adjusted successfully',
             'item' => $item->fresh(),
+            'previous_stock' => $previousStock,
+            'new_stock' => $newStock,
+            'adjustment' => $quantity,
         ];
     }
 
     /**
-     * Deduct stock for sales/orders with proper logging
+     * Deduct stock for sales/orders with FEFO batch tracking
      * Centralized method used by POS and Customer Order systems
+     * Blocks sale of expired items
      */
     public function deductStock(int $itemId, int $quantity, string $reason = 'Sale', string $referenceType = 'sale', ?int $referenceId = null): array
     {
         $item = InventoryItem::findOrFail($itemId);
+
+        // Check if item has expired batches - BLOCK SALE
+        if ($item->hasExpiredBatches()) {
+            throw new \Exception("Cannot sell {$item->name}: Item has expired stock. Please dispose of expired batches first.");
+        }
 
         // Check stock availability
         if ($item->stock < $quantity) {
@@ -174,10 +225,34 @@ class InventoryService
         }
 
         $stockBefore = $item->stock;
+
+        // Use FEFO batch deduction for items that need expiration tracking
+        // OR if item has active batches
+        if ($item->needsFefo() || $item->batches()->exists()) {
+            $batchDeductions = $item->deductStockFefo($quantity, $reason);
+
+            // Refresh item to get updated stock
+            $item = $item->fresh();
+
+            // Check for low/out of stock and create notifications
+            $this->checkAndCreateStockNotifications($item);
+
+            return [
+                'message' => 'Stock deducted successfully (FEFO)',
+                'item' => $item,
+                'deducted' => $quantity,
+                'stock_before' => $stockBefore,
+                'stock_after' => $item->stock,
+                'batch_deductions' => $batchDeductions,
+                'fefo_applied' => true,
+            ];
+        }
+
+        // Fallback: Simple stock deduction for non-batch items
         $item->decrement('stock', $quantity);
         $item = $item->fresh();
 
-        // Log the stock deduction.
+        // Log the stock deduction
         InventoryLog::create([
             'inventory_item_id' => $itemId,
             'delta' => -$quantity,
@@ -194,22 +269,47 @@ class InventoryService
             'deducted' => $quantity,
             'stock_before' => $stockBefore,
             'stock_after' => $item->stock,
+            'fefo_applied' => false,
         ];
     }
 
     /**
-     * Add stock (restock) with proper logging
+     * Add stock (restock) with batch tracking support
      * Centralized method for inventory restocking
      */
-    public function addStock(int $itemId, int $quantity, string $reason = 'Restock', string $referenceType = 'restock', ?int $referenceId = null): array
+    public function addStock(int $itemId, int $quantity, string $reason = 'Restock', string $referenceType = 'restock', ?int $referenceId = null, ?array $batchData = null): array
     {
         $item = InventoryItem::findOrFail($itemId);
 
         $stockBefore = $item->stock;
+
+        // If item needs FEFO or batch data provided, create batch
+        if ($item->needsFefo() || $batchData) {
+            $batch = $item->addBatchStock(
+                $quantity,
+                $batchData['batch_no'] ?? null,
+                $batchData['expiration_date'] ?? null,
+                $batchData['notes'] ?? $reason
+            );
+
+            $item = $item->fresh();
+
+            return [
+                'message' => 'Stock added successfully with batch tracking',
+                'item' => $item,
+                'added' => $quantity,
+                'stock_before' => $stockBefore,
+                'stock_after' => $item->stock,
+                'batch' => $batch,
+                'batch_tracking' => true,
+            ];
+        }
+
+        // Fallback: Simple stock addition for non-batch items
         $item->increment('stock', $quantity);
         $item = $item->fresh();
 
-        // Log the stock addition.
+        // Log the stock addition
         InventoryLog::create([
             'inventory_item_id' => $itemId,
             'delta' => $quantity,
@@ -223,6 +323,7 @@ class InventoryService
             'added' => $quantity,
             'stock_before' => $stockBefore,
             'stock_after' => $item->stock,
+            'batch_tracking' => false,
         ];
     }
 
@@ -338,6 +439,7 @@ class InventoryService
             'price' => $isCreate ? 'required|numeric|min:0' : 'sometimes|numeric|min:0',
             'stock' => 'nullable|integer|min:0',
             'quantity' => 'nullable|integer|min:0',
+            'stock_quantity' => 'nullable|integer|min:0',
             'add_stock' => 'nullable|boolean',
             'reorder_level' => $isCreate ? 'required|integer|min:0' : 'sometimes|integer|min:0',
             'expiry_date' => 'nullable|date',
@@ -444,6 +546,67 @@ class InventoryService
             'reason' => $reason,
             'reference_type' => $referenceType,
         ]);
+    }
+
+    /**
+     * Dispose expired or damaged batch
+     */
+    public function disposeBatch(int $batchId, string $reason = 'Expired'): array
+    {
+        $batch = InventoryBatch::findOrFail($batchId);
+        $item = $batch->inventoryItem;
+
+        $disposedQuantity = $batch->remaining_quantity;
+
+        // Mark batch as disposed
+        $batch->update([
+            'status' => 'disposed',
+            'remaining_quantity' => 0,
+            'notes' => $batch->notes . "\nDisposed: {$reason} on " . now()->toDateTimeString(),
+        ]);
+
+        // Update main stock
+        $item->decrement('stock', $disposedQuantity);
+
+        // Log disposal
+        InventoryLog::create([
+            'inventory_item_id' => $item->id,
+            'delta' => -$disposedQuantity,
+            'reason' => "Batch disposed: {$reason}",
+            'reference_type' => 'disposal',
+            'details' => json_encode([
+                'batch_id' => $batch->id,
+                'batch_no' => $batch->batch_no,
+                'disposed_quantity' => $disposedQuantity,
+                'disposal_reason' => $reason,
+            ]),
+        ]);
+
+        return [
+            'message' => 'Batch disposed successfully',
+            'batch' => $batch->fresh(),
+            'item' => $item->fresh(),
+            'disposed_quantity' => $disposedQuantity,
+        ];
+    }
+
+    /**
+     * Get all batches for an item with expiration info
+     */
+    public function getItemBatches(int $itemId): array
+    {
+        $item = InventoryItem::findOrFail($itemId);
+        $batches = $item->batches()->orderBy('expiration_date', 'asc')->get();
+
+        return [
+            'item' => $item,
+            'batches' => $batches,
+            'total_batches' => $batches->count(),
+            'active_batches' => $batches->where('status', 'active')->count(),
+            'expired_batches' => $batches->where('status', 'expired')->count(),
+            'has_expired' => $item->hasExpiredBatches(),
+            'expiring_soon' => $item->hasExpiringBatches(),
+        ];
     }
 
     /**

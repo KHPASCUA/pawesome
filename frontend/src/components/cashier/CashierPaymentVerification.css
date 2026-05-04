@@ -172,7 +172,17 @@
   border: 1px solid rgba(59, 130, 246, 0.3);
 }
 
+.cashier-payment-page .app-main {
+  margin-left: 260px;
+  width: calc(100% - 260px);
+}
+
 @media (max-width: 768px) {
+  .cashier-payment-page .app-main {
+    margin-left: 82px;
+    width: calc(100% - 82px);
+  }
+
   .payment-hero {
     padding: 20px;
   }

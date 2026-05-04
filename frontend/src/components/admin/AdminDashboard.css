@@ -559,3 +559,58 @@
     display: none;
   }
 }
+
+/* System Status Grid */
+.system-status-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  padding: 0.5rem;
+}
+
+.system-status-item {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.85rem;
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 95, 147, 0.12);
+  transition: all 0.2s ease;
+}
+
+.system-status-item:hover {
+  background: rgba(255, 255, 255, 0.8);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(255, 95, 147, 0.15);
+}
+
+.system-status-icon {
+  width: 42px;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+  color: #fff;
+  font-size: 1.1rem;
+}
+
+.system-status-item strong {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--color-heading);
+  margin-bottom: 0.15rem;
+}
+
+.system-status-item p {
+  font-size: 0.75rem;
+  color: var(--color-muted);
+  margin: 0;
+}
+
+.status-online {
+  color: #10b981;
+  font-weight: 700;
+}

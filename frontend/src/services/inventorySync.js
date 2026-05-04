@@ -87,13 +87,22 @@ class InventorySyncService {
 
   // Normalize product data from API
   normalizeProduct(product, index) {
+    // Safer stock extraction that handles multiple field names
+    const stockValue =
+      product.stock ??
+      product.quantity ??
+      product.available_stock ??
+      product.stock_quantity ??
+      product.current_stock ??
+      0;
+
     return {
       id: product.id || product.product_id || product.item_id || index + 1,
       name: product.name || product.product_name || product.item_name || "Unnamed Product",
       price: Number(product.price || product.selling_price || product.unit_price || 0),
-      stock: Number(product.stock || product.quantity || product.available_stock || 0),
+      stock: Number(stockValue) || 0,
       category: product.category || product.product_category || product.type || "Food",
-      inStock: (product.stock || product.quantity || product.available_stock || 0) > 0,
+      inStock: Number(stockValue) > 0,
       sku: product.sku || product.barcode || product.item_code || "",
       description: product.description || "",
       image: product.image || this.getProductEmoji(product.name || ""),

@@ -17,6 +17,11 @@ const InventoryStock = () => {
   const [selectedItem, setSelectedItem] = useState(null);
   const [showAdjustModal, setShowAdjustModal] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(new Date());
+  
+  // Batch view state
+  const [expandedItems, setExpandedItems] = useState(new Set());
+  const [itemBatches, setItemBatches] = useState({});
+  const [loadingBatches, setLoadingBatches] = useState({});
 
   // Fetch items from API
   useEffect(() => {
@@ -25,17 +30,11 @@ const InventoryStock = () => {
         setLoading(true);
         const response = await inventoryApi.getItems();
         const apiItems = response.items || response.data || [];
-        
-        if (apiItems.length > 0) {
-          setItems(apiItems);
-          setUsingDemoData(false);
-        } else {
-          // Empty API response - use demo data
-          setItems(demoItems);
-          setUsingDemoData(true);
-        }
+        setItems(apiItems);
+        setUsingDemoData(false);
       } catch (err) {
         console.error("Stock API failed, using demo:", err);
+        // Only use demo data on API failure, not empty response
         setItems(demoItems);
         setUsingDemoData(true);
       } finally {
@@ -53,11 +52,9 @@ const InventoryStock = () => {
         const response = await inventoryApi.getItems();
         const apiItems = response.items || response.data || [];
 
-        if (apiItems.length > 0) {
-          setItems(apiItems);
-          setUsingDemoData(false);
-          setLastUpdated(new Date());
-        }
+        setItems(apiItems);
+        setUsingDemoData(false);
+        setLastUpdated(new Date());
       } catch (err) {
         console.log("Auto refresh failed");
       }
@@ -66,13 +63,62 @@ const InventoryStock = () => {
     return () => clearInterval(interval);
   }, []);
 
+  // Helper to get stock value from multiple possible field names
+  const getStock = (item) => {
+    const val = item?.stock ?? item?.quantity ?? item?.stock_quantity ?? item?.current_stock ?? 0;
+    const num = Number(val);
+    return isNaN(num) ? 0 : num;
+  };
+
+  // Fetch batches for an item
+  const fetchItemBatches = async (itemId) => {
+    if (itemBatches[itemId]) return; // Already loaded
+    
+    setLoadingBatches(prev => ({ ...prev, [itemId]: true }));
+    try {
+      const response = await inventoryApi.getItemBatches(itemId);
+      if (response.success) {
+        setItemBatches(prev => ({ ...prev, [itemId]: response.batches }));
+      }
+    } catch (err) {
+      console.error(`Failed to fetch batches for item ${itemId}:`, err);
+    } finally {
+      setLoadingBatches(prev => ({ ...prev, [itemId]: false }));
+    }
+  };
+
+  // Toggle batch view for item
+  const toggleBatchView = (itemId) => {
+    const newExpanded = new Set(expandedItems);
+    if (newExpanded.has(itemId)) {
+      newExpanded.delete(itemId);
+    } else {
+      newExpanded.add(itemId);
+      fetchItemBatches(itemId);
+    }
+    setExpandedItems(newExpanded);
+  };
+
+  // Get expiration status for a date
+  const getExpirationStatus = (dateStr) => {
+    if (!dateStr) return { status: 'none', label: 'No Expiry', color: '#6b7280' };
+    
+    const expDate = new Date(dateStr);
+    const today = new Date();
+    const diffDays = Math.ceil((expDate - today) / (1000 * 60 * 60 * 24));
+    
+    if (diffDays < 0) return { status: 'expired', label: 'Expired', color: '#ef4444' };
+    if (diffDays <= 30) return { status: 'expiring', label: `Expiring Soon (${diffDays}d)`, color: '#f97316' };
+    return { status: 'good', label: 'Good', color: '#22c55e' };
+  };
+
   // Calculate stats
   const stats = useMemo(() => {
     const totalItems = items.length;
-    const totalQuantity = items.reduce((sum, item) => sum + (item.stock || item.quantity || 0), 0);
-    const totalValue = items.reduce((sum, item) => sum + ((item.stock || item.quantity || 0) * (item.price || 0)), 0);
-    const lowStock = items.filter(item => (item.stock || item.quantity || 0) <= 10 && (item.stock || item.quantity || 0) > 0).length;
-    const outOfStock = items.filter(item => (item.stock || item.quantity || 0) === 0).length;
+    const totalQuantity = items.reduce((sum, item) => sum + getStock(item), 0);
+    const totalValue = items.reduce((sum, item) => sum + (getStock(item) * (item.price || 0)), 0);
+    const lowStock = items.filter(item => getStock(item) <= 10 && getStock(item) > 0).length;
+    const outOfStock = items.filter(item => getStock(item) === 0).length;
     const expiringSoon = items.filter(item => {
       if (!item.expiration) return false;
       const exp = new Date(item.expiration);
@@ -94,9 +140,9 @@ const InventoryStock = () => {
       
       const matchesStatus = 
         filterStatus === "all" || 
-        (filterStatus === "low" && (item.stock || item.quantity || 0) <= 10 && (item.stock || item.quantity || 0) > 0) ||
-        (filterStatus === "out" && (item.stock || item.quantity || 0) === 0) ||
-        (filterStatus === "good" && (item.stock || item.quantity || 0) > 10);
+        (filterStatus === "low" && getStock(item) <= 10 && getStock(item) > 0) ||
+        (filterStatus === "out" && getStock(item) === 0) ||
+        (filterStatus === "good" && getStock(item) > 10);
       
       return matchesSearch && matchesStatus;
     });
@@ -154,24 +200,18 @@ const InventoryStock = () => {
     setShowAdjustModal(true);
   };
 
-  const handleAdjustSuccess = () => {
+  const handleAdjustSuccess = async () => {
     // Refresh items after adjustment
-    const fetchItems = async () => {
-      try {
-        const response = await inventoryApi.getItems();
-        const apiItems = response.items || response.data || [];
-        if (apiItems.length > 0) {
-          setItems(apiItems);
-          setUsingDemoData(false);
-        } else {
-          setItems(demoItems);
-          setUsingDemoData(true);
-        }
-      } catch (err) {
-        console.error("Stock refresh failed:", err);
-      }
-    };
-    fetchItems();
+    try {
+      const response = await inventoryApi.getItems();
+      const apiItems = response.items || response.data || [];
+      setItems(apiItems);
+      setUsingDemoData(false);
+    } catch (err) {
+      console.error("Stock refresh failed:", err);
+    }
+    // Close modal and clear selection
+    setShowAdjustModal(false);
     setSelectedItem(null);
   };
 
@@ -192,7 +232,7 @@ const InventoryStock = () => {
           message:
             type === "out"
               ? `${item.name} is out of stock.`
-              : `${item.name} is running low. Current stock: ${item.stock || item.quantity || 0}`,
+              : `${item.name} is running low. Current stock: ${getStock(item)}`,
           module: "Inventory",
           type,
           priority: type === "out" ? "high" : "medium",
@@ -213,7 +253,7 @@ const InventoryStock = () => {
     );
 
     items.forEach((item) => {
-      const quantity = item.stock || item.quantity || 0;
+      const quantity = getStock(item);
 
       if (quantity === 0 && notified[item.id] !== "out") {
         createInventoryNotification(item, "out");
@@ -334,97 +374,179 @@ const InventoryStock = () => {
         </div>
       </div>
 
-      {/* Loading */}
-      {loading && (
-        <div className="loading-overlay">
-          <div className="spinner"></div>
-          <p>Loading stock...</p>
-        </div>
-      )}
-
       {/* Stock Table */}
       <div className="stock-table-container">
-        <table className="stock-table polished">
-          <thead>
-            <tr>
-              <th>Product</th>
-              <th>SKU</th>
-              <th>Stock Level</th>
-              <th className="numeric">Qty</th>
-              <th>Expiration</th>
-              <th>Status</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredItems.map((item) => {
-              const stockLevel = item.stock || item.quantity || 0;
-              const badge = getStatusBadge(stockLevel);
-              const bar = getQuantityBar(stockLevel);
-              const isExpiring = item.expiration && new Date(item.expiration) <= new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-              
-              return (
-                <tr key={item.id} className={badge.class}>
-                  <td>
-                    <div className="product-cell">
-                      <span className="product-name">{item.name}</span>
-                      <span className="product-brand">{item.brand || "No Brand"}</span>
-                    </div>
-                  </td>
-                  <td>
-                    <code className="sku-code">{item.sku}</code>
-                  </td>
-                  <td>
-                    <div className="stock-level">
-                      <div className="stock-bar-bg">
-                        <div 
-                          className="stock-bar-fill" 
-                          style={{ width: bar.width, backgroundColor: bar.color }}
-                        ></div>
-                      </div>
-                      <small className="stock-percentage">{Math.round(bar.percentage)}%</small>
-                    </div>
-                  </td>
-                  <td className="numeric">
-                    <span className="quantity-value">{stockLevel}</span>
-                  </td>
-                  <td>
-                    <span className={`expiration ${isExpiring ? "expiring-soon" : ""}`}>
-                      {item.expiration || "N/A"}
-                      {isExpiring && " ⚠️"}
-                    </span>
-                    {item.last_updated && (
-                      <small className="last-updated">
-                        Updated: {new Date(item.last_updated).toLocaleTimeString()}
-                      </small>
-                    )}
-                  </td>
-                  <td>
-                    <span className={`status-badge ${badge.class}`}>
-                      <span className="badge-icon">{badge.icon}</span>
-                      {badge.label}
-                    </span>
-                  </td>
-                  <td>
-                    <button 
-                      className="btn-adjust"
-                      onClick={() => handleAdjustClick(item)}
-                    >
-                      ⚖️ Adjust
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-
-        {filteredItems.length === 0 && !loading && (
-          <div className="empty-state">
-            <div className="empty-icon">📦</div>
-            <h3>No stock items found</h3>
-            <p>Try adjusting your search or filters</p>
+        {loading ? (
+          <div className="table-loading">
+            <div className="spinner"></div>
+            <p>Loading stock...</p>
           </div>
+        ) : (
+          <>
+            <table className="stock-table polished">
+              <thead>
+                <tr>
+                  <th></th>
+                  <th>Product</th>
+                  <th>SKU</th>
+                  <th>Stock Level</th>
+                  <th className="numeric">Qty</th>
+                  <th>Nearest Expiration</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredItems.map((item) => {
+                  const stockValue = getStock(item);
+                  const badge = getStatusBadge(stockValue);
+                  const bar = getQuantityBar(stockValue);
+                  const isExpanded = expandedItems.has(item.id);
+                  const batches = itemBatches[item.id] || [];
+                  const loadingBatch = loadingBatches[item.id];
+                  
+                  // Get nearest expiration from batches or item
+                  const nearestExp = batches.length > 0 
+                    ? batches.filter(b => b.status === 'active' && b.remaining_quantity > 0)
+                        .sort((a, b) => new Date(a.expiration_date || '9999-12-31') - new Date(b.expiration_date || '9999-12-31'))[0]?.expiration_date
+                    : item.expiration;
+                  const expStatus = getExpirationStatus(nearestExp);
+                  
+                  return (
+                    <React.Fragment key={item.id}>
+                      <tr className={badge.class}>
+                        <td>
+                          <button 
+                            className="btn-expand"
+                            onClick={() => toggleBatchView(item.id)}
+                            title={isExpanded ? "Hide batches" : "View batches"}
+                          >
+                            {isExpanded ? "▼" : "▶"}
+                          </button>
+                        </td>
+                        <td>
+                          <div className="product-cell">
+                            <span className="product-name">{item.name}</span>
+                            <span className="product-brand">{item.brand || "No Brand"}</span>
+                            {item.category && (
+                              <small className="product-category">{item.category}</small>
+                            )}
+                          </div>
+                        </td>
+                        <td>
+                          <code className="sku-code">{item.sku}</code>
+                        </td>
+                        <td>
+                          <div className="stock-level">
+                            <div className="stock-bar-bg">
+                              <div 
+                                className="stock-bar-fill" 
+                                style={{ width: bar.width, backgroundColor: bar.color }}
+                              ></div>
+                            </div>
+                            <small className="stock-percentage">{Math.round(bar.percentage)}%</small>
+                          </div>
+                        </td>
+                        <td className="numeric">
+                          <span className="quantity-value">{stockValue}</span>
+                          {batches.length > 0 && (
+                            <small className="batch-count">({batches.filter(b => b.status === 'active').length} batches)</small>
+                          )}
+                        </td>
+                        <td>
+                          {nearestExp ? (
+                            <span className="expiration-badge" style={{ color: expStatus.color }}>
+                              <span className="exp-date">{new Date(nearestExp).toLocaleDateString()}</span>
+                              <span className="exp-label">{expStatus.label}</span>
+                            </span>
+                          ) : (
+                            <span className="expiration-none">No Expiry</span>
+                          )}
+                        </td>
+                        <td>
+                          <span className={`status-badge ${badge.class}`}>
+                            <span className="badge-icon">{badge.icon}</span>
+                            {badge.label}
+                          </span>
+                        </td>
+                        <td>
+                          <button 
+                            className="btn-adjust"
+                            onClick={() => handleAdjustClick(item)}
+                          >
+                            ⚖️ Adjust
+                          </button>
+                        </td>
+                      </tr>
+                      
+                      {/* Batch Details Row */}
+                      {isExpanded && (
+                        <tr className="batch-row">
+                          <td colSpan="8">
+                            <div className="batch-details">
+                              <h4>📦 Batch Inventory (FEFO Order)</h4>
+                              {loadingBatch ? (
+                                <div className="batch-loading">Loading batches...</div>
+                              ) : batches.length > 0 ? (
+                                <table className="batch-table">
+                                  <thead>
+                                    <tr>
+                                      <th>Batch No</th>
+                                      <th>Received</th>
+                                      <th>Expiration</th>
+                                      <th>Quantity</th>
+                                      <th>Remaining</th>
+                                      <th>Status</th>
+                                      <th>Expiry Status</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {batches.map((batch) => {
+                                      const batchExpStatus = getExpirationStatus(batch.expiration_date);
+                                      return (
+                                        <tr key={batch.id} className={`batch-${batch.status}`}>
+                                          <td><code>{batch.batch_no}</code></td>
+                                          <td>{new Date(batch.received_date).toLocaleDateString()}</td>
+                                          <td>{batch.expiration_date ? new Date(batch.expiration_date).toLocaleDateString() : 'N/A'}</td>
+                                          <td>{batch.quantity}</td>
+                                          <td className={batch.remaining_quantity === 0 ? 'depleted' : ''}>
+                                            {batch.remaining_quantity}
+                                          </td>
+                                          <td>
+                                            <span className={`batch-status ${batch.status}`}>{batch.status}</span>
+                                          </td>
+                                          <td>
+                                            <span style={{ color: batchExpStatus.color }}>{batchExpStatus.label}</span>
+                                          </td>
+                                        </tr>
+                                      );
+                                    })}
+                                  </tbody>
+                                </table>
+                              ) : (
+                                <div className="no-batches">
+                                  <p>No batch tracking for this item. Stock is managed as total quantity only.</p>
+                                  <small>FEFO batch tracking is available for Food, Health, and Grooming items.</small>
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+
+            {filteredItems.length === 0 && (
+              <div className="empty-state">
+                <div className="empty-icon">📦</div>
+                <h3>No stock items found</h3>
+                <p>Try adjusting your search or filters</p>
+              </div>
+            )}
+          </>
         )}
       </div>
 

@@ -3,7 +3,6 @@ import { Outlet, NavLink, useLocation } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faMoon,
-  faUserCircle,
   faCalendarAlt,
   faUsers,
   faHotel,
@@ -19,21 +18,33 @@ import {
   faStethoscope,
 } from "@fortawesome/free-solid-svg-icons";
 
-import { apiRequest } from "../../api/client";
+import { apiRequest, uploadProfilePhoto } from "../../api/client";
 import VeterinarySidebar from "./VeterinarySidebar";
 import RoleAwareChatbot from "../chatbot/RoleAwareChatbot";
 import NotificationDropdown from "../shared/NotificationDropdown";
+import DashboardProfile from "../shared/DashboardProfile";
 import toast from "react-hot-toast";
 import "./VetDashboard.css";
 
 const VetDashboard = () => {
   const name = localStorage.getItem("name") || "Veterinarian";
+  const profilePhoto = localStorage.getItem("profile_photo") || "";
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [dashboardData, setDashboardData] = useState(null);
   const [currentBoarders, setCurrentBoarders] = useState([]);
   const [loadingBoarders, setLoadingBoarders] = useState(false);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState(new Date());
+
+  const handleProfilePhotoUpload = async (file) => {
+    try {
+      const data = await uploadProfilePhoto(file);
+      localStorage.setItem("profile_photo", data.url || data.profile_photo);
+      window.location.reload();
+    } catch (err) {
+      alert("Failed to upload profile photo: " + err.message);
+    }
+  };
 
   const location = useLocation();
   const normalizedPath = location.pathname.replace(/\/+$/, "");
@@ -193,18 +204,12 @@ const VetDashboard = () => {
           </div>
 
           <div className="navbar-actions">
-            <NavLink
-              to="/veterinary/profile"
-              className="vet-profile-btn"
-            >
-              <span className="profile-avatar-icon">
-                <FontAwesomeIcon icon={faUserCircle} />
-              </span>
-              <span className="profile-info">
-                <span className="profile-action-name">{name}</span>
-                <span className="profile-action-role">Veterinarian</span>
-              </span>
-            </NavLink>
+            <DashboardProfile
+              name={name}
+              role="Veterinarian"
+              image={profilePhoto}
+              onUpload={handleProfilePhotoUpload}
+            />
 
             <NotificationDropdown />
 
