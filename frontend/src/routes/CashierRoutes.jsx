@@ -2,7 +2,7 @@ import React from "react";
 import { Routes, Route } from "react-router-dom";
 import ProtectedRoute from "../components/ProtectedRoute";
 import CashierDashboard from "../components/cashier/CashierDashboard";
-import CashierPOS from "../components/cashier/CashierPOS";
+import CashierPOS from "../components/cashier/CashierPOS_New";
 import CashierTransactions from "../components/cashier/CashierTransactions";
 import CashierHistory from "../components/cashier/CashierHistory";
 import CashierReports from "../components/cashier/CashierReports";

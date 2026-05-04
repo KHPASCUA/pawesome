@@ -93,16 +93,10 @@ const CashierHistory = () => {
       /*
         LIVE BACKEND ENDPOINT
 
-        If this endpoint does not exist in your backend,
-        change only this line:
-
-        const response = await apiRequest("/cashier/history");
-
-        possible alternatives:
-        "/cashier/transactions"
-        "/cashier/sales"
+        Using the correct endpoint for cashier transaction history
       */
-      const response = await apiRequest("/cashier/history");
+      const response = await apiRequest("/cashier/transactions");
+      console.log("Cashier history API response:", response);
 
       const rawItems = Array.isArray(response)
         ? response
@@ -112,6 +106,9 @@ const CashierHistory = () => {
           response?.sales ||
           response?.recent_sales ||
           [];
+      
+      console.log("Extracted raw items:", rawItems);
+      console.log("Raw items count:", rawItems.length);
 
       const normalizedItems = rawItems.map((item, index) =>
         normalizeTransaction(item, index)

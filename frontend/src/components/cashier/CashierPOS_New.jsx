@@ -1,0 +1,2310 @@
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import styled, { createGlobalStyle, keyframes, css } from "styled-components";
+import { apiRequest } from "../../api/client";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import inventorySync, { eventEmitter } from "../../services/inventorySync";
+import {
+  faPaw, faSearch, faRotateRight, faTrash, faBoxOpen,
+  faShoppingCart, faCreditCard, faMoneyBillWave, faMobileScreen,
+  faGlobe, faTag, faReceipt, faTriangleExclamation, faPlus,
+  faMinus, faXmark, faPrint, faClock, faBox, faCheckCircle,
+  faPause, faFolderOpen, faBarcode, faPercent, faKeyboard,
+  faBolt, faUser, faChevronDown, faChevronUp, faList,
+  faStore, faHistory, faBan, faCalculator, faExpand, faCompress,
+} from "@fortawesome/free-solid-svg-icons";
+
+/* ─── Constants ────────────────────────────────────────────────── */
+const PRODUCT_ENDPOINT  = "/inventory/sellable";
+const CHECKOUT_ENDPOINT = "/cashier/pos/transaction";
+const VOUCHER_ENDPOINT  = "/cashier/validate-voucher";
+const TAX_RATE = 0.12;
+
+const PAYMENT_METHODS = [
+  { value: "Cash",   label: "Cash",   icon: faMoneyBillWave, color: "#10B981" },
+  { value: "Card",   label: "Card",   icon: faCreditCard,    color: "#3B82F6" },
+  { value: "GCash",  label: "GCash",  icon: faMobileScreen,  color: "#4F46E5" },
+  { value: "Maya",   label: "Maya",   icon: faMobileScreen,  color: "#059669" },
+  { value: "Online", label: "Online", icon: faGlobe,         color: "#8B5CF6" },
+];
+
+const QUICK_AMOUNTS = [20, 50, 100, 200, 500, 1000];
+
+/* ─── Helpers ──────────────────────────────────────────────────── */
+const fmt = (amount) =>
+  (Number(amount) || 0).toLocaleString("en-PH", { style: "currency", currency: "PHP" });
+
+const normCat = (v) => String(v || "others").trim().toLowerCase();
+
+const normProduct = (p, i) => ({
+  id: p.id || p.product_id || p.item_id || i + 1,
+  name: p.name || p.product_name || p.item_name || "Unnamed Product",
+  price: Number(p.price || p.selling_price || p.unit_price || 0) || 0,
+  stock: Number(p.stock || p.quantity || p.available_stock || 0) || 0,
+  category: normCat(p.category || p.product_category || p.type),
+  image: p.image || p.image_url || p.photo || "",
+  barcode: p.barcode || p.sku || p.item_code || "",
+  discount: Number(p.discount || p.discount_percent || 0) || 0,
+  raw: p,
+});
+
+const discountedPrice = (p) => {
+  const price = Number(p.price) || 0;
+  const disc  = Number(p.discount) || 0;
+  return disc > 0 ? price * (1 - disc / 100) : price;
+};
+
+const stockStatus = (stock) => {
+  const q = Number(stock) || 0;
+  if (q <= 0) return { label: "Out of Stock", type: "out" };
+  if (q <= 5) return { label: `Only ${q} left`, type: "low" };
+  return { label: `${q} in stock`, type: "ok" };
+};
+
+/* ─── Design Tokens ────────────────────────────────────────────── */
+const PINK       = "#ff5f93";
+const PINK_LIGHT = "#ff8db5";
+const GLASS_BG   = "rgba(255,255,255,0.82)";
+const GLASS_BDR  = "rgba(255,95,147,0.18)";
+const GLASS_SHD  = "0 18px 45px rgba(255,95,147,0.14)";
+const BLUR       = "backdrop-filter: blur(18px)";
+
+/* ─── Global Styles ────────────────────────────────────────────── */
+const GlobalStyle = createGlobalStyle`
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+
+  /* Dark mode via parent class — matches .cashier-dashboard.dark in CSS */
+  .cashier-dashboard.dark {
+    --pos-glass-bg:   rgba(255,255,255,0.06);
+    --pos-glass-bdr:  rgba(255,141,181,0.22);
+    --pos-glass-shd:  0 18px 45px rgba(0,0,0,0.28);
+    --pos-text:       #f8fafc;
+    --pos-muted:      #cbd5e1;
+    --pos-surface:    rgba(255,255,255,0.06);
+    --pos-input-bg:   rgba(15,23,42,0.38);
+    --pos-heading:    #f8fafc;
+  }
+  .cashier-dashboard:not(.dark) {
+    --pos-glass-bg:   rgba(255,255,255,0.82);
+    --pos-glass-bdr:  rgba(255,95,147,0.18);
+    --pos-glass-shd:  0 18px 45px rgba(255,95,147,0.14);
+    --pos-text:       #1f2937;
+    --pos-muted:      #64748b;
+    --pos-surface:    rgba(255,255,255,0.62);
+    --pos-input-bg:   rgba(255,255,255,0.8);
+    --pos-heading:    #191919;
+  }
+`;
+
+/* ─── Animations ───────────────────────────────────────────────── */
+const fadeIn    = keyframes`from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}`;
+const slideIn   = keyframes`from{opacity:0;transform:translateX(24px)}to{opacity:1;transform:none}`;
+const popIn     = keyframes`from{opacity:0;transform:scale(.94)}to{opacity:1;transform:scale(1)}`;
+const spin      = keyframes`to{transform:rotate(360deg)}`;
+const pulse     = keyframes`0%,100%{opacity:1}50%{opacity:.5}`;
+
+/* ─── Styled Components ────────────────────────────────────────── */
+
+/* Layout */
+const POSPage = styled.div`
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: #F1F5F9;
+  overflow: hidden;
+`;
+
+/* Top Bar */
+const TopBar = styled.header`
+  height: 60px;
+  background: #fff;
+  border-bottom: 1px solid #E5E7EB;
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  gap: 16px;
+  flex-shrink: 0;
+  z-index: 50;
+`;
+
+const TopBarBrand = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #111827;
+  letter-spacing: -0.3px;
+`;
+
+const BrandMark = styled.div`
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #E91E63, #C2185B);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 14px;
+  flex-shrink: 0;
+`;
+
+const TopBarCenter = styled.div`
+  flex: 1;
+  display: flex;
+  justify-content: center;
+`;
+
+const SearchBar = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 38px;
+  background: #F9FAFB;
+  border: 1.5px solid #E5E7EB;
+  border-radius: 10px;
+  padding: 0 14px;
+  width: 100%;
+  max-width: 480px;
+  transition: border-color 0.15s;
+  &:focus-within { border-color: #E91E63; background: #fff; }
+  svg { color: #9CA3AF; font-size: 13px; flex-shrink: 0; }
+`;
+
+const SearchInput = styled.input`
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  color: #111827;
+  outline: none;
+  &::placeholder { color: #9CA3AF; }
+`;
+
+const ShortcutPills = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+`;
+
+const Pill = styled.span`
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 6px;
+  background: #F3F4F6;
+  color: #6B7280;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  kbd {
+    background: #E5E7EB;
+    border-radius: 3px;
+    padding: 1px 4px;
+    font-family: inherit;
+    font-size: 10px;
+    color: #374151;
+  }
+`;
+
+const TopBarRight = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+`;
+
+const IconBtn = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid #E5E7EB;
+  background: #fff;
+  color: #374151;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+  &:hover { background: #F9FAFB; border-color: #D1D5DB; }
+  &:disabled { opacity: 0.45; cursor: not-allowed; }
+  ${({ $danger }) => $danger && css`
+    border-color: #FCA5A5;
+    color: #DC2626;
+    &:hover { background: #FEF2F2; }
+  `}
+  ${({ $primary }) => $primary && css`
+    background: #E91E63;
+    border-color: #E91E63;
+    color: #fff;
+    &:hover { background: #C2185B; }
+  `}
+  ${({ $warning }) => $warning && css`
+    border-color: #FCD34D;
+    color: #D97706;
+    background: #FFFBEB;
+    &:hover { background: #FEF3C7; }
+  `}
+`;
+
+const Badge = styled.span`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  background: ${({ $type }) =>
+    $type === "low"  ? "#FEF3C7" :
+    $type === "out"  ? "#FEE2E2" :
+    $type === "info" ? "#EEF2FF" : "#F3F4F6"};
+  color: ${({ $type }) =>
+    $type === "low"  ? "#D97706" :
+    $type === "out"  ? "#DC2626" :
+    $type === "info" ? "#4F46E5" : "#6B7280"};
+`;
+
+/* Body */
+const POSBody = styled.div`
+  display: grid;
+  grid-template-columns: 220px 1fr 360px;
+  flex: 1;
+  overflow: hidden;
+`;
+
+/* Left: Categories */
+const CategoriesPane = styled.aside`
+  background: #fff;
+  border-right: 1px solid #E5E7EB;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+`;
+
+const PaneHeader = styled.div`
+  padding: 16px 16px 12px;
+  border-bottom: 1px solid #F3F4F6;
+`;
+
+const PaneLabel = styled.div`
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  color: #9CA3AF;
+  text-transform: uppercase;
+  margin-bottom: 2px;
+`;
+
+const PaneTitle = styled.div`
+  font-size: 14px;
+  font-weight: 700;
+  color: #111827;
+`;
+
+const CategoryList = styled.div`
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  &::-webkit-scrollbar { width: 4px; }
+  &::-webkit-scrollbar-track { background: transparent; }
+  &::-webkit-scrollbar-thumb { background: #E5E7EB; border-radius: 4px; }
+`;
+
+const CategoryBtn = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: none;
+  background: ${({ $active }) => $active ? "#FFF0F4" : "transparent"};
+  color: ${({ $active }) => $active ? "#E91E63" : "#374151"};
+  font-size: 13px;
+  font-weight: ${({ $active }) => $active ? 700 : 500};
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.12s;
+  &:hover { background: ${({ $active }) => $active ? "#FFF0F4" : "#F9FAFB"}; }
+  .cat-icon { width: 28px; height: 28px; border-radius: 6px;
+    background: ${({ $active }) => $active ? "#FECDD3" : "#F3F4F6"};
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; flex-shrink: 0; }
+  .cat-label { flex: 1; }
+  .cat-count { font-size: 11px; font-weight: 700;
+    background: ${({ $active }) => $active ? "#E91E63" : "#E5E7EB"};
+    color: ${({ $active }) => $active ? "#fff" : "#6B7280"};
+    border-radius: 999px; padding: 1px 7px; }
+`;
+
+/* Center: Products */
+const ProductsPane = styled.main`
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #F1F5F9;
+`;
+
+const ProductsPaneHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  background: #fff;
+  border-bottom: 1px solid #E5E7EB;
+  flex-shrink: 0;
+`;
+
+const SectionTitle = styled.div`
+  font-size: 14px;
+  font-weight: 700;
+  color: #111827;
+`;
+
+const CountPill = styled.span`
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: #F3F4F6;
+  color: #6B7280;
+  font-size: 12px;
+  font-weight: 600;
+`;
+
+const ProductGrid = styled.div`
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 16px;
+  align-content: start;
+  &::-webkit-scrollbar { width: 4px; }
+  &::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 4px; }
+`;
+
+const ProductCard = styled.article`
+  background: #fff;
+  border-radius: 12px;
+  border: 1.5px solid ${({ $inCart }) => $inCart ? "#FECDD3" : "#F3F4F6"};
+  overflow: hidden;
+  cursor: ${({ $outOfStock }) => $outOfStock ? "not-allowed" : "pointer"};
+  opacity: ${({ $outOfStock }) => $outOfStock ? 0.55 : 1};
+  transition: all 0.15s;
+  animation: ${fadeIn} 0.2s ease both;
+  position: relative;
+  min-height: 180px;
+  display: flex;
+  flex-direction: column;
+  &:hover { 
+    border-color: ${({ $outOfStock, $inCart }) => $outOfStock ? "#F3F4F6" : $inCart ? "#E91E63" : "#D1D5DB"};
+    transform: ${({ $outOfStock }) => $outOfStock ? "none" : "translateY(-2px)"};
+    box-shadow: ${({ $outOfStock }) => $outOfStock ? "none" : "0 6px 20px rgba(0,0,0,0.07)"};
+  }
+`;
+
+const ProductThumb = styled.div`
+  height: 120px;
+  background: #F9FAFB;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  color: #D1D5DB;
+  position: relative;
+  overflow: hidden;
+  img { width: 100%; height: 100%; object-fit: cover; }
+`;
+
+const DiscountChip = styled.span`
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: #E91E63;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 999px;
+`;
+
+const CartQtyBadge = styled.span`
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: #111827;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+`;
+
+const ProductBody = styled.div`
+  padding: 12px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+`;
+
+const ProductName = styled.div`
+  font-size: 14px;
+  font-weight: 700;
+  color: #111827;
+  line-height: 1.4;
+  margin-bottom: 6px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+`;
+
+const ProductCat = styled.div`
+  font-size: 11px;
+  color: #9CA3AF;
+  margin-bottom: 12px;
+  text-transform: capitalize;
+`;
+
+const PriceRow = styled.div`
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  margin-bottom: 12px;
+`;
+
+const PriceMain = styled.span`
+  font-size: 15px;
+  font-weight: 800;
+  color: #111827;
+`;
+
+const PriceOld = styled.span`
+  font-size: 11px;
+  color: #9CA3AF;
+  text-decoration: line-through;
+`;
+
+const StockBadge = styled.span`
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: ${({ $type }) =>
+    $type === "out" ? "#FEE2E2" : $type === "low" ? "#FEF3C7" : "#ECFDF5"};
+  color: ${({ $type }) =>
+    $type === "out" ? "#DC2626" : $type === "low" ? "#D97706" : "#059669"};
+`;
+
+const AddToCartBtn = styled.button`
+  width: 100%;
+  height: 36px;
+  border-radius: 8px;
+  border: none;
+  background: ${({ $outOfStock }) => $outOfStock ? "#F3F4F6" : "#E91E63"};
+  color: ${({ $outOfStock }) => $outOfStock ? "#9CA3AF" : "#fff"};
+  font-size: 12px;
+  font-weight: 600;
+  cursor: ${({ $outOfStock }) => $outOfStock ? "not-allowed" : "pointer"};
+  transition: all 0.15s;
+  margin-top: auto;
+  &:hover:not(:disabled) {
+    background: ${({ $outOfStock }) => $outOfStock ? "#F3F4F6" : "#C2185B"};
+  }
+  &:disabled {
+    opacity: 0.6;
+  }
+`;
+
+/* State Cards */
+const StateCard = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  height: 100%;
+  padding: 40px;
+  text-align: center;
+  animation: ${fadeIn} 0.3s ease;
+`;
+
+const StateIcon = styled.div`
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  background: #F3F4F6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  color: #9CA3AF;
+`;
+
+const StateTitle = styled.div`
+  font-size: 16px;
+  font-weight: 700;
+  color: #374151;
+`;
+
+const StateText = styled.div`
+  font-size: 13px;
+  color: #9CA3AF;
+  max-width: 260px;
+  line-height: 1.6;
+`;
+
+const Spinner = styled.div`
+  width: 36px;
+  height: 36px;
+  border: 3px solid #F3F4F6;
+  border-top-color: #E91E63;
+  border-radius: 50%;
+  animation: ${spin} 0.7s linear infinite;
+`;
+
+/* Right: Order Panel */
+const OrderPane = styled.aside`
+  background: #fff;
+  border-left: 1px solid #E5E7EB;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+`;
+
+const OrderHeader = styled.div`
+  padding: 14px 16px 12px;
+  border-bottom: 1px solid #F3F4F6;
+  flex-shrink: 0;
+`;
+
+const OrderMeta = styled.div`
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+`;
+
+const MetaBtn = styled.button`
+  flex: 1;
+  height: 32px;
+  border-radius: 8px;
+  border: 1.5px solid ${({ $active }) => $active ? "#E91E63" : "#E5E7EB"};
+  background: ${({ $active }) => $active ? "#FFF0F4" : "#fff"};
+  color: ${({ $active }) => $active ? "#E91E63" : "#6B7280"};
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.12s;
+`;
+
+const CustomerField = styled.div`
+  padding: 10px 16px;
+  border-bottom: 1px solid #F3F4F6;
+  flex-shrink: 0;
+`;
+
+const FieldLabel = styled.label`
+  font-size: 11px;
+  font-weight: 600;
+  color: #6B7280;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 6px;
+`;
+
+const FieldInput = styled.input`
+  width: 100%;
+  height: 34px;
+  border: 1.5px solid #E5E7EB;
+  border-radius: 8px;
+  padding: 0 10px;
+  font-size: 13px;
+  color: #111827;
+  outline: none;
+  background: #F9FAFB;
+  transition: border-color 0.15s;
+  &:focus { border-color: #E91E63; background: #fff; }
+  &::placeholder { color: #9CA3AF; }
+`;
+
+/* Cart */
+const CartList = styled.div`
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  &::-webkit-scrollbar { width: 4px; }
+  &::-webkit-scrollbar-thumb { background: #E5E7EB; border-radius: 4px; }
+`;
+
+const EmptyCart = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  height: 160px;
+  color: #9CA3AF;
+  font-size: 13px;
+  text-align: center;
+`;
+
+const CartItem = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 10px;
+  background: #F9FAFB;
+  border: 1px solid #F3F4F6;
+  border-radius: 10px;
+  animation: ${slideIn} 0.18s ease both;
+`;
+
+const CartItemInfo = styled.div`
+  flex: 1;
+  min-width: 0;
+`;
+
+const CartItemName = styled.div`
+  font-size: 12px;
+  font-weight: 600;
+  color: #111827;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+`;
+
+const CartItemPrice = styled.div`
+  font-size: 11px;
+  color: #6B7280;
+  margin-top: 1px;
+`;
+
+const CartItemTotal = styled.div`
+  font-size: 13px;
+  font-weight: 700;
+  color: #111827;
+  white-space: nowrap;
+`;
+
+const QtyControl = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 4px;
+`;
+
+const QtyBtn = styled.button`
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: 1px solid #E5E7EB;
+  background: #fff;
+  color: #374151;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.1s;
+  &:hover:not(:disabled) { border-color: #E91E63; color: #E91E63; background: #FFF0F4; }
+  &:disabled { opacity: 0.35; cursor: not-allowed; }
+`;
+
+const QtyInput = styled.input`
+  width: 36px;
+  height: 24px;
+  border: 1px solid #E5E7EB;
+  border-radius: 6px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: #111827;
+  outline: none;
+  background: #fff;
+  &:focus { border-color: #E91E63; }
+  -moz-appearance: textfield;
+  &::-webkit-inner-spin-button, &::-webkit-outer-spin-button { -webkit-appearance: none; }
+`;
+
+const RemoveBtn = styled.button`
+  width: 22px;
+  height: 22px;
+  border: none;
+  background: transparent;
+  color: #9CA3AF;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: 5px;
+  flex-shrink: 0;
+  &:hover { background: #FEE2E2; color: #DC2626; }
+`;
+
+/* Voucher */
+const VoucherSection = styled.div`
+  padding: 10px 12px;
+  border-top: 1px solid #F3F4F6;
+  flex-shrink: 0;
+`;
+
+const VoucherRow = styled.div`
+  display: flex;
+  gap: 6px;
+`;
+
+const VoucherInput = styled(FieldInput)`
+  font-size: 12px;
+  background: #fff;
+`;
+
+const VoucherBtn = styled.button`
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1.5px solid #E91E63;
+  background: #fff;
+  color: #E91E63;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+  flex-shrink: 0;
+  &:hover { background: #FFF0F4; }
+  &:disabled { opacity: 0.45; cursor: not-allowed; }
+`;
+
+const VoucherMsg = styled.div`
+  margin-top: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: ${({ $success }) => $success ? "#059669" : "#DC2626"};
+  display: flex;
+  align-items: center;
+  gap: 4px;
+`;
+
+/* Summary */
+const SummarySection = styled.div`
+  padding: 10px 16px;
+  border-top: 1px solid #F3F4F6;
+  flex-shrink: 0;
+`;
+
+const SummaryRow = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 3px 0;
+  font-size: 13px;
+  color: ${({ $muted }) => $muted ? "#9CA3AF" : "#374151"};
+  font-weight: ${({ $total }) => $total ? 800 : 400};
+`;
+
+const SummaryTotal = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0 4px;
+  border-top: 1.5px solid #E5E7EB;
+  margin-top: 6px;
+`;
+
+const TotalLabel = styled.div`
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+`;
+
+const TotalAmount = styled.div`
+  font-size: 22px;
+  font-weight: 900;
+  color: #111827;
+  letter-spacing: -0.5px;
+`;
+
+/* Payment Section */
+const PaymentSection = styled.div`
+  padding: 12px 16px;
+  border-top: 1px solid #F3F4F6;
+  flex-shrink: 0;
+  animation: ${fadeIn} 0.2s ease;
+`;
+
+const PaymentMethodGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  margin-bottom: 10px;
+`;
+
+const PayMethodBtn = styled.button`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 4px;
+  border-radius: 8px;
+  border: 1.5px solid ${({ $active, $color }) => $active ? $color : "#E5E7EB"};
+  background: ${({ $active, $color }) => $active ? `${$color}14` : "#fff"};
+  color: ${({ $active, $color }) => $active ? $color : "#6B7280"};
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.12s;
+  &:hover { border-color: ${({ $color }) => $color}; }
+  svg { font-size: 14px; }
+`;
+
+const AmountRow = styled.div`
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+`;
+
+const AmountInput = styled(FieldInput)`
+  font-size: 16px;
+  font-weight: 800;
+  text-align: right;
+  color: #111827;
+`;
+
+const QuickAmounts = styled.div`
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+`;
+
+const QuickBtn = styled.button`
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 6px;
+  border: 1px solid #E5E7EB;
+  background: #F9FAFB;
+  color: #374151;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.12s;
+  &:hover { border-color: #E91E63; color: #E91E63; background: #FFF0F4; }
+`;
+
+const ChangeRow = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: #F0FDF4;
+  border: 1px solid #BBF7D0;
+  margin-bottom: 10px;
+`;
+
+const ChangeLabel = styled.div`
+  font-size: 12px;
+  font-weight: 600;
+  color: #059669;
+`;
+
+const ChangeAmount = styled.div`
+  font-size: 16px;
+  font-weight: 900;
+  color: #059669;
+`;
+
+/* Action Buttons */
+const ActionsBar = styled.div`
+  padding: 12px 16px;
+  border-top: 1px solid #F3F4F6;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex-shrink: 0;
+`;
+
+const CheckoutBtn = styled.button`
+  width: 100%;
+  height: 46px;
+  border-radius: 10px;
+  border: none;
+  background: ${({ disabled }) => disabled ? "#F3F4F6" : "linear-gradient(135deg, #E91E63, #C2185B)"};
+  color: ${({ disabled }) => disabled ? "#9CA3AF" : "#fff"};
+  font-size: 15px;
+  font-weight: 700;
+  cursor: ${({ disabled }) => disabled ? "not-allowed" : "pointer"};
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  letter-spacing: -0.2px;
+  &:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(233,30,99,0.35); }
+  &:active:not(:disabled) { transform: none; box-shadow: none; }
+`;
+
+const SecondaryBtnsRow = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+`;
+
+const SecBtn = styled.button`
+  height: 36px;
+  border-radius: 8px;
+  border: 1.5px solid ${({ $color }) => $color || "#E5E7EB"};
+  background: #fff;
+  color: ${({ $color }) => $color || "#374151"};
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.12s;
+  &:hover { background: ${({ $bg }) => $bg || "#F9FAFB"}; }
+  &:disabled { opacity: 0.35; cursor: not-allowed; }
+`;
+
+/* Modals */
+const Overlay = styled.div`
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  padding: 20px;
+  animation: ${fadeIn} 0.15s ease;
+`;
+
+const Modal = styled.div`
+  background: #fff;
+  border-radius: 16px;
+  width: 100%;
+  max-width: ${({ $width }) => $width || "480px"};
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: ${popIn} 0.18s ease;
+`;
+
+const ModalHeader = styled.div`
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid #F3F4F6;
+  flex-shrink: 0;
+`;
+
+const ModalTitle = styled.div`
+  font-size: 16px;
+  font-weight: 800;
+  color: #111827;
+  margin-bottom: 2px;
+`;
+
+const ModalSub = styled.div`
+  font-size: 12px;
+  color: #9CA3AF;
+`;
+
+const ModalBody = styled.div`
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 24px;
+  &::-webkit-scrollbar { width: 4px; }
+  &::-webkit-scrollbar-thumb { background: #E5E7EB; border-radius: 4px; }
+`;
+
+const ModalFooter = styled.div`
+  padding: 16px 24px;
+  border-top: 1px solid #F3F4F6;
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  flex-shrink: 0;
+`;
+
+/* Receipt */
+const ReceiptPaper = styled.div`
+  background: #fff;
+  font-family: 'Courier New', monospace;
+  padding: 20px;
+  border: 1px dashed #D1D5DB;
+  border-radius: 8px;
+`;
+
+const ReceiptStore = styled.div`
+  text-align: center;
+  margin-bottom: 14px;
+  h3 { font-size: 16px; font-weight: 900; color: #111827; margin-bottom: 2px; }
+  p { font-size: 11px; color: #6B7280; }
+`;
+
+const ReceiptDivider = styled.div`
+  border-top: 1px dashed #D1D5DB;
+  margin: 10px 0;
+`;
+
+const ReceiptRow = styled.div`
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  padding: 2px 0;
+  color: ${({ $bold }) => $bold ? "#111827" : "#374151"};
+  font-weight: ${({ $bold }) => $bold ? 700 : 400};
+`;
+
+const ReceiptItemRow = styled.div`
+  padding: 4px 0;
+  font-size: 12px;
+  .item-name { font-weight: 600; color: #111827; }
+  .item-meta { display: flex; justify-content: space-between; color: #6B7280; }
+`;
+
+const ReceiptTotal = styled.div`
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0 4px;
+  border-top: 1px dashed #D1D5DB;
+  font-size: 15px;
+  font-weight: 900;
+  color: #111827;
+  margin-top: 4px;
+`;
+
+/* Held Orders */
+const HeldOrderCard = styled.div`
+  border: 1.5px solid #E5E7EB;
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 10px;
+  animation: ${fadeIn} 0.2s ease;
+  &:last-child { margin-bottom: 0; }
+`;
+
+const HeldOrderTop = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  .name { font-size: 14px; font-weight: 700; color: #111827; }
+  .id   { font-size: 11px; color: #9CA3AF; margin-top: 1px; }
+  .total { font-size: 15px; font-weight: 900; color: #111827; }
+`;
+
+const HeldOrderMeta = styled.div`
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+  span {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    color: #6B7280;
+    background: #F3F4F6;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-weight: 500;
+  }
+`;
+
+const HeldOrderItems = styled.div`
+  font-size: 12px;
+  color: #6B7280;
+  margin-bottom: 10px;
+  line-height: 1.6;
+`;
+
+const HeldOrderActions = styled.div`
+  display: flex;
+  gap: 8px;
+`;
+
+/* Toast */
+const ToastWrap = styled.div`
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 999;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`;
+
+const ToastItem = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: ${({ $type }) =>
+    $type === "success" ? "#059669" :
+    $type === "error"   ? "#DC2626" :
+    $type === "warn"    ? "#D97706" : "#111827"};
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+  animation: ${slideIn} 0.2s ease both;
+  max-width: 320px;
+`;
+
+/* ─── Main Component ────────────────────────────────────────────── */
+const CashierPOS = () => {
+  /* State */
+  const [products, setProducts]           = useState([]);
+  const [cart, setCart]                   = useState([]);
+  const [activeCategory, setActiveCategory] = useState("all");
+  const [searchQuery, setSearchQuery]     = useState("");
+  const [orderType, setOrderType]         = useState("walk-in");
+  const [customerName, setCustomerName]   = useState("");
+  const [voucher, setVoucher]             = useState("");
+  const [validatedVoucher, setValidatedVoucher] = useState(null);
+  const [voucherLoading, setVoucherLoading] = useState(false);
+  const [voucherMessage, setVoucherMessage] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("Cash");
+  const [amountReceived, setAmountReceived] = useState("");
+  const [showPaymentSection, setShowPaymentSection] = useState(false);
+  const [loading, setLoading]             = useState(true);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [error, setError]                 = useState("");
+  const [completedReceipt, setCompletedReceipt] = useState(null);
+  const [recentSale, setRecentSale]       = useState(null);
+  const [toasts, setToasts]               = useState([]);
+  const [heldOrders, setHeldOrders]       = useState(() => {
+    try { return JSON.parse(localStorage.getItem("cashierHeldOrders")) || []; }
+    catch { return []; }
+  });
+  const [showHeldOrders, setShowHeldOrders] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  const searchRef = useRef(null);
+
+  /* Toast */
+  const addToast = useCallback((message, type = "info") => {
+    const id = Date.now();
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3200);
+  }, []);
+
+  /* Fullscreen toggle */
+  const toggleFullscreen = useCallback(() => {
+    if (!document.fullscreenElement) {
+      // Hide navbar and sidebar before entering fullscreen
+      const navbar = document.querySelector('.navbar, .sidebar, nav, aside');
+      const sidebar = document.querySelector('.sidebar, aside, .sidebar-wrapper, .main-sidebar');
+      
+      if (navbar) navbar.style.display = 'none';
+      if (sidebar) sidebar.style.display = 'none';
+      
+      document.documentElement.requestFullscreen().then(() => {
+        setIsFullscreen(true);
+        addToast("Entered fullscreen mode", "success");
+      }).catch(err => {
+        console.error("Error entering fullscreen:", err);
+        // Restore navbar and sidebar if fullscreen fails
+        if (navbar) navbar.style.display = '';
+        if (sidebar) sidebar.style.display = '';
+        addToast("Could not enter fullscreen mode", "error");
+      });
+    } else {
+      document.exitFullscreen().then(() => {
+        setIsFullscreen(false);
+        // Restore navbar and sidebar after exiting fullscreen
+        setTimeout(() => {
+          const navbar = document.querySelector('.navbar, .sidebar, nav, aside');
+          const sidebar = document.querySelector('.sidebar, aside, .sidebar-wrapper, .main-sidebar');
+          if (navbar) navbar.style.display = '';
+          if (sidebar) sidebar.style.display = '';
+        }, 100);
+        addToast("Exited fullscreen mode", "info");
+      }).catch(err => {
+        console.error("Error exiting fullscreen:", err);
+        addToast("Could not exit fullscreen mode", "error");
+      });
+    }
+  }, [addToast]);
+
+  /* Subscribe to real-time inventory sync */
+  useEffect(() => {
+    console.log("CashierPOS: Subscribing to inventory sync service");
+    
+    // Subscribe to inventory updates
+    const unsubscribe = inventorySync.subscribe('CashierPOS', (categorizedProducts) => {
+      console.log("CashierPOS: Received inventory update");
+      
+      // Convert categorized products back to flat array for POS
+      const allProducts = Object.values(categorizedProducts).flat();
+      const normalized = allProducts.map((p, i) => normProduct(p, i));
+      
+      console.log("CashierPOS: Setting products state:", normalized);
+      setProducts(normalized);
+      setLoading(false);
+      setError("");
+    });
+
+    // Listen for stock change events
+    const handleStockChange = (stockChanges) => {
+      console.log("CashierPOS: Stock changed:", stockChanges);
+      
+      // Update products in real-time
+      setProducts(prevProducts => 
+        prevProducts.map(product => {
+          const stockChange = stockChanges.find(change => change.id === product.id);
+          if (stockChange) {
+            return {
+              ...product,
+              stock: stockChange.newStock,
+              inStock: stockChange.newStock > 0
+            };
+          }
+          return product;
+        })
+      );
+
+      // Update cart items if their stock changed
+      setCart(prevCart => 
+        prevCart.map(item => {
+          const stockChange = stockChanges.find(change => change.id === item.id);
+          if (stockChange) {
+            const newStock = stockChange.newStock;
+            if (newStock === 0) {
+              // Remove from cart if out of stock
+              addToast(`${item.name} removed from cart - out of stock`, "warn");
+              return null; // Will be filtered out
+            } else if (item.quantity > newStock) {
+              // Adjust quantity if exceeds stock
+              addToast(`${item.name} quantity adjusted to available stock`, "warn");
+              return { ...item, stock: newStock, inStock: newStock > 0 };
+            }
+          }
+          return item;
+        }).filter(Boolean) // Remove null items
+      );
+    };
+
+    eventEmitter.on('stockChanged', handleStockChange);
+
+    // Initial fetch
+    inventorySync.getProducts().then(categorizedProducts => {
+      const allProducts = Object.values(categorizedProducts).flat();
+      const normalized = allProducts.map((p, i) => normProduct(p, i));
+      setProducts(normalized);
+      setLoading(false);
+    }).catch(err => {
+      console.error("CashierPOS: Failed to fetch products:", err);
+      setError("Failed to load products");
+      setLoading(false);
+    });
+
+    // Cleanup
+    return () => {
+      unsubscribe();
+      eventEmitter.off('stockChanged', handleStockChange);
+    };
+  }, [addToast]);
+
+  /* Legacy fetch for fallback (kept for compatibility) */
+  const fetchProducts = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError("");
+      console.log("Fetching products from:", PRODUCT_ENDPOINT);
+      const response = await apiRequest(PRODUCT_ENDPOINT);
+      console.log("API response received:", response);
+      console.log("Response type:", typeof response, "Is array:", Array.isArray(response));
+      
+      const raw = Array.isArray(response)
+        ? response
+        : response?.products || response?.items || response?.data || [];
+      
+      console.log("Extracted raw products:", raw);
+      console.log("Raw products length:", raw.length);
+      
+      if (raw.length === 0) {
+        console.warn("No products found in API response!");
+      }
+      
+      const normalized = raw.map((p, i) => {
+        const norm = normProduct(p, i);
+        console.log(`Product ${i}:`, { 
+          original: p, 
+          normalized: norm,
+          hasName: !!norm.name,
+          hasImage: !!norm.image,
+          hasStock: norm.stock !== undefined
+        });
+        return norm;
+      });
+      
+      console.log("Setting products state:", normalized);
+      setProducts(normalized);
+    } catch (err) {
+      console.error("Fetch error details:", err);
+      setError(err.message || "Failed to load products");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchProducts(); }, [fetchProducts]);
+  useEffect(() => {
+    localStorage.setItem("cashierHeldOrders", JSON.stringify(heldOrders));
+  }, [heldOrders]);
+
+  /* Fullscreen state tracking */
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      const isFullscreenNow = !!document.fullscreenElement;
+      setIsFullscreen(isFullscreenNow);
+      
+      // Restore navbar and sidebar when exiting fullscreen
+      if (!isFullscreenNow) {
+        setTimeout(() => {
+          const navbar = document.querySelector('.navbar, .sidebar, nav, aside');
+          const sidebar = document.querySelector('.sidebar, aside, .sidebar-wrapper, .main-sidebar');
+          if (navbar) navbar.style.display = '';
+          if (sidebar) sidebar.style.display = '';
+        }, 100);
+      }
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      // Cleanup: restore navbar/sidebar when component unmounts
+      const navbar = document.querySelector('.navbar, .sidebar, nav, aside');
+      const sidebar = document.querySelector('.sidebar, aside, .sidebar-wrapper, .main-sidebar');
+      if (navbar) navbar.style.display = '';
+      if (sidebar) sidebar.style.display = '';
+    };
+  }, []);
+
+  /* Categories */
+  const categories = useMemo(() => {
+    const grouped = products.reduce((acc, p) => {
+      acc[p.category] = (acc[p.category] || 0) + 1;
+      return acc;
+    }, {});
+    return [
+      { id: "all", label: "All Products", count: products.length },
+      ...Object.entries(grouped).map(([id, count]) => ({
+        id,
+        label: id.replace(/\b\w/g, c => c.toUpperCase()),
+        count,
+      })),
+    ];
+  }, [products]);
+
+  /* Filtered products */
+  const filteredProducts = useMemo(() => {
+    const kw = searchQuery.trim().toLowerCase();
+    console.log("Filtering products:", { 
+      totalProducts: products.length, 
+      activeCategory, 
+      searchQuery: kw,
+      products: products.map(p => ({ name: p.name, category: p.category, stock: p.stock }))
+    });
+    
+    const filtered = products.filter(p => {
+      const matchCat = activeCategory === "all" || p.category === activeCategory;
+      const matchSearch = !kw
+        || p.name.toLowerCase().includes(kw)
+        || p.category.toLowerCase().includes(kw)
+        || String(p.barcode || "").toLowerCase().includes(kw);
+      return matchCat && matchSearch;
+    });
+    
+    console.log("Filter result:", { 
+      filteredCount: filtered.length,
+      activeCategory,
+      matchCat: activeCategory === "all",
+      filtered: filtered.map(p => ({ name: p.name, category: p.category }))
+    });
+    
+    return filtered;
+  }, [products, activeCategory, searchQuery]);
+
+  const lowStockCount  = useMemo(() => products.filter(p => p.stock > 0 && p.stock <= 5).length, [products]);
+  const outOfStockCount = useMemo(() => products.filter(p => p.stock <= 0).length, [products]);
+
+  /* Cart operations */
+  const addToCart = useCallback((product) => {
+    if (product.stock <= 0) return;
+    setCart(prev => {
+      const existing = prev.find(i => i.id === product.id);
+      if (existing) {
+        if (existing.quantity >= product.stock) {
+          addToast("Maximum stock reached", "warn");
+          return prev;
+        }
+        return prev.map(i => i.id === product.id ? { ...i, quantity: i.quantity + 1 } : i);
+      }
+      return [...prev, { ...product, quantity: 1 }];
+    });
+  }, [addToast]);
+
+  const updateQty = useCallback((id, qty) => {
+    const n = Number(qty) || 0;
+    if (n <= 0) { setCart(prev => prev.filter(i => i.id !== id)); return; }
+    setCart(prev => prev.map(i => i.id !== id ? i : { ...i, quantity: Math.min(n, i.stock || n) }));
+  }, []);
+
+  const removeFromCart = useCallback((id) => {
+    setCart(prev => prev.filter(i => i.id !== id));
+  }, []);
+
+  const clearOrder = useCallback(() => {
+    setCart([]);
+    setCustomerName("");
+    setVoucher("");
+    setValidatedVoucher(null);
+    setVoucherMessage("");
+    setPaymentMethod("Cash");
+    setAmountReceived("");
+    setShowPaymentSection(false);
+    setOrderType("walk-in");
+  }, []);
+
+  /* Totals */
+  const subtotal = useMemo(() =>
+    cart.reduce((sum, i) => sum + discountedPrice(i) * i.quantity, 0), [cart]);
+  const tax = useMemo(() => subtotal * TAX_RATE, [subtotal]);
+  const discountAmt = useMemo(() => {
+    if (!validatedVoucher) return 0;
+    const { type, value } = validatedVoucher;
+    if (type === "percentage") return subtotal * (value / 100);
+    if (type === "fixed") return Math.min(value, subtotal);
+    return 0;
+  }, [validatedVoucher, subtotal]);
+  const total = useMemo(() => Math.max(subtotal + tax - discountAmt, 0), [subtotal, tax, discountAmt]);
+  const change = useMemo(() => Math.max((Number(amountReceived) || 0) - total, 0), [amountReceived, total]);
+
+  const canCheckout = cart.length > 0 && !checkoutLoading
+    && (paymentMethod !== "Cash" || (Number(amountReceived) || 0) >= total);
+
+  /* Barcode / search enter */
+  const handleSearchEnter = useCallback(() => {
+    const kw = searchQuery.trim().toLowerCase();
+    if (!kw) return;
+    const barMatch = products.find(p => String(p.barcode || "").toLowerCase() === kw);
+    if (barMatch) {
+      addToCart(barMatch);
+      setSearchQuery("");
+      addToast(`${barMatch.name} added to cart`, "success");
+      return;
+    }
+    if (filteredProducts.length === 1) {
+      addToCart(filteredProducts[0]);
+      setSearchQuery("");
+      addToast(`${filteredProducts[0].name} added to cart`, "success");
+    }
+  }, [searchQuery, products, filteredProducts, addToCart, addToast]);
+
+  /* Keyboard shortcuts */
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.key === "F2") { e.preventDefault(); searchRef.current?.focus(); }
+      if (e.key === "F4") { e.preventDefault(); if (cart.length > 0) setShowPaymentSection(true); }
+      if (e.key === "Escape") {
+        if (searchQuery) { setSearchQuery(""); return; }
+        if (showPaymentSection) { setShowPaymentSection(false); return; }
+        if (showHeldOrders) { setShowHeldOrders(false); return; }
+        if (completedReceipt) { setCompletedReceipt(null); return; }
+      }
+      if (e.key === "Enter" && e.target === searchRef.current) {
+        e.preventDefault();
+        handleSearchEnter();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [cart.length, searchQuery, showPaymentSection, showHeldOrders, completedReceipt, handleSearchEnter]);
+
+  /* Voucher validate */
+  const handleValidateVoucher = async () => {
+    const code = voucher.trim();
+    if (!code) { setVoucherMessage("Please enter a voucher code."); return; }
+    try {
+      setVoucherLoading(true);
+      setVoucherMessage("");
+      const res = await apiRequest(VOUCHER_ENDPOINT, {
+        method: "POST",
+        body: JSON.stringify({ code, subtotal, items: cart.map(i => ({ product_id: i.id, quantity: i.quantity, price: i.price })) }),
+      });
+      if (!res?.valid) {
+        setValidatedVoucher(null);
+        setVoucherMessage(res?.message || "Invalid or expired voucher.");
+        return;
+      }
+      setValidatedVoucher({ code: res.code || code, type: res.type || "percentage", value: Number(res.value) || 0 });
+      setVoucherMessage(res.message || "Voucher applied successfully!");
+      addToast("Voucher applied!", "success");
+    } catch (err) {
+      setValidatedVoucher(null);
+      setVoucherMessage(err.message || "Unable to validate voucher.");
+    } finally {
+      setVoucherLoading(false);
+    }
+  };
+
+  /* Hold order */
+  const handleHoldOrder = () => {
+    if (!cart.length) return;
+    const held = {
+      id: `HOLD-${Date.now()}`,
+      customerName: customerName || "Walk-in Customer",
+      orderType, voucher, cart, subtotal, tax, discount: discountAmt, total,
+      createdAt: new Date().toISOString(),
+    };
+    setHeldOrders(prev => [held, ...prev]);
+    addToast("Order held successfully", "info");
+    clearOrder();
+  };
+
+  const handleRestoreHeld = (order) => {
+    setCart(order.cart || []);
+    setCustomerName(order.customerName === "Walk-in Customer" ? "" : order.customerName);
+    setOrderType(order.orderType || "walk-in");
+    setVoucher(order.voucher || "");
+    setHeldOrders(prev => prev.filter(o => o.id !== order.id));
+    setShowHeldOrders(false);
+    addToast("Order restored", "success");
+  };
+
+  /* Checkout */
+  const handleCheckout = async () => {
+    if (!canCheckout) return;
+    try {
+      setCheckoutLoading(true);
+      const payload = {
+        order_type: orderType,
+        customer_name: customerName || "Walk-in Customer",
+        payment_method: paymentMethod.toLowerCase(),
+        cash_received: Number(amountReceived) || total,
+        subtotal, tax, discount: discountAmt, total,
+        voucher: validatedVoucher?.code || null,
+        items: cart.map(i => ({
+          item_type: "product",
+          item_id: i.id,
+          item_name: i.name,
+          quantity: i.quantity,
+          unit_price: Number(i.price) || 0,
+          discount_amount: Number(i.discount) || 0,
+        })),
+      };
+      const res = await apiRequest(CHECKOUT_ENDPOINT, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+      const txId = res?.transaction_id || res?.id || `TRX-${Date.now()}`;
+      const receipt = {
+        transaction_id: String(txId).startsWith("TRX-") ? String(txId) : `TRX-${String(txId).padStart(4, "0")}`,
+        customer_name: payload.customer_name,
+        order_type: orderType,
+        payment_method: paymentMethod,
+        amount_received: Number(amountReceived) || total,
+        subtotal, tax, discount: discountAmt, total,
+        change: Math.max((Number(amountReceived) || total) - total, 0),
+        items: payload.items,
+        date: new Date().toLocaleString("en-PH", { month: "short", day: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }),
+      };
+      setCompletedReceipt(receipt);
+      setRecentSale(receipt);
+      addToast("Payment successful!", "success");
+      clearOrder();
+      fetchProducts();
+    } catch (err) {
+      addToast(err.message || "Checkout failed. Please try again.", "error");
+    } finally {
+      setCheckoutLoading(false);
+    }
+  };
+
+  /* Print receipt */
+  const handlePrint = () => {
+    if (!completedReceipt) return;
+    const w = window.open("", "_blank", "width=420,height=700");
+    if (!w) { addToast("Allow pop-ups to print receipt", "warn"); return; }
+    const itemsHtml = completedReceipt.items.map(i => `
+      <tr>
+        <td>${i.item_name} × ${i.quantity}</td>
+        <td style="text-align:right">${fmt(i.unit_price * i.quantity)}</td>
+      </tr>`).join("");
+    w.document.write(`<!DOCTYPE html><html><head><title>Receipt</title>
+      <style>
+        body{font-family:'Courier New',monospace;padding:20px;max-width:360px;margin:auto}
+        h2{text-align:center;font-size:18px;margin-bottom:4px}
+        .center{text-align:center;font-size:12px;color:#666;margin-bottom:12px}
+        hr{border:none;border-top:1px dashed #ccc;margin:10px 0}
+        table{width:100%;font-size:12px;border-collapse:collapse}
+        td{padding:3px 0;vertical-align:top}
+        .meta td{color:#444}.total-row td{font-size:14px;font-weight:bold;padding-top:8px;border-top:1px dashed #ccc}
+        .footer{text-align:center;font-size:11px;color:#888;margin-top:12px}
+        @media print{button{display:none}}
+      </style></head><body>
+      <h2>Pawesome Retreat Inc.</h2>
+      <div class="center">Official Cashier Receipt<br>${completedReceipt.date}</div>
+      <hr>
+      <table class="meta">
+        <tr><td>Transaction</td><td style="text-align:right">${completedReceipt.transaction_id}</td></tr>
+        <tr><td>Customer</td><td style="text-align:right">${completedReceipt.customer_name}</td></tr>
+        <tr><td>Type</td><td style="text-align:right">${completedReceipt.order_type}</td></tr>
+        <tr><td>Payment</td><td style="text-align:right">${completedReceipt.payment_method}</td></tr>
+      </table>
+      <hr>
+      <table>${itemsHtml}</table>
+      <hr>
+      <table>
+        <tr><td>Subtotal</td><td style="text-align:right">${fmt(completedReceipt.subtotal)}</td></tr>
+        <tr><td>VAT 12%</td><td style="text-align:right">${fmt(completedReceipt.tax)}</td></tr>
+        <tr><td>Discount</td><td style="text-align:right">-${fmt(completedReceipt.discount)}</td></tr>
+        <tr class="total-row"><td>TOTAL</td><td style="text-align:right">${fmt(completedReceipt.total)}</td></tr>
+        <tr><td>Received</td><td style="text-align:right">${fmt(completedReceipt.amount_received)}</td></tr>
+        <tr><td>Change</td><td style="text-align:right">${fmt(completedReceipt.change)}</td></tr>
+      </table>
+      <div class="footer">Thank you for shopping with us!<br>Please keep this receipt.</div>
+      <br><button onclick="window.print()">Print</button>
+    </body></html>`);
+    w.document.close();
+    w.focus();
+  };
+
+  /* ─── Render ──────────────────────────────────────────────────── */
+  return (
+    <>
+      <GlobalStyle />
+
+      <POSPage>
+        {/* ── Top Bar ─────────────────────────────────────────── */}
+        <TopBar>
+          <TopBarBrand>
+            <BrandMark><FontAwesomeIcon icon={faPaw} /></BrandMark>
+            Cashier POS
+          </TopBarBrand>
+
+          <TopBarCenter>
+            <SearchBar>
+              <FontAwesomeIcon icon={faBarcode} />
+              <SearchInput
+                ref={searchRef}
+                type="text"
+                placeholder="Search product name or scan barcode… (Enter to add)"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); handleSearchEnter(); } }}
+              />
+              {searchQuery && (
+                <FontAwesomeIcon icon={faXmark} style={{ cursor: "pointer", color: "#9CA3AF" }}
+                  onClick={() => setSearchQuery("")} />
+              )}
+            </SearchBar>
+          </TopBarCenter>
+
+          <ShortcutPills>
+            <Pill><kbd>F2</kbd> Search</Pill>
+            <Pill><kbd>F4</kbd> Pay</Pill>
+            <Pill><kbd>Esc</kbd> Cancel</Pill>
+          </ShortcutPills>
+
+          <TopBarRight>
+            {lowStockCount > 0 && (
+              <Badge $type="low"><FontAwesomeIcon icon={faTriangleExclamation} /> {lowStockCount} Low</Badge>
+            )}
+            {outOfStockCount > 0 && (
+              <Badge $type="out"><FontAwesomeIcon icon={faBan} /> {outOfStockCount} Out</Badge>
+            )}
+
+            <IconBtn onClick={fetchProducts}>
+              <FontAwesomeIcon icon={faRotateRight} /> Refresh
+            </IconBtn>
+
+            <IconBtn $warning onClick={() => setShowHeldOrders(true)}>
+              <FontAwesomeIcon icon={faFolderOpen} /> Held
+              {heldOrders.length > 0 && (
+                <Badge $type="info">{heldOrders.length}</Badge>
+              )}
+            </IconBtn>
+
+            <IconBtn $warning onClick={handleHoldOrder} disabled={cart.length === 0}>
+              <FontAwesomeIcon icon={faPause} /> Hold
+            </IconBtn>
+
+            <IconBtn $danger onClick={clearOrder} disabled={cart.length === 0}>
+              <FontAwesomeIcon icon={faTrash} /> Clear
+            </IconBtn>
+
+            <IconBtn $primary onClick={toggleFullscreen}>
+              <FontAwesomeIcon icon={isFullscreen ? faCompress : faExpand} />
+              {isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+            </IconBtn>
+          </TopBarRight>
+        </TopBar>
+
+        {/* ── Body ──────────────────────────────────────────────── */}
+        <POSBody>
+          {/* Left: Categories */}
+          <CategoriesPane>
+            <PaneHeader>
+              <PaneLabel>Browse By</PaneLabel>
+              <PaneTitle>Categories</PaneTitle>
+            </PaneHeader>
+            <CategoryList>
+              {categories.map(cat => (
+                <CategoryBtn
+                  key={cat.id}
+                  $active={activeCategory === cat.id}
+                  onClick={() => setActiveCategory(cat.id)}
+                >
+                  <span className="cat-icon">
+                    <FontAwesomeIcon icon={
+                      cat.id === "all" ? faStore :
+                      cat.id.includes("food") ? faPaw :
+                      cat.id.includes("health") ? faTag :
+                      cat.id.includes("groom") ? faBolt :
+                      faBox
+                    } />
+                  </span>
+                  <span className="cat-label">{cat.label}</span>
+                  <span className="cat-count">{cat.count}</span>
+                </CategoryBtn>
+              ))}
+            </CategoryList>
+          </CategoriesPane>
+
+          {/* Center: Products */}
+          <ProductsPane>
+            <ProductsPaneHeader>
+              <div>
+                <PaneLabel>Catalog</PaneLabel>
+                <SectionTitle>
+                  {activeCategory === "all" ? "All Products"
+                    : categories.find(c => c.id === activeCategory)?.label || "Products"}
+                </SectionTitle>
+              </div>
+              <CountPill>
+                <FontAwesomeIcon icon={faList} />
+                {filteredProducts.length} item{filteredProducts.length !== 1 ? "s" : ""}
+              </CountPill>
+            </ProductsPaneHeader>
+
+            {loading ? (
+              <StateCard>
+                <Spinner />
+                <StateTitle>Loading products…</StateTitle>
+                <StateText>Fetching inventory from the server.</StateText>
+              </StateCard>
+            ) : error ? (
+              <StateCard>
+                <StateIcon><FontAwesomeIcon icon={faTriangleExclamation} /></StateIcon>
+                <StateTitle>Could not load products</StateTitle>
+                <StateText>{error}</StateText>
+                <IconBtn onClick={fetchProducts}><FontAwesomeIcon icon={faRotateRight} /> Retry</IconBtn>
+              </StateCard>
+            ) : filteredProducts.length === 0 ? (
+              <StateCard>
+                <StateIcon><FontAwesomeIcon icon={faBoxOpen} /></StateIcon>
+                <StateTitle>No products found</StateTitle>
+                <StateText>Try another category or search term.</StateText>
+              </StateCard>
+            ) : (
+              <ProductGrid>
+                {filteredProducts.map(product => {
+                  const cartItem = cart.find(i => i.id === product.id);
+                  const dPrice   = discountedPrice(product);
+                  const hasDisc  = Number(product.discount) > 0;
+                  const ss       = stockStatus(product.stock);
+
+                  return (
+                    <ProductCard
+                      key={product.id}
+                      $inCart={!!cartItem}
+                      $outOfStock={product.stock <= 0}
+                    >
+                      <ProductThumb>
+                        {product.image
+                          ? <img src={product.image} alt={product.name} />
+                          : <FontAwesomeIcon icon={faBoxOpen} />}
+                        {hasDisc && <DiscountChip>-{product.discount}%</DiscountChip>}
+                        {cartItem && <CartQtyBadge>{cartItem.quantity}</CartQtyBadge>}
+                      </ProductThumb>
+
+                      <ProductBody>
+                        <ProductName title={product.name}>{product.name}</ProductName>
+                        <PriceRow>
+                          <PriceMain>{fmt(dPrice)}</PriceMain>
+                          {hasDisc && <PriceOld>{fmt(product.price)}</PriceOld>}
+                        </PriceRow>
+                        <StockBadge $type={ss.type}>{ss.label}</StockBadge>
+                        <AddToCartBtn
+                          $outOfStock={product.stock <= 0}
+                          onClick={() => addToCart(product)}
+                        >
+                          {product.stock <= 0 ? "Out of Stock" : "Add to Cart"}
+                        </AddToCartBtn>
+                      </ProductBody>
+                    </ProductCard>
+                  );
+                })}
+              </ProductGrid>
+            )}
+          </ProductsPane>
+
+          {/* Right: Order Panel */}
+          <OrderPane>
+            <OrderHeader>
+              <PaneLabel>Current</PaneLabel>
+              <PaneTitle>Order Details</PaneTitle>
+              <OrderMeta>
+                <MetaBtn $active={orderType === "walk-in"} onClick={() => setOrderType("walk-in")}>
+                  Walk-in
+                </MetaBtn>
+                <MetaBtn $active={orderType === "pickup"} onClick={() => setOrderType("pickup")}>
+                  Pick-up
+                </MetaBtn>
+                <MetaBtn $active={orderType === "delivery"} onClick={() => setOrderType("delivery")}>
+                  Delivery
+                </MetaBtn>
+              </OrderMeta>
+            </OrderHeader>
+
+            <CustomerField>
+              <FieldLabel>
+                <FontAwesomeIcon icon={faUser} />
+                Customer Name
+              </FieldLabel>
+              <FieldInput
+                type="text"
+                placeholder="Walk-in Customer"
+                value={customerName}
+                onChange={e => setCustomerName(e.target.value)}
+              />
+            </CustomerField>
+
+            {/* Cart */}
+            <CartList>
+              {cart.length === 0 ? (
+                <EmptyCart>
+                  <FontAwesomeIcon icon={faShoppingCart} style={{ fontSize: 32, color: "#E5E7EB" }} />
+                  <div>
+                    <div style={{ fontWeight: 700, color: "#374151", marginBottom: 4 }}>Cart is empty</div>
+                    <div>Click a product or scan a barcode to add items.</div>
+                  </div>
+                </EmptyCart>
+              ) : (
+                cart.map(item => (
+                  <CartItem key={item.id}>
+                    <CartItemInfo>
+                      <CartItemName title={item.name}>{item.name}</CartItemName>
+                      <CartItemPrice>{fmt(discountedPrice(item))} each</CartItemPrice>
+                    </CartItemInfo>
+
+                    <QtyControl>
+                      <QtyBtn onClick={() => updateQty(item.id, item.quantity - 1)}>
+                        <FontAwesomeIcon icon={faMinus} />
+                      </QtyBtn>
+                      <QtyInput
+                        type="number"
+                        min="1"
+                        max={item.stock}
+                        value={item.quantity}
+                        onChange={e => updateQty(item.id, e.target.value)}
+                      />
+                      <QtyBtn
+                        onClick={() => updateQty(item.id, item.quantity + 1)}
+                        disabled={item.quantity >= item.stock}
+                      >
+                        <FontAwesomeIcon icon={faPlus} />
+                      </QtyBtn>
+                    </QtyControl>
+
+                    <CartItemTotal>{fmt(discountedPrice(item) * item.quantity)}</CartItemTotal>
+
+                    <RemoveBtn onClick={() => removeFromCart(item.id)}>
+                      <FontAwesomeIcon icon={faXmark} />
+                    </RemoveBtn>
+                  </CartItem>
+                ))
+              )}
+            </CartList>
+
+            {/* Voucher */}
+            <VoucherSection>
+              <FieldLabel style={{ marginBottom: 6 }}>
+                <FontAwesomeIcon icon={faTag} />
+                Voucher Code
+              </FieldLabel>
+              <VoucherRow>
+                <VoucherInput
+                  type="text"
+                  placeholder="Enter voucher code"
+                  value={voucher}
+                  onChange={e => { setVoucher(e.target.value); setValidatedVoucher(null); setVoucherMessage(""); }}
+                />
+                <VoucherBtn
+                  onClick={handleValidateVoucher}
+                  disabled={voucherLoading || cart.length === 0}
+                >
+                  {voucherLoading ? "…" : "Apply"}
+                </VoucherBtn>
+              </VoucherRow>
+              {voucherMessage && (
+                <VoucherMsg $success={!!validatedVoucher}>
+                  <FontAwesomeIcon icon={validatedVoucher ? faCheckCircle : faXmark} />
+                  {voucherMessage}
+                </VoucherMsg>
+              )}
+            </VoucherSection>
+
+            {/* Summary */}
+            <SummarySection>
+              <SummaryRow $muted>
+                <span>Subtotal</span>
+                <span>{fmt(subtotal)}</span>
+              </SummaryRow>
+              <SummaryRow $muted>
+                <span>VAT 12%</span>
+                <span>{fmt(tax)}</span>
+              </SummaryRow>
+              {discountAmt > 0 && (
+                <SummaryRow $muted>
+                  <span style={{ color: "#059669" }}>
+                    Discount {validatedVoucher ? `(${validatedVoucher.code})` : ""}
+                  </span>
+                  <span style={{ color: "#059669" }}>-{fmt(discountAmt)}</span>
+                </SummaryRow>
+              )}
+              <SummaryTotal>
+                <TotalLabel>Total</TotalLabel>
+                <TotalAmount>{fmt(total)}</TotalAmount>
+              </SummaryTotal>
+            </SummarySection>
+
+            {/* Payment */}
+            {showPaymentSection && (
+              <PaymentSection>
+                <FieldLabel style={{ marginBottom: 8 }}>
+                  <FontAwesomeIcon icon={faCreditCard} />
+                  Payment Method
+                </FieldLabel>
+                <PaymentMethodGrid>
+                  {PAYMENT_METHODS.map(pm => (
+                    <PayMethodBtn
+                      key={pm.value}
+                      $active={paymentMethod === pm.value}
+                      $color={pm.color}
+                      onClick={() => setPaymentMethod(pm.value)}
+                    >
+                      <FontAwesomeIcon icon={pm.icon} />
+                      {pm.label}
+                    </PayMethodBtn>
+                  ))}
+                </PaymentMethodGrid>
+
+                {paymentMethod === "Cash" && (
+                  <>
+                    <FieldLabel style={{ marginBottom: 6 }}>
+                      <FontAwesomeIcon icon={faMoneyBillWave} />
+                      Amount Received
+                    </FieldLabel>
+                    <AmountRow>
+                      <AmountInput
+                        type="number"
+                        min="0"
+                        placeholder={total.toFixed(2)}
+                        value={amountReceived}
+                        onChange={e => setAmountReceived(e.target.value)}
+                      />
+                    </AmountRow>
+                    <QuickAmounts>
+                      {QUICK_AMOUNTS.filter(a => a >= total || a === Math.ceil(total / 50) * 50)
+                        .slice(0, 6).map(a => (
+                          <QuickBtn key={a} onClick={() => setAmountReceived(String(a))}>
+                            ₱{a.toLocaleString()}
+                          </QuickBtn>
+                        ))}
+                      {/* Always show a few quick amounts */}
+                      {QUICK_AMOUNTS.map(a => (
+                        <QuickBtn key={`q-${a}`} onClick={() => setAmountReceived(String(a))}>
+                          ₱{a.toLocaleString()}
+                        </QuickBtn>
+                      )).slice(0, 6)}
+                    </QuickAmounts>
+                    {(Number(amountReceived) || 0) >= total && (
+                      <ChangeRow>
+                        <ChangeLabel>Change</ChangeLabel>
+                        <ChangeAmount>{fmt(change)}</ChangeAmount>
+                      </ChangeRow>
+                    )}
+                  </>
+                )}
+              </PaymentSection>
+            )}
+
+            {/* Actions */}
+            <ActionsBar>
+              {!showPaymentSection ? (
+                <CheckoutBtn
+                  onClick={() => setShowPaymentSection(true)}
+                  disabled={cart.length === 0}
+                >
+                  <FontAwesomeIcon icon={faCalculator} />
+                  Proceed to Payment — {fmt(total)}
+                </CheckoutBtn>
+              ) : (
+                <CheckoutBtn onClick={handleCheckout} disabled={!canCheckout}>
+                  <FontAwesomeIcon icon={checkoutLoading ? faClock : faCheckCircle} />
+                  {checkoutLoading ? "Processing…" : `Complete Payment — ${fmt(total)}`}
+                </CheckoutBtn>
+              )}
+
+              <SecondaryBtnsRow>
+                <SecBtn
+                  $color="#D97706"
+                  $bg="#FFFBEB"
+                  onClick={handleHoldOrder}
+                  disabled={cart.length === 0}
+                >
+                  <FontAwesomeIcon icon={faPause} />
+                  Hold Order
+                </SecBtn>
+                <SecBtn
+                  $color="#DC2626"
+                  $bg="#FEF2F2"
+                  onClick={clearOrder}
+                  disabled={cart.length === 0}
+                >
+                  <FontAwesomeIcon icon={faTrash} />
+                  Clear Cart
+                </SecBtn>
+              </SecondaryBtnsRow>
+
+              {recentSale && (
+                <div style={{ padding: "10px 12px", background: "#F0FDF4", border: "1px solid #BBF7D0", borderRadius: 10 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                    <div>
+                      <div style={{ fontSize: 10, color: "#059669", fontWeight: 700, letterSpacing: 0.8, textTransform: "uppercase" }}>Last Sale</div>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: "#111827" }}>{recentSale.transaction_id}</div>
+                    </div>
+                    <div style={{ fontSize: 15, fontWeight: 900, color: "#059669" }}>{fmt(recentSale.total)}</div>
+                  </div>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <SecBtn style={{ flex: 1 }} $color="#059669" $bg="#F0FDF4"
+                      onClick={() => setCompletedReceipt(recentSale)}>
+                      <FontAwesomeIcon icon={faReceipt} /> View Receipt
+                    </SecBtn>
+                    <SecBtn style={{ flex: 1 }} $color="#9CA3AF" $bg="#F9FAFB"
+                      onClick={() => setRecentSale(null)}>
+                      Dismiss
+                    </SecBtn>
+                  </div>
+                </div>
+              )}
+            </ActionsBar>
+          </OrderPane>
+        </POSBody>
+      </POSPage>
+
+      {/* ── Receipt Modal ──────────────────────────────────────── */}
+      {completedReceipt && (
+        <Overlay onClick={() => setCompletedReceipt(null)}>
+          <Modal $width="440px" onClick={e => e.stopPropagation()}>
+            <ModalHeader>
+              <div>
+                <ModalTitle>Receipt Preview</ModalTitle>
+                <ModalSub>{completedReceipt.transaction_id} · {completedReceipt.date}</ModalSub>
+              </div>
+              <RemoveBtn onClick={() => setCompletedReceipt(null)} style={{ width: 30, height: 30 }}>
+                <FontAwesomeIcon icon={faXmark} />
+              </RemoveBtn>
+            </ModalHeader>
+
+            <ModalBody>
+              <ReceiptPaper>
+                <ReceiptStore>
+                  <h3>Pawesome Retreat Inc.</h3>
+                  <p>Official Cashier Receipt · {completedReceipt.date}</p>
+                </ReceiptStore>
+
+                <ReceiptDivider />
+
+                <ReceiptRow><span>Transaction</span><span>{completedReceipt.transaction_id}</span></ReceiptRow>
+                <ReceiptRow><span>Customer</span><span>{completedReceipt.customer_name}</span></ReceiptRow>
+                <ReceiptRow><span>Type</span><span style={{ textTransform: "capitalize" }}>{completedReceipt.order_type}</span></ReceiptRow>
+                <ReceiptRow><span>Payment</span><span>{completedReceipt.payment_method}</span></ReceiptRow>
+
+                <ReceiptDivider />
+
+                {completedReceipt.items.map((item, idx) => (
+                  <ReceiptItemRow key={idx}>
+                    <div className="item-name">{item.item_name}</div>
+                    <div className="item-meta">
+                      <span>{item.quantity} × {fmt(item.unit_price)}</span>
+                      <span>{fmt(item.unit_price * item.quantity)}</span>
+                    </div>
+                  </ReceiptItemRow>
+                ))}
+
+                <ReceiptDivider />
+
+                <ReceiptRow><span>Subtotal</span><span>{fmt(completedReceipt.subtotal)}</span></ReceiptRow>
+                <ReceiptRow><span>VAT 12%</span><span>{fmt(completedReceipt.tax)}</span></ReceiptRow>
+                <ReceiptRow><span>Discount</span><span>-{fmt(completedReceipt.discount)}</span></ReceiptRow>
+                <ReceiptTotal>
+                  <span>TOTAL</span>
+                  <span>{fmt(completedReceipt.total)}</span>
+                </ReceiptTotal>
+                <ReceiptRow><span>Received</span><span>{fmt(completedReceipt.amount_received)}</span></ReceiptRow>
+                <ReceiptRow $bold><span>Change</span><span>{fmt(completedReceipt.change)}</span></ReceiptRow>
+
+                <ReceiptDivider />
+
+                <div style={{ textAlign: "center", fontSize: 11, color: "#9CA3AF", lineHeight: 1.6 }}>
+                  Thank you for shopping with us!<br />
+                  Please keep this receipt for reference.
+                </div>
+              </ReceiptPaper>
+            </ModalBody>
+
+            <ModalFooter>
+              <SecBtn $color="#9CA3AF" $bg="#F9FAFB" style={{ flex: 1, height: 40 }}
+                onClick={() => setCompletedReceipt(null)}>
+                Close
+              </SecBtn>
+              <CheckoutBtn style={{ flex: 2, height: 40, fontSize: 13 }} onClick={handlePrint}>
+                <FontAwesomeIcon icon={faPrint} /> Print Receipt
+              </CheckoutBtn>
+            </ModalFooter>
+          </Modal>
+        </Overlay>
+      )}
+
+      {/* ── Held Orders Modal ─────────────────────────────────── */}
+      {showHeldOrders && (
+        <Overlay onClick={() => setShowHeldOrders(false)}>
+          <Modal $width="520px" onClick={e => e.stopPropagation()}>
+            <ModalHeader>
+              <div>
+                <ModalTitle>Held Orders</ModalTitle>
+                <ModalSub>Restore or remove temporarily saved orders.</ModalSub>
+              </div>
+              <RemoveBtn onClick={() => setShowHeldOrders(false)} style={{ width: 30, height: 30 }}>
+                <FontAwesomeIcon icon={faXmark} />
+              </RemoveBtn>
+            </ModalHeader>
+
+            <ModalBody>
+              {heldOrders.length === 0 ? (
+                <StateCard style={{ height: 200 }}>
+                  <StateIcon><FontAwesomeIcon icon={faShoppingCart} /></StateIcon>
+                  <StateTitle>No held orders</StateTitle>
+                  <StateText>Held orders appear here after you park a cart.</StateText>
+                </StateCard>
+              ) : (
+                heldOrders.map(order => (
+                  <HeldOrderCard key={order.id}>
+                    <HeldOrderTop>
+                      <div>
+                        <div className="name">{order.customerName}</div>
+                        <div className="id">{order.id}</div>
+                      </div>
+                      <div className="total">{fmt(order.total)}</div>
+                    </HeldOrderTop>
+
+                    <HeldOrderMeta>
+                      <span><FontAwesomeIcon icon={faList} /> {order.cart?.length || 0} item type(s)</span>
+                      <span style={{ textTransform: "capitalize" }}>{order.orderType}</span>
+                      <span>
+                        <FontAwesomeIcon icon={faClock} />
+                        {new Date(order.createdAt).toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit" })}
+                      </span>
+                    </HeldOrderMeta>
+
+                    <HeldOrderItems>
+                      {(order.cart || []).slice(0, 4).map(i => (
+                        <span key={i.id} style={{ display: "inline-block", marginRight: 8 }}>
+                          {i.quantity}× {i.name}
+                        </span>
+                      ))}
+                      {(order.cart || []).length > 4 && <span>+{order.cart.length - 4} more</span>}
+                    </HeldOrderItems>
+
+                    <HeldOrderActions>
+                      <CheckoutBtn
+                        style={{ flex: 2, height: 36, fontSize: 13 }}
+                        onClick={() => handleRestoreHeld(order)}
+                      >
+                        <FontAwesomeIcon icon={faRotateRight} /> Restore Order
+                      </CheckoutBtn>
+                      <SecBtn
+                        style={{ flex: 1, height: 36 }}
+                        $color="#DC2626"
+                        $bg="#FEF2F2"
+                        onClick={() => setHeldOrders(prev => prev.filter(o => o.id !== order.id))}
+                      >
+                        <FontAwesomeIcon icon={faTrash} /> Remove
+                      </SecBtn>
+                    </HeldOrderActions>
+                  </HeldOrderCard>
+                ))
+              )}
+            </ModalBody>
+          </Modal>
+        </Overlay>
+      )}
+
+      {/* ── Toasts ──────────────────────────────────────────────── */}
+      <ToastWrap>
+        {toasts.map(t => (
+          <ToastItem key={t.id} $type={t.type}>
+            <FontAwesomeIcon icon={
+              t.type === "success" ? faCheckCircle :
+              t.type === "error"   ? faXmark :
+              t.type === "warn"    ? faTriangleExclamation :
+              faBolt
+            } />
+            {t.message}
+          </ToastItem>
+        ))}
+      </ToastWrap>
+    </>
+  );
+};
+
+export default CashierPOS;
