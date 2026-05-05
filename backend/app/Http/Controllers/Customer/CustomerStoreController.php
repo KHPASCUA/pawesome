@@ -9,6 +9,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
+use App\Services\WorkflowNotifier;
+use App\Models\ActivityLog;
 
 class CustomerStoreController extends Controller
 {
@@ -46,19 +48,11 @@ class CustomerStoreController extends Controller
             'items.*.qty' => 'nullable|integer|min:1',
             'items.*.quantity' => 'nullable|integer|min:1',
             'items.*.price' => 'required|numeric|min:0',
-<<<<<<< HEAD
-            'totalAmount' => 'required|numeric|min:0',
-            'orderType' => 'required|string',
-            'paymentMethod' => 'required|string',
-            'paymentProof' => 'nullable|string',
-            'paymentReference' => 'nullable|string',
-=======
-            'items.*.unit_price' => 'nullable|numeric|min:0',
-            'items.*.subtotal' => 'nullable|numeric|min:0',
-            'items.*.line_total' => 'nullable|numeric|min:0',
-
-            'totalAmount' => 'nullable|numeric|min:0',
-            'total_amount' => 'nullable|numeric|min:0',
+            'total_amount' => 'required|numeric|min:0',
+            'order_type' => 'required|string',
+            'payment_method' => 'required|string',
+            'payment_proof' => 'nullable|string',
+            'payment_reference' => 'nullable|string',
             'subtotal' => 'nullable|numeric|min:0',
             'discountAmount' => 'nullable|numeric|min:0',
             'discount_amount' => 'nullable|numeric|min:0',
@@ -66,30 +60,21 @@ class CustomerStoreController extends Controller
             'discount_applied' => 'nullable|numeric|min:0',
 
             'paymentMethod' => 'nullable|string|max:255',
-            'payment_method' => 'nullable|string|max:255',
             'paymentProof' => 'nullable|string|max:255',
-            'payment_proof' => 'nullable|string|max:255',
-
             'orderId' => 'nullable|string|max:255',
-            'order_id' => 'nullable|string|max:255',
             'referenceNumber' => 'nullable|string|max:255',
-            'reference_number' => 'nullable|string|max:255',
-
             'customerName' => 'nullable|string|max:255',
-            'customer_name' => 'nullable|string|max:255',
             'orderType' => 'nullable|string|max:255',
-            'order_type' => 'nullable|string|max:255',
->>>>>>> d92179c3796f21e215c01c73f8a19edde1b59991
-        ]);
+]);
 
         $validator->after(function ($validator) use ($request) {
-            $total = $request->input('totalAmount') ?? $request->input('total_amount');
+            $total = $request->input('total_amount');
 
             if ($total === null) {
                 $validator->errors()->add('total_amount', 'Total amount is required.');
             }
 
-            $paymentMethod = $request->input('paymentMethod') ?? $request->input('payment_method');
+            $paymentMethod = $request->input('payment_method');
 
             if (!$paymentMethod) {
                 $validator->errors()->add('payment_method', 'Payment method is required.');
@@ -123,39 +108,11 @@ class CustomerStoreController extends Controller
         try {
             DB::beginTransaction();
 
-<<<<<<< HEAD
-            $orderData = [
-                'customer_id' => $user->id,
-                'total_amount' => $validated['totalAmount'],
-                'order_type' => $validated['orderType'],
-                'payment_method' => $validated['paymentMethod'],
-                'status' => 'pending',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ];
-
-            if (Schema::hasColumn('customer_orders', 'customer_email')) {
-                $orderData['customer_email'] = $user->email;
-            }
-            if (Schema::hasColumn('customer_orders', 'customer_name')) {
-                $orderData['customer_name'] = $user->name;
-            }
-            if (Schema::hasColumn('customer_orders', 'payment_status')) {
-                $orderData['payment_status'] = 'unpaid';
-            }
-            if (!empty($validated['paymentReference']) && Schema::hasColumn('customer_orders', 'payment_reference')) {
-                $orderData['payment_reference'] = $validated['paymentReference'];
-            }
-
-            // Create order (status = pending, stock NOT deducted yet)
-            $order = DB::table('customer_orders')->insertGetId($orderData);
-=======
             $items = $request->input('items', []);
             $totalAmount = (float) ($request->input('totalAmount') ?? $request->input('total_amount') ?? 0);
             $subtotal = (float) ($request->input('subtotal') ?? $totalAmount);
             $discountAmount = (float) ($request->input('discountAmount') ?? $request->input('discount_amount') ?? 0);
             $discountApplied = (float) ($request->input('discountApplied') ?? $request->input('discount_applied') ?? 0);
->>>>>>> d92179c3796f21e215c01c73f8a19edde1b59991
 
             $paymentMethod = $request->input('paymentMethod') ?? $request->input('payment_method') ?? 'Online Payment';
             $paymentProof = $request->input('paymentProof') ?? $request->input('payment_proof');
@@ -265,37 +222,12 @@ class CustomerStoreController extends Controller
 
             DB::commit();
 
-<<<<<<< HEAD
-            WorkflowNotifier::notifyRole(
-                'receptionist',
-                'New Customer Order',
-                "{$user->name} submitted order #{$order}.",
-                'info',
-                'customer_order',
-                $order,
-                ['customer_email' => $user->email, 'total_amount' => $validated['totalAmount']]
-            );
-
-            WorkflowNotifier::notifyUser(
-                $user->id,
-                'Order Submitted',
-                "Order #{$order} was submitted and is waiting for receptionist approval.",
-                'info',
-                'customer_order',
-                $order
-            );
-
-            return response()->json([
-                'message' => 'Order submitted and waiting for approval.',
-                'orderId' => $order,
-=======
             Log::info('Customer store checkout submitted successfully', [
                 'user_id' => $user->id,
                 'customer_order_id' => $customerOrderId,
                 'order_number' => $orderNumber,
                 'reference_number' => $referenceNumber,
                 'total_amount' => $totalAmount,
->>>>>>> d92179c3796f21e215c01c73f8a19edde1b59991
             ]);
 
             return response()->json([
@@ -309,13 +241,12 @@ class CustomerStoreController extends Controller
                 'status' => 'pending',
                 'payment_status' => 'pending',
             ], 201);
-        } catch (\Throwable $e) {
-            DB::rollBack();
 
-            Log::error('Customer store checkout failed', [
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Customer store checkout error', [
                 'user_id' => $user?->id,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
@@ -332,37 +263,61 @@ class CustomerStoreController extends Controller
         $user = Auth::user();
 
         if (!$user) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Unauthorized. Please login again.',
-            ], 401);
-        }
-
-        if (strtolower((string) $user->role) !== 'customer') {
-            return response()->json([
-                'success' => false,
-                'message' => 'Forbidden. Only customer accounts can view customer store orders.',
-            ], 403);
+            return response()->json(['message' => 'Unauthorized'], 401);
         }
 
         $orders = DB::table('customer_orders')
-<<<<<<< HEAD
-            ->where('customer_id', $user->id)
+            ->where(function ($query) use ($user) {
+                if (Schema::hasColumn('customer_orders', 'customer_id')) {
+                    $query->orWhere('customer_id', $user->id);
+                }
+
+                if (Schema::hasColumn('customer_orders', 'user_id')) {
+                    $query->orWhere('user_id', $user->id);
+                }
+
+                if (Schema::hasColumn('customer_orders', 'customer_email') && $user->email) {
+                    $query->orWhere('customer_email', $user->email);
+                }
+            })
             ->orderBy('created_at', 'desc')
             ->get()
             ->map(function ($order) {
-                $items = DB::table('customer_order_items')
-                    ->where('customer_order_id', $order->id)
-                    ->get();
+                $orderId = $order->id;
 
-                $order->items = $items;
-                $order->order_status = $order->status;
-                $order->payment_status = $order->payment_status ?? 'unpaid';
+                $itemsQuery = DB::table('customer_order_items');
 
-                return $order;
+                if (Schema::hasColumn('customer_order_items', 'customer_order_id')) {
+                    $itemsQuery->where('customer_order_id', $orderId);
+                } elseif (Schema::hasColumn('customer_order_items', 'order_id')) {
+                    $itemsQuery->where('order_id', $orderId);
+                }
+
+                $items = $itemsQuery->get();
+
+                return [
+                    'id' => $order->order_number ?? $order->order_id ?? $order->id,
+                    'database_id' => $order->id,
+                    'reference_number' => $order->reference_number ?? null,
+                    'customer_name' => $order->customer_name ?? null,
+                    'customer_email' => $order->customer_email ?? null,
+                    'subtotal' => (float) ($order->subtotal ?? 0),
+                    'discount_amount' => (float) ($order->discount_amount ?? 0),
+                    'total_amount' => (float) ($order->total_amount ?? $order->total ?? 0),
+                    'payment_method' => $order->payment_method ?? null,
+                    'payment_proof' => $order->payment_proof ?? null,
+                    'payment_status' => $order->payment_status ?? 'pending',
+                    'status' => $order->status ?? 'pending',
+                    'created_at' => $order->created_at,
+                    'updated_at' => $order->updated_at,
+                    'items' => $items,
+                ];
             });
 
-        return response()->json(['orders' => $orders]);
+        return response()->json([
+            'success' => true,
+            'data' => $orders,
+        ]);
     }
 
     public function uploadPaymentProof(Request $request, $id)
@@ -485,58 +440,6 @@ class CustomerStoreController extends Controller
                 'verified_by' => $verifiedBy,
                 'cashier_remarks' => $order->cashier_remarks,
             ],
-=======
-            ->where(function ($query) use ($user) {
-                if (Schema::hasColumn('customer_orders', 'customer_id')) {
-                    $query->orWhere('customer_id', $user->id);
-                }
-
-                if (Schema::hasColumn('customer_orders', 'user_id')) {
-                    $query->orWhere('user_id', $user->id);
-                }
-
-                if (Schema::hasColumn('customer_orders', 'customer_email') && $user->email) {
-                    $query->orWhere('customer_email', $user->email);
-                }
-            })
-            ->orderBy('created_at', 'desc')
-            ->get()
-            ->map(function ($order) {
-                $orderId = $order->id;
-
-                $itemsQuery = DB::table('customer_order_items');
-
-                if (Schema::hasColumn('customer_order_items', 'customer_order_id')) {
-                    $itemsQuery->where('customer_order_id', $orderId);
-                } elseif (Schema::hasColumn('customer_order_items', 'order_id')) {
-                    $itemsQuery->where('order_id', $orderId);
-                }
-
-                $items = $itemsQuery->get();
-
-                return [
-                    'id' => $order->order_number ?? $order->order_id ?? $order->id,
-                    'database_id' => $order->id,
-                    'reference_number' => $order->reference_number ?? null,
-                    'customer_name' => $order->customer_name ?? null,
-                    'customer_email' => $order->customer_email ?? null,
-                    'subtotal' => (float) ($order->subtotal ?? 0),
-                    'discount_amount' => (float) ($order->discount_amount ?? 0),
-                    'total_amount' => (float) ($order->total_amount ?? $order->total ?? 0),
-                    'payment_method' => $order->payment_method ?? null,
-                    'payment_proof' => $order->payment_proof ?? null,
-                    'payment_status' => $order->payment_status ?? 'pending',
-                    'status' => $order->status ?? 'pending',
-                    'created_at' => $order->created_at,
-                    'updated_at' => $order->updated_at,
-                    'items' => $items,
-                ];
-            });
-
-        return response()->json([
-            'success' => true,
-            'data' => $orders,
->>>>>>> d92179c3796f21e215c01c73f8a19edde1b59991
         ]);
     }
 
