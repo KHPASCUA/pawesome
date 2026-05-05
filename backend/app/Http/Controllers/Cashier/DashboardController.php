@@ -363,45 +363,8 @@ class DashboardController extends Controller
 
         $receiptNumber = $order->receipt_number ?? ('REC-' . now()->format('YmdHis') . '-' . $order->id);
 
-        // Get order items before updating payment status
-        $orderItems = DB::table('customer_order_items')
-            ->where('customer_order_id', $id)
-            ->get();
-
-        // Deduct stock for each item
-        foreach ($orderItems as $item) {
-            $productId = $item->inventory_item_id ?? $item->product_id;
-            $quantity = $item->quantity ?? $item->qty ?? 1;
-
-            if ($productId) {
-                $inventoryItem = DB::table('inventory_items')->where('id', $productId)->first();
-                if ($inventoryItem) {
-                    $currentStock = $inventoryItem->stock ?? $inventoryItem->quantity ?? 0;
-                    $newStock = max(0, $currentStock - $quantity);
-
-                    DB::table('inventory_items')
-                        ->where('id', $productId)
-                        ->update([
-                            'stock' => $newStock,
-                            'updated_at' => now(),
-                        ]);
-
-                    // Log stock adjustment
-                    ActivityLog::log(auth()->id(), 'stock_deducted', "Stock deducted for order #{$id}: {$inventoryItem->name} (-{$quantity})", [
-                        'category' => 'inventory',
-                        'reference_type' => 'customer_order',
-                        'reference_id' => $id,
-                        'metadata' => [
-                            'product_id' => $productId,
-                            'product_name' => $inventoryItem->name,
-                            'quantity_deducted' => $quantity,
-                            'previous_stock' => $currentStock,
-                            'new_stock' => $newStock,
-                        ],
-                    ]);
-                }
-            }
-        }
+        // Note: Stock deduction should happen during receptionist order approval, not during payment verification
+        // Cashier only updates payment status and generates receipt
 
         DB::table('customer_orders')
             ->where('id', $id)
