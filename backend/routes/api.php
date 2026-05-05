@@ -138,6 +138,13 @@ Route::middleware(['auth.api', 'throttle:api', 'role:admin'])->prefix('admin')->
 
     Route::get('reports/summary', [ReportsController::class, 'summary']);
     Route::get('reports/sales', [ReportsController::class, 'sales']);
+    Route::get('reports/overview', [ReportsController::class, 'overview']);
+    Route::get('reports/cashier', [ReportsController::class, 'cashier']);
+    Route::get('reports/inventory', [ReportsController::class, 'inventory']);
+    Route::get('reports/manager', [ReportsController::class, 'manager']);
+    Route::get('reports/veterinary', [ReportsController::class, 'veterinary']);
+    Route::get('reports/customers', [ReportsController::class, 'customers']);
+    Route::get('reports/reception', [ReportsController::class, 'reception']);
     Route::get('appointments', [AppointmentController::class, 'index']);
 
     
@@ -233,6 +240,7 @@ Route::middleware(['auth.api', 'throttle:api', 'role:cashier'])->prefix('cashier
     Route::get('pos/transaction/{id}', [POSController::class, 'getTransaction']);
     Route::post('pos/transaction/{id}/void', [POSController::class, 'voidTransaction']);
     Route::get('pos/invoice/{id}', [POSController::class, 'downloadInvoice']);
+    Route::get('reports/live', [ReportsController::class, 'cashier']);
 });
 
 Route::middleware(['auth.api', 'throttle:api', 'role:receptionist'])->prefix('receptionist')->group(function () {
@@ -244,6 +252,7 @@ Route::middleware(['auth.api', 'throttle:api', 'role:receptionist'])->prefix('re
     Route::get('orders', [ReceptionistDashboardController::class, 'orders']);
     Route::put('orders/{id}/status', [ReceptionistDashboardController::class, 'updateOrderStatus']);
     Route::get('reports/transactions', [CashierDashboardController::class, 'transactions']);
+    Route::get('reports/live', [ReportsController::class, 'reception']);
 
     // Appointment management
     Route::get('appointment/list', [AppointmentController::class, 'index']);
@@ -286,6 +295,7 @@ Route::middleware(['auth.api', 'throttle:api', 'role:admin,inventory'])->prefix(
     Route::delete('items/{id}', [InventoryDashboardController::class, 'destroyItem']);
     Route::get('logs', [InventoryDashboardController::class, 'logs']);
     Route::get('reports', [InventoryDashboardController::class, 'reports']);
+    Route::get('reports/live', [ReportsController::class, 'inventory']);
     Route::get('history', [InventoryDashboardController::class, 'history']);
     Route::get('low-stock', [InventoryDashboardController::class, 'lowStock']);
     Route::post('reorder-requests', [InventoryDashboardController::class, 'reorderRequest']);
@@ -298,6 +308,7 @@ Route::middleware(['auth.api', 'throttle:api', 'role:manager'])->prefix('manager
     Route::get('staff', [ManagerDashboardController::class, 'staff']);
     Route::get('reports/summary', [ReportsController::class, 'summary']);
     Route::get('reports/sales', [ReportsController::class, 'sales']);
+    Route::get('reports/live', [ReportsController::class, 'manager']);
 });
 
 // Attendance Routes (Admin and Manager)
@@ -357,6 +368,7 @@ Route::middleware(['auth.api', 'throttle:api', 'role:veterinary'])->prefix('vete
     Route::get('patients', [VeterinaryDashboardController::class, 'patients']);
     Route::get('history', [VeterinaryDashboardController::class, 'history']);
     Route::get('reports', [VeterinaryDashboardController::class, 'reports']);
+    Route::get('reports/live', [ReportsController::class, 'veterinary']);
     Route::get('receipt/{id}', [VeterinaryDashboardController::class, 'receipt']);
     
     // Veterinarian appointment actions

@@ -5,6 +5,8 @@ import {
   ResponsiveContainer,
   LineChart,
   Line,
+  BarChart,
+  Bar,
   PieChart,
   Pie,
   Cell,
@@ -219,6 +221,18 @@ const ManagerReports = () => {
     });
     return Object.entries(roleCounts).map(([role, count]) => ({
       role,
+      count,
+    }));
+  }, [filteredStaff]);
+
+  const statusDistributionData = useMemo(() => {
+    const statusCounts = {};
+    filteredStaff.forEach(person => {
+      const status = person.status || 'Unknown';
+      statusCounts[status] = (statusCounts[status] || 0) + 1;
+    });
+    return Object.entries(statusCounts).map(([status, count]) => ({
+      status,
       count,
     }));
   }, [filteredStaff]);

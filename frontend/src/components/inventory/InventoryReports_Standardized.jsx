@@ -119,7 +119,7 @@ const InventoryReports = () => {
     }
 
     return filtered;
-  }, [inventoryItems, searchTerm, categoryFilter, statusFilter, getItemStatus]);
+  }, [inventoryItems, searchTerm, categoryFilter, statusFilter]);
 
   // Get unique categories for filter dropdown
   const categories = useMemo(() => {
@@ -277,7 +277,7 @@ const InventoryReports = () => {
       status,
       count,
     }));
-  }, [filteredItems, getItemStatus]);
+  }, [filteredItems]);
 
   const renderInventoryContent = () => (
     <div className="inventory-reports-content">

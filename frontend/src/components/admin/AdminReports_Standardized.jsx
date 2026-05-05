@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faChartLine } from "@fortawesome/free-solid-svg-icons";
 import {
@@ -31,6 +31,7 @@ const safeNumber = (value) => Number(value || 0);
 
 const AdminReports = () => {
   const location = useLocation();
+  const navigate = useNavigate();
 
   const [activeTab, setActiveTab] = useState("overview");
   const [reportData, setReportData] = useState(null);
@@ -210,6 +211,13 @@ const AdminReports = () => {
 
     setStartDate(defaultStart);
     setEndDate(defaultEnd);
+  };
+
+  const handleQuickDateRange = (preset) => {
+    const { startDate: start, endDate: end } = getDateRangePreset(preset);
+    setStartDate(start);
+    setEndDate(end);
+    setTimeout(fetchReportData, 100);
   };
 
   const exportColumns = [

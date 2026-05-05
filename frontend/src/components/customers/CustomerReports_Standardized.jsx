@@ -4,15 +4,17 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faUsers } from "@fortawesome/free-solid-svg-icons";
 import {
   ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
   PieChart,
   Pie,
   Cell,
   CartesianGrid,
   LineChart,
   Line,
-  XAxis,
-  YAxis,
-  Tooltip,
 } from "recharts";
 import { apiRequest } from "../../api/client";
 import { formatCurrency } from "../../utils/currency";

@@ -8,7 +8,12 @@ import {
   YAxis,
   Tooltip,
   ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
   CartesianGrid,
+  LineChart,
+  Line,
 } from "recharts";
 import { apiRequest } from "../../api/client";
 import { formatCurrency } from "../../utils/currency";
@@ -26,9 +31,12 @@ import {
 } from "../../utils/reportExport";
 import "./VetReports.css";
 
+const CHART_COLORS = ["#ff5f93", "#ff8db5", "#ffc8dd", "#f59e0b", "#10b981", "#3b82f6"];
+
 const VetReports = () => {
   const [reports, setReports] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -114,7 +122,13 @@ const VetReports = () => {
       });
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
+  };
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    fetchVetReports();
   };
 
   const handleDateChange = (key, value) => {
@@ -306,7 +320,7 @@ const VetReports = () => {
     onExportPDF: handleExportPDF,
     onExportExcel: handleExportExcel,
     loading,
-    onRefresh: fetchVetReports,
+    onRefresh: handleRefresh,
     onClearFilters: handleClearFilters,
     searchPlaceholder: "Search veterinary services...",
   };
@@ -318,7 +332,7 @@ const VetReports = () => {
       icon={faStethoscope}
       loading={loading}
       error={error}
-      onRefresh={fetchVetReports}
+      onRefresh={handleRefresh}
       lastUpdated={new Date().toLocaleTimeString()}
       filterProps={filterProps}
     >

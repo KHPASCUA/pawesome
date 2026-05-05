@@ -3,15 +3,17 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faMoneyBillWave } from "@fortawesome/free-solid-svg-icons";
 import {
   ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
   LineChart,
   Line,
   PieChart,
   Pie,
   Cell,
-  CartesianGrid,
-  XAxis,
-  YAxis,
-  Tooltip,
 } from "recharts";
 import { apiRequest } from "../../api/client";
 import { formatCurrency } from "../../utils/currency";
@@ -41,6 +43,7 @@ const CashierReports = () => {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [paymentTypeFilter, setPaymentTypeFilter] = useState("all");
 
   // Raw data storage
   const [rawTransactions, setRawTransactions] = useState([]);
@@ -59,6 +62,14 @@ const CashierReports = () => {
     setStartDate(defaultStart);
     setEndDate(defaultEnd);
   }, []);
+
+  // Quick date range selector
+  const handleQuickDateRange = (preset) => {
+    const { startDate: start, endDate: end } = getDateRangePreset(preset);
+    setStartDate(start);
+    setEndDate(end);
+    setTimeout(() => fetchReportData(), 100);
+  };
 
   useEffect(() => {
     fetchReportData();
@@ -159,6 +170,7 @@ const CashierReports = () => {
   const handleClearFilters = () => {
     setSearchTerm("");
     setStatusFilter("all");
+    setPaymentTypeFilter("all");
 
     const { startDate: defaultStart, endDate: defaultEnd } = getDateRangePreset("today");
     setStartDate(defaultStart);
