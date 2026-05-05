@@ -622,8 +622,11 @@
   margin: 0;
   font-size: 2.2rem;
   font-weight: 700;
-  color: #1e293b;
+  color: #1e293b !important;
   line-height: 1;
+  opacity: 1 !important;
+  visibility: visible !important;
+  display: block !important;
 }
 
 .stat-value.count-up {

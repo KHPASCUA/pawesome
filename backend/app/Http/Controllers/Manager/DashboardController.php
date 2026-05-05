@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Models\Appointment;
 use App\Models\Sale;
 use App\Models\InventoryItem;
+use App\Models\ServiceRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -18,14 +19,28 @@ class DashboardController extends Controller
         $today = Carbon::today();
         $staffRoles = ['receptionist', 'veterinary', 'inventory', 'cashier'];
         
+        // Count service requests with different payment statuses
+        $paidServiceRevenue = ServiceRequest::where('payment_status', 'paid')->count() * 500;
+        $paidServiceCount = ServiceRequest::where('payment_status', 'paid')->count();
+        $pendingServicePayments = ServiceRequest::where('payment_status', 'pending')->count();
+        $totalServiceRequests = ServiceRequest::count();
+        
+        // Count customer orders
+        $paidOrderRevenue = DB::table('customer_orders')->where('payment_status', 'paid')->sum('total_amount');
+        $paidOrderCount = DB::table('customer_orders')->where('payment_status', 'paid')->count();
+        $totalOrders = DB::table('customer_orders')->count();
+        
         return response()->json([
-            'total_orders' => DB::table('customer_orders')->count(),
+            'total_orders' => $totalOrders + $totalServiceRequests,
             'approved_orders' => DB::table('customer_orders')->where('status', 'approved')->count(),
-            'paid_orders' => DB::table('customer_orders')->where('payment_status', 'paid')->count(),
-            'pending_payments' => DB::table('customer_orders')->where('payment_status', 'pending')->count(),
+            'paid_orders' => $paidOrderCount + $paidServiceCount,
+            'pending_payments' => DB::table('customer_orders')->where('payment_status', 'pending')->count() + $pendingServicePayments,
             'rejected_orders' => DB::table('customer_orders')->whereIn('status', ['rejected', 'cancelled'])->count(),
-            'sales_total' => Sale::where('status', 'completed')->sum('amount')
-                + DB::table('customer_orders')->where('payment_status', 'paid')->sum('total_amount'),
+            'sales_total' => Sale::where('status', 'completed')->sum('amount') + $paidOrderRevenue + $paidServiceRevenue,
+            'paid_service_revenue' => $paidServiceRevenue,
+            'paid_service_count' => $paidServiceCount,
+            'pending_service_payments' => $pendingServicePayments,
+            'total_service_requests' => $totalServiceRequests,
             'low_stock_count' => InventoryItem::whereColumn('stock', '<=', 'reorder_level')->count(),
             'completed_services' => Appointment::where('status', 'completed')->count()
                 + DB::table('service_requests')->where('status', 'completed')->count(),

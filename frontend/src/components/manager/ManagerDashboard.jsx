@@ -151,8 +151,8 @@ const ManagerDashboard = () => {
   const summaryCards = useMemo(() => dashboardData ? [
     {
       title: "Total Orders",
-      value: dashboardData.total_orders || 0,
-      subtitle: `${dashboardData.approved_orders || 0} approved`,
+      value: dashboardData.total_orders || dashboardData.totalOrders || dashboardData.total_service_requests || 0,
+      subtitle: `${dashboardData.approved_orders || dashboardData.approvedOrders || 0} approved`,
       change: "",
       icon: faFileInvoice,
       color: "blue",
@@ -160,8 +160,8 @@ const ManagerDashboard = () => {
     },
     {
       title: "Paid Orders",
-      value: dashboardData.paid_orders || 0,
-      subtitle: `${dashboardData.pending_payments || 0} pending payments`,
+      value: dashboardData.paid_orders || dashboardData.paidOrders || dashboardData.paid_service_count || 0,
+      subtitle: `${dashboardData.pending_payments || dashboardData.pendingPayments || 0} pending payments`,
       change: "",
       icon: faMoneyBill,
       color: "green",
@@ -169,7 +169,7 @@ const ManagerDashboard = () => {
     },
     {
       title: "Rejected Orders",
-      value: dashboardData.rejected_orders || 0,
+      value: dashboardData.rejected_orders || dashboardData.rejectedOrders || 0,
       subtitle: "Rejected or cancelled",
       change: "",
       icon: faExclamationTriangle,
@@ -178,20 +178,20 @@ const ManagerDashboard = () => {
     },
     {
       title: "Sales Total",
-      value: formatCurrency(dashboardData.sales_total || dashboardData.monthly_revenue || 0),
-      subtitle: `Today: ${formatCurrency(dashboardData.today_revenue || 0)}`,
+      value: formatCurrency(dashboardData.sales_total || dashboardData.salesTotal || dashboardData.paid_service_revenue || 0),
+      subtitle: `Today: ${formatCurrency(dashboardData.today_revenue || dashboardData.todayRevenue || 0)}`,
       change: "",
       icon: faChartLine,
-      color: dashboardData.monthly_revenue > 5000 ? "green" : "orange",
-      trend: dashboardData.monthly_revenue > 5000 ? "up" : "stable",
+      color: (dashboardData.sales_total || dashboardData.salesTotal || 0) > 5000 ? "green" : "orange",
+      trend: (dashboardData.sales_total || dashboardData.salesTotal || 0) > 5000 ? "up" : "stable",
     },
     {
       title: "Low Stock",
-      value: dashboardData.low_stock_count || 0,
-      subtitle: `${dashboardData.completed_services || 0} completed services`,
+      value: dashboardData.low_stock_count || dashboardData.lowStock || 0,
+      subtitle: `${dashboardData.completed_services || dashboardData.completedServices || 0} completed services`,
       change: "",
       icon: faExclamationTriangle,
-      color: (dashboardData.low_stock_count || 0) > 0 ? "red" : "green",
+      color: (dashboardData.low_stock_count || dashboardData.lowStock || 0) > 0 ? "red" : "green",
       trend: "stable",
     },
   ] : [], [dashboardData, hotelStats]);
