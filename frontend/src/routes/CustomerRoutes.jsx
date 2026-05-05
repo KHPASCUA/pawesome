@@ -13,6 +13,7 @@ import CustomerChatbot from "../components/customers/CustomerChatbot";
 import CustomerUserInfo from "../components/customers/CustomerUserInfo";
 import ProfileSettings from "../components/shared/ProfileSettings";
 import CustomerPayments from "../components/customers/CustomerPayments";
+import CustomerNotifications from "../components/customers/CustomerNotifications";
 import HotelForm from "../components/customers/HotelForm";
 import GroomingForm from "../components/customers/GroomingForm";
 import VetForm from "../components/customers/VetForm";
@@ -46,6 +47,7 @@ const CustomerRoutes = () => (
       <Route path="userinfo" element={<CustomerUserInfo />} />
       <Route path="profile" element={<ProfileSettings />} />
       <Route path="history" element={<CustomerReports />} />
+      <Route path="notifications" element={<CustomerNotifications />} />
 
       {/* Nested under reports */}
       <Route path="reports" element={<CustomerReports />}>

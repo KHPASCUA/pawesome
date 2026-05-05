@@ -48,7 +48,7 @@ const CustomerSidebar = () => {
       icon: faShoppingCart,
     },
     {
-      to: "/customer/requests",
+      to: "/customer/orders",
       label: "My Orders",
       icon: faBox,
     },
