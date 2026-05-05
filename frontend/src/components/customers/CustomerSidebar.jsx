@@ -9,6 +9,9 @@ import {
   faSignOutAlt,
   faUser,
   faBone,
+  faBox,
+  faCalendarAlt,
+  faCreditCard,
 } from "@fortawesome/free-solid-svg-icons";
 import "./CustomerSidebar.css";
 
@@ -28,24 +31,36 @@ const CustomerSidebar = () => {
       to: "/customer",
       label: "Dashboard",
       icon: faHome,
-      end: true,
-    },
-    {
-      to: "/customer/bookings",
-      label: "Bookings",
-      icon: faCalendarCheck,
     },
     {
       to: "/customer/pets",
       label: "My Pets",
       icon: faPaw,
-      end: true,
+    },
+    {
+      to: "/customer/booking",
+      label: "Book Service",
+      icon: faCalendarCheck,
     },
     {
       to: "/customer/store",
       label: "Store",
       icon: faShoppingCart,
-      end: true,
+    },
+    {
+      to: "/customer/requests",
+      label: "My Orders",
+      icon: faBox,
+    },
+    {
+      to: "/customer/bookings",
+      label: "My Requests",
+      icon: faCalendarAlt,
+    },
+    {
+      to: "/customer/payments",
+      label: "Payments",
+      icon: faCreditCard,
     },
     {
       to: "/customer/profile",
@@ -69,7 +84,6 @@ const CustomerSidebar = () => {
             <li className="nav-item" key={item.to}>
               <NavLink
                 to={item.to}
-                end={item.end}
                 className={({ isActive }) =>
                   `sidebar-link ${isActive ? "active" : ""}`
                 }

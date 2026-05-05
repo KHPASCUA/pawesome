@@ -17,6 +17,9 @@ import {
   faList,
   faHeadset,
   faArrowRight,
+  faCreditCard,
+  faBell,
+  faShoppingCart,
 } from "@fortawesome/free-solid-svg-icons";
 import CustomerSidebar from "./CustomerSidebar";
 import CustomerDashboardChatbot from "../CustomerDashboardChatbot";
@@ -92,18 +95,39 @@ const CustomerDashboard = () => {
   const summaryCards = dashboardData
     ? [
         {
-          title: "Active Bookings",
-          value: dashboardData.active_bookings || 0,
-          subtitle: "Current reservations",
-          icon: faCalendarAlt,
-          tone: "pink",
-        },
-        {
-          title: "Total Pets",
+          title: "My Pets",
           value: dashboardData.total_pets || 0,
           subtitle: "Registered pets",
           icon: faPaw,
-          tone: "soft",
+          tone: "pink",
+        },
+        {
+          title: "Pending Orders",
+          value: dashboardData.pending_orders || 0,
+          subtitle: "Waiting for approval",
+          icon: faClock,
+          tone: "warning",
+        },
+        {
+          title: "Pending Service Requests",
+          value: dashboardData.pending_requests || 0,
+          subtitle: "Waiting for approval",
+          icon: faCalendarAlt,
+          tone: "info",
+        },
+        {
+          title: "Approved Appointments",
+          value: dashboardData.appointed_appointments || 0,
+          subtitle: "Scheduled services",
+          icon: faCheckCircle,
+          tone: "success",
+        },
+        {
+          title: "Payment Pending",
+          value: dashboardData.payment_pending || 0,
+          subtitle: "Awaiting verification",
+          icon: faCreditCard,
+          tone: "gold",
         },
         {
           title: "Completed Services",
@@ -113,11 +137,11 @@ const CustomerDashboard = () => {
           tone: "success",
         },
         {
-          title: "Loyalty Points",
-          value: dashboardData.loyalty_points || 0,
-          subtitle: "Available rewards",
-          icon: faGift,
-          tone: "gold",
+          title: "Recent Notifications",
+          value: dashboardData.unread_notifications || 0,
+          subtitle: "New updates",
+          icon: faBell,
+          tone: "soft",
         },
       ]
     : [];
@@ -165,10 +189,11 @@ const CustomerDashboard = () => {
   );
 
   const quickActions = [
-    { label: "Book Service", icon: faCalendarCheck, link: "/customer/bookings", tone: "pink" },
-    { label: "Add Pet", icon: faPlus, link: "/customer/pets", tone: "soft" },
-    { label: "View Bookings", icon: faList, link: "/customer/bookings", tone: "success" },
-    { label: "Contact Support", icon: faHeadset, link: "/customer/support", tone: "gold" },
+    { label: "Add Pet", icon: faPlus, link: "/customer/pets", tone: "pink" },
+    { label: "Book Service", icon: faCalendarCheck, link: "/customer/booking", tone: "soft" },
+    { label: "Shop Products", icon: faShoppingCart, link: "/customer/store", tone: "success" },
+    { label: "Upload Payment", icon: faCreditCard, link: "/customer/payments", tone: "gold" },
+    { label: "View Orders", icon: faList, link: "/customer/requests", tone: "info" },
   ];
 
   return (

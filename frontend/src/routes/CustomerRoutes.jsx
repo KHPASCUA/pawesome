@@ -8,6 +8,7 @@ import CustomerReports from "../components/customers/CustomerReports";
 import CustomerBookings from "../components/customers/CustomerBookings";
 import CustomerPets from "../components/customers/CustomerPets";
 import CustomerStore from "../components/customers/CustomerStore";
+import CustomerOrders from "../components/customers/CustomerOrders";
 import CustomerChatbot from "../components/customers/CustomerChatbot";
 import CustomerUserInfo from "../components/customers/CustomerUserInfo";
 import ProfileSettings from "../components/shared/ProfileSettings";
@@ -35,6 +36,7 @@ const CustomerRoutes = () => (
       <Route path="bookings" element={<CustomerBookings />} />
       <Route path="booking" element={<CustomerBookingForm />} />
       <Route path="requests" element={<CustomerRequestStatus />} />
+      <Route path="orders" element={<CustomerOrders />} />
       <Route path="pets" element={<CustomerPets />} />
       <Route path="hotel" element={<HotelForm />} />
       <Route path="grooming" element={<GroomingForm />} />
