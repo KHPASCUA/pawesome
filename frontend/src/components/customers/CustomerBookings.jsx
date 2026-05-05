@@ -1,22 +1,121 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import "./CustomerBookings.css";
 import { apiRequest } from "../../api/client";
+import {
+  FaCalendarCheck,
+  FaCheckCircle,
+  FaClock,
+  FaCut,
+  FaHotel,
+  FaPaw,
+  FaReceipt,
+  FaSearch,
+  FaStethoscope,
+  FaTimes,
+  FaUpload,
+  FaUser,
+  FaWallet,
+  FaExclamationTriangle,
+  FaSyncAlt,
+  FaClipboardList,
+} from "react-icons/fa";
+
+const defaultVetServices = [
+  { id: "fallback-1", name: "General Consultation", category: "Consultation", price: 500 },
+  { id: "fallback-2", name: "Wellness Checkup", category: "Consultation", price: 700 },
+  { id: "fallback-3", name: "Vaccination", category: "Vaccination", price: 800 },
+  { id: "fallback-4", name: "Anti-Rabies Vaccination", category: "Vaccination", price: 600 },
+  { id: "fallback-5", name: "Deworming", category: "Treatment", price: 400 },
+  { id: "fallback-6", name: "Emergency Care", category: "Emergency", price: 1500 },
+  { id: "fallback-7", name: "Wound Treatment", category: "Treatment", price: 900 },
+  { id: "fallback-8", name: "Minor Surgery", category: "Surgery", price: 3500 },
+  { id: "fallback-9", name: "Dental Cleaning", category: "Dental", price: 1200 },
+  { id: "fallback-10", name: "Laboratory Test", category: "Diagnostics", price: 1000 },
+  { id: "fallback-11", name: "Boarding Health Check", category: "Boarding Care", price: 500 },
+  { id: "fallback-12", name: "Medication Administration", category: "Medication", price: 300 },
+];
+
+const groomingServices = [
+  {
+    name: "Basic Bath",
+    category: "Grooming",
+    price: 500,
+    description: "Bath, blow dry, and basic coat cleaning.",
+  },
+  {
+    name: "Full Grooming Package",
+    category: "Grooming",
+    price: 1500,
+    description: "Bath, haircut, nail trim, ear cleaning, and finishing.",
+  },
+  {
+    name: "Haircut Only",
+    category: "Grooming",
+    price: 800,
+    description: "Breed-appropriate haircut or trimming.",
+  },
+  {
+    name: "Nail Trim",
+    category: "Grooming",
+    price: 200,
+    description: "Safe nail trimming for pets.",
+  },
+  {
+    name: "Teeth Cleaning",
+    category: "Grooming",
+    price: 350,
+    description: "Basic pet teeth cleaning.",
+  },
+];
+
+const hotelServices = [
+  {
+    name: "Standard Room",
+    category: "Pet Hotel",
+    price: 500,
+    description: "Comfortable standard boarding room.",
+  },
+  {
+    name: "Deluxe Room",
+    category: "Pet Hotel",
+    price: 850,
+    description: "Larger room with additional comfort.",
+  },
+  {
+    name: "Suite",
+    category: "Pet Hotel",
+    price: 1200,
+    description: "Premium suite for pets that need extra space.",
+  },
+];
 
 const CustomerBookings = () => {
+  const customerEmail = localStorage.getItem("email") || "";
+  const customerName = localStorage.getItem("name") || "Customer";
+
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [receipt, setReceipt] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
-  const [bookings, setBookings] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [successMessage, setSuccessMessage] = useState(null);
 
-  const customerEmail = localStorage.getItem("email");
-  const customerName = localStorage.getItem("name") || "Customer";
+  const [bookings, setBookings] = useState([]);
+  const [vetServices, setVetServices] = useState([]);
+  const [pets, setPets] = useState([]);
+
+  const [loading, setLoading] = useState(true);
+  const [servicesLoading, setServicesLoading] = useState(false);
+  const [petsLoading, setPetsLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const [successMessage, setSuccessMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
 
   const [formData, setFormData] = useState({
     customer_name: customerName,
-    customer_email: customerEmail || "",
+    customer_email: customerEmail,
+    pet_id: "",
     pet_name: "",
     service_type: "",
     service_name: "",
@@ -25,50 +124,299 @@ const CustomerBookings = () => {
     notes: "",
   });
 
-  const fetchBookings = useCallback(async () => {
+  const safeArray = (value) => {
+    if (Array.isArray(value)) return value;
+    if (Array.isArray(value?.data)) return value.data;
+    if (Array.isArray(value?.data?.data)) return value.data.data;
+    if (Array.isArray(value?.services)) return value.services;
+    if (Array.isArray(value?.requests)) return value.requests;
+    if (Array.isArray(value?.pets)) return value.pets;
+    if (Array.isArray(value?.records)) return value.records;
+    if (Array.isArray(value?.result)) return value.result;
+    if (Array.isArray(value?.results)) return value.results;
+    return [];
+  };
+
+  const getPetName = (pet) => pet?.name || pet?.pet_name || "Unnamed Pet";
+  const getPetSpecies = (pet) => pet?.species || pet?.type || "Pet";
+  const getPetBreed = (pet) => pet?.breed || "Unknown breed";
+
+  const formatCurrency = (value) => {
+    const number = Number(value || 0);
+
+    return new Intl.NumberFormat("en-PH", {
+      style: "currency",
+      currency: "PHP",
+      minimumFractionDigits: 0,
+    }).format(number);
+  };
+
+  const formatDate = (value) => {
+    if (!value) return "No date";
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+
+    return date.toLocaleDateString("en-PH", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  };
+
+  const normalizeStatus = (status) =>
+    String(status || "pending").toLowerCase().replace(/\s+/g, "_");
+
+  const getBookingTypeMeta = (type) => {
+    const value = String(type || "").toLowerCase();
+
+    if (value === "hotel") {
+      return {
+        id: "Hotel",
+        type: "hotel",
+        icon: <FaHotel />,
+        emoji: "🏨",
+        title: "Pet Hotel",
+        shortTitle: "Hotel",
+        description: "Reserve a comfortable stay for your pet.",
+        defaultService: "Standard Room",
+        accent: "hotel",
+      };
+    }
+
+    if (value === "vet") {
+      return {
+        id: "Vet",
+        type: "vet",
+        icon: <FaStethoscope />,
+        emoji: "🏥",
+        title: "Veterinary",
+        shortTitle: "Vet",
+        description: "Book checkups, vaccines, and pet care services.",
+        defaultService: "General Consultation",
+        accent: "vet",
+      };
+    }
+
+    return {
+      id: "Groom",
+      type: "grooming",
+      icon: <FaCut />,
+      emoji: "✂️",
+      title: "Grooming",
+      shortTitle: "Groom",
+      description: "Schedule grooming and hygiene services.",
+      defaultService: "Basic Bath",
+      accent: "grooming",
+    };
+  };
+
+  const bookingTypes = useMemo(
+    () => [
+      getBookingTypeMeta("hotel"),
+      getBookingTypeMeta("vet"),
+      getBookingTypeMeta("grooming"),
+    ],
+    []
+  );
+
+  const serviceOptions = useMemo(() => {
+    if (selectedBooking === "Hotel") return hotelServices;
+    if (selectedBooking === "Vet") return vetServices.length > 0 ? vetServices : defaultVetServices;
+    if (selectedBooking === "Groom") return groomingServices;
+    return [];
+  }, [selectedBooking, vetServices]);
+
+  const selectedService = useMemo(() => {
+    return serviceOptions.find(
+      (service) => String(service.name) === String(formData.service_name)
+    );
+  }, [serviceOptions, formData.service_name]);
+
+  const fetchCustomerPets = useCallback(async () => {
     try {
-      setLoading(true);
-      
-      if (!customerEmail) {
-        setBookings([]);
-        return;
+      setPetsLoading(true);
+
+      let petsData = null;
+
+      try {
+        petsData = await apiRequest("/customer/pets");
+      } catch (customerPetsError) {
+        console.warn("Customer pets endpoint failed. Trying /pets:", customerPetsError);
+        petsData = await apiRequest("/pets");
       }
 
-      const data = await apiRequest(`/customer/my-requests?email=${customerEmail}`);
-
-      const allBookings = (data.requests || []).map(item => ({
-        id: item.id,
-        type: item.type === 'grooming' ? 'Groom' : item.type === 'vet' ? 'Vet' : 'Hotel',
-        icon: item.type === 'grooming' ? '✂️' : item.type === 'vet' ? '🏥' : '🏨',
-        title: item.type === 'grooming' ? 'Grooming Service' : item.type === 'vet' ? 'Veterinary Appointment' : 'Hotel Stay',
-        details: `${item.pet} - ${item.service}`,
-        date: item.date,
-        status: item.status
-      }));
-
-      allBookings.sort((a, b) => new Date(b.date) - new Date(a.date));
-      setBookings(allBookings);
+      const petList = safeArray(petsData);
+      setPets(petList);
     } catch (error) {
-      console.error('Error fetching bookings:', error);
+      console.error("Failed to load customer pets:", error);
+      setPets([]);
     } finally {
-      setLoading(false);
+      setPetsLoading(false);
     }
-  }, [customerEmail]);
+  }, []);
+
+  const fetchVetServices = useCallback(async () => {
+    try {
+      setServicesLoading(true);
+
+      const data = await apiRequest("/services");
+      const services = safeArray(data);
+
+      setVetServices(services.length > 0 ? services : defaultVetServices);
+    } catch (error) {
+      console.error("Failed to load vet services:", error);
+      setVetServices(defaultVetServices);
+    } finally {
+      setServicesLoading(false);
+    }
+  }, []);
+
+  const fetchBookings = useCallback(
+    async ({ silent = false } = {}) => {
+      try {
+        if (!silent) {
+          setLoading(true);
+        } else {
+          setRefreshing(true);
+        }
+
+        if (!customerEmail) {
+          setBookings([]);
+          return;
+        }
+
+        const data = await apiRequest(
+          `/customer/my-requests?email=${encodeURIComponent(customerEmail)}`
+        );
+
+        const requests = safeArray(data);
+
+        const mappedBookings = requests.map((item) => {
+          const meta = getBookingTypeMeta(item.type || item.service_type);
+
+          return {
+            id: item.id,
+            raw: item,
+            type: meta.shortTitle,
+            serviceType: meta.type,
+            icon: meta.emoji,
+            title: meta.title,
+            pet: item.pet || item.pet_name || "Unknown Pet",
+            service: item.service || item.service_name || "Service Request",
+            details: `${item.pet || item.pet_name || "Unknown Pet"} • ${
+              item.service || item.service_name || "Service Request"
+            }`,
+            date: item.date || item.request_date || item.created_at || "",
+            time: item.time || item.request_time || "",
+            notes: item.notes || "",
+            status: normalizeStatus(item.status),
+          };
+        });
+
+        mappedBookings.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+        setBookings(mappedBookings);
+        setErrorMessage("");
+      } catch (error) {
+        console.error("Error fetching bookings:", error);
+        setErrorMessage("Failed to load your bookings. Please refresh the page.");
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [customerEmail]
+  );
 
   useEffect(() => {
     fetchBookings();
-  }, [fetchBookings]);
+    fetchVetServices();
+    fetchCustomerPets();
+  }, [fetchBookings, fetchVetServices, fetchCustomerPets]);
+
+  const stats = useMemo(() => {
+    return bookings.reduce(
+      (acc, booking) => {
+        acc.total += 1;
+        acc[booking.status] = (acc[booking.status] || 0) + 1;
+
+        if (booking.serviceType === "hotel") acc.hotel += 1;
+        if (booking.serviceType === "vet") acc.vet += 1;
+        if (booking.serviceType === "grooming") acc.grooming += 1;
+
+        return acc;
+      },
+      {
+        total: 0,
+        pending: 0,
+        approved: 0,
+        completed: 0,
+        rejected: 0,
+        cancelled: 0,
+        hotel: 0,
+        vet: 0,
+        grooming: 0,
+      }
+    );
+  }, [bookings]);
+
+  const filteredBookings = useMemo(() => {
+    const keyword = searchTerm.trim().toLowerCase();
+
+    return bookings.filter((booking) => {
+      const matchesStatus = statusFilter === "all" || booking.status === statusFilter;
+
+      const text = [
+        booking.title,
+        booking.type,
+        booking.pet,
+        booking.service,
+        booking.date,
+        booking.time,
+        booking.notes,
+        booking.status,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      const matchesSearch = !keyword || text.includes(keyword);
+
+      return matchesStatus && matchesSearch;
+    });
+  }, [bookings, searchTerm, statusFilter]);
+
+  const showToast = (message, type = "success") => {
+    if (type === "error") {
+      setErrorMessage(message);
+      setTimeout(() => setErrorMessage(""), 3500);
+      return;
+    }
+
+    setSuccessMessage(message);
+    setTimeout(() => setSuccessMessage(""), 3500);
+  };
 
   const handleSelect = (type) => {
+    const meta = getBookingTypeMeta(type);
+
     setSelectedBooking(type);
     setReceipt(null);
+
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
+
     setPreviewUrl(null);
+    setErrorMessage("");
+
     setFormData({
       customer_name: customerName,
-      customer_email: customerEmail || "",
+      customer_email: customerEmail,
+      pet_id: "",
       pet_name: "",
-      service_type: type === 'Hotel' ? 'hotel' : type === 'Vet' ? 'vet' : 'grooming',
-      service_name: type === 'Hotel' ? 'Standard Room' : type === 'Vet' ? 'Checkup' : 'Basic Bath',
+      service_type: meta.type,
+      service_name: meta.defaultService,
       request_date: "",
       request_time: "",
       notes: "",
@@ -78,381 +426,611 @@ const CustomerBookings = () => {
   const handleClose = () => {
     setSelectedBooking(null);
     setReceipt(null);
+
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
+
     setPreviewUrl(null);
   };
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+  const handleInputChange = (event) => {
+    const { name, value } = event.target;
+
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+
+    if (errorMessage) setErrorMessage("");
   };
 
-  const handleReceiptUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setReceipt(file);
-      setPreviewUrl(URL.createObjectURL(file));
+  const handlePetSelect = (event) => {
+    const petId = event.target.value;
+    const selectedPet = pets.find((pet) => String(pet.id) === String(petId));
+
+    setFormData((prev) => ({
+      ...prev,
+      pet_id: petId,
+      pet_name: selectedPet ? getPetName(selectedPet) : "",
+    }));
+
+    if (errorMessage) setErrorMessage("");
+  };
+
+  const handleReceiptUpload = (event) => {
+    const file = event.target.files?.[0];
+
+    if (!file) return;
+
+    const maxSize = 5 * 1024 * 1024;
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
+
+    if (!allowedTypes.includes(file.type)) {
+      showToast("Please upload JPG, PNG, WEBP, or PDF receipt only.", "error");
+      return;
     }
+
+    if (file.size > maxSize) {
+      showToast("Receipt file must be 5MB or smaller.", "error");
+      return;
+    }
+
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
+
+    setReceipt(file);
+    setPreviewUrl(URL.createObjectURL(file));
   };
 
   const handleRemoveReceipt = () => {
     setReceipt(null);
+
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
+
     setPreviewUrl(null);
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setSubmitting(true);
+  const validateForm = () => {
+    if (!formData.customer_name.trim()) return "Customer name is required.";
+    if (!formData.customer_email.trim()) return "Customer email is required.";
+    if (!formData.pet_id && !formData.pet_name.trim()) return "Please select a pet.";
+    if (!formData.service_type) return "Please select a booking type.";
+    if (!formData.service_name) return "Please select a service.";
+    if (!formData.request_date) return "Please select a preferred date.";
+    if (!formData.request_time) return "Please select a preferred time.";
+
+    const selectedDateTime = new Date(
+      `${formData.request_date}T${formData.request_time}:00`
+    );
+
+    if (Number.isNaN(selectedDateTime.getTime())) {
+      return "Please select a valid schedule.";
+    }
+
+    if (selectedDateTime < new Date()) {
+      return "Schedule cannot be in the past.";
+    }
+
+    if (formData.service_type === "vet" && !formData.notes.trim()) {
+      return "Please describe the reason for the veterinary visit.";
+    }
+
+    return "";
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+
+    const validationError = validateForm();
+
+    if (validationError) {
+      showToast(validationError, "error");
+      return;
+    }
 
     try {
+      setSubmitting(true);
+
+      const selectedServicePrice =
+        selectedService?.price || selectedService?.amount || selectedService?.service_price || 0;
+
+      const payload = {
+        customer_name: formData.customer_name,
+        customer_email: customerEmail || formData.customer_email,
+        pet_name: formData.pet_name,
+        service_type: formData.service_type,
+        service_name: formData.service_name,
+        request_date: formData.request_date,
+        request_time: formData.request_time,
+        notes: formData.notes,
+        request_type: formData.service_type, // Backend expects request_type
+      };
+
+      console.log("Submitting booking request:", payload);
+
       const data = await apiRequest("/customer/requests", {
         method: "POST",
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       });
 
+      console.log("Booking response:", data);
+
       if (data.success) {
-        setSuccessMessage(`${selectedBooking} booking submitted successfully! Your request is pending approval.`);
-        await fetchBookings();
+        showToast(
+          `${getBookingTypeMeta(formData.service_type).title} request submitted successfully. Please wait for approval.`
+        );
+
+        await fetchBookings({ silent: true });
+
         setTimeout(() => {
-          setSuccessMessage(null);
           handleClose();
-        }, 3000);
+        }, 800);
       } else {
-        alert('Failed to submit booking: ' + (data.message || 'Unknown error'));
+        showToast(data.message || "Failed to submit booking request.", "error");
       }
     } catch (error) {
-      console.error('Error submitting booking:', error);
-      alert('Failed to submit booking. Please try again.');
+      console.error("Error submitting booking:", error);
+      const errorMessage = error?.message || "Failed to submit booking. Please try again.";
+      showToast(errorMessage, "error");
     } finally {
       setSubmitting(false);
     }
   };
 
-  const bookingTypes = [
-    { id: 'Hotel', icon: '🏨', title: 'Hotel Stay', description: 'Comfortable boarding for your pet' },
-    { id: 'Vet', icon: '🏥', title: 'Veterinary', description: 'Health checkups and treatments' },
-    { id: 'Groom', icon: '✂️', title: 'Grooming', description: 'Professional grooming services' }
-  ];
+  const handleRefresh = () => {
+    fetchBookings({ silent: true });
+    fetchCustomerPets();
+    fetchVetServices();
+  };
+
+  const selectedMeta = selectedBooking ? getBookingTypeMeta(selectedBooking) : null;
 
   return (
     <div className="customer-bookings">
-      {/* Success Message Toast */}
       {successMessage && (
-        <div style={{
-          position: 'fixed',
-          top: '20px',
-          right: '20px',
-          background: 'linear-gradient(135deg, #10b981, #059669)',
-          color: 'white',
-          padding: '16px 24px',
-          borderRadius: '12px',
-          boxShadow: '0 8px 24px rgba(16, 185, 129, 0.3)',
-          zIndex: 10000,
-          animation: 'slideIn 0.3s ease',
-          fontWeight: 600
-        }}>
-          {successMessage}
+        <div className="customer-booking-toast success">
+          <FaCheckCircle />
+          <span>{successMessage}</span>
         </div>
       )}
 
-      <div className="bookings-header">
-        <div className="header-content">
-          <h1>My Bookings</h1>
-          <p>Manage your pet's appointments and reservations</p>
+      {errorMessage && (
+        <div className="customer-booking-toast error">
+          <FaExclamationTriangle />
+          <span>{errorMessage}</span>
         </div>
-      </div>
+      )}
 
-      <div className="bookings-content">
-      {/* Booking type cards */}
-      <div className="booking-types-grid">
-        {bookingTypes.map((type) => (
-          <div 
-            key={type.id}
-            className="booking-type-card"
-            onClick={() => handleSelect(type.id)}
-          >
-            <div className="booking-icon">{type.icon}</div>
-            <h3>{type.title}</h3>
-            <p>{type.description}</p>
+      <section className="bookings-hero">
+        <div className="bookings-hero-copy">
+          <span className="bookings-eyebrow">
+            <FaCalendarCheck />
+            Customer Booking Center
+          </span>
+
+          <h1>Book Pet Services</h1>
+
+          <p>
+            Request pet hotel reservations, grooming appointments, and veterinary
+            services in one professional booking center.
+          </p>
+        </div>
+
+        <button
+          className={`booking-refresh-btn ${refreshing ? "refreshing" : ""}`}
+          type="button"
+          onClick={handleRefresh}
+          disabled={refreshing}
+        >
+          <FaSyncAlt />
+          {refreshing ? "Refreshing..." : "Refresh"}
+        </button>
+      </section>
+
+      <section className="booking-stats-grid">
+        <article className="booking-stat-card">
+          <span>
+            <FaClipboardList />
+          </span>
+          <div>
+            <strong>{stats.total}</strong>
+            <p>Total Bookings</p>
           </div>
-        ))}
-      </div>
+        </article>
 
-      {/* Recent Bookings Section */}
-      <div className="recent-bookings">
-        <h4>Recent Bookings</h4>
+        <article className="booking-stat-card">
+          <span>
+            <FaClock />
+          </span>
+          <div>
+            <strong>{stats.pending}</strong>
+            <p>Pending Approval</p>
+          </div>
+        </article>
+
+        <article className="booking-stat-card">
+          <span>
+            <FaCheckCircle />
+          </span>
+          <div>
+            <strong>{stats.approved}</strong>
+            <p>Approved</p>
+          </div>
+        </article>
+
+        <article className="booking-stat-card">
+          <span>
+            <FaPaw />
+          </span>
+          <div>
+            <strong>{stats.completed}</strong>
+            <p>Completed</p>
+          </div>
+        </article>
+      </section>
+
+      <section className="booking-type-section">
+        <div className="section-heading">
+          <div>
+            <h2>Choose Booking Type</h2>
+            <p>Select the type of service you want to request for your pet.</p>
+          </div>
+        </div>
+
+        <div className="booking-types-grid">
+          {bookingTypes.map((type) => (
+            <button
+              key={type.id}
+              type="button"
+              className={`booking-type-card ${type.accent}`}
+              onClick={() => handleSelect(type.id)}
+            >
+              <span className="booking-icon">{type.icon}</span>
+              <strong>{type.title}</strong>
+              <p>{type.description}</p>
+
+              <span className="booking-type-count">
+                {type.type === "hotel" && `${stats.hotel} requests`}
+                {type.type === "vet" && `${stats.vet} requests`}
+                {type.type === "grooming" && `${stats.grooming} requests`}
+              </span>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section className="recent-bookings">
+        <div className="recent-bookings-header">
+          <div>
+            <h2>My Booking Requests</h2>
+            <p>Track all your submitted hotel, grooming, and veterinary requests.</p>
+          </div>
+        </div>
+
+        <div className="booking-toolbar">
+          <div className="booking-search-box">
+            <FaSearch />
+            <input
+              type="text"
+              placeholder="Search by pet, service, date, status..."
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+            />
+
+            {searchTerm && (
+              <button type="button" onClick={() => setSearchTerm("")}>
+                <FaTimes />
+              </button>
+            )}
+          </div>
+
+          <select
+            value={statusFilter}
+            onChange={(event) => setStatusFilter(event.target.value)}
+            className="booking-filter-select"
+          >
+            <option value="all">All Status</option>
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+            <option value="completed">Completed</option>
+            <option value="rejected">Rejected</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+        </div>
+
         {loading ? (
-          <p style={{ color: 'var(--color-muted)' }}>Loading bookings...</p>
-        ) : bookings.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--color-muted)' }}>
-            <p>No bookings yet</p>
-            <p style={{ fontSize: '0.9rem' }}>Start by selecting Hotel, Veterinary, or Grooming service.</p>
+          <div className="booking-empty-state">
+            <FaSyncAlt className="spin" />
+            <h3>Loading bookings...</h3>
+            <p>Please wait while we fetch your booking records.</p>
+          </div>
+        ) : filteredBookings.length === 0 ? (
+          <div className="booking-empty-state">
+            <FaCalendarCheck />
+            <h3>No bookings found</h3>
+            <p>
+              {searchTerm || statusFilter !== "all"
+                ? "Try adjusting your search or filter."
+                : "Start by selecting Hotel, Veterinary, or Grooming service above."}
+            </p>
           </div>
         ) : (
           <div className="bookings-list">
-            {bookings.map((booking) => (
-              <div key={booking.id} className="booking-item">
-                <div className="booking-info">
-                  <span className="booking-type">{booking.icon}</span>
-                  <span className="booking-details">{booking.details}</span>
-                  <span className="booking-date">{booking.date}</span>
+            {filteredBookings.map((booking) => (
+              <article key={booking.id} className="booking-item">
+                <div className="booking-main">
+                  <span className={`booking-type-icon ${booking.serviceType}`}>
+                    {booking.icon}
+                  </span>
+
+                  <div>
+                    <h3>{booking.title}</h3>
+                    <p>{booking.details}</p>
+
+                    <div className="booking-meta">
+                      <span>
+                        <FaCalendarCheck />
+                        {formatDate(booking.date)}
+                      </span>
+
+                      {booking.time && (
+                        <span>
+                          <FaClock />
+                          {booking.time}
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                <span className={`booking-status ${booking.status}`}>{booking.status}</span>
-              </div>
+
+                <span className={`booking-status ${booking.status}`}>
+                  {booking.status.replace(/_/g, " ")}
+                </span>
+              </article>
             ))}
           </div>
         )}
-      </div>
-      </div>
+      </section>
 
-      {/* Enhanced Modal */}
-      {selectedBooking && (
-        <div className="modal-overlay">
-          <div className="modal">
-            <div className="modal-header">
-              <div className="modal-title">
-                <span className="modal-icon">
-                  {bookingTypes.find(t => t.id === selectedBooking)?.icon}
+      {selectedBooking && selectedMeta && (
+        <div className="booking-modal-overlay" onClick={handleClose}>
+          <div className="booking-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="booking-modal-header">
+              <div className="booking-modal-title">
+                <span className={`modal-service-icon ${selectedMeta.accent}`}>
+                  {selectedMeta.icon}
                 </span>
-                <h4>{bookingTypes.find(t => t.id === selectedBooking)?.title} Booking</h4>
+
+                <div>
+                  <span className="bookings-eyebrow">New Booking Request</span>
+                  <h2>{selectedMeta.title}</h2>
+                  <p>{selectedMeta.description}</p>
+                </div>
               </div>
-              <button className="close-modal-btn" onClick={handleClose}>×</button>
+
+              <button className="close-modal-btn" onClick={handleClose} type="button">
+                <FaTimes />
+              </button>
             </div>
 
             <form className="booking-form" onSubmit={handleSubmit}>
-              <div className="form-group">
-                <label htmlFor="pet_name">Pet Name</label>
-                <input 
-                  type="text" 
-                  id="pet_name" 
-                  name="pet_name" 
-                  value={formData.pet_name} 
-                  onChange={handleInputChange}
-                  required
-                  placeholder="Enter pet name"
-                />
+              <div className="booking-form-section">
+                <div className="form-section-title">
+                  <FaUser />
+                  <div>
+                    <h3>Customer & Pet Information</h3>
+                    <p>Confirm your details and choose the pet for this request.</p>
+                  </div>
+                </div>
+
+                <div className="booking-form-grid">
+                  <label className="form-group">
+                    Customer Name
+                    <input
+                      type="text"
+                      name="customer_name"
+                      value={formData.customer_name}
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </label>
+
+                  <label className="form-group">
+                    Customer Email
+                    <input
+                      type="email"
+                      name="customer_email"
+                      value={formData.customer_email}
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </label>
+
+                  <label className="form-group full-width">
+                    Select Pet
+
+                    {petsLoading ? (
+                      <div className="pet-select-helper">
+                        Loading your pets...
+                      </div>
+                    ) : pets.length > 0 ? (
+                      <select
+                        name="pet_id"
+                        value={formData.pet_id}
+                        onChange={handlePetSelect}
+                        required
+                      >
+                        <option value="">Choose your pet...</option>
+
+                        {pets.map((pet) => (
+                          <option key={pet.id} value={pet.id}>
+                            {getPetName(pet)} • {getPetSpecies(pet)} • {getPetBreed(pet)}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <div className="pet-select-empty">
+                        <strong>No pets found</strong>
+                        <p>Please add your pet first in the My Pets page before creating a booking.</p>
+                      </div>
+                    )}
+                  </label>
+                </div>
               </div>
 
-              {/* Hotel-specific fields */}
-              {selectedBooking === "Hotel" && (
-                <div className="service-fields">
-                  <div className="form-group">
-                    <label htmlFor="service_name">Room Type</label>
-                    <select 
-                      id="service_name" 
-                      name="service_name" 
-                      value={formData.service_name} 
-                      onChange={handleInputChange}
-                      required
-                    >
-                      <option value="Standard Room">Standard Room</option>
-                      <option value="Deluxe Room">Deluxe Room</option>
-                      <option value="Suite">Suite</option>
-                    </select>
-                  </div>
-
-                  <div className="form-row">
-                    <div className="form-group">
-                      <label htmlFor="request_date">Check-In Date</label>
-                      <input 
-                        type="date" 
-                        id="request_date" 
-                        name="request_date" 
-                        value={formData.request_date} 
-                        onChange={handleInputChange}
-                        required
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label htmlFor="request_time">Check-In Time</label>
-                      <input 
-                        type="time" 
-                        id="request_time" 
-                        name="request_time" 
-                        value={formData.request_time} 
-                        onChange={handleInputChange}
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div className="form-group">
-                    <label htmlFor="notes">Special Requests</label>
-                    <textarea 
-                      id="notes" 
-                      name="notes" 
-                      value={formData.notes} 
-                      onChange={handleInputChange}
-                      placeholder="Any special needs or requests for your pet..."
-                      rows="3"
-                    />
+              <div className="booking-form-section">
+                <div className="form-section-title">
+                  {selectedMeta.icon}
+                  <div>
+                    <h3>Service Details</h3>
+                    <p>Select your preferred service and schedule.</p>
                   </div>
                 </div>
-              )}
 
-              {/* Vet-specific fields */}
-              {selectedBooking === "Vet" && (
-                <div className="service-fields">
-                  <div className="form-group">
-                    <label htmlFor="service_name">Service Type</label>
-                    <select 
-                      id="service_name" 
-                      name="service_name" 
-                      value={formData.service_name} 
+                <div className="booking-form-grid">
+                  <label className="form-group full-width">
+                    Service
+                    <select
+                      name="service_name"
+                      value={formData.service_name}
                       onChange={handleInputChange}
                       required
                     >
-                      <option value="Checkup">General Checkup</option>
-                      <option value="Vaccination">Vaccination</option>
-                      <option value="Surgery">Surgery</option>
-                      <option value="Dental">Dental Cleaning</option>
+                      {serviceOptions.map((service) => (
+                        <option key={`${service.name}-${service.price}`} value={service.name}>
+                          {service.name}
+                          {service.category ? ` • ${service.category}` : ""} -{" "}
+                          {formatCurrency(service.price || 0)}
+                        </option>
+                      ))}
                     </select>
-                  </div>
 
-                  <div className="form-row">
-                    <div className="form-group">
-                      <label htmlFor="request_date">Preferred Date</label>
-                      <input 
-                        type="date" 
-                        id="request_date" 
-                        name="request_date" 
-                        value={formData.request_date} 
-                        onChange={handleInputChange}
-                        required
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label htmlFor="request_time">Preferred Time</label>
-                      <input 
-                        type="time" 
-                        id="request_time" 
-                        name="request_time" 
-                        value={formData.request_time} 
-                        onChange={handleInputChange}
-                        required
-                      />
-                    </div>
-                  </div>
+                    {selectedBooking === "Vet" && servicesLoading && (
+                      <small>Loading veterinary services...</small>
+                    )}
+                  </label>
 
-                  <div className="form-group">
-                    <label htmlFor="notes">Reason for Visit</label>
-                    <textarea 
-                      id="notes" 
-                      name="notes" 
-                      value={formData.notes} 
+                  <label className="form-group">
+                    Preferred Date
+                    <input
+                      type="date"
+                      name="request_date"
+                      value={formData.request_date}
                       onChange={handleInputChange}
-                      placeholder="Describe the health concern or reason for visit..."
+                      min={new Date().toISOString().split("T")[0]}
+                      required
+                    />
+                  </label>
+
+                  <label className="form-group">
+                    Preferred Time
+                    <input
+                      type="time"
+                      name="request_time"
+                      value={formData.request_time}
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </label>
+
+                  <label className="form-group full-width">
+                    {selectedBooking === "Vet"
+                      ? "Reason for Visit"
+                      : selectedBooking === "Hotel"
+                      ? "Special Requests"
+                      : "Special Instructions"}
+                    <textarea
+                      name="notes"
+                      value={formData.notes}
+                      onChange={handleInputChange}
+                      placeholder={
+                        selectedBooking === "Vet"
+                          ? "Describe symptoms, concerns, or reason for visit..."
+                          : selectedBooking === "Hotel"
+                          ? "Diet, medication, exercise, or care instructions..."
+                          : "Preferred haircut, coat concerns, or grooming instructions..."
+                      }
                       rows="4"
-                      required
+                      required={selectedBooking === "Vet"}
                     />
+                  </label>
+                </div>
+              </div>
+
+              <div className="booking-form-section payment-section">
+                <div className="form-section-title">
+                  <FaWallet />
+                  <div>
+                    <h3>Payment Information</h3>
+                    <p>
+                      Uploading receipt is optional here. Cashier verification can be
+                      handled after approval.
+                    </p>
                   </div>
                 </div>
-              )}
 
-              {/* Groom-specific fields */}
-              {selectedBooking === "Groom" && (
-                <div className="service-fields">
-                  <div className="form-group">
-                    <label htmlFor="service_name">Service Type</label>
-                    <select 
-                      id="service_name" 
-                      name="service_name" 
-                      value={formData.service_name} 
-                      onChange={handleInputChange}
-                      required
-                    >
-                      <option value="Basic Bath">Basic Bath</option>
-                      <option value="Full Grooming Package">Full Grooming Package</option>
-                      <option value="Haircut Only">Haircut Only</option>
-                      <option value="Nail Trim">Nail Trim</option>
-                      <option value="Teeth Cleaning">Teeth Cleaning</option>
-                    </select>
+                <div className="booking-payment-summary">
+                  <div>
+                    <small>Selected Service</small>
+                    <strong>{selectedService?.name || formData.service_name}</strong>
                   </div>
 
-                  <div className="form-row">
-                    <div className="form-group">
-                      <label htmlFor="request_date">Grooming Date</label>
-                      <input 
-                        type="date" 
-                        id="request_date" 
-                        name="request_date" 
-                        value={formData.request_date} 
-                        onChange={handleInputChange}
-                        required
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label htmlFor="request_time">Grooming Time</label>
-                      <input 
-                        type="time" 
-                        id="request_time" 
-                        name="request_time" 
-                        value={formData.request_time} 
-                        onChange={handleInputChange}
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div className="form-group">
-                    <label htmlFor="notes">Special Instructions</label>
-                    <textarea 
-                      id="notes" 
-                      name="notes" 
-                      value={formData.notes} 
-                      onChange={handleInputChange}
-                      placeholder="Any special instructions for grooming..."
-                      rows="3"
-                    />
+                  <div>
+                    <small>Estimated Fee</small>
+                    <strong>{formatCurrency(selectedService?.price || 0)}</strong>
                   </div>
                 </div>
-              )}
 
-              {/* Payment Section */}
-              <div className="payment-section">
-                <h5>Payment Information</h5>
-                <div className="form-group">
-                  <label htmlFor="receipt">Upload Payment Receipt</label>
-                  <div className="file-upload">
-                    <input 
-                      type="file" 
-                      id="receipt" 
-                      accept="image/*,.pdf" 
-                      onChange={handleReceiptUpload}
-                      className="file-input"
-                    />
-                    <label htmlFor="receipt" className="file-label">
-                      <span className="upload-icon"></span>
-                      <span className="upload-text">
-                        {receipt ? receipt.name : 'Choose file or drag here'}
-                      </span>
-                    </label>
+                <label className="file-upload">
+                  <input
+                    type="file"
+                    accept="image/*,.pdf"
+                    onChange={handleReceiptUpload}
+                  />
+
+                  <span>
+                    <FaUpload />
+                  </span>
+
+                  <div>
+                    <strong>{receipt ? receipt.name : "Upload payment receipt"}</strong>
+                    <p>JPG, PNG, WEBP, or PDF up to 5MB.</p>
                   </div>
-                </div>
+                </label>
 
                 {previewUrl && (
                   <div className="receipt-preview">
                     <div className="preview-header">
-                      <span>Receipt Preview</span>
-                      <button 
-                        type="button" 
-                        className="remove-btn" 
-                        onClick={handleRemoveReceipt}
-                      >
+                      <span>
+                        <FaReceipt />
+                        Receipt Preview
+                      </span>
+
+                      <button type="button" onClick={handleRemoveReceipt}>
                         Remove
                       </button>
                     </div>
-                    <img src={previewUrl} alt="Receipt Preview" />
+
+                    {receipt?.type === "application/pdf" ? (
+                      <div className="pdf-preview">PDF receipt selected: {receipt.name}</div>
+                    ) : (
+                      <img src={previewUrl} alt="Receipt Preview" />
+                    )}
                   </div>
                 )}
               </div>
 
-              {/* Form Actions */}
-              <div className="form-actions">
+              <div className="booking-form-actions">
                 <button type="button" className="cancel-btn" onClick={handleClose}>
                   Cancel
                 </button>
-                <button type="submit" className="submit-btn" disabled={submitting}>
-                  {submitting ? 'Submitting...' : 'Confirm Booking'}
+
+                <button type="submit" className="submit-btn" disabled={submitting || pets.length === 0}>
+                  {submitting ? "Submitting..." : "Submit Booking Request"}
                 </button>
               </div>
             </form>

@@ -45,6 +45,7 @@ class ServiceRequestController extends Controller
             'customer_email' => 'nullable|email|max:150',
             'pet_name' => 'required|string|max:150',
             'service_type' => 'required|in:grooming,vet,hotel',
+            'request_type' => 'required|in:grooming,vet,hotel',
             'service_name' => 'required|string|max:150',
             'request_date' => 'required|date',
             'request_time' => 'required|string|max:50',
