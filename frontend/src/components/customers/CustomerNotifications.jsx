@@ -30,7 +30,7 @@ const CustomerNotifications = () => {
   const fetchNotifications = async () => {
     try {
       setLoading(true);
-      const data = await apiRequest("/customer/notifications");
+      const data = await apiRequest("/notifications");
       setNotifications(Array.isArray(data) ? data : []);
       setError("");
     } catch (err) {
@@ -43,7 +43,7 @@ const CustomerNotifications = () => {
 
   const markAsRead = async (id) => {
     try {
-      await apiRequest(`/customer/notifications/${id}/read`, {
+      await apiRequest(`/notifications/${id}/read`, {
         method: "PUT",
       });
       fetchNotifications();
@@ -54,7 +54,7 @@ const CustomerNotifications = () => {
 
   const markAllAsRead = async () => {
     try {
-      await apiRequest("/customer/notifications/read-all", {
+      await apiRequest("/notifications/read-all", {
         method: "PUT",
       });
       fetchNotifications();
