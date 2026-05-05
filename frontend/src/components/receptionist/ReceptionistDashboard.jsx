@@ -25,6 +25,7 @@ const ReceptionistDashboard = () => {
   const [error, setError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState("all");
   const [selectedRequest, setSelectedRequest] = useState(null);
 
   const handleProfilePhotoUpload = async (file) => {
@@ -100,10 +101,13 @@ const ReceptionistDashboard = () => {
 
       const matchesStatus =
         statusFilter === "all" || item.status === statusFilter;
+      
+      const matchesType =
+        typeFilter === "all" || item.type === typeFilter;
 
-      return matchesSearch && matchesStatus;
+      return matchesSearch && matchesStatus && matchesType;
     });
-  }, [requests, searchTerm, statusFilter]);
+  }, [requests, searchTerm, statusFilter, typeFilter]);
 
   const updateStatus = async (id, newStatus) => {
     try {
@@ -246,6 +250,16 @@ const ReceptionistDashboard = () => {
               <option value="pending">Pending</option>
               <option value="approved">Approved</option>
               <option value="rejected">Rejected</option>
+            </select>
+
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+            >
+              <option value="all">All Services</option>
+              <option value="vet">Veterinary</option>
+              <option value="grooming">Grooming</option>
+              <option value="hotel">Hotel/Boarding</option>
             </select>
           </section>
 
