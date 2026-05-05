@@ -12,6 +12,7 @@ import {
   faCreditCard,
   faCalendarAlt,
   faPaw,
+  faBox,
 } from "@fortawesome/free-solid-svg-icons";
 import "./CustomerNotifications.css";
 import { apiRequest } from "../../api/client";
