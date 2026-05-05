@@ -20,15 +20,19 @@ const ReceptionistApprovals = () => {
     try {
       setLoading(true);
 
-      const data = await apiRequest(
-        "/receptionist/requests/pending",
-        { method: "GET" },
-        API_BASE
-      );
+      const result = await apiRequest("/receptionist/requests/pending", "GET");
 
-      const list = Array.isArray(data)
-        ? data
-        : data.requests || data.data || [];
+      console.log("RECEPTIONIST PENDING REQUESTS RESULT:", result);
+
+      const list = Array.isArray(result)
+        ? result
+        : result.requests ||
+          result.service_requests ||
+          result.data ||
+          result.pending_requests ||
+          [];
+
+      console.log("NORMALIZED APPROVAL REQUESTS:", list);
 
       setRequests(list);
     } catch (error) {
@@ -58,6 +62,39 @@ const ReceptionistApprovals = () => {
     } catch (error) {
       console.error("Failed to update status:", error);
       alert("Failed to update request status.");
+    }
+  };
+
+  const handleApprove = async (requestId) => {
+    try {
+      await apiRequest(`/receptionist/requests/${requestId}/approve`, "POST", {
+        receptionist_remarks: "Approved by receptionist",
+      });
+
+      alert("Request approved successfully.");
+      await fetchRequests();
+    } catch (error) {
+      console.error("APPROVE REQUEST ERROR:", error);
+      alert(error.message || "Failed to approve request.");
+    }
+  };
+
+  const handleReject = async (requestId) => {
+    const reason = window.prompt("Enter rejection reason:");
+
+    if (!reason) return;
+
+    try {
+      await apiRequest(`/receptionist/requests/${requestId}/reject`, "POST", {
+        rejection_reason: reason,
+        receptionist_remarks: reason,
+      });
+
+      alert("Request rejected successfully.");
+      await fetchRequests();
+    } catch (error) {
+      console.error("REJECT REQUEST ERROR:", error);
+      alert(error.message || "Failed to reject request.");
     }
   };
 
@@ -159,7 +196,7 @@ const ReceptionistApprovals = () => {
                 <div className="approval-actions">
                   <button
                     className="approve-btn"
-                    onClick={() => updateStatus(item.id, "approved")}
+                    onClick={() => handleApprove(item.id)}
                   >
                     <FaCheckCircle />
                     Approve
@@ -167,7 +204,7 @@ const ReceptionistApprovals = () => {
 
                   <button
                     className="reject-btn"
-                    onClick={() => updateStatus(item.id, "rejected")}
+                    onClick={() => handleReject(item.id)}
                   >
                     <FaTimesCircle />
                     Reject

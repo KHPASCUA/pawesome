@@ -252,13 +252,13 @@ const VetDashboard = () => {
               <h3 className="section-title">Quick Actions</h3>
               <div className="actions-row">
                 <NavLink to="/veterinary/appointments" className="btn-primary">
-                  <FontAwesomeIcon icon={faCalendarAlt} /> + New Appointment
+                  <FontAwesomeIcon icon={faCalendarAlt} /> View Appointments
                 </NavLink>
                 <NavLink to="/veterinary/customer-profiles" className="btn-secondary">
-                  <FontAwesomeIcon icon={faPaw} /> + Add Patient
+                  <FontAwesomeIcon icon={faPaw} /> Patient Records
                 </NavLink>
                 <NavLink to="/veterinary/current-boarders" className="btn-secondary">
-                  <FontAwesomeIcon icon={faHotel} /> + Admit Boarder
+                  <FontAwesomeIcon icon={faHotel} /> Current Boarders
                 </NavLink>
               </div>
             </section>

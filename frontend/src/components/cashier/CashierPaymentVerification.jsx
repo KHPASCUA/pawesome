@@ -25,10 +25,11 @@ const CashierPaymentVerification = () => {
     }
   };
 
-  const verifyPayment = async (id) => {
+  const verifyPayment = async (payment) => {
     try {
-      const data = await apiRequest(`/cashier/payment-requests/${id}/verify`, {
-        method: "PUT",
+      const data = await apiRequest(`/cashier/payment-requests/${payment.id}/verify`, "POST", {
+        type: payment.payable_type || payment.type || payment.payment_source || "service_request",
+        cashier_remarks: "Payment verified by cashier",
       });
 
       alert(
@@ -37,24 +38,26 @@ const CashierPaymentVerification = () => {
       fetchRequests();
     } catch (err) {
       console.error("Failed to verify payment:", err);
-      alert("Failed to verify payment.");
+      alert(err.message || "Failed to verify payment.");
     }
   };
 
-  const rejectPayment = async (id) => {
+  const rejectPayment = async (payment) => {
     const cashier_remarks = window.prompt("Reason for rejecting this payment proof:");
     if (cashier_remarks === null) return;
 
     try {
-      await apiRequest(`/cashier/payment-requests/${id}/reject`, {
-        method: "PUT",
-        body: JSON.stringify({ cashier_remarks }),
+      await apiRequest(`/cashier/payment-requests/${payment.id}/reject`, "POST", {
+        type: payment.payable_type || payment.type || payment.payment_source || "service_request",
+        cashier_remarks,
+        rejection_reason: cashier_remarks,
       });
 
+      alert("Payment rejected.");
       fetchRequests();
     } catch (err) {
       console.error("Failed to reject payment:", err);
-      alert("Failed to reject payment.");
+      alert(err.message || "Failed to reject payment.");
     }
   };
 
@@ -116,7 +119,29 @@ const CashierPaymentVerification = () => {
                           <td>{item.service_name || item.service?.name || item.order_name || "N/A"}</td>
                           <td>{item.request_date || item.date || "N/A"}</td>
                           <td>₱{Number(item.amount || item.total_amount || 0).toLocaleString("en-PH")}</td>
-                          <td>{item.payment_proof || "No proof"}</td>
+                          <td>
+                            {item.proof_url ? (
+                              <a
+                                href={item.proof_url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="proof-link"
+                              >
+                                View Proof
+                              </a>
+                            ) : item.payment_proof ? (
+                              <a
+                                href={`http://127.0.0.1:8000/storage/${item.payment_proof}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="proof-link"
+                              >
+                                View Proof
+                              </a>
+                            ) : (
+                              "No proof"
+                            )}
+                          </td>
                           <td>
                             <span className={`status-badge ${String(item.payment_status || "pending").toLowerCase()}`}>
                               {item.payment_status || "pending"}
@@ -126,14 +151,14 @@ const CashierPaymentVerification = () => {
                             <button
                               className="verify-btn"
                               type="button"
-                              onClick={() => verifyPayment(item.id)}
+                              onClick={() => verifyPayment(item)}
                             >
                               Verify Payment
                             </button>
                             <button
                               className="reject-btn"
                               type="button"
-                              onClick={() => rejectPayment(item.id)}
+                              onClick={() => rejectPayment(item)}
                             >
                               Reject
                             </button>

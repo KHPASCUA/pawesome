@@ -17,9 +17,19 @@ class PortalController extends Controller
 {
     private function currentCustomer(): ?Customer
     {
-        $user = request()->user() ?? auth()->user();
+        // For API token authentication, get user from auth()->user()
+        $user = auth()->user();
         if (!$user) return null;
-        return Customer::where('email', $user->email)->first();
+        
+        // Try to find customer by user_id first (more reliable)
+        $customer = Customer::where('user_id', $user->id)->first();
+        
+        // Fallback to email matching if user_id not found
+        if (!$customer) {
+            $customer = Customer::where('email', $user->email)->first();
+        }
+        
+        return $customer;
     }
 
     public function overview()
@@ -176,6 +186,8 @@ class PortalController extends Controller
             'species' => 'nullable|string|max:100',
             'breed' => 'nullable|string|max:100',
             'age' => 'nullable|integer|min:0',
+            'gender' => 'nullable|string|max:50',
+            'notes' => 'nullable|string',
         ]);
 
         $pet = Pet::create(array_merge($data, ['customer_id' => $cust->id]));

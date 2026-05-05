@@ -7,43 +7,66 @@ use Illuminate\Http\Request;
 
 class PetController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $user = auth()->user();
-        $customer = $user->customer;
+        $user = $request->user();
+
+        $customer = \App\Models\Customer::where('user_id', $user->id)
+            ->orWhere('email', $user->email)
+            ->first();
 
         if (!$customer) {
-            return response()->json(['pets' => []]);
+            return response()->json([
+                'pets' => [],
+            ]);
         }
 
-        $pets = Pet::where('customer_id', $customer->id)->orderBy('created_at', 'desc')->get();
-        return response()->json(['pets' => $pets]);
+        $pets = \App\Models\Pet::where('customer_id', $customer->id)
+            ->latest()
+            ->get();
+
+        return response()->json([
+            'pets' => $pets,
+        ]);
     }
 
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:100',
-            'species' => 'required|string|max:50',
-            'breed' => 'nullable|string|max:100',
-            'age' => 'nullable|string|max:30',
-            'gender' => 'nullable|string|max:20',
+            'name' => 'required|string|max:255',
+            'species' => 'required|string|max:255',
+            'breed' => 'nullable|string|max:255',
+            'age' => 'nullable|integer|min:0',
+            'gender' => 'nullable|string|max:50',
             'notes' => 'nullable|string',
         ]);
 
-        $user = auth()->user();
-        $customer = $user->customer;
+        $user = $request->user();
 
-        if (!$customer) {
-            return response()->json(['message' => 'Customer record not found'], 404);
-        }
+        $customer = \App\Models\Customer::firstOrCreate(
+            ['email' => $user->email],
+            [
+                'user_id' => $user->id,
+                'name' => $user->name ?? trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? '')),
+                'phone' => $user->phone ?? null,
+                'address' => $user->address ?? null,
+                'is_active' => true,
+            ]
+        );
 
-        $validated['customer_id'] = $customer->id;
-        $pet = Pet::create($validated);
+        $pet = \App\Models\Pet::create([
+            'customer_id' => $customer->id,
+            'name' => $validated['name'],
+            'species' => $validated['species'],
+            'breed' => $validated['breed'] ?? null,
+            'age' => $validated['age'] ?? null,
+            'gender' => $validated['gender'] ?? null,
+            'notes' => $validated['notes'] ?? null,
+        ]);
 
         return response()->json([
-            'message' => 'Pet added successfully',
-            'pet' => $pet
+            'message' => 'Pet added successfully.',
+            'pet' => $pet,
         ], 201);
     }
 
@@ -56,11 +79,11 @@ class PetController extends Controller
     public function update(Request $request, $id)
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:100',
-            'species' => 'required|string|max:50',
-            'breed' => 'nullable|string|max:100',
-            'age' => 'nullable|string|max:30',
-            'gender' => 'nullable|string|max:20',
+            'name' => 'required|string|max:255',
+            'species' => 'required|string|max:255',
+            'breed' => 'nullable|string|max:255',
+            'age' => 'nullable|integer|min:0',
+            'gender' => 'nullable|string|max:50',
             'notes' => 'nullable|string',
         ]);
 

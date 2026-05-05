@@ -15,8 +15,9 @@ class DashboardController extends Controller
         $today = Carbon::today();
         
         return response()->json([
-            'today_appointments' => Appointment::whereDate('scheduled_at', $today)->count(),
-            'pending_appointments' => 0,
+            'today_appointments' => Appointment::whereDate('scheduled_at', $today)
+                ->whereIn('status', ['approved', 'scheduled', 'in_progress', 'treated'])
+                ->count(),
             'approved_appointments' => Appointment::whereIn('status', ['approved', 'scheduled'])->count(),
             'completed_appointments' => Appointment::where('status', 'completed')->count(),
             'total_patients' => Pet::count(),
@@ -31,6 +32,7 @@ class DashboardController extends Controller
             'appointments_by_type' => Appointment::with('service')
                 ->selectRaw('service_id, count(*) as count')
                 ->whereMonth('scheduled_at', $today->month)
+                ->whereIn('status', ['approved', 'scheduled', 'in_progress', 'treated', 'completed'])
                 ->groupBy('service_id')
                 ->get(),
         ]);

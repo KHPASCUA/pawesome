@@ -90,63 +90,53 @@ const ManagerDashboard = () => {
   const showOverview =
     normalizedPath === "/manager" || normalizedPath === "/manager/";
 
-  const revenueChartData = [
-    { month: "Jan", revenue: 125000 },
-    { month: "Feb", revenue: 145000 },
-    { month: "Mar", revenue: 138000 },
-    { month: "Apr", revenue: 162000 },
-    { month: "May", revenue: 175000 },
-    { month: "Jun", revenue: 158000 },
-  ];
+  const revenueChartData = useMemo(() => {
+    if (!dashboardData?.monthly_revenue) return [];
+    // Generate from actual monthly revenue data if available
+    return Array.isArray(dashboardData.monthly_revenue) 
+      ? dashboardData.monthly_revenue.map(item => ({
+          month: new Date(item.month || Date.now()).toLocaleDateString('en-US', { month: 'short' }),
+          revenue: Number(item.revenue || item.amount || 0),
+        }))
+      : [];
+  }, [dashboardData]);
 
-  const staffChartData = [
-    { department: "Reception", staff: 4 },
-    { department: "Cashier", staff: 3 },
-    { department: "Inventory", staff: 2 },
-    { department: "Vet", staff: 3 },
-    { department: "Manager", staff: 1 },
-  ];
+  const staffChartData = useMemo(() => {
+    if (!dashboardData?.staff_performance) return [];
+    // Generate from actual staff data
+    const roleCounts = {};
+    dashboardData.staff_performance.forEach(staff => {
+      const role = staff.role || 'Other';
+      roleCounts[role] = (roleCounts[role] || 0) + 1;
+    });
+    return Object.entries(roleCounts).map(([department, staff]) => ({
+      department: department.charAt(0).toUpperCase() + department.slice(1),
+      staff,
+    }));
+  }, [dashboardData]);
 
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      let data;
-
-      try {
-        data = await apiRequest("/manager/dashboard");
-      } catch (err) {
-        console.warn("Using demo dashboard data");
-        data = {
-          total_staff: 12,
-          active_staff: 9,
-          today_appointments: 18,
-          completed_appointments: 14,
-          pending_appointments: 4,
-          today_revenue: 12500,
-          monthly_revenue: 158000,
-          recent_tasks: [
-            {
-              title: "Inventory restock",
-              status: "completed",
-              department: "Inventory",
-              due_date: "Today",
-            },
-            {
-              title: "Staff meeting",
-              status: "pending",
-              department: "HR",
-              due_date: "Tomorrow",
-            },
-          ],
-          staff_performance: [],
-        };
-      }
-
+      const data = await apiRequest("/manager/dashboard");
+      
       setDashboardData(data);
       setError("");
     } catch (err) {
       setError(err.message || "Failed to load dashboard data");
       console.error("Manager dashboard fetch error:", err);
+      // Set empty state on error, not demo data
+      setDashboardData({
+        total_staff: 0,
+        active_staff: 0,
+        today_appointments: 0,
+        completed_appointments: 0,
+        pending_appointments: 0,
+        today_revenue: 0,
+        monthly_revenue: 0,
+        recent_tasks: [],
+        staff_performance: [],
+      });
     } finally {
       setLoading(false);
     }

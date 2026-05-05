@@ -24,6 +24,23 @@ const HotelBookings = () => {
 
   const [bookings, setBookings] = useState([]);
   const [stats, setStats] = useState({ total: 0, approved: 0, pending: 0 });
+  
+  // Booking creation state
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [formData, setFormData] = useState({
+    customer_name: '',
+    customer_email: '',
+    pet_name: '',
+    pet_type: '',
+    booking_type: 'hotel',
+    service_name: '',
+    preferred_date: '',
+    preferred_time: '',
+    remarks: '',
+    status: 'scheduled'
+  });
+  const [formErrors, setFormErrors] = useState({});
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     fetchBookings();
@@ -63,6 +80,85 @@ const HotelBookings = () => {
       setError("Failed to update status");
     } finally {
       setProcessingId(null);
+    }
+  };
+
+  const handleCreateBooking = async (e) => {
+    e.preventDefault();
+    
+    // Basic validation
+    const requiredFields = ['customer_name', 'pet_name', 'booking_type'];
+    const missingFields = requiredFields.filter(field => !formData[field]);
+    
+    if (missingFields.length > 0) {
+      setFormErrors(missingFields.reduce((errors, field) => {
+        errors[field] = `${field.replace('_', ' ')} is required`;
+        return errors;
+      }, {}));
+      return;
+    }
+    
+    try {
+      setSaving(true);
+      
+      // Prepare booking data
+      const bookingData = {
+        ...formData,
+        type: formData.booking_type,
+        customer: formData.customer_name,
+        email: formData.customer_email,
+        pet: formData.pet_name,
+        service: formData.service_name,
+        date: formData.preferred_date,
+        time: formData.preferred_time,
+        notes: formData.remarks,
+        status: 'scheduled'
+      };
+      
+      await apiRequest("/receptionist/requests", {
+        method: "POST",
+        body: JSON.stringify(bookingData),
+      });
+      
+      await fetchBookings();
+      
+      // Reset form
+      setShowCreateModal(false);
+      setFormData({
+        customer_name: '',
+        customer_email: '',
+        pet_name: '',
+        pet_type: '',
+        booking_type: 'hotel',
+        service_name: '',
+        preferred_date: '',
+        preferred_time: '',
+        remarks: '',
+        status: 'scheduled'
+      });
+      setFormErrors({});
+      
+      setSuccessMessage("Booking created successfully");
+      setTimeout(() => setSuccessMessage(""), 3000);
+    } catch (error) {
+      setError("Failed to create booking");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleInputChange = (field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+    
+    // Clear error for this field when user starts typing
+    if (formErrors[field]) {
+      setFormErrors(prev => ({
+        ...prev,
+        [field]: ''
+      }));
     }
   };
 
@@ -167,6 +263,14 @@ const HotelBookings = () => {
               <option value="rejected">Rejected</option>
             </select>
           </div>
+          <button 
+            className="create-booking-btn"
+            onClick={() => setShowCreateModal(true)}
+            title="Create Booking"
+          >
+            <FontAwesomeIcon icon={faCalendarAlt} />
+            Create Booking
+          </button>
         </div>
       </div>
 
@@ -300,10 +404,170 @@ const HotelBookings = () => {
                 </div>
               </div>
             </div>
-            <div className="modal-actions">
-              <button className="secondary-btn" onClick={() => setSelectedBooking(null)}>
-                Close
+          </div>
+        </div>
+      )}
+
+      {showCreateModal && (
+        <div className="booking-modal-overlay" onClick={() => setShowCreateModal(false)}>
+          <div className="booking-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Create Booking</h2>
+              <button
+                className="close-btn"
+                onClick={() => setShowCreateModal(false)}
+              >
+                ×
               </button>
+            </div>
+            <div className="modal-content">
+              <form onSubmit={handleCreateBooking} className="booking-form">
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Customer Name *</label>
+                    <input
+                      type="text"
+                      name="customer_name"
+                      value={formData.customer_name}
+                      onChange={(e) => handleInputChange('customer_name', e.target.value)}
+                      className={formErrors.customer_name ? 'error' : ''}
+                    />
+                    {formErrors.customer_name && <span className="error-text">{formErrors.customer_name}</span>}
+                  </div>
+                </div>
+                
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Customer Email/Phone *</label>
+                    <input
+                      type="text"
+                      name="customer_email"
+                      value={formData.customer_email}
+                      onChange={(e) => handleInputChange('customer_email', e.target.value)}
+                      className={formErrors.customer_email ? 'error' : ''}
+                    />
+                    {formErrors.customer_email && <span className="error-text">{formErrors.customer_email}</span>}
+                  </div>
+                </div>
+                
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Pet Name *</label>
+                    <input
+                      type="text"
+                      name="pet_name"
+                      value={formData.pet_name}
+                      onChange={(e) => handleInputChange('pet_name', e.target.value)}
+                      className={formErrors.pet_name ? 'error' : ''}
+                    />
+                    {formErrors.pet_name && <span className="error-text">{formErrors.pet_name}</span>}
+                  </div>
+                </div>
+                
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Pet Type/Breed</label>
+                    <input
+                      type="text"
+                      name="pet_type"
+                      value={formData.pet_type}
+                      onChange={(e) => handleInputChange('pet_type', e.target.value)}
+                      className={formErrors.pet_type ? 'error' : ''}
+                    />
+                    {formErrors.pet_type && <span className="error-text">{formErrors.pet_type}</span>}
+                  </div>
+                </div>
+                
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Booking Type</label>
+                    <select
+                      name="booking_type"
+                      value={formData.booking_type}
+                      onChange={(e) => handleInputChange('booking_type', e.target.value)}
+                      className={formErrors.booking_type ? 'error' : ''}
+                    >
+                      <option value="hotel">Hotel / Boarding</option>
+                      <option value="grooming">Grooming</option>
+                      <option value="veterinary">Veterinary</option>
+                    </select>
+                    {formErrors.booking_type && <span className="error-text">{formErrors.booking_type}</span>}
+                  </div>
+                </div>
+                
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Service</label>
+                    <input
+                      type="text"
+                      name="service_name"
+                      value={formData.service_name}
+                      onChange={(e) => handleInputChange('service_name', e.target.value)}
+                      className={formErrors.service_name ? 'error' : ''}
+                    />
+                    {formErrors.service_name && <span className="error-text">{formErrors.service_name}</span>}
+                  </div>
+                </div>
+                
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Preferred Date</label>
+                    <input
+                      type="date"
+                      name="preferred_date"
+                      value={formData.preferred_date}
+                      onChange={(e) => handleInputChange('preferred_date', e.target.value)}
+                      className={formErrors.preferred_date ? 'error' : ''}
+                    />
+                    {formErrors.preferred_date && <span className="error-text">{formErrors.preferred_date}</span>}
+                  </div>
+                </div>
+                
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Preferred Time</label>
+                    <input
+                      type="time"
+                      name="preferred_time"
+                      value={formData.preferred_time}
+                      onChange={(e) => handleInputChange('preferred_time', e.target.value)}
+                      className={formErrors.preferred_time ? 'error' : ''}
+                    />
+                    {formErrors.preferred_time && <span className="error-text">{formErrors.preferred_time}</span>}
+                  </div>
+                </div>
+                
+                <div className="form-row">
+                  <div className="form-group full-width">
+                    <label>Remarks</label>
+                    <textarea
+                      name="remarks"
+                      value={formData.remarks}
+                      onChange={(e) => handleInputChange('remarks', e.target.value)}
+                      rows="3"
+                      className={formErrors.remarks ? 'error' : ''}
+                    />
+                    {formErrors.remarks && <span className="error-text">{formErrors.remarks}</span>}
+                  </div>
+                </div>
+                
+                <div className="form-actions">
+                  <button
+                    type="submit"
+                    className="submit-btn"
+                    disabled={saving}
+                  >
+                    {saving ? 'Creating...' : 'Create Booking'}
+                  </button>
+                  <button
+                    type="button"
+                    className="cancel-btn"
+                    onClick={() => setShowCreateModal(false)}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         </div>

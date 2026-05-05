@@ -110,7 +110,7 @@ const CustomerDashboard = () => {
         },
         {
           title: "Pending Service Requests",
-          value: dashboardData.pending_requests || 0,
+          value: dashboardData.pending_service_requests || dashboardData.pending_requests || 0,
           subtitle: "Waiting for approval",
           icon: faCalendarAlt,
           tone: "info",
@@ -133,6 +133,13 @@ const CustomerDashboard = () => {
           title: "Completed Services",
           value: dashboardData.completed_services || 0,
           subtitle: "This month",
+          icon: faCheckCircle,
+          tone: "success",
+        },
+        {
+          title: "Paid Services",
+          value: dashboardData.payment_paid || dashboardData.paid_services || 0,
+          subtitle: "Payment verified",
           icon: faCheckCircle,
           tone: "success",
         },

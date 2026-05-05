@@ -72,7 +72,16 @@ class ReceptionistRequestController extends Controller
             'request_date' => 'nullable|date',
             'request_time' => 'nullable|string',
             'notes' => 'nullable|string',
+            'status' => 'nullable|in:pending,scheduled,approved,rejected',
         ]);
+
+        // Role-based status validation
+        $user = $request->user();
+        $status = 'pending'; // Default for customers
+        
+        if ($user && in_array($user->role, ['receptionist', 'admin'])) {
+            $status = $validated['status'] ?? 'scheduled'; // Default to scheduled for receptionist/admin
+        }
 
         $createData = [
             'request_type' => $validated['request_type'] ?? $validated['service_type'] ?? 'grooming',
@@ -82,7 +91,7 @@ class ReceptionistRequestController extends Controller
             'request_date' => $validated['request_date'] ?? null,
             'request_time' => $validated['request_time'] ?? null,
             'notes' => $validated['notes'] ?? null,
-            'status' => 'pending',
+            'status' => $status,
             'payment_status' => 'pending',
         ];
 
@@ -147,6 +156,49 @@ class ReceptionistRequestController extends Controller
             'success' => true,
             'message' => 'Request status updated successfully.',
             'request' => $this->formatRequest($serviceRequest)
+        ]);
+    }
+
+    public function approve(Request $request, $id)
+    {
+        $serviceRequest = ServiceRequest::findOrFail($id);
+
+        $serviceRequest->update([
+            'status' => 'approved',
+            'payment_status' => 'unpaid',
+            'approved_by' => $request->user()->id,
+            'approved_at' => now(),
+            'receptionist_remarks' => $request->input('receptionist_remarks', 'Approved by receptionist'),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Request approved successfully.',
+            'request' => $this->formatRequest($serviceRequest),
+        ]);
+    }
+
+    public function reject(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'rejection_reason' => 'required|string|max:1000',
+            'receptionist_remarks' => 'nullable|string|max:1000',
+        ]);
+
+        $serviceRequest = ServiceRequest::findOrFail($id);
+
+        $serviceRequest->update([
+            'status' => 'rejected',
+            'rejected_by' => $request->user()->id,
+            'rejected_at' => now(),
+            'rejection_reason' => $validated['rejection_reason'],
+            'receptionist_remarks' => $validated['receptionist_remarks'] ?? $validated['rejection_reason'],
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Request rejected successfully.',
+            'request' => $this->formatRequest($serviceRequest),
         ]);
     }
 }

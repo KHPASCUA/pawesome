@@ -2,9 +2,9 @@
 
 namespace App\Http\Middleware;
 
-use App\Models\User;
 use Closure;
 use Illuminate\Http\Request;
+use Laravel\Sanctum\PersonalAccessToken;
 use Symfony\Component\HttpFoundation\Response;
 
 class ApiTokenAuth
@@ -21,7 +21,15 @@ class ApiTokenAuth
             return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
-        $user = User::where('api_token', $token)->first();
+        // Find the access token
+        $accessToken = PersonalAccessToken::findToken($token);
+
+        if (!$accessToken) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        // Get the user from the token
+        $user = $accessToken->tokenable;
 
         if (!$user) {
             return response()->json(['message' => 'Unauthenticated.'], 401);

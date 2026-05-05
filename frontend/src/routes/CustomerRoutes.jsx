@@ -49,6 +49,9 @@ const CustomerRoutes = () => (
       <Route path="history" element={<CustomerReports />} />
       <Route path="notifications" element={<CustomerNotifications />} />
 
+      {/* Direct payments route */}
+      <Route path="payments" element={<CustomerPayments />} />
+
       {/* Nested under reports */}
       <Route path="reports" element={<CustomerReports />}>
         <Route path="payments" element={<CustomerPayments />} />

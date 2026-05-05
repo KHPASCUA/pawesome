@@ -210,22 +210,31 @@ const CustomerPets = () => {
       setLoading(true);
 
       const payload = {
-        ...formData,
-        customer_email: customerEmail || formData.customer_email,
+        name: formData.name?.trim(),
+        species: formData.species,
+        breed: formData.breed?.trim() || null,
         age: formData.age ? Number(formData.age) : null,
+        gender: formData.gender || null,
+        notes: formData.notes?.trim() || null,
       };
 
-      const data = await apiRequest("/customer/pets", {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
+      const data = await apiRequest("/customer/pets", "POST", payload);
 
       resetForm();
       await fetchPets({ silent: true });
       showMessage("success", data?.message || "Pet added successfully.");
     } catch (error) {
-      console.error("Failed to add pet:", error);
-      showMessage("error", "Failed to add pet. Please try again.");
+      console.error("ADD PET ERROR:", error);
+      console.error("Response:", error.response?.data);
+
+      const message =
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        error?.message ||
+        "Failed to add pet. Please try again.";
+
+      alert(message);
+      showMessage("error", message);
     } finally {
       setLoading(false);
     }

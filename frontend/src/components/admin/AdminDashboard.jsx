@@ -54,6 +54,7 @@ const AdminDashboard = () => {
   );
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [dashboardData, setDashboardData] = useState(null);
+  const [systemHealth, setSystemHealth] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -80,8 +81,12 @@ const AdminDashboard = () => {
     const fetchDashboardData = async () => {
       try {
         setLoading(true);
-        const data = await apiRequest("/admin/dashboard");
+        const [data, health] = await Promise.all([
+          apiRequest("/admin/dashboard"),
+          apiRequest("/admin/system-health"),
+        ]);
         setDashboardData(data);
+        setSystemHealth(health);
         setError("");
       } catch (err) {
         setError(err.message || "Failed to load dashboard data");
@@ -450,7 +455,9 @@ const AdminDashboard = () => {
                         </span>
                         <div>
                           <strong>Backend</strong>
-                          <p className="status-online">Online</p>
+                          <p className={systemHealth?.health?.backend?.status === 'operational' ? 'status-online' : 'status-offline'}>
+                            {systemHealth?.health?.backend?.status || 'Unknown'}
+                          </p>
                         </div>
                       </div>
                       <div className="system-status-item">
@@ -459,7 +466,9 @@ const AdminDashboard = () => {
                         </span>
                         <div>
                           <strong>Database</strong>
-                          <p className="status-online">Connected</p>
+                          <p className={systemHealth?.health?.database?.status === 'connected' ? 'status-online' : 'status-offline'}>
+                            {systemHealth?.health?.database?.status || 'Unknown'}
+                          </p>
                         </div>
                       </div>
                       <div className="system-status-item">
@@ -468,7 +477,7 @@ const AdminDashboard = () => {
                         </span>
                         <div>
                           <strong>Last Sync</strong>
-                          <p>Today</p>
+                          <p>{systemHealth?.timestamp ? new Date(systemHealth.timestamp).toLocaleTimeString() : 'Never'}</p>
                         </div>
                       </div>
                       <div className="system-status-item">
@@ -476,8 +485,8 @@ const AdminDashboard = () => {
                           <FontAwesomeIcon icon={faLayerGroup} />
                         </span>
                         <div>
-                          <strong>Active Role Modules</strong>
-                          <p>7</p>
+                          <strong>Active Modules</strong>
+                          <p>{systemHealth?.health?.active_modules ? Object.keys(systemHealth.health.active_modules).filter(k => systemHealth.health.active_modules[k]).length : 0}</p>
                         </div>
                       </div>
                     </div>

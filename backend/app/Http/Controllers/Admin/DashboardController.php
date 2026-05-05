@@ -10,6 +10,7 @@ use App\Models\InventoryItem;
 use App\Models\Sale;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
@@ -52,5 +53,106 @@ class DashboardController extends Controller
                 ->groupBy('month')
                 ->get(),
         ]);
+    }
+
+    public function systemHealth()
+    {
+        $health = [
+            'database' => $this->checkDatabaseHealth(),
+            'backend' => $this->checkBackendHealth(),
+            'filesystem' => $this->checkFilesystemHealth(),
+            'memory' => $this->checkMemoryUsage(),
+            'active_modules' => $this->getActiveModules(),
+        ];
+        
+        return response()->json([
+            'status' => 'healthy',
+            'timestamp' => Carbon::now()->toISOString(),
+            'health' => $health,
+        ]);
+    }
+
+    private function checkDatabaseHealth()
+    {
+        try {
+            \DB::connection()->getPdo();
+            return [
+                'status' => 'connected',
+                'driver' => \DB::connection()->getConfig('driver'),
+                'database' => \DB::connection()->getDatabaseName(),
+            ];
+        } catch (\Exception $e) {
+            return [
+                'status' => 'error',
+                'message' => $e->getMessage(),
+            ];
+        }
+    }
+
+    private function checkBackendHealth()
+    {
+        return [
+            'status' => 'operational',
+            'version' => app()->version(),
+            'environment' => app()->environment(),
+            'debug_mode' => config('app.debug', false),
+            'timezone' => config('app.timezone', 'UTC'),
+        ];
+    }
+
+    private function checkFilesystemHealth()
+    {
+        $storagePath = storage_path();
+        $logsPath = storage_path('logs');
+        
+        return [
+            'storage_writable' => is_writable($storagePath),
+            'logs_writable' => is_writable($logsPath),
+            'disk_usage' => disk_free_space('/') !== false,
+            'storage_path' => $storagePath,
+        ];
+    }
+
+    private function checkMemoryUsage()
+    {
+        $memoryUsage = memory_get_usage(true);
+        $memoryLimit = ini_get('memory_limit');
+        $parsedLimit = $this->parseMemoryLimit($memoryLimit);
+        
+        return [
+            'current_usage' => $memoryUsage['real'],
+            'peak_usage' => $memoryUsage['peak'],
+            'limit' => $memoryLimit,
+            'usage_percentage' => $parsedLimit > 0 ? round(($memoryUsage['real'] / $parsedLimit) * 100, 2) : 0,
+        ];
+    }
+
+    private function parseMemoryLimit($limit)
+    {
+        $limit = strtolower($limit);
+        $last = strtolower(substr($limit, -1));
+        $value = (int) substr($limit, 0, -1);
+        
+        switch ($last) {
+            case 'g': return $value * 1024 * 1024 * 1024;
+            case 'm': return $value * 1024 * 1024;
+            case 'k': return $value * 1024;
+            default: return (int) $limit;
+        }
+    }
+
+    private function getActiveModules()
+    {
+        return [
+            'user_management' => true,
+            'appointment_system' => true,
+            'inventory_management' => true,
+            'payment_processing' => true,
+            'veterinary_services' => true,
+            'hotel_management' => true,
+            'reporting_system' => true,
+            'notification_system' => true,
+            'audit_logging' => true,
+        ];
     }
 }

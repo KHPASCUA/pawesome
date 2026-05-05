@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   FaPaw,
   FaCut,
@@ -12,18 +13,99 @@ import "./CustomerBookingForm.css";
 import { apiRequest } from "../../api/client";
 
 const CustomerBookingForm = () => {
+  const navigate = useNavigate();
+  
+  // Get customer name from localStorage
+  const customerName =
+    localStorage.getItem("name") ||
+    localStorage.getItem("customer_name") ||
+    "Customer";
+
+  // Get authentication token
+  const token = localStorage.getItem("token");
+
   const [formData, setFormData] = useState({
-    customer_name: "",
+    customer_name: customerName,
     customer_email: localStorage.getItem("email") || "",
+    pet_id: "",
     pet_name: "",
     service_type: "grooming",
     service_name: "Grooming",
-    request_date: "",
-    request_time: "",
+    preferred_date: "",
+    preferred_time: "",
     notes: "",
   });
 
+  const [pets, setPets] = useState([]);
+  const [selectedPetId, setSelectedPetId] = useState("");
   const [loading, setLoading] = useState(false);
+  const [petsLoading, setPetsLoading] = useState(false);
+
+  // Business hours configuration
+  const SHOP_OPEN = "09:00";
+  const SHOP_CLOSE = "18:00";
+  const SLOT_MINUTES = 30;
+
+  const generateTimeSlots = (open = SHOP_OPEN, close = SHOP_CLOSE, interval = SLOT_MINUTES) => {
+    const slots = [];
+
+    const [openHour, openMinute] = open.split(":").map(Number);
+    const [closeHour, closeMinute] = close.split(":").map(Number);
+
+    const start = new Date();
+    start.setHours(openHour, openMinute, 0, 0);
+
+    const end = new Date();
+    end.setHours(closeHour, closeMinute, 0, 0);
+
+    while (start < end) {
+      const value = start.toTimeString().slice(0, 5);
+
+      const label = start.toLocaleTimeString("en-PH", {
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      });
+
+      slots.push({ value, label });
+
+      start.setMinutes(start.getMinutes() + interval);
+    }
+
+    return slots;
+  };
+
+  const availableTimeSlots = generateTimeSlots();
+
+  // Load pets from API
+  const loadPets = async () => {
+    try {
+      setPetsLoading(true);
+      const result = await apiRequest("/customer/pets", "GET");
+
+      const petList = Array.isArray(result)
+        ? result
+        : result.pets || result.data || [];
+
+      setPets(petList);
+    } catch (error) {
+      console.error("Failed to load pets:", error);
+      setPets([]);
+    } finally {
+      setPetsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    // Check if user is authenticated
+    if (!token) {
+      alert("Please log in first before booking a service.");
+      navigate("/login");
+      return;
+    }
+
+    loadPets();
+  }, [token, navigate]);
 
   const serviceOptions = {
     grooming: "Grooming",
@@ -43,6 +125,17 @@ const CustomerBookingForm = () => {
       return;
     }
 
+    if (name === "pet_id") {
+      setSelectedPetId(value);
+      const selectedPet = pets.find((pet) => String(pet.id) === String(value));
+      setFormData((prev) => ({
+        ...prev,
+        pet_id: value,
+        pet_name: selectedPet?.name || "",
+      }));
+      return;
+    }
+
     setFormData((prev) => ({
       ...prev,
       [name]: value,
@@ -52,38 +145,70 @@ const CustomerBookingForm = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    // Ensure a pet is selected
+    if (!formData.pet_id) {
+      alert("Please select a pet for this service request.");
+      return;
+    }
+
     try {
       setLoading(true);
 
-      const submissionData = {
-        ...formData,
+      const selectedPet = pets.find((pet) => String(pet.id) === String(selectedPetId));
+
+      const payload = {
+        customer_name: customerName,
         customer_email: localStorage.getItem("email") || formData.customer_email,
+
+        pet_id: selectedPet?.id,
+        pet_name: selectedPet?.name,
+
+        request_type: formData.service_type || formData.request_type,
+
+        requested_date: formData.preferred_date || formData.requested_date,
+        requested_time: formData.preferred_time || formData.requested_time,
+
+        notes: formData.notes || "",
+        special_request: formData.notes || "",
       };
+
+      console.log("BOOKING PAYLOAD:", payload);
 
       const data = await apiRequest("/customer/requests", {
         method: "POST",
-        body: JSON.stringify(submissionData),
+        body: JSON.stringify(payload),
       });
 
       if (data.success) {
         alert("Booking request submitted successfully. Please wait for receptionist approval.");
 
         setFormData({
-          customer_name: "",
+          customer_name: customerName,
           customer_email: localStorage.getItem("email") || "",
+          pet_id: "",
           pet_name: "",
           service_type: "grooming",
           service_name: "Grooming",
-          request_date: "",
-          request_time: "",
+          preferred_date: "",
+          preferred_time: "",
           notes: "",
         });
+        setSelectedPetId("");
       } else {
         alert(data.message || "Failed to submit request.");
       }
     } catch (error) {
-      console.error("Submit booking error:", error);
-      alert("Server error while submitting booking request.");
+      console.error("BOOKING SUBMIT ERROR:", error);
+      console.error("BOOKING ERROR RESPONSE:", error.response?.data || error.data || error.message);
+
+      const message =
+        error.response?.data?.message ||
+        error.response?.data?.error ||
+        error.data?.message ||
+        error.message ||
+        "Server error while submitting booking request.";
+
+      alert(message);
     } finally {
       setLoading(false);
     }
@@ -117,22 +242,36 @@ const CustomerBookingForm = () => {
                 type="text"
                 name="customer_name"
                 value={formData.customer_name}
-                onChange={handleChange}
-                placeholder="Enter your full name"
-                required
+                readOnly
+                className="readonly-input"
+                placeholder="Your name will be auto-filled"
               />
             </label>
 
             <label>
               Pet Name
-              <input
-                type="text"
-                name="pet_name"
-                value={formData.pet_name}
-                onChange={handleChange}
-                placeholder="Enter pet name"
-                required
-              />
+              {petsLoading ? (
+                <div className="loading-pets">Loading your pets...</div>
+              ) : pets.length === 0 ? (
+                <div className="no-pets-message">
+                  <p>No pets found. Please add your pet first in My Pets before booking a service.</p>
+                </div>
+              ) : (
+                <select
+                  name="pet_id"
+                  value={formData.pet_id}
+                  onChange={handleChange}
+                  required
+                >
+                  <option value="">Select your pet</option>
+                  {pets.map((pet) => (
+                    <option key={pet.id} value={pet.id}>
+                      {pet.name} — {pet.species}
+                      {pet.breed ? ` (${pet.breed})` : ""}
+                    </option>
+                  ))}
+                </select>
+              )}
             </label>
 
             <label>
@@ -160,8 +299,9 @@ const CustomerBookingForm = () => {
                 <FaCalendarAlt />
                 <input
                   type="date"
-                  name="request_date"
-                  value={formData.request_date}
+                  name="preferred_date"
+                  value={formData.preferred_date}
+                  min={new Date().toISOString().split("T")[0]}
                   onChange={handleChange}
                   required
                 />
@@ -170,15 +310,21 @@ const CustomerBookingForm = () => {
 
             <label>
               Preferred Time
-              <div className="input-icon">
+              <div className="select-wrapper">
                 <FaClock />
-                <input
-                  type="time"
-                  name="request_time"
-                  value={formData.request_time}
+                <select
+                  name="preferred_time"
+                  value={formData.preferred_time}
                   onChange={handleChange}
                   required
-                />
+                >
+                  <option value="">Select available time</option>
+                  {availableTimeSlots.map((slot) => (
+                    <option key={slot.value} value={slot.value}>
+                      {slot.label}
+                    </option>
+                  ))}
+                </select>
               </div>
             </label>
 
@@ -194,7 +340,11 @@ const CustomerBookingForm = () => {
             </label>
           </div>
 
-          <button className="submit-booking-btn" type="submit" disabled={loading}>
+          <button 
+            className="submit-booking-btn" 
+            type="submit" 
+            disabled={loading || pets.length === 0}
+          >
             <FaPaperPlane />
             {loading ? "Submitting..." : "Submit Booking Request"}
           </button>

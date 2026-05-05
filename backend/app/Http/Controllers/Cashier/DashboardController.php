@@ -17,6 +17,7 @@ class DashboardController extends Controller
     private function overviewData(): array
     {
         $today = Carbon::today();
+        $user = auth()->user();
 
         $lowStockItems = InventoryItem::whereColumn('stock', '<=', 'threshold')
             ->where('stock', '>', 0)
@@ -64,6 +65,23 @@ class DashboardController extends Controller
                 ];
             });
 
+        // Count service requests by logged-in customer
+        $pendingServiceRequests = \App\Models\ServiceRequest::where('customer_email', $user->email)
+            ->where('status', 'pending')
+            ->count();
+
+        $approvedServiceRequests = \App\Models\ServiceRequest::where('customer_email', $user->email)
+            ->where('status', 'approved')
+            ->count();
+
+        $paymentPendingServiceRequests = \App\Models\ServiceRequest::where('customer_email', $user->email)
+            ->where('payment_status', 'pending')
+            ->count();
+
+        $paidServiceRequests = \App\Models\ServiceRequest::where('customer_email', $user->email)
+            ->where('payment_status', 'paid')
+            ->count();
+
         $salesByType = Sale::selectRaw('payment_type, COUNT(*) as count, SUM(amount) as total')
             ->whereDate('created_at', $today)
             ->groupBy('payment_type')
@@ -88,6 +106,10 @@ class DashboardController extends Controller
             'low_stock_items' => $lowStockItems,
             'top_selling_products' => $topSellingProducts,
             'pending_orders' => $pendingOrders,
+            'pending_service_requests' => $pendingServiceRequests,
+            'approved_service_requests' => $approvedServiceRequests,
+            'payment_pending' => $paymentPendingServiceRequests,
+            'payment_paid' => $paidServiceRequests,
         ];
     }
 
@@ -318,6 +340,7 @@ class DashboardController extends Controller
     // Payment Verification Methods
     public function getPaymentRequests()
     {
+        // Get store order payments
         $orders = DB::table('customer_orders')
             ->where('status', 'approved')
             ->where('payment_status', 'pending')
@@ -340,16 +363,111 @@ class DashboardController extends Controller
                     'payment_method' => $order->payment_method,
                     'payment_reference' => $order->payment_reference ?? null,
                     'payment_proof' => $order->payment_proof ?? null,
+                    'proof_url' => $order->payment_proof ? asset('storage/' . $order->payment_proof) : null,
                     'request_date' => $order->updated_at,
                     'status' => $order->status,
                     'payment_status' => $order->payment_status ?? 'pending',
                 ];
             });
 
-        return response()->json(['payments' => $orders]);
+        // Get service request payments
+        $serviceRequests = DB::table('service_requests')
+            ->where('status', 'approved')
+            ->where('payment_status', 'pending')
+            ->whereNotNull('payment_proof')
+            ->orderBy('updated_at', 'desc')
+            ->get()
+            ->map(function ($request) {
+                return [
+                    'id' => $request->id,
+                    'payable_type' => 'service_request',
+                    'type' => 'service_request',
+                    'source' => 'service_request',
+                    'payment_source' => 'service_request',
+                    'customer_name' => $request->customer_name ?? 'Customer',
+                    'customer_email' => $request->customer_email,
+                    'pet_name' => $request->pet_name,
+                    'request_type' => $request->request_type ?? $request->service_type ?? 'Service',
+                    'service_name' => $request->service_name ?? $request->request_type ?? 'Service Request',
+                    'amount' => $request->total_amount ?? $request->price ?? $request->service_price ?? 500,
+                    'payment_method' => $request->payment_method,
+                    'payment_reference' => $request->payment_reference ?? null,
+                    'payment_proof' => $request->payment_proof,
+                    'proof_url' => $request->payment_proof ? asset('storage/' . $request->payment_proof) : null,
+                    'request_date' => $request->updated_at,
+                    'status' => $request->status,
+                    'payment_status' => $request->payment_status,
+                ];
+            });
+
+        // Combine both types
+        $allPayments = $orders->concat($serviceRequests);
+
+        return response()->json(['payments' => $allPayments]);
     }
 
     public function verifyPayment(Request $request, $id)
+    {
+        $type = $request->input('type', 'customer_order');
+        
+        if ($type === 'service_request') {
+            return $this->verifyServiceRequestPayment($request, $id);
+        } else {
+            return $this->verifyCustomerOrderPayment($request, $id);
+        }
+    }
+
+    private function verifyServiceRequestPayment(Request $request, $id)
+    {
+        try {
+            $serviceRequest = DB::table('service_requests')->where('id', $id)->first();
+
+            if (!$serviceRequest) {
+                return response()->json(['message' => 'Service request not found'], 404);
+            }
+
+            if ($serviceRequest->payment_status !== 'pending') {
+                return response()->json([
+                    'message' => 'Only pending payment proofs can be verified',
+                    'current_status' => $serviceRequest->payment_status
+                ], 422);
+            }
+
+            $receiptNumber = 'SR-REC-' . now()->format('YmdHis') . '-' . $id;
+
+            DB::table('service_requests')
+                ->where('id', $id)
+                ->update([
+                    'payment_status' => 'paid',
+                    'paid_at' => now(),
+                    'verified_by' => auth()->id(),
+                    'cashier_remarks' => $request->input('cashier_remarks', 'Payment verified by cashier'),
+                    'receipt_number' => $receiptNumber,
+                ]);
+
+            ActivityLog::log(auth()->id(), 'payment_verified', "Cashier verified payment for service request #{$id}", [
+                'category' => 'payment',
+                'reference_type' => 'service_request',
+                'reference_id' => $id,
+                'metadata' => ['receipt_number' => $receiptNumber],
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Service request payment verified successfully.',
+                'receipt_number' => $receiptNumber,
+                'request' => $serviceRequest,
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to verify payment: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    private function verifyCustomerOrderPayment(Request $request, $id)
     {
         $order = DB::table('customer_orders')->where('id', $id)->first();
 
@@ -398,6 +516,102 @@ class DashboardController extends Controller
             'message' => 'Payment verified successfully',
             'payment_status' => 'paid',
             'receipt_number' => $receiptNumber,
+        ]);
+    }
+
+    public function rejectPayment(Request $request, $id)
+    {
+        $type = $request->input('type', 'customer_order');
+        
+        if ($type === 'service_request') {
+            return $this->rejectServiceRequestPayment($request, $id);
+        } else {
+            return $this->rejectCustomerOrderPayment($request, $id);
+        }
+    }
+
+    private function rejectServiceRequestPayment(Request $request, $id)
+    {
+        try {
+            $serviceRequest = DB::table('service_requests')->where('id', $id)->first();
+
+            if (!$serviceRequest) {
+                return response()->json(['message' => 'Service request not found'], 404);
+            }
+
+            if ($serviceRequest->payment_status !== 'pending') {
+                return response()->json([
+                    'message' => 'Only pending payment proofs can be rejected',
+                    'current_status' => $serviceRequest->payment_status
+                ], 422);
+            }
+
+            $rejectionReason = $request->input('rejection_reason');
+
+            DB::table('service_requests')
+                ->where('id', $id)
+                ->update([
+                    'payment_status' => 'rejected',
+                    'rejected_by' => auth()->id(),
+                    'rejected_at' => now(),
+                    'rejection_reason' => $rejectionReason,
+                ]);
+
+            ActivityLog::log(auth()->id(), 'payment_rejected', "Cashier rejected payment for service request #{$id}", [
+                'category' => 'payment',
+                'reference_type' => 'service_request',
+                'reference_id' => $id,
+                'metadata' => ['rejection_reason' => $rejectionReason],
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Service request payment rejected',
+                'request' => $serviceRequest,
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to reject payment: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    private function rejectCustomerOrderPayment(Request $request, $id)
+    {
+        $order = DB::table('customer_orders')->where('id', $id)->first();
+
+        if (!$order) {
+            return response()->json(['message' => 'Payment request not found'], 404);
+        }
+
+        if (($order->payment_status ?? 'unpaid') !== 'pending') {
+            return response()->json(['message' => 'Only pending payment proofs can be rejected'], 422);
+        }
+
+        $rejectionReason = $request->input('rejection_reason');
+
+        DB::table('customer_orders')
+            ->where('id', $id)
+            ->update([
+                'payment_status' => 'rejected',
+                'rejected_by' => auth()->id(),
+                'rejected_at' => now(),
+                'rejection_reason' => $rejectionReason,
+            ]);
+
+        ActivityLog::log(auth()->id(), 'payment_rejected', "Cashier rejected payment for order #{$id}", [
+            'category' => 'payment',
+            'reference_type' => 'customer_order',
+            'reference_id' => $id,
+            'metadata' => ['rejection_reason' => $rejectionReason],
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Payment rejected',
+            'order' => $order,
         ]);
     }
 

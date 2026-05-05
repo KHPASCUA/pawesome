@@ -295,6 +295,119 @@ class AppointmentController extends Controller
     }
 
     /**
+     * Start appointment (veterinarian only)
+     */
+    public function start(Request $request, $id)
+    {
+        $appointment = Appointment::find($id);
+        
+        if (!$appointment) {
+            return response()->json(['message' => 'Appointment not found'], 404);
+        }
+
+        // Only allow starting approved/scheduled appointments
+        if (!in_array($appointment->status, ['approved', 'scheduled'])) {
+            return response()->json([
+                'message' => 'Only approved or scheduled appointments can be started',
+                'current_status' => $appointment->status
+            ], 422);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'notes' => 'nullable|string|max:1000',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $oldStatus = $appointment->status;
+        $updateData = [
+            'status' => 'in_progress',
+            'started_at' => Carbon::now(),
+        ];
+
+        if ($request->has('notes')) {
+            $updateData['notes'] = $appointment->notes . "\n[Started]: " . $request->notes;
+        }
+
+        $appointment->update($updateData);
+
+        // Send notification
+        NotificationService::notifyAppointmentStatusChange($appointment, $oldStatus);
+        ActivityLog::log(auth()->id(), 'appointment_started', "Veterinary started appointment #{$appointment->id}", [
+            'category' => 'veterinary',
+            'reference_type' => 'appointment',
+            'reference_id' => $appointment->id,
+        ]);
+
+        return response()->json([
+            'message' => 'Appointment started successfully',
+            'appointment' => $appointment->load(['customer', 'pet', 'service', 'veterinarian'])
+        ]);
+    }
+
+    /**
+     * Update medical information (veterinarian only)
+     */
+    public function updateMedical(Request $request, $id)
+    {
+        $appointment = Appointment::find($id);
+        
+        if (!$appointment) {
+            return response()->json(['message' => 'Appointment not found'], 404);
+        }
+
+        // Only allow updating medical info for appointments in progress
+        if (!in_array($appointment->status, ['in_progress', 'treated'])) {
+            return response()->json([
+                'message' => 'Can only update medical information for appointments in progress',
+                'current_status' => $appointment->status
+            ], 422);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'diagnosis' => 'nullable|string|max:2000',
+            'treatment_notes' => 'nullable|string|max:2000',
+            'prescription' => 'nullable|string|max:2000',
+            'remarks' => 'nullable|string|max:1000',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $updateData = [];
+        
+        // Only update medical fields, NOT payment or inventory fields
+        if ($request->has('diagnosis')) {
+            $updateData['diagnosis'] = $request->diagnosis;
+        }
+        if ($request->has('treatment_notes')) {
+            $updateData['treatment_notes'] = $request->treatment_notes;
+        }
+        if ($request->has('prescription')) {
+            $updateData['prescription'] = $request->prescription;
+        }
+        if ($request->has('remarks')) {
+            $updateData['remarks'] = $request->remarks;
+        }
+
+        $appointment->update($updateData);
+
+        ActivityLog::log(auth()->id(), 'medical_info_updated', "Veterinary updated medical info for appointment #{$appointment->id}", [
+            'category' => 'veterinary',
+            'reference_type' => 'appointment',
+            'reference_id' => $appointment->id,
+        ]);
+
+        return response()->json([
+            'message' => 'Medical information updated successfully',
+            'appointment' => $appointment->load(['customer', 'pet', 'service', 'veterinarian'])
+        ]);
+    }
+
+    /**
      * Complete appointment (veterinarian)
      */
     public function complete(Request $request, $id)

@@ -119,15 +119,14 @@ class AuthController extends Controller
             return response()->json(['message' => 'Account is inactive'], 403);
         }
 
-        // Generate and store API token
-        $apiToken = Hash::make(uniqid() . time());
-        $user->api_token = $apiToken;
-        $user->save();
+        // Delete existing tokens and create new Sanctum token
+        $user->tokens()->delete();
+        $token = $user->createToken('pawesome-token')->plainTextToken;
 
         return response()->json([
             'message' => 'Login successful',
             'user' => $user,
-            'token' => $apiToken,
+            'token' => $token,
         ]);
     }
 

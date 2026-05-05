@@ -14,6 +14,8 @@ import {
   faSearch,
   faSpinner,
   faExclamationTriangle,
+  faPlayCircle,
+  faNotesMedical,
 } from "@fortawesome/free-solid-svg-icons";
 import { apiRequest } from "../../api/client";
 import "./VetAppointments.css";
@@ -144,11 +146,8 @@ const VetAppointments = () => {
           <h2>
             <FontAwesomeIcon icon={faCalendarAlt} /> Appointments Management
           </h2>
-          <p>Manage and track all veterinary appointments</p>
+          <p>View and manage approved veterinary appointments</p>
         </div>
-        <button className="add-appointment-btn">
-          <FontAwesomeIcon icon={faPlus} /> New Appointment
-        </button>
       </div>
 
       <div className="appointments-controls">
@@ -250,12 +249,26 @@ const VetAppointments = () => {
             </div>
 
             <div className="appointment-actions">
-              <button className="action-btn edit-btn">
-                <FontAwesomeIcon icon={faEdit} /> Edit
-              </button>
-              <button className="action-btn delete-btn">
-                <FontAwesomeIcon icon={faTrash} /> Cancel
-              </button>
+              {appointment.status === 'approved' || appointment.status === 'scheduled' ? (
+                <button className="action-btn start-btn">
+                  <FontAwesomeIcon icon={faPlayCircle} /> Start
+                </button>
+              ) : null}
+              {appointment.status === 'in_progress' || appointment.status === 'treated' ? (
+                <>
+                  <button className="action-btn medical-btn">
+                    <FontAwesomeIcon icon={faNotesMedical} /> Update Medical
+                  </button>
+                  <button className="action-btn complete-btn">
+                    <FontAwesomeIcon icon={faCheckCircle} /> Complete
+                  </button>
+                </>
+              ) : null}
+              {appointment.status === 'completed' ? (
+                <span className="completed-badge">
+                  <FontAwesomeIcon icon={faCheckCircle} /> Completed
+                </span>
+              ) : null}
             </div>
           </div>
         ))}

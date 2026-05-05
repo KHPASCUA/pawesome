@@ -156,6 +156,39 @@
   box-shadow: 0 0 0 4px rgba(255, 95, 147, 0.15);
 }
 
+.readonly-input {
+  background-color: var(--color-bg-secondary);
+  color: var(--color-muted);
+  cursor: not-allowed;
+  opacity: 0.8;
+}
+
+.readonly-input:focus {
+  border-color: var(--color-border);
+  box-shadow: none;
+}
+
+.loading-pets {
+  padding: 1rem;
+  text-align: center;
+  color: var(--color-muted);
+  font-style: italic;
+}
+
+.no-pets-message {
+  padding: 1rem;
+  background-color: rgba(255, 95, 147, 0.08);
+  border: 1px solid rgba(255, 95, 147, 0.2);
+  border-radius: var(--radius-md);
+  color: var(--color-primary);
+  text-align: center;
+}
+
+.no-pets-message p {
+  margin: 0;
+  font-weight: 700;
+}
+
 .full-width {
   grid-column: 1 / -1;
 }
