@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { apiRequest } from "../../api/client";
 import CashierSidebar from "./CashierSidebar";
+import { normalizeList } from "../../utils/normalizeList";
 import "./CashierPaymentVerification.css";
 
 const CashierPaymentVerification = () => {
@@ -13,9 +14,7 @@ const CashierPaymentVerification = () => {
 
       const data = await apiRequest("/cashier/payment-requests");
 
-      const list = Array.isArray(data)
-        ? data
-        : data?.requests || data?.data || [];
+      const list = normalizeList(data, ["payments", "requests", "data"]);
 
       setRequests(list);
     } catch (err) {
@@ -28,14 +27,34 @@ const CashierPaymentVerification = () => {
 
   const verifyPayment = async (id) => {
     try {
-      await apiRequest(`/cashier/payment-requests/${id}/verify`, {
+      const data = await apiRequest(`/cashier/payment-requests/${id}/verify`, {
         method: "PUT",
       });
 
+      alert(
+        `Payment verified.\nReceipt: ${data.receipt_number || "Generated"}\nStatus: ${data.payment_status || "paid"}`
+      );
       fetchRequests();
     } catch (err) {
       console.error("Failed to verify payment:", err);
       alert("Failed to verify payment.");
+    }
+  };
+
+  const rejectPayment = async (id) => {
+    const cashier_remarks = window.prompt("Reason for rejecting this payment proof:");
+    if (cashier_remarks === null) return;
+
+    try {
+      await apiRequest(`/cashier/payment-requests/${id}/reject`, {
+        method: "PUT",
+        body: JSON.stringify({ cashier_remarks }),
+      });
+
+      fetchRequests();
+    } catch (err) {
+      console.error("Failed to reject payment:", err);
+      alert("Failed to reject payment.");
     }
   };
 
@@ -82,7 +101,9 @@ const CashierPaymentVerification = () => {
                         <th>Type</th>
                         <th>Service / Order</th>
                         <th>Date</th>
-                        <th>Status</th>
+                        <th>Amount</th>
+                        <th>Proof</th>
+                        <th>Payment</th>
                         <th>Action</th>
                       </tr>
                     </thead>
@@ -94,9 +115,11 @@ const CashierPaymentVerification = () => {
                           <td>{item.request_type || item.type || "Request"}</td>
                           <td>{item.service_name || item.service?.name || item.order_name || "N/A"}</td>
                           <td>{item.request_date || item.date || "N/A"}</td>
+                          <td>₱{Number(item.amount || item.total_amount || 0).toLocaleString("en-PH")}</td>
+                          <td>{item.payment_proof || "No proof"}</td>
                           <td>
-                            <span className={`status-badge ${String(item.status || "pending").toLowerCase()}`}>
-                              {item.status || "pending"}
+                            <span className={`status-badge ${String(item.payment_status || "pending").toLowerCase()}`}>
+                              {item.payment_status || "pending"}
                             </span>
                           </td>
                           <td className="payment-actions">
@@ -106,6 +129,13 @@ const CashierPaymentVerification = () => {
                               onClick={() => verifyPayment(item.id)}
                             >
                               Verify Payment
+                            </button>
+                            <button
+                              className="reject-btn"
+                              type="button"
+                              onClick={() => rejectPayment(item.id)}
+                            >
+                              Reject
                             </button>
                           </td>
                         </tr>

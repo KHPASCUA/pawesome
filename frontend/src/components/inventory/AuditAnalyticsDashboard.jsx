@@ -1,7 +1,33 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { inventoryApi } from "../../api/inventory";
 import { exportToCSV } from "../../utils/reportExport";
+import { Line, Bar, Pie } from "react-chartjs-2";
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+  ArcElement,
+} from "chart.js";
 import "./MonthlyInventoryAudit.css";
+
+// Register Chart.js components
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+  ArcElement
+);
 
 const AuditAnalyticsDashboard = () => {
   const [auditData, setAuditData] = useState([]);
@@ -350,7 +376,115 @@ const AuditAnalyticsDashboard = () => {
 
         {/* Chart Container */}
         <div className="chart-container">
-          <canvas id="auditChart" width="400" height="200"></canvas>
+          <div className="chart-controls">
+            <select 
+              value={months} 
+              onChange={(e) => setMonths(Number(e.target.value))}
+              className="period-selector"
+            >
+              <option value={3}>Last 3 Months</option>
+              <option value={6}>Last 6 Months</option>
+              <option value={12}>Last 12 Months</option>
+            </select>
+            <div className="chart-type-selector">
+              <button 
+                className={chartType === 'line' ? 'active' : ''}
+                onClick={() => setChartType('line')}
+              >
+                📈 Line
+              </button>
+              <button 
+                className={chartType === 'bar' ? 'active' : ''}
+                onClick={() => setChartType('bar')}
+              >
+                📊 Bar
+              </button>
+              <button 
+                className={chartType === 'pie' ? 'active' : ''}
+                onClick={() => setChartType('pie')}
+              >
+                🥧 Pie
+              </button>
+            </div>
+          </div>
+          
+          {chartType === 'line' && (
+            <Line data={chartData} options={{
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: {
+                  position: 'top',
+                },
+                title: {
+                  display: true,
+                  text: 'Audit Trends Over Time',
+                },
+              },
+              scales: {
+                y: {
+                  beginAtZero: true,
+                },
+              },
+            }} />
+          )}
+          
+          {chartType === 'bar' && (
+            <Bar data={chartData} options={{
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: {
+                  position: 'top',
+                },
+                title: {
+                  display: true,
+                  text: 'Monthly Audit Comparison',
+                },
+              },
+              scales: {
+                y: {
+                  beginAtZero: true,
+                },
+              },
+            }} />
+          )}
+          
+          {chartType === 'pie' && (
+            <Pie 
+              data={{
+                labels: ['Matched Items', 'Discrepancies'],
+                datasets: [{
+                  data: [
+                    stats.totalMatched,
+                    stats.totalDiscrepancies
+                  ],
+                  backgroundColor: [
+                    'rgba(16, 185, 129, 0.8)',
+                    'rgba(239, 68, 68, 0.8)'
+                  ],
+                  borderColor: [
+                    'rgba(16, 185, 129, 1)',
+                    'rgba(239, 68, 68, 1)'
+                  ],
+                  borderWidth: 1
+                }]
+              }} 
+              options={{
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: {
+                    position: 'right',
+                  },
+                  title: {
+                    display: true,
+                    text: 'Audit Status Distribution',
+                  },
+                },
+              }} 
+            />
+          )}
         </div>
 
         {/* Fallback table for when chart is not available */}

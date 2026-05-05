@@ -20,7 +20,7 @@ const StockLogsViewer = ({ itemId = null, filterAction = null, search = null }) 
       try {
         const params = itemId ? { itemId } : {};
         const response = await inventoryApi.getStockHistory(params);
-        const logsData = response.history || response.data || response || [];
+        const logsData = response.history || response.data || response.logs || response || [];
         setLogs(logsData);
       } catch (err) {
         console.error("Failed to fetch stock logs:", err);
@@ -99,7 +99,7 @@ const StockLogsViewer = ({ itemId = null, filterAction = null, search = null }) 
     try {
       const params = itemId ? { itemId } : {};
       const response = await inventoryApi.getStockHistory(params);
-      const logsData = response.history || response.data || response || [];
+      const logsData = response.history || response.data || response.logs || response || [];
       setLogs(logsData);
     } catch (err) {
       console.error("Failed to refresh stock logs:", err);
@@ -111,7 +111,8 @@ const StockLogsViewer = ({ itemId = null, filterAction = null, search = null }) 
   const getFilteredLogs = () => {
     return logs.filter((log) => {
       // Filter by action type (use external prop if provided)
-      if (activeFilter !== "all" && log.action !== activeFilter) return false;
+      const action = getMovement(log);
+      if (activeFilter !== "all" && action !== activeFilter) return false;
 
       // Filter by search term (use external prop if provided)
       if (activeSearch) {
@@ -120,6 +121,8 @@ const StockLogsViewer = ({ itemId = null, filterAction = null, search = null }) 
           log.item_name,
           log.reason,
           log.user_name,
+          log.movement_type,
+          log.reference_type,
           log.action,
         ]
           .filter(Boolean)
@@ -182,12 +185,12 @@ const StockLogsViewer = ({ itemId = null, filterAction = null, search = null }) 
   const calculateStats = () => {
     const filtered = getFilteredLogs();
     const additions = filtered
-      .filter((l) => l.quantity_change > 0)
-      .reduce((sum, l) => sum + l.quantity_change, 0);
+      .filter((l) => getQuantityChange(l) > 0)
+      .reduce((sum, l) => sum + getQuantityChange(l), 0);
     const removals = filtered
-      .filter((l) => l.quantity_change < 0)
-      .reduce((sum, l) => sum + Math.abs(l.quantity_change), 0);
-    const adjustments = filtered.filter((l) => l.action === "adjustment").length;
+      .filter((l) => getQuantityChange(l) < 0)
+      .reduce((sum, l) => sum + Math.abs(getQuantityChange(l)), 0);
+    const adjustments = filtered.filter((l) => getMovement(l).includes("adjustment")).length;
 
     return { additions, removals, adjustments, total: filtered.length };
   };
@@ -219,6 +222,22 @@ const getUserName = (log) =>
   log.user?.name ||
   log.performed_by ||
   "System";
+
+const getMovement = (log) =>
+  log.movement_type ||
+  log.action ||
+  log.reference_type ||
+  log.type ||
+  "activity";
+
+const getQuantityChange = (log) =>
+  Number(log.quantity_change ?? log.delta ?? log.quantity ?? 0);
+
+const getStockBefore = (log) =>
+  log.previous_stock ?? log.stock_before ?? log.quantity_before ?? "N/A";
+
+const getStockAfter = (log) =>
+  log.new_stock ?? log.stock_after ?? log.quantity_after ?? "N/A";
 
 const getInitials = (name) =>
   String(name || "S")
@@ -383,12 +402,12 @@ const getInitials = (name) =>
         ) : (
           <div className="logs-list">
             {filteredLogs.map((log) => (
-              <div key={log.id} className={`log-item ${log.action}`}>
+              <div key={log.id} className={`log-item ${getMovement(log)}`}>
               <div className="log-product-media">
                 {getItemImage(log) ? (
                   <img src={getItemImage(log)} alt={getItemName(log)} />
                 ) : (
-                  <span>{getActionIcon(log.action)}</span>
+                  <span>{getActionIcon(getMovement(log))}</span>
                 )}
               </div>
 
@@ -406,13 +425,13 @@ const getInitials = (name) =>
                 </div>
 
                 <div className="log-details">
-                  <span className={`log-quantity ${getActionColor(log.action, log.quantity_change)}`}>
-                    {Number(log.quantity_change) > 0 ? "+" : ""}
-                    {log.quantity_change} units
+                  <span className={`log-quantity ${getActionColor(getMovement(log), getQuantityChange(log))}`}>
+                    {getQuantityChange(log) > 0 ? "+" : ""}
+                    {getQuantityChange(log)} units
                   </span>
                   <span className="log-arrow">→</span>
-                  <span className="log-after">{log.quantity_after} total</span>
-                  <span className="log-action">{log.action}</span>
+                  <span className="log-after">{getStockBefore(log)} to {getStockAfter(log)}</span>
+                  <span className="log-action">{getMovement(log)}</span>
                 </div>
 
                 <div className="log-bottom-row">

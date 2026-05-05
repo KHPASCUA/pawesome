@@ -506,12 +506,43 @@ export const inventoryApi = {
    */
   getMonthlyAudit: async (month) => {
     try {
-      const response = await apiRequest("/inventory/monthly-audit", {
-        params: { month },
-      });
-      return response.data;
+      const queryString = buildQueryString({ month });
+      return await apiRequest(`/inventory/monthly-audit${queryString}`);
     } catch (error) {
       console.error("[InventoryAPI] Failed to get monthly audit:", error.message);
+      throw error;
+    }
+  },
+
+  /**
+   * Gets or creates monthly audit items for a specific month.
+   * Auto-populates audit rows for all physical inventory items if none exist.
+   * @async
+   * @param {string} month - Month in YYYY-MM format
+   * @returns {Promise<Object>} Monthly audit data with auto-populated items
+   * @throws {Error} When request fails
+   */
+  getOrCreateMonthlyAudit: async (month) => {
+    try {
+      const queryString = buildQueryString({ month });
+      return await apiRequest(`/inventory/monthly-audit${queryString}`);
+    } catch (error) {
+      console.error("[InventoryAPI] Failed to get or create monthly audit:", error.message);
+      throw error;
+    }
+  },
+
+  /**
+   * Gets discrepancy reasons breakdown.
+   * @async
+   * @returns {Promise<Object>} Discrepancy reasons with frequencies
+   * @throws {Error} When request fails
+   */
+  getDiscrepancyReasons: async () => {
+    try {
+      return await apiRequest("/inventory/monthly-audit/discrepancy-reasons");
+    } catch (error) {
+      console.error("[InventoryAPI] Failed to get discrepancy reasons:", error.message);
       throw error;
     }
   },
@@ -528,11 +559,10 @@ export const inventoryApi = {
   saveMonthlyAudit: async (payload) => {
     validateData(payload, "monthly audit save");
     try {
-      const response = await apiRequest("/inventory/monthly-audit", {
+      return await apiRequest("/inventory/monthly-audit", {
         method: "POST",
         body: JSON.stringify(payload),
       });
-      return response.data;
     } catch (error) {
       console.error("[InventoryAPI] Failed to save monthly audit:", error.message);
       throw error;
@@ -548,10 +578,8 @@ export const inventoryApi = {
    */
   getMonthlyAuditReport: async (month) => {
     try {
-      const response = await apiRequest("/inventory/monthly-audit-report", {
-        params: { month },
-      });
-      return response.data;
+      const queryString = buildQueryString({ month });
+      return await apiRequest(`/inventory/monthly-audit-report${queryString}`);
     } catch (error) {
       console.error("[InventoryAPI] Failed to get monthly audit report:", error.message);
       throw error;
@@ -568,11 +596,9 @@ export const inventoryApi = {
    */
   getAuditAnalytics: async (options = {}) => {
     try {
-      const { months = 6 } = options;
-      const response = await apiRequest("/inventory/audit-analytics", {
-        params: { months },
-      });
-      return response.data;
+      const months = typeof options === "number" ? options : options.months || 6;
+      const queryString = buildQueryString({ months });
+      return await apiRequest(`/inventory/audit-analytics${queryString}`);
     } catch (error) {
       console.error("[InventoryAPI] Failed to get audit analytics:", error.message);
       throw error;

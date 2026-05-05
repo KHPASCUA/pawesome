@@ -206,8 +206,18 @@ class InventoryItem extends Model
         InventoryLog::create([
             'inventory_item_id' => $this->id,
             'delta' => -$amount,
+            'quantity' => $amount,
+            'type' => 'sale',
+            'movement_type' => 'stock_deduction',
             'reason' => $reason,
             'reference_type' => 'sale',
+            'stock_before' => $this->stock + $amount,
+            'stock_after' => $this->stock,
+            'previous_stock' => $this->stock + $amount,
+            'new_stock' => $this->stock,
+            'performed_by' => auth()->user()?->name,
+            'role' => auth()->user()?->role,
+            'user_id' => auth()->id(),
             'details' => json_encode(['batch_deductions' => $deductions]),
         ]);
 
@@ -239,8 +249,18 @@ class InventoryItem extends Model
         InventoryLog::create([
             'inventory_item_id' => $this->id,
             'delta' => $amount,
+            'quantity' => $amount,
+            'type' => 'restock',
+            'movement_type' => 'batch_restock',
             'reason' => 'Batch restock',
             'reference_type' => 'restock',
+            'stock_before' => $this->stock - ($updateMainStock ? $amount : 0),
+            'stock_after' => $this->stock,
+            'previous_stock' => $this->stock - ($updateMainStock ? $amount : 0),
+            'new_stock' => $this->stock,
+            'performed_by' => auth()->user()?->name,
+            'role' => auth()->user()?->role,
+            'user_id' => auth()->id(),
             'details' => json_encode(['batch_id' => $batch->id, 'expiration_date' => $expirationDate]),
         ]);
 

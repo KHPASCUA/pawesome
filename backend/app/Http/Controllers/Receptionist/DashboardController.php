@@ -7,10 +7,13 @@ use App\Models\Appointment;
 use App\Models\Customer;
 use App\Models\Pet;
 use App\Services\InventoryService;
+use App\Services\WorkflowNotifier;
+use App\Models\ActivityLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
 
 class DashboardController extends Controller
 {
@@ -75,66 +78,109 @@ class DashboardController extends Controller
     public function updateOrderStatus(Request $request, $id)
     {
         $validated = $request->validate([
-            'status' => 'required|in:pending,approved,paid,preparing,completed,rejected',
+            'status' => 'required|in:pending,approved,completed,rejected,cancelled',
+            'rejection_reason' => 'nullable|string|max:1000',
         ]);
 
         $user = Auth::user();
-        $inventoryService = new InventoryService();
 
-        $order = DB::table('customer_orders')->where('id', $id)->first();
+        return DB::transaction(function () use ($id, $validated, $user) {
+            $inventoryService = new InventoryService();
 
-        if (!$order) {
-            return response()->json(['message' => 'Order not found'], 404);
-        }
+            $order = DB::table('customer_orders')->where('id', $id)->lockForUpdate()->first();
 
-        $updateData = [
-            'status' => $validated['status'],
-        ];
+            if (!$order) {
+                return response()->json(['message' => 'Order not found'], 404);
+            }
 
-        // If approving, set approved_by and deduct stock using centralized service
-        if ($validated['status'] === 'approved' && $order->status === 'pending') {
-            $updateData['approved_by'] = $user->id;
+            $updateData = [
+                'status' => $validated['status'],
+                'updated_at' => now(),
+            ];
 
-            // Get order items and deduct stock
             $orderItems = DB::table('customer_order_items')
                 ->where('customer_order_id', $id)
                 ->get();
 
-            foreach ($orderItems as $item) {
-                // Use centralized InventoryService for stock deduction
-                $inventoryService->deductStock(
-                    $item->inventory_item_id,
-                    $item->quantity,
-                    "Customer Order #{$id} approved by Receptionist",
-                    'customer_order',
-                    $id
-                );
+            // Customer store orders deduct inventory exactly once: when pending is approved.
+            if ($validated['status'] === 'approved' && $order->status === 'pending') {
+                $updateData['approved_by'] = $user?->id;
+                if (Schema::hasColumn('customer_orders', 'approved_at')) {
+                    $updateData['approved_at'] = now();
+                }
+                if (Schema::hasColumn('customer_orders', 'payment_status')) {
+                    $updateData['payment_status'] = 'unpaid';
+                }
+
+                foreach ($orderItems as $item) {
+                    $inventoryService->deductStock(
+                        $item->inventory_item_id,
+                        $item->quantity,
+                        "Customer Order #{$id} approved by Receptionist",
+                        'customer_order',
+                        $id
+                    );
+                }
             }
-        }
 
-        // If rejecting, restore stock (if previously deducted)
-        if ($validated['status'] === 'rejected' && $order->status === 'approved') {
-            $orderItems = DB::table('customer_order_items')
-                ->where('customer_order_id', $id)
-                ->get();
-
-            foreach ($orderItems as $item) {
-                // Use centralized InventoryService to restore stock
-                $inventoryService->addStock(
-                    $item->inventory_item_id,
-                    $item->quantity,
-                    "Customer Order #{$id} rejected - stock restored",
-                    'customer_order',
-                    $id
-                );
+            // If an already approved order is rejected, return the previously deducted stock.
+            if (in_array($validated['status'], ['rejected', 'cancelled'], true) && $order->status === 'approved') {
+                foreach ($orderItems as $item) {
+                    $inventoryService->addStock(
+                        $item->inventory_item_id,
+                        $item->quantity,
+                        "Customer Order #{$id} rejected - stock restored",
+                        'customer_order',
+                        $id
+                    );
+                }
             }
-        }
 
-        DB::table('customer_orders')
-            ->where('id', $id)
-            ->update($updateData);
+            if (in_array($validated['status'], ['rejected', 'cancelled'], true)) {
+                if (Schema::hasColumn('customer_orders', 'rejected_by')) {
+                    $updateData['rejected_by'] = $user?->id;
+                }
+                if (Schema::hasColumn('customer_orders', 'rejected_at')) {
+                    $updateData['rejected_at'] = now();
+                }
+                if (Schema::hasColumn('customer_orders', 'rejection_reason')) {
+                    $updateData['rejection_reason'] = $validated['rejection_reason'] ?? null;
+                }
+            }
 
-        return response()->json(['message' => 'Order status updated']);
+            DB::table('customer_orders')
+                ->where('id', $id)
+                ->update($updateData);
+
+            $freshOrder = DB::table('customer_orders')->where('id', $id)->first();
+            $customerUserId = $freshOrder->customer_id ?? null;
+            $status = $validated['status'];
+            $title = match ($status) {
+                'approved' => 'Order Approved',
+                'cancelled' => 'Order Cancelled',
+                'rejected' => 'Order Rejected',
+                default => 'Order Updated',
+            };
+
+            WorkflowNotifier::notifyUser(
+                $customerUserId,
+                $title,
+                "Order #{$id} is now {$status}.",
+                in_array($status, ['rejected', 'cancelled'], true) ? 'error' : 'success',
+                'customer_order',
+                $id,
+                ['rejection_reason' => $validated['rejection_reason'] ?? null]
+            );
+
+            ActivityLog::log($user?->id, 'order_' . $status, "Receptionist set order #{$id} to {$status}", [
+                'category' => 'orders',
+                'reference_type' => 'customer_order',
+                'reference_id' => $id,
+                'metadata' => ['previous_status' => $order->status, 'new_status' => $status],
+            ]);
+
+            return response()->json(['message' => 'Order status updated']);
+        });
     }
 
     // Appointment management

@@ -8,6 +8,8 @@ use App\Models\User;
 use App\Models\Grooming;
 use App\Models\Service;
 use App\Services\NotificationService;
+use App\Services\WorkflowNotifier;
+use App\Models\ActivityLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Carbon;
@@ -149,6 +151,21 @@ class AppointmentController extends Controller
         $appointment->update([
             'status' => 'approved',
             'veterinarian_id' => $request->veterinarian_id,
+        ]);
+
+        WorkflowNotifier::notifyUser(
+            $appointment->veterinarian_id,
+            'Vet Appointment Scheduled',
+            "Appointment #{$appointment->id} has been assigned to you.",
+            'info',
+            'appointment',
+            $appointment->id
+        );
+
+        ActivityLog::log(auth()->id(), 'appointment_approved', "Appointment #{$appointment->id} approved", [
+            'category' => 'appointments',
+            'reference_type' => 'appointment',
+            'reference_id' => $appointment->id,
         ]);
 
         return response()->json([
@@ -317,6 +334,11 @@ class AppointmentController extends Controller
 
         // Send notification
         NotificationService::notifyAppointmentStatusChange($appointment, $oldStatus);
+        ActivityLog::log(auth()->id(), 'appointment_completed', "Veterinary completed appointment #{$appointment->id}", [
+            'category' => 'veterinary',
+            'reference_type' => 'appointment',
+            'reference_id' => $appointment->id,
+        ]);
 
         return response()->json([
             'message' => 'Appointment marked as completed',
@@ -364,7 +386,7 @@ class AppointmentController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
-            'status' => 'required|in:pending,approved,in_progress,completed,cancelled,rejected'
+            'status' => 'required|in:pending,approved,scheduled,in_progress,treated,completed,cancelled,rejected,no_show'
         ]);
 
         if ($validator->fails()) {
@@ -398,6 +420,31 @@ class AppointmentController extends Controller
         // Send notification for status change
         NotificationService::notifyAppointmentStatusChange($appointment, $oldStatus);
 
+        if (in_array($newStatus, ['approved', 'scheduled'], true) && $appointment->veterinarian_id) {
+            WorkflowNotifier::notifyUser(
+                $appointment->veterinarian_id,
+                'Vet Appointment Scheduled',
+                "Appointment #{$appointment->id} is {$newStatus}.",
+                'info',
+                'appointment',
+                $appointment->id
+            );
+        }
+
+        if ($newStatus === 'completed') {
+            ActivityLog::log(auth()->id(), 'appointment_completed', "Veterinary completed appointment #{$appointment->id}", [
+                'category' => 'veterinary',
+                'reference_type' => 'appointment',
+                'reference_id' => $appointment->id,
+            ]);
+        } else {
+            ActivityLog::log(auth()->id(), 'appointment_status_updated', "Appointment #{$appointment->id} changed from {$oldStatus} to {$newStatus}", [
+                'category' => 'appointments',
+                'reference_type' => 'appointment',
+                'reference_id' => $appointment->id,
+            ]);
+        }
+
         return response()->json([
             'message' => "Appointment status updated to {$newStatus}",
             'appointment' => $appointment->load(['customer', 'pet', 'service', 'veterinarian'])
@@ -410,9 +457,11 @@ class AppointmentController extends Controller
     private function isValidStatusTransition($oldStatus, $newStatus)
     {
         $validTransitions = [
-            'pending' => ['approved', 'cancelled', 'rejected'],
-            'approved' => ['in_progress', 'completed', 'cancelled'],
-            'in_progress' => ['completed', 'cancelled'],
+            'pending' => ['approved', 'scheduled', 'cancelled', 'rejected'],
+            'approved' => ['scheduled', 'in_progress', 'treated', 'completed', 'cancelled', 'no_show'],
+            'scheduled' => ['in_progress', 'treated', 'completed', 'cancelled', 'no_show'],
+            'in_progress' => ['treated', 'completed', 'cancelled', 'no_show'],
+            'treated' => ['completed', 'cancelled'],
             'completed' => [], // No transitions from completed
             'cancelled' => [], // No transitions from cancelled
             'rejected' => ['pending'] // Can re-activate rejected appointments

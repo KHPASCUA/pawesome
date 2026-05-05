@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import styled, { createGlobalStyle, keyframes, css } from "styled-components";
-import { inventoryApi } from "../../api/inventory";
+import { API_URL } from "../../api/client";
 import { sharedProducts, sharedServices } from "../shared/inventorySync";
 import inventorySync, { eventEmitter } from "../../services/inventorySync";
 import Swal from "sweetalert2";
@@ -1492,7 +1492,7 @@ export default function CustomerStore() {
     const fetchOrders = async () => {
       try {
         const token = localStorage.getItem("token");
-        const apiUrl = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000/api";
+        const apiUrl = API_URL.replace(/\/$/, "");
         const res = await fetch(`${apiUrl}/customer/store/orders`, {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -1596,7 +1596,7 @@ export default function CustomerStore() {
 
   const selectedPaymentMethod = PAYMENT_METHODS.find((m) => m.id === paymentMethod);
 
-  const needsProof = ["gcash", "paymaya", "bank_transfer"].includes(paymentMethod);
+  const needsProof = false;
 
   const confirmPayment = async () => {
     if (needsProof && !paymentImage) {
@@ -1607,16 +1607,9 @@ export default function CustomerStore() {
     setIsProcessing(true);
     try {
       const token = localStorage.getItem("token");
-      const apiUrl = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000/api";
+      const apiUrl = API_URL.replace(/\/$/, "");
       const orderId = generateOrderId();
       const refNumber = generateRefNumber();
-
-      // Update stock in real-time before placing order
-      console.log("CustomerStore: Updating stock for checkout items");
-      cart.forEach(item => {
-        const newStock = Math.max(0, (item.stock || 0) - item.qty);
-        inventorySync.updateStock(item.id, newStock, "Customer Purchase");
-      });
 
       const res = await fetch(`${apiUrl}/customer/store/checkout`, {
         method: "POST",
@@ -1624,22 +1617,17 @@ export default function CustomerStore() {
         body: JSON.stringify({
           items: cart,
           totalAmount: getTotal(),
+          orderType: "Pick-up",
           paymentMethod: selectedPaymentMethod?.label,
-          paymentProof: paymentImage?.name || null,
+          paymentProof: null,
           orderId,
-          referenceNumber: refNumber,
+          paymentReference: refNumber,
           customerName,
         }),
       });
 
       const data = await res.json();
       if (!res.ok) {
-        // Rollback stock changes if order failed
-        console.log("CustomerStore: Order failed, rolling back stock changes");
-        cart.forEach(item => {
-          const originalStock = (item.stock || 0);
-          inventorySync.updateStock(item.id, originalStock, "Order Failed - Rollback");
-        });
         throw new Error(data.message || "Order failed");
       }
 
@@ -1665,12 +1653,13 @@ export default function CustomerStore() {
       setDiscountCode("");
       setPaymentImage(null);
       setCheckoutStep("receipt");
+      inventorySync.getProducts(true);
 
       // Show success notification
       Swal.fire({ 
         icon: "success", 
         title: "Order Placed!", 
-        text: `Order #${newOrder.id} has been placed successfully. Stock levels updated in real-time.`, 
+        text: `Order #${newOrder.id} has been submitted and is waiting for receptionist approval. Upload payment proof after approval.`, 
         confirmButtonColor: PINK 
       });
     } catch (err) {

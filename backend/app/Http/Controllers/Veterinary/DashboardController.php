@@ -16,14 +16,14 @@ class DashboardController extends Controller
         
         return response()->json([
             'today_appointments' => Appointment::whereDate('scheduled_at', $today)->count(),
-            'pending_appointments' => Appointment::where('status', 'pending')->count(),
-            'approved_appointments' => Appointment::where('status', 'approved')->count(),
+            'pending_appointments' => 0,
+            'approved_appointments' => Appointment::whereIn('status', ['approved', 'scheduled'])->count(),
             'completed_appointments' => Appointment::where('status', 'completed')->count(),
             'total_patients' => Pet::count(),
             'new_patients_this_month' => Pet::whereMonth('created_at', $today->month)->count(),
             'upcoming_appointments' => Appointment::with(['customer', 'pet', 'service', 'veterinarian'])
                 ->where('scheduled_at', '>=', $today)
-                ->whereIn('status', ['pending', 'approved'])
+                ->whereIn('status', ['approved', 'scheduled', 'in_progress', 'treated'])
                 ->orderBy('scheduled_at')
                 ->limit(5)
                 ->get(),
@@ -40,6 +40,7 @@ class DashboardController extends Controller
     {
         return response()->json(
             Appointment::with(['customer', 'pet', 'service', 'veterinarian'])
+                ->whereIn('status', ['approved', 'scheduled', 'in_progress', 'treated', 'completed', 'cancelled', 'no_show'])
                 ->orderBy('scheduled_at')
                 ->get()
         );

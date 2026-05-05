@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Sale;
 use App\Models\Appointment;
 use App\Models\InventoryItem;
+use App\Models\ActivityLog;
+use App\Services\WorkflowNotifier;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -316,28 +318,163 @@ class DashboardController extends Controller
     // Payment Verification Methods
     public function getPaymentRequests()
     {
-        $requests = DB::table('booking_requests')
-            ->select(
-                'id',
-                'customer_name',
-                'request_type',
-                'service_name',
-                'request_date',
-                'status'
-            )
+        $orders = DB::table('customer_orders')
             ->where('status', 'approved')
-            ->orderBy('request_date', 'desc')
-            ->get();
+            ->where('payment_status', 'pending')
+            ->orderBy('updated_at', 'desc')
+            ->get()
+            ->map(function ($order) {
+                $items = DB::table('customer_order_items')
+                    ->where('customer_order_id', $order->id)
+                    ->get();
 
-        return response()->json($requests);
+                return [
+                    'id' => $order->id,
+                    'payable_type' => 'customer_order',
+                    'customer_name' => $order->customer_name ?? 'Customer #' . $order->customer_id,
+                    'customer_email' => $order->customer_email ?? null,
+                    'request_type' => 'Store Order',
+                    'service_name' => 'Order #' . $order->id,
+                    'items' => $items,
+                    'amount' => $order->total_amount,
+                    'payment_method' => $order->payment_method,
+                    'payment_reference' => $order->payment_reference ?? null,
+                    'payment_proof' => $order->payment_proof ?? null,
+                    'request_date' => $order->updated_at,
+                    'status' => $order->status,
+                    'payment_status' => $order->payment_status ?? 'pending',
+                ];
+            });
+
+        return response()->json(['payments' => $orders]);
     }
 
-    public function verifyPayment($id)
+    public function verifyPayment(Request $request, $id)
     {
-        DB::table('booking_requests')
-            ->where('id', $id)
-            ->update(['status' => 'paid']);
+        $order = DB::table('customer_orders')->where('id', $id)->first();
 
-        return response()->json(['message' => 'Payment verified successfully']);
+        if (!$order) {
+            return response()->json(['message' => 'Payment request not found'], 404);
+        }
+
+        if (($order->payment_status ?? 'unpaid') !== 'pending') {
+            return response()->json(['message' => 'Only pending payment proofs can be verified'], 422);
+        }
+
+        $receiptNumber = $order->receipt_number ?? ('REC-' . now()->format('YmdHis') . '-' . $order->id);
+
+        DB::table('customer_orders')
+            ->where('id', $id)
+            ->update([
+                'payment_status' => 'paid',
+                'paid_at' => now(),
+                'verified_by' => auth()->id(),
+                'cashier_remarks' => $request->input('cashier_remarks'),
+                'receipt_number' => $receiptNumber,
+                'updated_at' => now(),
+            ]);
+
+        WorkflowNotifier::notifyUser(
+            $order->customer_id,
+            'Payment Verified',
+            "Payment for order #{$id} was verified. Receipt: {$receiptNumber}.",
+            'success',
+            'customer_order',
+            $id,
+            ['receipt_number' => $receiptNumber]
+        );
+
+        ActivityLog::log(auth()->id(), 'payment_verified', "Cashier verified payment for order #{$id}", [
+            'category' => 'payment',
+            'reference_type' => 'customer_order',
+            'reference_id' => $id,
+            'metadata' => ['receipt_number' => $receiptNumber],
+        ]);
+
+        return response()->json([
+            'message' => 'Payment verified successfully',
+            'payment_status' => 'paid',
+            'receipt_number' => $receiptNumber,
+        ]);
+    }
+
+    public function rejectPayment(Request $request, $id)
+    {
+        $order = DB::table('customer_orders')->where('id', $id)->first();
+
+        if (!$order) {
+            return response()->json(['message' => 'Payment request not found'], 404);
+        }
+
+        if (($order->payment_status ?? 'unpaid') !== 'pending') {
+            return response()->json(['message' => 'Only pending payment proofs can be rejected'], 422);
+        }
+
+        DB::table('customer_orders')
+            ->where('id', $id)
+            ->update([
+                'payment_status' => 'rejected',
+                'cashier_remarks' => $request->input('cashier_remarks'),
+                'updated_at' => now(),
+            ]);
+
+        WorkflowNotifier::notifyUser(
+            $order->customer_id,
+            'Payment Rejected',
+            "Payment proof for order #{$id} was rejected. Please resubmit a valid proof.",
+            'error',
+            'customer_order',
+            $id,
+            ['cashier_remarks' => $request->input('cashier_remarks')]
+        );
+
+        ActivityLog::log(auth()->id(), 'payment_rejected', "Cashier rejected payment for order #{$id}", [
+            'category' => 'payment',
+            'reference_type' => 'customer_order',
+            'reference_id' => $id,
+            'metadata' => ['cashier_remarks' => $request->input('cashier_remarks')],
+        ]);
+
+        return response()->json([
+            'message' => 'Payment rejected',
+            'payment_status' => 'rejected',
+        ]);
+    }
+
+    public function customerOrderReceipt($id)
+    {
+        $order = DB::table('customer_orders')->where('id', $id)->first();
+
+        if (!$order) {
+            return response()->json(['message' => 'Receipt not found'], 404);
+        }
+
+        if (($order->payment_status ?? 'unpaid') !== 'paid') {
+            return response()->json(['message' => 'Receipt is available only after payment verification'], 422);
+        }
+
+        $items = DB::table('customer_order_items')
+            ->where('customer_order_id', $id)
+            ->get();
+
+        $verifiedBy = $order->verified_by
+            ? DB::table('users')->where('id', $order->verified_by)->value('name')
+            : null;
+
+        return response()->json([
+            'receipt' => [
+                'order_id' => $order->id,
+                'receipt_number' => $order->receipt_number,
+                'customer_name' => $order->customer_name,
+                'customer_email' => $order->customer_email,
+                'items' => $items,
+                'total_amount' => $order->total_amount,
+                'payment_method' => $order->payment_method,
+                'payment_reference' => $order->payment_reference ?? null,
+                'paid_at' => $order->paid_at,
+                'verified_by' => $verifiedBy,
+                'cashier_remarks' => $order->cashier_remarks,
+            ],
+        ]);
     }
 }

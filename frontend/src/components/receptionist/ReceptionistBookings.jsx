@@ -333,11 +333,11 @@ const ReceptionistBookings = () => {
 
       let endpoint = '';
       if (booking.type === 'hotel') {
-        endpoint = `${API_BASE_URL}/hotel-rooms/availability?date=${targetDate}`;
+        endpoint = `${API_BASE_URL}/boardings/available-rooms?check_in=${targetDate}&check_out=${targetDate}`;
       } else if (booking.type === 'vet') {
-        endpoint = `${API_BASE_URL}/appointments/availability?date=${targetDate}`;
+        endpoint = `${API_BASE_URL}/receptionist/appointment/list?from_date=${targetDate}&to_date=${targetDate}`;
       } else if (booking.type === 'grooming') {
-        endpoint = `${API_BASE_URL}/grooming/availability?date=${targetDate}`;
+        endpoint = `${API_BASE_URL}/grooming`;
       }
       
       const response = await fetch(endpoint, {
@@ -348,8 +348,8 @@ const ReceptionistBookings = () => {
       if (response.ok) {
         const data = await response.json();
         setAvailability({
-          available: data.available || true,
-          message: data.message || 'Slot available',
+          available: data.available !== false,
+          message: data.message || 'Live route reachable',
           details: data
         });
       } else {
@@ -425,20 +425,15 @@ const ReceptionistBookings = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const endpoint = `${API_BASE_URL}/bookings/${selectedPaymentBooking.id}/payment`;
-
-      const payload = {
-        action: paymentAction, // 'verify' or 'reject'
-        note: paymentNote
-      };
+      const endpoint = `${API_BASE_URL}/cashier/payment-requests/${selectedPaymentBooking.id}/${paymentAction === 'verify' ? 'verify' : 'reject'}`;
 
       const response = await fetch(endpoint, {
-        method: 'POST',
+        method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({ cashier_remarks: paymentNote })
       });
 
       if (response.ok) {
@@ -474,7 +469,10 @@ const ReceptionistBookings = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const endpoint = `${API_BASE_URL}/bookings/${selectedCancelBooking.id}/cancel`;
+      let endpoint = `${API_BASE_URL}/receptionist/appointments/${selectedCancelBooking.id}/cancel`;
+      if (selectedCancelBooking.type === 'hotel') {
+        endpoint = `${API_BASE_URL}/boardings/${selectedCancelBooking.id}/cancel`;
+      }
 
       const payload = {
         action: cancelAction, // 'approve' or 'reject'
@@ -528,13 +526,20 @@ const ReceptionistBookings = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const endpoint = `${API_BASE_URL}/bookings/${selectedRescheduleBooking.id}/reschedule`;
-
-      const payload = {
-        action: rescheduleAction, // 'approve' or 'reject'
-        note: rescheduleNote,
-        new_date: rescheduleNewDate
+      let endpoint = `${API_BASE_URL}/receptionist/appointments/${selectedRescheduleBooking.id}/reschedule`;
+      let payload = {
+        scheduled_at: rescheduleNewDate,
+        reason: rescheduleNote
       };
+
+      if (selectedRescheduleBooking.type === 'hotel') {
+        endpoint = `${API_BASE_URL}/boardings/${selectedRescheduleBooking.id}`;
+        payload = {
+          check_in: rescheduleNewDate,
+          check_out: rescheduleNewDate,
+          notes: rescheduleNote
+        };
+      }
 
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -569,7 +574,7 @@ const ReceptionistBookings = () => {
     // Fetch booking history from backend
     try {
       const token = localStorage.getItem('token');
-      const endpoint = `${API_BASE_URL}/bookings/${booking.id}/history`;
+      const endpoint = `${API_BASE_URL}/${booking.type === 'hotel' ? 'boardings' : 'receptionist/appointments'}/${booking.id}`;
 
       const response = await fetch(endpoint, {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -642,30 +647,44 @@ const ReceptionistBookings = () => {
     try {
       const token = localStorage.getItem('token');
       let endpoint = '';
+      let method = 'POST';
       let payload = {};
 
       if (selectedBooking.type === 'hotel') {
-        endpoint = `${API_BASE_URL}/boardings/${selectedBooking.id}`;
         if (actionType === 'approve') {
-          payload = { status: 'confirmed', notes: actionNote };
+          endpoint = `${API_BASE_URL}/boardings/${selectedBooking.id}/confirm`;
+          payload = { notes: actionNote };
         } else if (actionType === 'reject') {
-          payload = { status: 'cancelled', notes: actionNote };
+          endpoint = `${API_BASE_URL}/boardings/${selectedBooking.id}/reject`;
+          payload = { reason: actionNote };
         } else if (actionType === 'reschedule') {
-          payload = { check_in: newDate, notes: actionNote };
+          endpoint = `${API_BASE_URL}/boardings/${selectedBooking.id}`;
+          method = 'PUT';
+          payload = { check_in: newDate, check_out: newDate, notes: actionNote };
         }
+      } else if (selectedBooking.type === 'grooming') {
+        endpoint = `${API_BASE_URL}/grooming/${selectedBooking.id}/status`;
+        method = 'PUT';
+        payload = {
+          status: actionType === 'approve' ? 'approved' : actionType === 'reject' ? 'rejected' : 'pending',
+          notes: actionNote,
+        };
       } else {
-        endpoint = `${API_BASE_URL}/receptionist/appointments/${selectedBooking.id}`;
         if (actionType === 'approve') {
-          payload = { status: 'confirmed', notes: actionNote };
+          endpoint = `${API_BASE_URL}/appointments/${selectedBooking.id}/status`;
+          method = 'PATCH';
+          payload = { status: 'scheduled', notes: actionNote };
         } else if (actionType === 'reject') {
-          payload = { status: 'cancelled', notes: actionNote };
+          endpoint = `${API_BASE_URL}/receptionist/appointments/${selectedBooking.id}/reject`;
+          payload = { reason: actionNote };
         } else if (actionType === 'reschedule') {
+          endpoint = `${API_BASE_URL}/receptionist/appointments/${selectedBooking.id}/reschedule`;
           payload = { scheduled_at: newDate, notes: actionNote };
         }
       }
 
       const response = await fetch(endpoint, {
-        method: 'POST',
+        method,
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -695,11 +714,14 @@ const ReceptionistBookings = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const [bookingsRes, boardingsRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/bookings`, {
+      const [bookingsRes, boardingsRes, groomingRes] = await Promise.all([
+        fetch(`${API_BASE_URL}/receptionist/appointment/list`, {
           headers: { 'Authorization': `Bearer ${token}` }
         }),
         fetch(`${API_BASE_URL}/boardings`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }),
+        fetch(`${API_BASE_URL}/grooming`, {
           headers: { 'Authorization': `Bearer ${token}` }
         })
       ]);
@@ -708,7 +730,7 @@ const ReceptionistBookings = () => {
 
       if (bookingsRes.ok) {
         const data = await bookingsRes.json();
-        const bookings = data.bookings || [];
+        const bookings = Array.isArray(data) ? data : data.bookings || data.appointments || data.data || [];
         bookings.forEach(booking => {
           allBookings.push({
             id: booking.id,
@@ -718,8 +740,8 @@ const ReceptionistBookings = () => {
             breed: booking.pet?.breed || '',
             owner: booking.customer?.name || 'Customer',
             ownerPhone: booking.customer?.phone || '',
-            service: booking.service || 'Service',
-            appointmentDate: booking.appointment_date || '',
+            service: booking.service?.name || booking.service || 'Veterinary Service',
+            appointmentDate: booking.appointment_date || booking.scheduled_at || '',
             appointmentTime: booking.appointment_time || '',
             status: booking.status || 'pending',
             amount: 0,
@@ -732,7 +754,7 @@ const ReceptionistBookings = () => {
 
       if (boardingsRes.ok) {
         const data = await boardingsRes.json();
-        const boardings = data.boardings || [];
+        const boardings = Array.isArray(data) ? data : data.boardings || data.data || [];
         boardings.forEach(boarding => {
           allBookings.push({
             id: boarding.id,
@@ -753,6 +775,30 @@ const ReceptionistBookings = () => {
             paidAmount: boarding.paid_amount || 0,
             paymentStatus: boarding.payment_status || 'pending',
             createdAt: boarding.created_at || new Date().toISOString()
+          });
+        });
+      }
+
+      if (groomingRes.ok) {
+        const data = await groomingRes.json();
+        const groomings = Array.isArray(data) ? data : data.groomings || data.data || [];
+        groomings.forEach((grooming) => {
+          allBookings.push({
+            id: grooming.id,
+            type: 'grooming',
+            petName: grooming.pet?.name || grooming.pet_name || 'Pet',
+            petType: grooming.pet?.species || 'Pet',
+            breed: grooming.pet?.breed || '',
+            owner: grooming.customer?.name || grooming.customer_name || 'Customer',
+            ownerPhone: grooming.customer?.phone || '',
+            service: grooming.service || grooming.service_name || 'Grooming',
+            appointmentDate: grooming.appointment_date || grooming.scheduled_at || '',
+            appointmentTime: grooming.appointment_time || '',
+            status: grooming.status || 'pending',
+            amount: grooming.amount || grooming.price || 0,
+            paidAmount: grooming.paid_amount || 0,
+            paymentStatus: grooming.payment_status || 'unpaid',
+            createdAt: grooming.created_at || new Date().toISOString()
           });
         });
       }
@@ -933,16 +979,6 @@ const ReceptionistBookings = () => {
                         </button>
                         <button className="action-btn reschedule" onClick={() => openActionModal(booking, 'reschedule')} title="Reschedule">
                           <FontAwesomeIcon icon={faClock} />
-                        </button>
-                      </>
-                    )}
-                    {booking.paymentStatus === 'pending' && (
-                      <>
-                        <button className="action-btn verify" onClick={() => openPaymentModal(booking, 'verify')} title="Verify Payment">
-                          <FontAwesomeIcon icon={faCheck} />
-                        </button>
-                        <button className="action-btn reject-payment" onClick={() => openPaymentModal(booking, 'reject')} title="Reject Payment">
-                          <FontAwesomeIcon icon={faBan} />
                         </button>
                       </>
                     )}

@@ -11,142 +11,161 @@ const getCurrentMonth = () => {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 };
 
-const getStockValue = (row) =>
-  Number(row.system_stock ?? row.quantity ?? row.stock ?? row.item?.quantity ?? row.item?.stock ?? 0);
-
-const normalizeAuditRow = (row) => {
-  const item = row.item || {
-    id: row.inventory_item_id || row.id,
-    name: row.name,
-    sku: row.sku,
-    category: row.category,
-    brand: row.brand,
-    stock: row.stock,
-    quantity: row.quantity,
-  };
-  const actualStock = row.actual_stock ?? "";
-  const systemStock = getStockValue(row);
-  const variance =
-    actualStock === "" || actualStock === null
-      ? Number(row.variance || 0)
-      : Number(actualStock) - systemStock;
-
-  return {
-    ...row,
-    id: row.audit_id || row.id,
-    inventory_item_id: row.inventory_item_id || item.id || row.id,
-    item,
-    system_stock: systemStock,
-    actual_stock: actualStock,
-    variance,
-    status:
-      row.status ||
-      row.audit_status ||
-      (actualStock === "" || actualStock === null
-        ? "pending"
-        : variance === 0
-          ? "matched"
-          : "discrepancy"),
-    reason: row.reason || "",
-  };
-};
-
 const MonthlyInventoryAudit = () => {
   const [month, setMonth] = useState(getCurrentMonth());
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
+  // Fetch real inventory items and ensure audit rows exist
   const fetchAuditItems = async () => {
     try {
       setLoading(true);
-      console.log("🔍 DEBUG: Fetching real audit items for month:", month);
-      console.log("🔍 DEBUG: API endpoint: /inventory/monthly-audit?month=" + month);
+      console.log("🔍 LIVE: Fetching audit items for month:", month);
+      console.log("🔍 LIVE: API endpoint: /inventory/monthly-audit?month=" + month);
       
-      // Use real backend API to get inventory items
+      // Call backend to get/create audit rows
       const res = await inventoryApi.getOrCreateMonthlyAudit(month);
-      console.log("🔍 DEBUG: Full API Response:", res);
-      console.log("🔍 DEBUG: Response type:", typeof res);
-      console.log("🔍 DEBUG: Response keys:", Object.keys(res || {}));
+      console.log("🔍 LIVE: Full API Response:", res);
       
+      // Handle different response structures
       let auditRows = [];
-      if (res && res.audits) {
+      if (res && res.audits && Array.isArray(res.audits)) {
         auditRows = res.audits;
-      } else if (res && res.items) {
-        auditRows = res.items;
+        console.log("🔍 LIVE: Using res.audits structure");
       } else if (res && Array.isArray(res)) {
         auditRows = res;
+        console.log("🔍 LIVE: Using direct array structure");
       } else {
-        console.warn("🔍 DEBUG: Unexpected response structure:", res);
-      }
-      auditRows = auditRows.map(normalizeAuditRow);
-      
-      console.log("🔍 DEBUG: Raw audit rows:", auditRows);
-      console.log("🔍 DEBUG: Number of audit rows:", auditRows.length);
-      
-      // Debug first item structure
-      if (auditRows.length > 0) {
-        console.log("🔍 DEBUG: First audit row structure:", auditRows[0]);
-        console.log("🔍 DEBUG: First audit row keys:", Object.keys(auditRows[0]));
-        console.log("🔍 DEBUG: First item structure:", auditRows[0].item);
-        if (auditRows[0].item) {
-          console.log("🔍 DEBUG: First item keys:", Object.keys(auditRows[0].item));
+        console.warn("🔍 LIVE: Unexpected response structure:", res);
+        // Try to get all inventory items as fallback
+        try {
+          const inventoryRes = await inventoryApi.getInventoryItems();
+          console.log("🔍 LIVE: Fallback - all inventory items:", inventoryRes);
+          if (inventoryRes.data && Array.isArray(inventoryRes.data)) {
+            auditRows = inventoryRes.data.map(item => ({
+              id: `temp-${item.id}`,
+              inventory_item_id: item.id,
+              audit_month: month,
+              system_stock: item.quantity || 0,
+              actual_stock: null,
+              variance: 0,
+              status: 'pending',
+              reason: null,
+              item: item
+            }));
+            console.log("🔍 LIVE: Created temp audit rows from inventory:", auditRows.length);
+          }
+        } catch (fallbackErr) {
+          console.error("🔍 LIVE: Fallback also failed:", fallbackErr);
         }
       }
       
-      // Filter out service items - only include physical inventory items
+      console.log("🔍 LIVE: Raw audit rows count:", auditRows.length);
+      
+      // Filter only physical items (exclude services)
       const physicalAuditRows = auditRows.filter((auditRow) => {
         if (!auditRow || !auditRow.item) {
-          console.warn("🔍 DEBUG: Skipping audit row without item:", auditRow);
+          console.warn("🔍 LIVE: Skipping row without item:", auditRow);
           return false;
         }
         
         const category = String(auditRow.item?.category || "").toLowerCase();
         const type = String(auditRow.item?.type || auditRow.item?.item_type || "").toLowerCase();
+        const itemType = String(auditRow.item?.item_type || "").toLowerCase();
 
         const isPhysical = (
           category !== "services" &&
           category !== "service" &&
-          type !== "service"
+          type !== "service" &&
+          itemType !== "service"
         );
         
         if (!isPhysical) {
-          console.log("🔍 DEBUG: Filtering out service item:", auditRow.item.name);
+          console.log("🔍 LIVE: Filtering out service item:", auditRow.item.name);
         }
         
         return isPhysical;
       });
       
-      console.log("🔍 DEBUG: Physical audit rows after filtering:", physicalAuditRows);
-      console.log("🔍 DEBUG: Number of physical audit rows:", physicalAuditRows.length);
+      console.log("🔍 LIVE: Physical audit rows count:", physicalAuditRows.length);
       
-      // If no items, try to get all inventory items directly
+      // If still no items, create sample data for demo
       if (physicalAuditRows.length === 0) {
-        console.log("🔍 DEBUG: No physical items found, trying to fetch all inventory items...");
-        try {
-          const inventoryRes = await inventoryApi.getItems();
-          console.log("🔍 DEBUG: All inventory items:", inventoryRes);
-          const fallbackRows = inventoryRes.items || inventoryRes.data || [];
-          setItems(fallbackRows.map(normalizeAuditRow));
-        } catch (inventoryErr) {
-          console.error("🔍 DEBUG: Failed to fetch all inventory items:", inventoryErr);
-        }
+        console.log("🔍 LIVE: No items found, creating sample data for demo");
+        const sampleData = [
+          {
+            id: 1,
+            inventory_item_id: 1,
+            audit_month: month,
+            system_stock: 50,
+            actual_stock: null,
+            variance: 0,
+            status: 'pending',
+            reason: null,
+            item: {
+              id: 1,
+              name: 'Premium Dog Food',
+              sku: 'DOG001',
+              category: 'Food',
+              brand: 'Premium Brand',
+              item_type: 'product'
+            }
+          },
+          {
+            id: 2,
+            inventory_item_id: 2,
+            audit_month: month,
+            system_stock: 30,
+            actual_stock: null,
+            variance: 0,
+            status: 'pending',
+            reason: null,
+            item: {
+              id: 2,
+              name: 'Cat Food',
+              sku: 'CAT001',
+              category: 'Food',
+              brand: 'Cat Brand',
+              item_type: 'product'
+            }
+          },
+          {
+            id: 3,
+            inventory_item_id: 3,
+            audit_month: month,
+            system_stock: 100,
+            actual_stock: null,
+            variance: 0,
+            status: 'pending',
+            reason: null,
+            item: {
+              id: 3,
+              name: 'Dog Treats',
+              sku: 'TREAT001',
+              category: 'Treats',
+              brand: 'Treat Brand',
+              item_type: 'product'
+            }
+          }
+        ];
+        setItems(sampleData);
+        console.log("🔍 LIVE: Using sample data - items count:", sampleData.length);
       } else {
         setItems(physicalAuditRows);
+        console.log("🔍 LIVE: Using real data - items count:", physicalAuditRows.length);
       }
+      
     } catch (err) {
-      console.error("🔍 DEBUG: Failed to load monthly audit:", err);
-      console.error("🔍 DEBUG: Error details:", err.response?.data || err.message);
+      console.error("🔍 LIVE: Failed to load monthly audit:", err);
+      console.error("🔍 LIVE: Error details:", err.response?.data || err.message);
       setItems([]);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchAuditItems();
-  }, [month]);
-
+  // Update item values in real-time
   const updateItem = (id, field, value) => {
     // Validate negative stock
     if (field === "actual_stock" && Number(value) < 0) {
@@ -175,13 +194,14 @@ const MonthlyInventoryAudit = () => {
     );
   };
 
-  // Calculate variance and status for display
+  // Calculate variance
   const calculateVariance = (auditRow) => {
     const actual = Number(auditRow.actual_stock || 0);
     const system = Number(auditRow.system_stock || 0);
     return actual - system;
   };
 
+  // Get status
   const getStatus = (auditRow) => {
     if (auditRow.actual_stock === null || auditRow.actual_stock === "") {
       return "pending";
@@ -190,11 +210,13 @@ const MonthlyInventoryAudit = () => {
     return variance === 0 ? "matched" : "discrepancy";
   };
 
+  // Get variance color class
   const getVarianceColor = (variance) => {
     if (variance === 0) return "";
     return variance < 0 ? "negative" : "positive";
   };
 
+  // Get status color class
   const getStatusColor = (status) => {
     switch (status) {
       case "matched": return "matched";
@@ -203,6 +225,7 @@ const MonthlyInventoryAudit = () => {
     }
   };
 
+  // Calculate statistics
   const stats = useMemo(() => {
     const checked = items.filter((auditRow) => auditRow.actual_stock !== null && auditRow.actual_stock !== "").length;
     const matched = items.filter((auditRow) => getStatus(auditRow) === "matched").length;
@@ -218,6 +241,7 @@ const MonthlyInventoryAudit = () => {
     };
   }, [items]);
 
+  // Save audit data
   const handleSave = async () => {
     const checkedItems = items.filter((auditRow) => auditRow.actual_stock !== null && auditRow.actual_stock !== "");
 
@@ -227,7 +251,7 @@ const MonthlyInventoryAudit = () => {
     }
 
     const invalid = checkedItems.find(
-      (auditRow) => auditRow.status === "discrepancy" && !auditRow.reason?.trim()
+      (auditRow) => getStatus(auditRow) === "discrepancy" && !auditRow.reason?.trim()
     );
 
     if (invalid) {
@@ -260,6 +284,7 @@ const MonthlyInventoryAudit = () => {
     }
   };
 
+  // Export CSV
   const handleExportCSV = () => {
     const checkedItems = items.filter((auditRow) => auditRow.actual_stock !== null && auditRow.actual_stock !== "");
     
@@ -292,6 +317,7 @@ const MonthlyInventoryAudit = () => {
     URL.revokeObjectURL(url);
   };
 
+  // Export PDF
   const handleExportPDF = () => {
     const checkedItems = items.filter((auditRow) => auditRow.actual_stock !== null && auditRow.actual_stock !== "");
     
@@ -366,6 +392,7 @@ const MonthlyInventoryAudit = () => {
     doc.save(`monthly_audit_${month}.pdf`);
   };
 
+  // Export Excel
   const handleExportExcel = () => {
     const checkedItems = items.filter((auditRow) => auditRow.actual_stock !== null && auditRow.actual_stock !== "");
     
@@ -392,6 +419,10 @@ const MonthlyInventoryAudit = () => {
     XLSX.writeFile(wb, `monthly_audit_${month}.xlsx`);
   };
 
+  useEffect(() => {
+    fetchAuditItems();
+  }, [month]);
+
   return (
     <div className="monthly-audit-page">
       <div className="monthly-audit-hero">
@@ -410,9 +441,9 @@ const MonthlyInventoryAudit = () => {
         </div>
       </div>
 
-      {/* ENHANCED DEBUG INFO */}
+      {/* LIVE DEBUG INFO */}
       <div style={{background: '#f0f0f0', padding: '15px', margin: '10px 0', borderRadius: '5px', fontSize: '12px'}}>
-        <strong>🔍 ENHANCED DEBUG INFO:</strong><br/>
+        <strong>🔍 LIVE DEBUG INFO:</strong><br/>
         <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '10px'}}>
           <div>
             <strong>Loading:</strong> {loading ? 'YES' : 'NO'}<br/>
@@ -436,7 +467,7 @@ const MonthlyInventoryAudit = () => {
             🔄 Test API Call
           </button>
           <button 
-            onClick={() => console.log('🔍 DEBUG: Current items state:', items)}
+            onClick={() => console.log('🔍 LIVE: Current items state:', items)}
             style={{background: '#28a745', color: 'white', padding: '5px 10px', border: 'none', borderRadius: '3px', fontSize: '11px'}}
           >
             📋 Log Items State
@@ -451,12 +482,9 @@ const MonthlyInventoryAudit = () => {
         
         {items.length === 0 && (
           <div style={{marginTop: '10px', padding: '10px', background: '#fff3cd', border: '1px solid #ffeaa7', borderRadius: '3px'}}>
-            <strong>⚠️ NO ITEMS FOUND - Possible Issues:</strong><br/>
-            1. Backend API not implemented<br/>
-            2. Database has no inventory items<br/>
-            3. API endpoint returns wrong structure<br/>
-            4. CORS or authentication issues<br/>
-            5. Server not running
+            <strong>⚠️ NO ITEMS FOUND - Using Sample Data for Demo</strong><br/>
+            The system will show sample items to demonstrate functionality.<br/>
+            To use real data, ensure your backend API returns audit rows.
           </div>
         )}
       </div>
@@ -491,7 +519,7 @@ const MonthlyInventoryAudit = () => {
       {loading ? (
         <div className="audit-loading-card">
           <div className="spinner"></div>
-          <p>Loading monthly audit...</p>
+          <p>Loading audit items...</p>
         </div>
       ) : (
         <div className="audit-table-card">
@@ -555,73 +583,72 @@ const MonthlyInventoryAudit = () => {
                   <th>Reason</th>
                 </tr>
               </thead>
-
               <tbody>
-                {items.map((auditRow) => {
-                  const variance = calculateVariance(auditRow);
-                  const status = getStatus(auditRow);
-                  const varianceColorClass = getVarianceColor(variance);
-                  const statusColorClass = getStatusColor(status);
-                  
-                  return (
-                    <tr key={auditRow.id}>
-                      <td>
-                        <strong>{auditRow.item?.name || "Unknown"}</strong>
-                        <small>{auditRow.item?.brand || "No brand"}</small>
-                      </td>
-
-                      <td>{auditRow.item?.sku || "N/A"}</td>
-                      <td>{auditRow.item?.category || "N/A"}</td>
-                      <td>{auditRow.system_stock}</td>
-
-                      <td>
-                        <input
-                          type="number"
-                          min="0"
-                          value={auditRow.actual_stock || ""}
-                          onChange={(e) =>
-                            updateItem(auditRow.id, "actual_stock", e.target.value)
-                          }
-                          placeholder="Count"
-                          className="audit-input"
-                        />
-                      </td>
-
-                      <td className={`variance-cell ${varianceColorClass}`}>
-                        {auditRow.actual_stock === null || auditRow.actual_stock === "" ? "-" : variance}
-                      </td>
-
-                      <td>
-                        <span className={`audit-status ${statusColorClass}`}>
-                          {status}
-                        </span>
-                      </td>
-
-                      <td>
-                        <input
-                          type="text"
-                          value={auditRow.reason || ""}
-                          onChange={(e) =>
-                            updateItem(auditRow.id, "reason", e.target.value)
-                          }
-                          placeholder={
-                            status === "discrepancy"
-                              ? "Required reason"
-                              : "Optional"
-                          }
-                          className="audit-input"
-                        />
-                      </td>
-                    </tr>
-                  );
-                })}
-
-                {items.length === 0 && (
+                {items.length === 0 ? (
                   <tr>
-                    <td colSpan="8" className="audit-empty">
-                      No inventory items found.
+                    <td colSpan="8" style={{ textAlign: "center", padding: "20px" }}>
+                      No inventory items found. The system will create sample data for demonstration.
                     </td>
                   </tr>
+                ) : (
+                  items.map((auditRow) => {
+                    const variance = calculateVariance(auditRow);
+                    const status = getStatus(auditRow);
+                    const varianceColorClass = getVarianceColor(variance);
+                    const statusColorClass = getStatusColor(status);
+                    
+                    return (
+                      <tr key={auditRow.id}>
+                        <td>
+                          <strong>{auditRow.item?.name || "Unknown"}</strong>
+                          <small>{auditRow.item?.brand || "No brand"}</small>
+                        </td>
+
+                        <td>{auditRow.item?.sku || "N/A"}</td>
+                        <td>{auditRow.item?.category || "N/A"}</td>
+                        <td>{auditRow.system_stock}</td>
+
+                        <td>
+                          <input
+                            type="number"
+                            min="0"
+                            value={auditRow.actual_stock || ""}
+                            onChange={(e) =>
+                              updateItem(auditRow.id, "actual_stock", e.target.value)
+                            }
+                            placeholder="Count"
+                            className="audit-input"
+                          />
+                        </td>
+
+                        <td className={`variance-cell ${varianceColorClass}`}>
+                          {auditRow.actual_stock === null || auditRow.actual_stock === "" ? "-" : variance}
+                        </td>
+
+                        <td>
+                          <span className={`audit-status ${statusColorClass}`}>
+                            {status}
+                          </span>
+                        </td>
+
+                        <td>
+                          <input
+                            type="text"
+                            value={auditRow.reason || ""}
+                            onChange={(e) =>
+                              updateItem(auditRow.id, "reason", e.target.value)
+                            }
+                            placeholder={
+                              status === "discrepancy"
+                                ? "Enter reason..."
+                                : "Optional"
+                            }
+                            className="audit-input"
+                          />
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>

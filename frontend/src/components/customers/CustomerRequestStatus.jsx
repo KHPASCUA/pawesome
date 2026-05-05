@@ -10,6 +10,7 @@ import {
 } from "react-icons/fa";
 import "./CustomerRequestStatus.css";
 import { apiRequest } from "../../api/client";
+import { normalizeList } from "../../utils/normalizeList";
 
 const CustomerRequestStatus = () => {
   const [requests, setRequests] = useState([]);
@@ -31,9 +32,7 @@ const CustomerRequestStatus = () => {
 
       const data = await apiRequest(`/customer/my-requests?email=${email}`);
 
-      if (data.success) {
-        setRequests(data.requests);
-      }
+      setRequests(normalizeList(data, ["requests", "service_requests", "grooming_requests"]));
     } catch (error) {
       console.error("Failed to fetch customer requests:", error);
     }
@@ -43,9 +42,9 @@ const CustomerRequestStatus = () => {
     const keyword = searchTerm.toLowerCase();
 
     return (
-      item.customer?.toLowerCase().includes(keyword) ||
-      item.pet?.toLowerCase().includes(keyword) ||
-      item.service?.toLowerCase().includes(keyword) ||
+      (item.customer || item.customer_name || "")?.toLowerCase().includes(keyword) ||
+      (item.pet || item.pet_name || "")?.toLowerCase().includes(keyword) ||
+      (item.service || item.service_name || "")?.toLowerCase().includes(keyword) ||
       String(item.id).toLowerCase().includes(keyword)
     );
   });
@@ -88,24 +87,24 @@ const CustomerRequestStatus = () => {
               </div>
 
               <div>
-                <h3>{item.service}</h3>
+                <h3>{item.service || item.service_name}</h3>
                 <p>Request #{item.id}</p>
               </div>
             </div>
 
             <div className="status-card-details">
               <p>
-                <strong>Customer:</strong> {item.customer}
+                <strong>Customer:</strong> {item.customer || item.customer_name}
               </p>
               <p>
-                <strong>Pet:</strong> {item.pet}
+                <strong>Pet:</strong> {item.pet || item.pet_name || "N/A"}
               </p>
               <p>
                 <strong>Date:</strong>{" "}
-                {item.date ? new Date(item.date).toLocaleDateString() : "N/A"}
+                {(item.date || item.request_date) ? new Date(item.date || item.request_date).toLocaleDateString() : "N/A"}
               </p>
               <p>
-                <strong>Time:</strong> {item.time}
+                <strong>Time:</strong> {item.time || item.request_time || "N/A"}
               </p>
             </div>
 
@@ -115,9 +114,9 @@ const CustomerRequestStatus = () => {
                 {item.status}
               </span>
 
-              <span className={`customer-payment-pill ${item.payment}`}>
+              <span className={`customer-payment-pill ${item.payment || item.payment_status || "unpaid"}`}>
                 <FaCashRegister />
-                {item.payment}
+                {item.payment || item.payment_status || "unpaid"}
               </span>
             </div>
           </div>

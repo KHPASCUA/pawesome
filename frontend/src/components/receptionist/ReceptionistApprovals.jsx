@@ -63,12 +63,16 @@ const ReceptionistApprovals = () => {
 
   const filteredRequests = requests.filter((item) => {
     const keyword = searchTerm.toLowerCase();
+    const requestType = item.request_type || item.service_type || item.type || "";
+    const customerName = item.customer_name || item.customer || "";
+    const petName = item.pet_name || item.pet || "";
+    const serviceName = item.service_name || item.service || "";
 
     return (
-      item.customer_name?.toLowerCase().includes(keyword) ||
-      item.pet_name?.toLowerCase().includes(keyword) ||
-      item.service_name?.toLowerCase().includes(keyword) ||
-      item.request_type?.toLowerCase().includes(keyword)
+      customerName.toLowerCase().includes(keyword) ||
+      petName.toLowerCase().includes(keyword) ||
+      serviceName.toLowerCase().includes(keyword) ||
+      requestType.toLowerCase().includes(keyword)
     );
   });
 
@@ -125,24 +129,24 @@ const ReceptionistApprovals = () => {
             {filteredRequests.map((item) => (
               <div className="approval-item" key={item.id}>
                 <div className="approval-main">
-                  <span className={`type-pill ${item.request_type}`}>
-                    {item.request_type}
+                  <span className={`type-pill ${item.request_type || item.service_type || item.type}`}>
+                    {item.request_type || item.service_type || item.type}
                   </span>
 
-                  <h3>{item.service_name}</h3>
+                  <h3>{item.service_name || item.service}</h3>
 
                   <p>
-                    <strong>Customer:</strong> {item.customer_name}
+                    <strong>Customer:</strong> {item.customer_name || item.customer}
                   </p>
 
                   <p>
-                    <strong>Pet:</strong> {item.pet_name || "N/A"}
+                    <strong>Pet:</strong> {item.pet_name || item.pet || "N/A"}
                   </p>
 
                   <p>
                     <strong>Schedule:</strong>{" "}
-                    {item.request_date || "No date"}{" "}
-                    {item.request_time ? `at ${item.request_time}` : ""}
+                    {item.request_date || item.date || "No date"}{" "}
+                    {item.request_time || item.time ? `at ${item.request_time || item.time}` : ""}
                   </p>
 
                   {item.notes && (

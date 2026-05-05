@@ -11,11 +11,19 @@ class InventoryLog extends Model
         'delta',
         'reason',
         'reference_type',
+        'reference_id',
+        'movement_type',
         'type',
         'quantity',
         'stock_before',
         'stock_after',
+        'previous_stock',
+        'new_stock',
         'reference',
+        'performed_by',
+        'role',
+        'user_id',
+        'details',
     ];
 
     public function item()
@@ -26,5 +34,10 @@ class InventoryLog extends Model
     public function inventoryItem()
     {
         return $this->belongsTo(InventoryItem::class, 'inventory_item_id');
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
     }
 }

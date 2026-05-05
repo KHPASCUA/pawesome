@@ -611,7 +611,7 @@ class InventoryController extends Controller
                     'sku' => $item->sku,
                     'category' => $item->category,
                     'brand' => $item->brand,
-                    'system_stock' => (int) ($item->quantity ?? 0),
+                    'system_stock' => (int) ($item->quantity ?? $item->stock ?? 0),
                     'actual_stock' => $existingAudit ? (int) $existingAudit->actual_stock : '',
                     'variance' => $existingAudit ? (int) $existingAudit->variance : 0,
                     'audit_status' => $existingAudit ? $existingAudit->status : 'pending',
@@ -643,7 +643,7 @@ class InventoryController extends Controller
             foreach ($validated['items'] as $row) {
                 $item = InventoryItem::lockForUpdate()->findOrFail($row['inventory_item_id']);
 
-                $systemStock = (int) ($item->quantity ?? 0);
+                $systemStock = (int) ($item->quantity ?? $item->stock ?? 0);
                 $actualStock = (int) $row['actual_stock'];
                 $variance = $actualStock - $systemStock;
 
@@ -679,11 +679,14 @@ class InventoryController extends Controller
                         'notes' => 'Monthly inventory audit adjustment',
                     ]);
 
+                    $stockUpdate = ['stock' => $actualStock];
+                    if (Schema::hasColumn('inventory_items', 'quantity')) {
+                        $stockUpdate['quantity'] = $actualStock;
+                    }
+
                     DB::table('inventory_items')
                         ->where('id', $item->id)
-                        ->update([
-                            'quantity' => $actualStock,
-                        ]);
+                        ->update($stockUpdate);
 
                     InventoryLog::create([
                         'inventory_item_id' => $item->id,

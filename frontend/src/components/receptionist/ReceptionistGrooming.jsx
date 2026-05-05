@@ -28,7 +28,10 @@ const Grooming = () => {
       const data = await apiRequest("/receptionist/requests");
       
       // Filter only grooming requests
-      const groomingOnly = data.requests.filter(item => item.type === "grooming");
+      const groomingOnly = (data.requests || []).filter((item) => {
+        const type = item.type || item.request_type || item.service_type;
+        return type === "grooming";
+      });
       
       setGroomingAppointments(groomingOnly);
     } catch (error) {
@@ -60,11 +63,12 @@ const Grooming = () => {
 
   const filteredAppointments = groomingAppointments.filter(appointment => {
     const matchesSearch =
-      appointment.pet?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      appointment.service?.toLowerCase().includes(searchTerm.toLowerCase());
+      (appointment.pet || appointment.pet_name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (appointment.service || appointment.service_name || "").toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesStatus = filterStatus === "all" || appointment.status === filterStatus;
-    const matchesService = filterService === "all" || appointment.service === filterService;
+    const service = appointment.service || appointment.service_name;
+    const matchesService = filterService === "all" || service === filterService;
 
     return matchesSearch && matchesStatus && matchesService;
   });
@@ -237,22 +241,22 @@ const Grooming = () => {
                     <div className="pet-avatar">
                       <FontAwesomeIcon icon={faPaw} />
                     </div>
-                    <span className="pet-name">{appointment.pet}</span>
+                    <span className="pet-name">{appointment.pet || appointment.pet_name}</span>
                   </div>
                 </td>
                 <td className="service">
                   <div className="service-info">
-                    <FontAwesomeIcon icon={getServiceIcon(appointment.service)} />
-                    <span>{appointment.service}</span>
+                    <FontAwesomeIcon icon={getServiceIcon(appointment.service || appointment.service_name)} />
+                    <span>{appointment.service || appointment.service_name}</span>
                   </div>
                 </td>
                 <td className="datetime">
                   <div className="datetime-details">
                     <div className="date">
                       <FontAwesomeIcon icon={faCalendarAlt} />
-                      {appointment.date}
+                      {appointment.date || appointment.request_date}
                     </div>
-                    <div className="time">{appointment.time}</div>
+                    <div className="time">{appointment.time || appointment.request_time}</div>
                   </div>
                 </td>
                 <td className="notes">

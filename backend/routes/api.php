@@ -193,6 +193,8 @@ Route::middleware(['auth.api', 'throttle:api', 'role:customer'])->prefix('custom
     // Customer Store Checkout
     Route::post('store/checkout', [CustomerStoreController::class, 'checkout']);
     Route::get('store/orders', [CustomerStoreController::class, 'orders']);
+    Route::post('store/orders/{id}/payment-proof', [CustomerStoreController::class, 'uploadPaymentProof']);
+    Route::get('store/orders/{id}/receipt', [CustomerStoreController::class, 'receipt']);
 });
 
 Route::middleware(['auth.api', 'throttle:api', 'role:cashier'])->prefix('cashier')->group(function () {
@@ -211,10 +213,12 @@ Route::middleware(['auth.api', 'throttle:api', 'role:cashier'])->prefix('cashier
     Route::post('end-shift', [CashierDashboardController::class, 'endShift']);
     Route::post('void', [CashierDashboardController::class, 'voidTransaction']);
     Route::get('receipt/{id}', [CashierDashboardController::class, 'generateReceipt']);
+    Route::get('customer-order-receipts/{id}', [CashierDashboardController::class, 'customerOrderReceipt']);
 
     // Payment Verification Routes
     Route::get('payment-requests', [CashierDashboardController::class, 'getPaymentRequests']);
     Route::put('payment-requests/{id}/verify', [CashierDashboardController::class, 'verifyPayment']);
+    Route::put('payment-requests/{id}/reject', [CashierDashboardController::class, 'rejectPayment']);
 
     // Existing Payment Verification Routes
     Route::get('payments', [CashierPaymentController::class, 'index']);

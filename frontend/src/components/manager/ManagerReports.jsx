@@ -50,6 +50,7 @@ const ManagerReports = () => {
   const [staff, setStaff] = useState([]);
   const [revenue, setRevenue] = useState([]);
   const [transactions, setTransactions] = useState([]);
+  const [workflowMetrics, setWorkflowMetrics] = useState({});
 
   // Set default date range to current month
   useEffect(() => {
@@ -111,6 +112,11 @@ const ManagerReports = () => {
       } catch (apiErr) {
         console.warn("Transactions API failed, using demo:", apiErr);
         transactionsData = demoTransactions;
+      }
+      try {
+        setWorkflowMetrics(await apiRequest("/manager/dashboard"));
+      } catch (apiErr) {
+        console.warn("Workflow metrics API failed:", apiErr);
       }
 
       setStaff(
@@ -312,6 +318,35 @@ const ManagerReports = () => {
 
       {/* Stats Grid */}
       <div className="stats-grid">
+        <div className="stat-card primary">
+          <div className="stat-content">
+            <div className="stat-value">{workflowMetrics.total_orders || 0}</div>
+            <div className="stat-label">Total Orders</div>
+          </div>
+        </div>
+
+        <div className="stat-card success">
+          <div className="stat-content">
+            <div className="stat-value">{workflowMetrics.approved_orders || 0}</div>
+            <div className="stat-label">Approved Orders</div>
+          </div>
+        </div>
+
+        <div className="stat-card warning">
+          <div className="stat-content">
+            <div className="stat-value">{workflowMetrics.pending_payments || 0}</div>
+            <div className="stat-label">Pending Payments</div>
+          </div>
+        </div>
+
+        <div className="stat-card revenue">
+          <div className="revenue-info">
+            <span className="revenue-label">Sales Total</span>
+            <span className="revenue-value">{formatCurrency(workflowMetrics.sales_total || totalRevenue)}</span>
+            <span className="revenue-period">{workflowMetrics.low_stock_count || 0} low stock items</span>
+          </div>
+        </div>
+
         <div className="stat-card primary">
           <div className="stat-icon">
             <FontAwesomeIcon icon={faUsers} />

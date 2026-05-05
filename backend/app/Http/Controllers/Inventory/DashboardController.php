@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\InventoryItem;
 use App\Models\InventoryLog;
 use App\Services\InventoryService;
+use App\Services\WorkflowNotifier;
+use App\Models\ActivityLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 
@@ -97,11 +99,12 @@ class DashboardController extends Controller
 
     public function logs()
     {
-        return response()->json(
-            InventoryLog::with('inventoryItem')
+        return response()->json([
+            'logs' => InventoryLog::with('inventoryItem', 'user')
                 ->latest()
                 ->get()
-        );
+                ->map(fn ($log) => $this->formatLog($log)),
+        ]);
     }
 
     public function reports(Request $request)
@@ -147,10 +150,11 @@ class DashboardController extends Controller
         }
 
         $history = $query->paginate($request->integer('per_page', 50));
+        $items = collect($history->items())->map(fn ($log) => $this->formatLog($log))->values();
 
         return response()->json([
-            'history' => $history->items(),
-            'data' => $history->items(),
+            'history' => $items,
+            'data' => $items,
             'meta' => [
                 'current_page' => $history->currentPage(),
                 'total' => $history->total(),
@@ -190,8 +194,26 @@ class DashboardController extends Controller
         InventoryLog::create([
             'inventory_item_id' => $item->id,
             'delta' => $newStock - $current,
+            'quantity' => abs($newStock - $current),
+            'type' => $validated['type'],
+            'movement_type' => 'manual_adjustment',
             'reason' => $validated['reason'] ?? 'Manual stock adjustment',
             'reference_type' => $validated['type'],
+            'stock_before' => $current,
+            'stock_after' => $newStock,
+            'previous_stock' => $current,
+            'new_stock' => $newStock,
+            'performed_by' => $request->user()?->name,
+            'role' => $request->user()?->role,
+            'user_id' => $request->user()?->id,
+        ]);
+
+        WorkflowNotifier::notifyRole('inventory', 'Stock Adjustment Made', "{$item->name}: {$current} -> {$newStock}", 'info', 'inventory_item', $item->id);
+        ActivityLog::log($request->user()?->id, 'inventory_adjusted', "Inventory adjusted {$item->name}", [
+            'category' => 'inventory',
+            'reference_type' => 'inventory_item',
+            'reference_id' => $item->id,
+            'metadata' => ['previous_stock' => $current, 'new_stock' => $newStock],
         ]);
 
         return response()->json([
@@ -202,6 +224,29 @@ class DashboardController extends Controller
             'new_stock' => $newStock,
             'adjustment' => $newStock - $current,
         ]);
+    }
+
+    private function formatLog(InventoryLog $log): array
+    {
+        return [
+            'id' => $log->id,
+            'inventory_item_id' => $log->inventory_item_id,
+            'item_name' => $log->inventoryItem?->name,
+            'item_sku' => $log->inventoryItem?->sku,
+            'movement_type' => $log->movement_type ?? $log->reference_type ?? $log->type,
+            'action' => $log->movement_type ?? $log->reference_type ?? $log->type,
+            'quantity_change' => $log->delta ?? 0,
+            'quantity' => $log->quantity ?? abs($log->delta ?? 0),
+            'previous_stock' => $log->previous_stock ?? $log->stock_before,
+            'new_stock' => $log->new_stock ?? $log->stock_after,
+            'stock_before' => $log->stock_before ?? $log->previous_stock,
+            'stock_after' => $log->stock_after ?? $log->new_stock,
+            'reason' => $log->reason,
+            'performed_by' => $log->performed_by ?? $log->user?->name,
+            'user_name' => $log->performed_by ?? $log->user?->name,
+            'role' => $log->role,
+            'created_at' => $log->created_at,
+        ];
     }
 
     public function reorderRequest(Request $request)

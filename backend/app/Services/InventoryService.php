@@ -6,6 +6,7 @@ use App\Models\InventoryItem;
 use App\Models\InventoryBatch;
 use App\Models\InventoryLog;
 use App\Models\Notification;
+use App\Models\ActivityLog;
 use App\Models\User;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\DB;
@@ -193,13 +194,26 @@ class InventoryService
         InventoryLog::create([
             'inventory_item_id' => $item->id,
             'delta' => $quantity,
+            'quantity' => abs($quantity),
+            'type' => $quantity >= 0 ? 'add' : 'remove',
+            'movement_type' => $quantity >= 0 ? 'adjustment_in' : 'adjustment_out',
             'reason' => $reason,
             'reference_type' => $auditData['type'] ?? 'adjustment',
+            'reference_id' => $auditData['reference_id'] ?? null,
+            'stock_before' => $previousStock,
+            'stock_after' => $newStock,
             'previous_stock' => $auditData['previous'] ?? $previousStock,
             'new_stock' => $auditData['new'] ?? $newStock,
             'performed_by' => $auditData['performed_by'] ?? null,
             'role' => $auditData['role'] ?? null,
             'user_id' => $auditData['user_id'] ?? null,
+        ]);
+
+        ActivityLog::log($auditData['user_id'] ?? auth()->id(), 'inventory_adjusted', "Adjusted {$item->name} stock by {$quantity}", [
+            'category' => 'inventory',
+            'reference_type' => 'inventory_item',
+            'reference_id' => $item->id,
+            'metadata' => ['previous_stock' => $previousStock, 'new_stock' => $newStock, 'reason' => $reason],
         ]);
 
         // Check for low/out of stock and create notifications
@@ -245,6 +259,7 @@ class InventoryService
 
             // Check for low/out of stock and create notifications
             $this->checkAndCreateStockNotifications($item);
+            $this->notifyInventoryMovement($item, -$quantity, $reason, $referenceType, $referenceId, $stockBefore, $item->stock);
 
             return [
                 'message' => 'Stock deducted successfully (FEFO)',
@@ -265,12 +280,24 @@ class InventoryService
         InventoryLog::create([
             'inventory_item_id' => $itemId,
             'delta' => -$quantity,
+            'quantity' => $quantity,
+            'type' => 'sale',
+            'movement_type' => $referenceType === 'customer_order' ? 'customer_order_deduction' : 'pos_sale_deduction',
             'reason' => $reason,
             'reference_type' => $referenceType,
+            'reference_id' => $referenceId,
+            'stock_before' => $stockBefore,
+            'stock_after' => $item->stock,
+            'previous_stock' => $stockBefore,
+            'new_stock' => $item->stock,
+            'performed_by' => auth()->user()?->name,
+            'role' => auth()->user()?->role,
+            'user_id' => auth()->id(),
         ]);
 
         // Check for low/out of stock and create notifications
         $this->checkAndCreateStockNotifications($item);
+        $this->notifyInventoryMovement($item, -$quantity, $reason, $referenceType, $referenceId, $stockBefore, $item->stock);
 
         return [
             'message' => 'Stock deducted successfully',
@@ -302,6 +329,7 @@ class InventoryService
             );
 
             $item = $item->fresh();
+            $this->notifyInventoryMovement($item, $quantity, $reason, $referenceType, $referenceId, $stockBefore, $item->stock);
 
             return [
                 'message' => 'Stock added successfully with batch tracking',
@@ -322,9 +350,22 @@ class InventoryService
         InventoryLog::create([
             'inventory_item_id' => $itemId,
             'delta' => $quantity,
+            'quantity' => $quantity,
+            'type' => 'restock',
+            'movement_type' => $referenceType === 'customer_order' ? 'customer_order_restore' : 'stock_in',
             'reason' => $reason,
             'reference_type' => $referenceType,
+            'reference_id' => $referenceId,
+            'stock_before' => $stockBefore,
+            'stock_after' => $item->stock,
+            'previous_stock' => $stockBefore,
+            'new_stock' => $item->stock,
+            'performed_by' => auth()->user()?->name,
+            'role' => auth()->user()?->role,
+            'user_id' => auth()->id(),
         ]);
+
+        $this->notifyInventoryMovement($item, $quantity, $reason, $referenceType, $referenceId, $stockBefore, $item->stock);
 
         return [
             'message' => 'Stock added successfully',
@@ -578,8 +619,47 @@ class InventoryService
         InventoryLog::create([
             'inventory_item_id' => $itemId,
             'delta' => $delta,
+            'quantity' => abs($delta),
+            'type' => $delta >= 0 ? 'restock' : 'sale',
+            'movement_type' => $referenceType,
             'reason' => $reason,
             'reference_type' => $referenceType,
+            'performed_by' => auth()->user()?->name,
+            'role' => auth()->user()?->role,
+            'user_id' => auth()->id(),
+        ]);
+    }
+
+    private function notifyInventoryMovement(InventoryItem $item, int $delta, string $reason, string $referenceType, ?int $referenceId, int $previousStock, int $newStock): void
+    {
+        $direction = $delta < 0 ? 'deducted' : 'restored';
+
+        WorkflowNotifier::notifyRole(
+            'inventory',
+            'Stock ' . ucfirst($direction),
+            "{$item->name}: " . abs($delta) . " units {$direction}. {$previousStock} -> {$newStock}.",
+            $delta < 0 ? 'warning' : 'success',
+            $referenceType,
+            $referenceId,
+            [
+                'item_id' => $item->id,
+                'delta' => $delta,
+                'previous_stock' => $previousStock,
+                'new_stock' => $newStock,
+                'reason' => $reason,
+            ]
+        );
+
+        ActivityLog::log(auth()->id(), 'stock_' . $direction, "{$item->name} stock {$direction}", [
+            'category' => 'inventory',
+            'reference_type' => $referenceType,
+            'reference_id' => $referenceId,
+            'metadata' => [
+                'item_id' => $item->id,
+                'delta' => $delta,
+                'previous_stock' => $previousStock,
+                'new_stock' => $newStock,
+            ],
         ]);
     }
 
