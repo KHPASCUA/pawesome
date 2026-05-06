@@ -131,7 +131,7 @@ const VetHistory = () => {
         0
     );
 
-  const transformRecord = (apt) => {
+  const transformRecord = useCallback((apt) => {
     const schedule = getSchedule(apt);
     const service = getServiceName(apt);
     const notes = apt?.notes || apt?.diagnosis || apt?.description || "No notes recorded";
@@ -154,7 +154,7 @@ const VetHistory = () => {
       appointment_status: normalizeStatus(apt?.status),
       notes,
     };
-  };
+  }, []);
 
   const fetchHistory = useCallback(async ({ silent = false } = {}) => {
     try {
@@ -185,7 +185,7 @@ const VetHistory = () => {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [transformRecord]);
 
   useEffect(() => {
     fetchHistory({ silent: false });
@@ -558,7 +558,7 @@ const VetHistory = () => {
         </div>
       ) : (
         <div className="vet-history-list">
-          {filteredHistory.map((record, index) => (
+          {(filteredHistory || []).map((record, index) => (
             <article
               key={record.id || `${record.pet_name}-${index}`}
               className="premium-card vet-history-card"
@@ -788,6 +788,6 @@ const VetHistory = () => {
       )}
     </section>
   );
-};
+}
 
 export default VetHistory;

@@ -43,6 +43,10 @@ class DashboardController extends Controller
         return response()->json(
             Appointment::with(['customer', 'pet', 'service', 'veterinarian'])
                 ->whereIn('status', ['approved', 'scheduled', 'in_progress', 'treated', 'completed', 'cancelled', 'no_show'])
+                ->where(function($query) {
+                    // Only show appointments assigned to current veterinarian
+                    $query->where('veterinarian_id', auth()->id());
+                })
                 ->orderBy('scheduled_at')
                 ->get()
         );

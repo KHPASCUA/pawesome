@@ -77,9 +77,15 @@ const Register = () => {
         method: "POST",
         body: JSON.stringify({
           name: `${formData.firstName} ${formData.lastName}`,
+          first_name: formData.firstName,
+          last_name: formData.lastName,
           email: formData.emailAddress,
           username: formData.username,
           password: formData.password,
+          phone: formData.contactNumber,
+          date_of_birth: formData.dateOfBirth,
+          emergency_contact_person: formData.emergencyContactPerson,
+          emergency_contact_number: formData.emergencyContactNumber,
           role: "customer",
         }),
       });

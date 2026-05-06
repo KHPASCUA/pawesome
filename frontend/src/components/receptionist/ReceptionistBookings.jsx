@@ -25,10 +25,7 @@ const ReceptionistBookings = () => {
   const [newDate, setNewDate] = useState('');
   const [availability, setAvailability] = useState(null);
   const [checkingAvailability, setCheckingAvailability] = useState(false);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [selectedPaymentBooking, setSelectedPaymentBooking] = useState(null);
-  const [paymentAction, setPaymentAction] = useState(null); // 'verify', 'reject'
-  const [paymentNote, setPaymentNote] = useState('');
+  // Payment verification controls removed - cashier handles payment verification
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [selectedCancelBooking, setSelectedCancelBooking] = useState(null);
   const [cancelAction, setCancelAction] = useState(null); // 'approve', 'reject'
@@ -405,49 +402,7 @@ const ReceptionistBookings = () => {
     }
   };
 
-  // Payment verification handlers
-  const openPaymentModal = (booking, action) => {
-    setSelectedPaymentBooking(booking);
-    setPaymentAction(action);
-    setPaymentNote('');
-    setShowPaymentModal(true);
-  };
-
-  const closePaymentModal = () => {
-    setShowPaymentModal(false);
-    setSelectedPaymentBooking(null);
-    setPaymentAction(null);
-    setPaymentNote('');
-  };
-
-  const handlePaymentSubmit = async () => {
-    if (!selectedPaymentBooking) return;
-
-    try {
-      const token = localStorage.getItem('token');
-      const endpoint = `${API_BASE_URL}/cashier/payment-requests/${selectedPaymentBooking.id}/${paymentAction === 'verify' ? 'verify' : 'reject'}`;
-
-      const response = await fetch(endpoint, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ cashier_remarks: paymentNote })
-      });
-
-      if (response.ok) {
-        alert(`Payment ${paymentAction === 'verify' ? 'verified' : 'rejected'} successfully`);
-        closePaymentModal();
-        fetchBookings();
-      } else {
-        alert('Failed to update payment status');
-      }
-    } catch (error) {
-      console.error('Error updating payment:', error);
-      alert('Failed to update payment status');
-    }
-  };
+  // Payment verification handlers removed - cashier handles payment verification
 
   // Cancel request handlers
   const openCancelModal = (booking, action) => {
@@ -652,11 +607,13 @@ const ReceptionistBookings = () => {
 
       if (selectedBooking.type === 'hotel') {
         if (actionType === 'approve') {
-          endpoint = `${API_BASE_URL}/boardings/${selectedBooking.id}/confirm`;
-          payload = { notes: actionNote };
+          endpoint = `${API_BASE_URL}/boardings/${selectedBooking.id}`;
+          method = 'PUT';
+          payload = { status: 'confirmed', notes: actionNote };
         } else if (actionType === 'reject') {
-          endpoint = `${API_BASE_URL}/boardings/${selectedBooking.id}/reject`;
-          payload = { reason: actionNote };
+          endpoint = `${API_BASE_URL}/boardings/${selectedBooking.id}`;
+          method = 'PUT';
+          payload = { status: 'rejected', reason: actionNote };
         } else if (actionType === 'reschedule') {
           endpoint = `${API_BASE_URL}/boardings/${selectedBooking.id}`;
           method = 'PUT';
@@ -1086,49 +1043,7 @@ const ReceptionistBookings = () => {
         </div>
       )}
 
-      {/* Payment Verification Modal */}
-      {showPaymentModal && selectedPaymentBooking && (
-        <div className="appointment-modal-overlay" onClick={closePaymentModal}>
-          <div className="appointment-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>
-                {paymentAction === 'verify' ? 'Verify Payment' : 'Reject Payment'}
-              </h2>
-              <button className="close-btn" onClick={closePaymentModal}>×</button>
-            </div>
-            <div className="modal-content">
-              <div className="booking-details-summary">
-                <p><strong>Pet:</strong> {selectedPaymentBooking.petName}</p>
-                <p><strong>Owner:</strong> {selectedPaymentBooking.owner}</p>
-                <p><strong>Service:</strong> {selectedPaymentBooking.service}</p>
-                <p><strong>Amount:</strong> ${selectedPaymentBooking.amount}</p>
-                <p><strong>Paid:</strong> ${selectedPaymentBooking.paidAmount}</p>
-                <p><strong>Payment Status:</strong> {selectedPaymentBooking.paymentStatus}</p>
-              </div>
-              
-              <form className="appointment-form" onSubmit={(e) => { e.preventDefault(); handlePaymentSubmit(); }}>
-                <div className="form-group">
-                  <label>Receptionist Note</label>
-                  <textarea
-                    value={paymentNote}
-                    onChange={(e) => setPaymentNote(e.target.value)}
-                    placeholder={paymentAction === 'verify' ? 'Add verification note (optional)...' : 'Provide reason for rejection...'}
-                    rows={4}
-                  />
-                </div>
-                <div className="modal-actions">
-                  <button type="button" className="secondary-btn" onClick={closePaymentModal}>
-                    Cancel
-                  </button>
-                  <button type="submit" className="primary-btn">
-                    {paymentAction === 'verify' ? 'Verify Payment' : 'Reject Payment'}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Payment Verification Modal removed - cashier handles payment verification */}
 
       {/* Cancel Request Modal */}
       {showCancelModal && selectedCancelBooking && (

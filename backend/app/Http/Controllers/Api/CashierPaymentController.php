@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Payment;
 use App\Models\ServiceRequest;
 use Illuminate\Http\Request;
+use App\Services\PaymentVerificationService;
 
 class CashierPaymentController extends Controller
 {
@@ -70,11 +71,11 @@ class CashierPaymentController extends Controller
 
     public function verify(Request $request, $id, $type)
     {
-        if ($type === 'service_request') {
-            return $this->verifyServiceRequest($request, $id);
-        } else {
-            return $this->verifyStoreOrder($request, $id);
-        }
+        $svc = new PaymentVerificationService();
+        $result = $svc->verify($type, (int) $id, $request);
+
+        $status = $result['status'] ?? 200;
+        return response()->json($result, $status);
     }
 
     private function verifyServiceRequest(Request $request, $id)
@@ -131,11 +132,10 @@ class CashierPaymentController extends Controller
 
     public function reject(Request $request, $id, $type)
     {
-        if ($type === 'service_request') {
-            return $this->rejectServiceRequest($request, $id);
-        } else {
-            return $this->rejectStoreOrder($request, $id);
-        }
+        $svc = new PaymentVerificationService();
+        $result = $svc->reject($type, (int) $id, $request);
+        $status = $result['status'] ?? 200;
+        return response()->json($result, $status);
     }
 
     private function rejectServiceRequest(Request $request, $id)

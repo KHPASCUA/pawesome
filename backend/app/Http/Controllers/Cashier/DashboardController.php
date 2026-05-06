@@ -11,6 +11,7 @@ use App\Services\WorkflowNotifier;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use App\Services\PaymentVerificationService;
 
 class DashboardController extends Controller
 {
@@ -409,12 +410,10 @@ class DashboardController extends Controller
     public function verifyPayment(Request $request, $id)
     {
         $type = $request->input('type', 'customer_order');
-        
-        if ($type === 'service_request') {
-            return $this->verifyServiceRequestPayment($request, $id);
-        } else {
-            return $this->verifyCustomerOrderPayment($request, $id);
-        }
+        $svc = new PaymentVerificationService();
+        $result = $svc->verify($type, (int) $id, $request);
+        $status = $result['status'] ?? 200;
+        return response()->json($result, $status);
     }
 
     private function verifyServiceRequestPayment(Request $request, $id)
@@ -522,12 +521,10 @@ class DashboardController extends Controller
     public function rejectPayment(Request $request, $id)
     {
         $type = $request->input('type', 'customer_order');
-        
-        if ($type === 'service_request') {
-            return $this->rejectServiceRequestPayment($request, $id);
-        } else {
-            return $this->rejectCustomerOrderPayment($request, $id);
-        }
+        $svc = new PaymentVerificationService();
+        $result = $svc->reject($type, (int) $id, $request);
+        $status = $result['status'] ?? 200;
+        return response()->json($result, $status);
     }
 
     private function rejectServiceRequestPayment(Request $request, $id)
@@ -612,49 +609,6 @@ class DashboardController extends Controller
             'success' => true,
             'message' => 'Payment rejected',
             'order' => $order,
-        ]);
-    }
-
-    public function rejectPayment(Request $request, $id)
-    {
-        $order = DB::table('customer_orders')->where('id', $id)->first();
-
-        if (!$order) {
-            return response()->json(['message' => 'Payment request not found'], 404);
-        }
-
-        if (($order->payment_status ?? 'unpaid') !== 'pending') {
-            return response()->json(['message' => 'Only pending payment proofs can be rejected'], 422);
-        }
-
-        DB::table('customer_orders')
-            ->where('id', $id)
-            ->update([
-                'payment_status' => 'rejected',
-                'cashier_remarks' => $request->input('cashier_remarks'),
-                'updated_at' => now(),
-            ]);
-
-        WorkflowNotifier::notifyUser(
-            $order->customer_id,
-            'Payment Rejected',
-            "Payment proof for order #{$id} was rejected. Please resubmit a valid proof.",
-            'error',
-            'customer_order',
-            $id,
-            ['cashier_remarks' => $request->input('cashier_remarks')]
-        );
-
-        ActivityLog::log(auth()->id(), 'payment_rejected', "Cashier rejected payment for order #{$id}", [
-            'category' => 'payment',
-            'reference_type' => 'customer_order',
-            'reference_id' => $id,
-            'metadata' => ['cashier_remarks' => $request->input('cashier_remarks')],
-        ]);
-
-        return response()->json([
-            'message' => 'Payment rejected',
-            'payment_status' => 'rejected',
         ]);
     }
 

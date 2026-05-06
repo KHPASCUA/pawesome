@@ -185,7 +185,7 @@ class ServiceRequestController extends Controller
         }
 
         $paymentStatus = $validated['status'] === 'approved'
-            ? 'pending'
+            ? 'unpaid'
             : 'unpaid';
 
         $serviceRequest->update([
@@ -217,6 +217,12 @@ class ServiceRequestController extends Controller
 
     public function uploadPaymentProof(Request $request, $id)
     {
+        $user = Auth::user();
+        
+        if (!$user) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
         $validated = $request->validate([
             'payment_method' => 'nullable|string|max:255',
             'payment_reference' => 'nullable|string|max:255',
@@ -225,11 +231,30 @@ class ServiceRequestController extends Controller
 
         $serviceRequest = ServiceRequest::findOrFail($id);
 
-        // Only allow payment proof upload for approved requests
-        if ($serviceRequest->status !== 'approved') {
+        // Check if customer owns this request
+        $isOwner = false;
+        if (Schema::hasColumn('service_requests', 'customer_id') && $serviceRequest->customer_id) {
+            $isOwner = $serviceRequest->customer_id === $user->id;
+        } elseif (Schema::hasColumn('service_requests', 'customer_email') && $serviceRequest->customer_email) {
+            $isOwner = $serviceRequest->customer_email === $user->email;
+        }
+
+        if (!$isOwner) {
+            return response()->json(['message' => 'Forbidden: You can only upload proof for your own requests'], 403);
+        }
+
+        // Only allow payment proof upload for approved or scheduled requests
+        if (!in_array($serviceRequest->status, ['approved', 'scheduled'])) {
             return response()->json([
                 'message' => 'Payment proof can only be uploaded for approved requests.',
             ], 403);
+        }
+
+        // Reject upload if payment is already pending or paid
+        if (in_array($serviceRequest->payment_status, ['pending', 'paid'])) {
+            return response()->json([
+                'message' => 'Payment proof has already been uploaded or payment is verified.',
+            ], 422);
         }
 
         // Store the uploaded file
@@ -252,11 +277,18 @@ class ServiceRequestController extends Controller
             $serviceRequest->id
         );
 
+        ActivityLog::log($user->id, 'payment_proof_uploaded', "Customer uploaded proof for service request #{$serviceRequest->id}", [
+            'category' => 'service_requests',
+            'reference_type' => 'service_request',
+            'reference_id' => $serviceRequest->id,
+        ]);
+
         return response()->json([
             'success' => true,
             'message' => 'Payment proof uploaded successfully. Waiting for cashier verification.',
             'request' => $this->formatRequest($serviceRequest),
-            'file_path' => $path,
+            'payment_status' => 'pending',
+            'proof_url' => $path ? asset('storage/' . $path) : null,
         ]);
     }
 

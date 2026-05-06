@@ -204,7 +204,7 @@ const AdminProfile = () => {
     console.log("=== Starting login test ===");
     
     try {
-      console.log("Attempting login to:", "http://127.0.0.1:8001/api/auth/login");
+      console.log("Attempting login to:", `${process.env.REACT_APP_API_URL}/auth/login`);
       console.log("Credentials:", { email: "admin@example.com", password: "admin123" });
       
       const response = await apiRequest("/auth/login", {

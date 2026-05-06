@@ -47,6 +47,15 @@ const CustomerPayments = () => {
   const [error, setError] = useState("");
 
   
+  const normalizeList = (data) => {
+    if (Array.isArray(data)) return data;
+    if (Array.isArray(data?.data)) return data.data;
+    if (Array.isArray(data?.data?.data)) return data.data.data;
+    if (Array.isArray(data?.orders)) return data.orders;
+    if (Array.isArray(data?.records)) return data.records;
+    return [];
+  };
+
   const fetchPayments = async () => {
     try {
       setLoading(true);
@@ -54,20 +63,25 @@ const CustomerPayments = () => {
 
       const email = localStorage.getItem("email") || "customer@example.com";
 
-      const result = await apiRequest(
+      // Fetch service requests
+      const requestsResult = await apiRequest(
         `/customer/my-requests?email=${encodeURIComponent(email)}`,
         "GET"
       );
 
-      console.log("CUSTOMER PAYMENT REQUESTS RESULT:", result);
+      // Fetch store orders
+      const ordersResult = await apiRequest(
+        "/customer/store/orders",
+        "GET"
+      );
 
-      const requests = Array.isArray(result)
-        ? result
-        : result.requests ||
-          result.service_requests ||
-          result.data ||
-          [];
+      console.log("SERVICE REQUESTS RESULT:", requestsResult);
+      console.log("STORE ORDERS RESULT:", ordersResult);
 
+      const requests = normalizeList(requestsResult);
+      const orders = normalizeList(ordersResult);
+
+      // Process service requests
       const payableRequests = requests
         .filter((request) => {
           const status = String(request.status || "").toLowerCase();
@@ -114,9 +128,35 @@ const CustomerPayments = () => {
           ],
         }));
 
-      console.log("PAYABLE SERVICE REQUESTS:", payableRequests);
+      // Process store orders
+      const payableOrders = orders
+        .filter((order) => {
+          const status = String(order.status || order.order_status || "").toLowerCase();
+          const paymentStatus = String(order.payment_status || "unpaid").toLowerCase();
 
-      setPayments(payableRequests);
+          console.log(`FILTERING ORDER ${order.id}: status=${status}, payment_status=${paymentStatus}`);
+
+          return (
+            status === "approved" &&
+            ["unpaid", "pending", "rejected", "paid"].includes(paymentStatus)
+          );
+        })
+        .map((order) => ({
+          ...order,
+          payment_source: "store_order",
+          display_id: order.order_number || order.order_id || `ORD-${order.id}`,
+          display_type: "Store Order",
+          display_name: "Store Purchase",
+          total_amount: order.total_amount || order.total || 0,
+          order_status: order.status || order.order_status || "approved",
+          payment_status: order.payment_status || "unpaid",
+          items: order.items || [],
+        }));
+
+      const allPayments = [...payableRequests, ...payableOrders];
+      console.log("ALL PAYABLE ITEMS:", allPayments);
+
+      setPayments(allPayments);
     } catch (err) {
       console.error("LOAD CUSTOMER PAYMENTS ERROR:", err);
       setError(err.message || "Failed to load payments.");

@@ -208,7 +208,7 @@ const VetReceipt = () => {
                   </div>
                 </div>
                 <div className="service-details">
-                  {receiptData.additional_services.map((service, index) => (
+                  {(receiptData?.additional_services || []).map((service, index) => (
                     <div key={index} className="additional-service">
                       {service.name} - {formatCurrency(service.cost)}
                     </div>

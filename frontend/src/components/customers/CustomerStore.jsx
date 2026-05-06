@@ -139,10 +139,7 @@ const spin = keyframes`
   to { transform: rotate(360deg); }
 `;
 
-const pulse = keyframes`
-  0%,100% { transform: scale(1); }
-  50% { transform: scale(1.05); }
-`;
+// pulse removed - unused animation
 
 /* ─── Styled Components ────────────────────────────────────────── */
 const StorePage = styled.div`
@@ -1251,89 +1248,7 @@ const QRCodePlaceholder = styled.div`
   }
 `;
 
-const FileUploadWrapper = styled.div`
-  .upload-label {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    height: 90px;
-    border-radius: 16px;
-    border: 2px dashed rgba(255,95,147,0.3);
-    background: rgba(255,95,147,0.04);
-    cursor: pointer;
-    transition: all 0.2s;
-    font-size: 13px;
-    font-weight: 700;
-    color: ${PINK};
-    flex-direction: column;
-
-    &:hover {
-      border-color: rgba(255,95,147,0.5);
-      background: rgba(255,95,147,0.08);
-    }
-
-    svg {
-      font-size: 22px;
-    }
-
-    span {
-      font-size: 11px;
-      color: #94a3b8;
-    }
-  }
-
-  input {
-    display: none;
-  }
-`;
-
-const UploadedFile = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px;
-  border-radius: 14px;
-  background: rgba(34,197,94,0.08);
-  border: 1px solid rgba(34,197,94,0.2);
-  margin-top: 10px;
-
-  svg {
-    color: #16a34a;
-    font-size: 16px;
-    flex-shrink: 0;
-  }
-
-  .uf-name {
-    font-size: 13px;
-    font-weight: 900;
-    color: #15803d;
-    flex: 1;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .uf-size {
-    font-size: 11px;
-    color: #64748b;
-    flex-shrink: 0;
-  }
-
-  button {
-    background: transparent;
-    border: none;
-    color: #dc2626;
-    cursor: pointer;
-    font-size: 12px;
-    padding: 4px;
-    border-radius: 6px;
-
-    &:hover {
-      background: rgba(239,68,68,0.1);
-    }
-  }
-`;
+// FileUploadWrapper and UploadedFile removed - payment proof upload moved to CustomerPayments
 
 const BackBtn = styled.button`
   flex: 1;
@@ -1856,12 +1771,6 @@ const renderStars = (rating) =>
     />
   ));
 
-const formatFileSize = (bytes) => {
-  if (bytes < 1024) return bytes + " B";
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
-  return (bytes / (1024 * 1024)).toFixed(1) + " MB";
-};
-
 const copyToClipboard = (text) => {
   navigator.clipboard.writeText(text).then(() => {
     Swal.fire({
@@ -1885,7 +1794,6 @@ export default function CustomerStore() {
   const [priceRange, setPriceRange] = useState({ min: 0, max: 2000 });
   const [sortBy, setSortBy] = useState("name");
   const [checkoutStep, setCheckoutStep] = useState("cart");
-  const [paymentImage, setPaymentImage] = useState(null);
   const [paymentMethod, setPaymentMethod] = useState("gcash");
   const [discountCode, setDiscountCode] = useState("");
   const [discountApplied, setDiscountApplied] = useState(0);
@@ -2156,7 +2064,6 @@ export default function CustomerStore() {
   };
 
   const selectedPaymentMethod = PAYMENT_METHODS.find((m) => m.id === paymentMethod);
-const needsProof = ["gcash", "paymaya", "bank_transfer"].includes(paymentMethod);
 
   const confirmPayment = async () => {
     const token = getStoredToken();
@@ -2202,15 +2109,8 @@ const needsProof = ["gcash", "paymaya", "bank_transfer"].includes(paymentMethod)
       return;
     }
 
-    if (needsProof && !paymentImage) {
-      Swal.fire({
-        icon: "warning",
-        title: "Payment Proof Required",
-        text: "Please upload a screenshot or photo of your payment.",
-        confirmButtonColor: PINK,
-      });
-      return;
-    }
+    // Payment proof is no longer required during checkout
+    // Customer will upload proof after receptionist approval
 
     const invalidItem = cart.find((item) => !item.inStock || item.qty > item.stock);
 
@@ -2260,8 +2160,7 @@ const needsProof = ["gcash", "paymaya", "bank_transfer"].includes(paymentMethod)
         discount_amount: Number(getDiscountAmount() || 0),
         paymentMethod: selectedPaymentMethod?.label || paymentMethod,
         payment_method: selectedPaymentMethod?.label || paymentMethod,
-        paymentProof: paymentImage?.name || null,
-        payment_proof: paymentImage?.name || null,
+        // Payment proof will be uploaded after approval
         orderId,
         order_id: orderId,
         referenceNumber: refNumber,
@@ -2271,7 +2170,7 @@ const needsProof = ["gcash", "paymaya", "bank_transfer"].includes(paymentMethod)
         orderType: "Pick-up",
         order_type: "Pick-up",
         status: "pending",
-        payment_status: "pending",
+        payment_status: "unpaid",
       };
 
 const data = await apiRequest("/customer/store/checkout", {
@@ -2306,14 +2205,13 @@ const data = await apiRequest("/customer/store/checkout", {
       setCart([]);
       setDiscountApplied(0);
       setDiscountCode("");
-      setPaymentImage(null);
       setCheckoutStep("receipt");
       inventorySync.getProducts(true);
 
       Swal.fire({
         icon: "success",
         title: "Order Submitted!",
-        text: `Order #${newOrder.id} has been submitted and is waiting for approval.`,
+        text: `Order #${newOrder.id} has been submitted successfully. Please wait for receptionist approval before uploading payment proof.`,
         confirmButtonColor: PINK,
       });
     } catch (error) {
@@ -2321,12 +2219,8 @@ const data = await apiRequest("/customer/store/checkout", {
 
       const status = error?.status || error?.response?.status;
 
-      let message =
-        error?.message ||
-        "Checkout failed. Please try again or login again as customer.";
-
       if (status === 401) {
-        message = "Unauthorized. Please login again before placing your order.";
+        // Unauthorized error handled by Swal.fire message
       }
     } finally {
       setIsProcessing(false);
@@ -2771,7 +2665,6 @@ const data = await apiRequest("/customer/store/checkout", {
                         $color={pm.color}
                         onClick={() => {
                           setPaymentMethod(pm.id);
-                          setPaymentImage(null);
                         }}
                       >
                         <div className="pm-icon">
@@ -2863,62 +2756,14 @@ const data = await apiRequest("/customer/store/checkout", {
                   </PaymentDetailsBox>
                 )}
 
-                {needsProof && (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    <p style={{ fontSize: 12, fontWeight: 900, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                      Upload Proof of Payment
-                    </p>
-
-                    <FileUploadWrapper>
-                      <label className="upload-label" htmlFor="payment-upload">
-                        <FontAwesomeIcon icon={faReceipt} />
-                        <span style={{ fontSize: 13, fontWeight: 700, color: PINK }}>
-                          Click to upload screenshot
-                        </span>
-                        <span>PNG, JPG, PDF — max 5MB</span>
-                      </label>
-
-                      <input
-                        id="payment-upload"
-                        type="file"
-                        accept="image/*,application/pdf"
-                        onChange={(e) => {
-                          const file = e.target.files[0];
-
-                          if (file && file.size > 5 * 1024 * 1024) {
-                            Swal.fire({
-                              icon: "error",
-                              title: "File too large",
-                              text: "Max file size is 5MB.",
-                              confirmButtonColor: PINK,
-                            });
-                            return;
-                          }
-
-                          setPaymentImage(file || null);
-                        }}
-                      />
-
-                      {paymentImage && (
-                        <UploadedFile>
-                          <FontAwesomeIcon icon={faCheckCircle} />
-                          <span className="uf-name">{paymentImage.name}</span>
-                          <span className="uf-size">{formatFileSize(paymentImage.size)}</span>
-                          <button onClick={() => setPaymentImage(null)}>
-                            <FontAwesomeIcon icon={faTimes} />
-                          </button>
-                        </UploadedFile>
-                      )}
-                    </FileUploadWrapper>
-                  </div>
-                )}
+                {/* Payment proof upload removed - customer will upload after receptionist approval */}
 
                 <div style={{ display: "flex", gap: 10 }}>
                   <BackBtn onClick={() => setCheckoutStep("cart")}>← Back</BackBtn>
 
                   <ConfirmBtn
                     onClick={confirmPayment}
-                    disabled={isProcessing || (needsProof && !paymentImage)}
+                    disabled={isProcessing}
                   >
                     {isProcessing ? (
                       <>

@@ -176,8 +176,8 @@ class CustomerStoreController extends Controller
 
             $this->setIfColumnExists($orderData, 'customer_orders', 'order_type', $orderType);
             $this->setIfColumnExists($orderData, 'customer_orders', 'payment_method', $paymentMethod);
-            $this->setIfColumnExists($orderData, 'customer_orders', 'payment_proof', $paymentProof);
-            $this->setIfColumnExists($orderData, 'customer_orders', 'payment_status', 'pending');
+            // Do not set payment_proof during checkout - only when customer uploads proof
+            $this->setIfColumnExists($orderData, 'customer_orders', 'payment_status', 'unpaid');
             $this->setIfColumnExists($orderData, 'customer_orders', 'status', 'pending');
             $this->setIfColumnExists($orderData, 'customer_orders', 'notes', 'Waiting for approval/confirmation.');
 
@@ -232,14 +232,14 @@ class CustomerStoreController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Order submitted successfully. Waiting for approval.',
+                'message' => 'Order submitted successfully. Please wait for receptionist approval before uploading payment proof.',
                 'id' => $customerOrderId,
                 'orderId' => $orderNumber,
                 'order_id' => $orderNumber,
                 'referenceNumber' => $referenceNumber,
                 'reference_number' => $referenceNumber,
                 'status' => 'pending',
-                'payment_status' => 'pending',
+                'payment_status' => 'unpaid',
             ], 201);
 
         } catch (\Exception $e) {
@@ -331,7 +331,7 @@ class CustomerStoreController extends Controller
         $validated = $request->validate([
             'payment_method' => 'nullable|string|max:50',
             'payment_reference' => 'nullable|string|max:255',
-            'payment_proof' => 'required|string',
+            'payment_proof' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
         ]);
 
         $order = DB::table('customer_orders')
@@ -351,9 +351,12 @@ class CustomerStoreController extends Controller
             ], 422);
         }
 
+        // Store uploaded file and set stored path
+        $path = $request->file('payment_proof')->store('payment_proofs', 'public');
+
         $update = [
             'payment_method' => $validated['payment_method'] ?? $order->payment_method,
-            'payment_proof' => $validated['payment_proof'],
+            'payment_proof' => $path,
             'payment_status' => 'pending',
             'updated_at' => now(),
         ];
@@ -394,6 +397,8 @@ class CustomerStoreController extends Controller
             'message' => 'Payment proof uploaded and waiting for cashier verification.',
             'order_id' => $order->id,
             'payment_status' => 'pending',
+            'payment_proof' => $path,
+            'proof_url' => $path ? asset('storage/' . $path) : null,
         ]);
     }
 

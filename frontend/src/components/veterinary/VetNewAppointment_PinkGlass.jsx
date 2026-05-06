@@ -484,8 +484,8 @@ const VetNewAppointment = () => {
 
                 {showCustomerResults && customerSearch && !selectedCustomer && (
                   <div className="customer-results">
-                    {filteredCustomers.length > 0 ? (
-                      filteredCustomers.map((customer) => (
+                    {(filteredCustomers || []).length > 0 ? (
+                      (filteredCustomers || []).map((customer) => (
                         <button
                           key={customer.id}
                           type="button"
@@ -565,9 +565,9 @@ const VetNewAppointment = () => {
               </div>
             )}
 
-            {selectedCustomer && !petsLoading && pets.length > 0 && (
+            {selectedCustomer && !petsLoading && (pets || []).length > 0 && (
               <div className="pet-selection-grid">
-                {pets.map((pet) => (
+                {(pets || []).map((pet) => (
                   <button
                     key={pet.id}
                     type="button"
@@ -612,7 +612,7 @@ const VetNewAppointment = () => {
                 >
                   <option value="">Choose a service...</option>
 
-                  {services.map((service) => (
+                  {(services || []).map((service) => (
                     <option key={service.id} value={service.id}>
                       {getServiceName(service)} • {getServiceCategory(service)} -{" "}
                       {formatCurrency(getServicePrice(service))}
@@ -693,7 +693,7 @@ const VetNewAppointment = () => {
                 >
                   <option value="">Select time...</option>
 
-                  {timeOptions.map((time) => (
+                  {(timeOptions || []).map((time) => (
                     <option key={time} value={time}>
                       {time}
                     </option>

@@ -32,10 +32,12 @@ const CashierPaymentVerification = () => {
         cashier_remarks: "Payment verified by cashier",
       });
 
-      alert(
-        `Payment verified.\nReceipt: ${data.receipt_number || "Generated"}\nStatus: ${data.payment_status || "paid"}`
-      );
-      fetchRequests();
+      if (data && data.success) {
+        alert(data.message || `Payment verified. Receipt: ${data.receipt_number || "Generated"}`);
+        fetchRequests();
+      } else {
+        alert(data?.message || "Failed to verify payment.");
+      }
     } catch (err) {
       console.error("Failed to verify payment:", err);
       alert(err.message || "Failed to verify payment.");
@@ -47,14 +49,18 @@ const CashierPaymentVerification = () => {
     if (cashier_remarks === null) return;
 
     try {
-      await apiRequest(`/cashier/payment-requests/${payment.id}/reject`, "POST", {
+      const data = await apiRequest(`/cashier/payment-requests/${payment.id}/reject`, "POST", {
         type: payment.payable_type || payment.type || payment.payment_source || "service_request",
         cashier_remarks,
         rejection_reason: cashier_remarks,
       });
 
-      alert("Payment rejected.");
-      fetchRequests();
+      if (data && data.success) {
+        alert(data.message || 'Payment rejected.');
+        fetchRequests();
+      } else {
+        alert(data?.message || 'Failed to reject payment.');
+      }
     } catch (err) {
       console.error("Failed to reject payment:", err);
       alert(err.message || "Failed to reject payment.");
@@ -129,17 +135,8 @@ const CashierPaymentVerification = () => {
                               >
                                 View Proof
                               </a>
-                            ) : item.payment_proof ? (
-                              <a
-                                href={`http://127.0.0.1:8000/storage/${item.payment_proof}`}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="proof-link"
-                              >
-                                View Proof
-                              </a>
                             ) : (
-                              "No proof"
+                              "No proof uploaded"
                             )}
                           </td>
                           <td>

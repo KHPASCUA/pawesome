@@ -265,7 +265,7 @@ const InventoryStock = () => {
   // Notification helper function
   const createInventoryNotification = async (item, type) => {
     try {
-      await fetch(`${process.env.REACT_APP_API_URL || "http://localhost:8000/api"}/notifications`, {
+      await fetch(`${process.env.REACT_APP_API_URL}/notifications`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
