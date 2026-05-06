@@ -15,7 +15,6 @@ import {
   faPlus,
   faCalendarCheck,
   faList,
-  faHeadset,
   faArrowRight,
   faCreditCard,
   faBell,
@@ -67,6 +66,16 @@ const CustomerDashboard = () => {
         setDashboardData(data);
         setError("");
       } catch (err) {
+        if (err.message && (err.message.includes("session expired") || err.message.includes("Unauthenticated"))) {
+          // Clear session and redirect to login
+          localStorage.removeItem("token");
+          localStorage.removeItem("role");
+          localStorage.removeItem("name");
+          localStorage.removeItem("username");
+          localStorage.removeItem("email");
+          window.location.href = "/login";
+          return;
+        }
         setError(err.message || "Failed to load dashboard data");
         console.error("Customer dashboard fetch error:", err);
       } finally {

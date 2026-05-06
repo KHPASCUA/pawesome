@@ -18,4 +18,4 @@ const Layout = ({ Sidebar, children }) => {
   );
 };
 
-export default Layout;Layout
+export default Layout;

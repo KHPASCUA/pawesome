@@ -39,8 +39,6 @@ const paymentLabels = {
 };
 
 const CustomerPayments = () => {
-  console.log("✅ REAL CustomerPayments.jsx is rendering");
-  
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploadingId, setUploadingId] = useState(null);
@@ -96,39 +94,39 @@ const CustomerPayments = () => {
             ["unpaid", "pending", "rejected", "paid"].includes(paymentStatus)
           );
         })
-        .map((request) => ({
-          ...request,
-          payment_source: "service_request",
-          display_id: `REQ-${request.id}`,
-          display_type: "Service Request",
-          display_name:
-            request.service_name ||
-            request.service ||
-            request.request_type ||
-            request.service_type ||
-            "Service Request",
-          total_amount:
-            request.total_amount ||
-            request.price ||
-            request.service_price ||
-            request.amount ||
-            500,
-          order_status: request.status || "approved",
-          payment_status: request.payment_status || request.payment || "unpaid",
-          items: [
-            {
-              product_name:
-                request.service_name ||
-                request.service ||
-                request.request_type ||
-                request.service_type ||
-                "Service Request",
-              quantity: 1,
-            },
-          ],
-        }));
+        .map((request) => {
+          return {
+            ...request,
+            payment_source: "service_request",
+            display_id: `REQ-${request.id}`,
+            display_type: "Service Request",
+            display_name:
+              request.service_name ||
+              request.service ||
+              request.request_type ||
+              request.service_type ||
+              "Service Request",
+            total_amount:
+              request.total_amount ||
+              request.price ||
+              request.service_price ||
+              request.amount,
+            order_status: request.status || "approved",
+            payment_status: request.payment_status || request.payment || "unpaid",
+            items: [
+              {
+                product_name:
+                  request.service_name ||
+                  request.service ||
+                  request.request_type ||
+                  request.service_type ||
+                  "Service Request",
+                quantity: 1,
+              },
+            ],
+          };
+        });
 
-      // Process store orders
       const payableOrders = orders
         .filter((order) => {
           const status = String(order.status || order.order_status || "").toLowerCase();
@@ -159,6 +157,19 @@ const CustomerPayments = () => {
       setPayments(allPayments);
     } catch (err) {
       console.error("LOAD CUSTOMER PAYMENTS ERROR:", err);
+      
+      // Check for authentication errors
+      if (err.message && (err.message.includes("session expired") || err.message.includes("Unauthenticated") || err.message.includes("401"))) {
+        // Clear session and redirect to login
+        localStorage.removeItem("token");
+        localStorage.removeItem("role");
+        localStorage.removeItem("name");
+        localStorage.removeItem("username");
+        localStorage.removeItem("email");
+        window.location.href = "/login";
+        return;
+      }
+      
       setError(err.message || "Failed to load payments.");
       setPayments([]);
     } finally {

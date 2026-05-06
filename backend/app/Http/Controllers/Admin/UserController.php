@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Customer;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 
@@ -44,31 +46,44 @@ class UserController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        // Create API token for the user
-        $apiToken = Hash::make(uniqid() . time());
+        $user = DB::transaction(function () use ($request) {
+            $user = User::create([
+                'name' => $request->name,
+                'first_name' => $request->first_name,
+                'middle_name' => $request->middle_name,
+                'last_name' => $request->last_name,
+                'email' => $request->email,
+                'username' => $request->username,
+                'password' => Hash::make($request->password),
+                'phone' => $request->phone,
+                'address' => $request->address,
+                'city' => $request->city,
+                'state' => $request->state,
+                'zip_code' => $request->zip_code,
+                'country' => $request->country ?? 'Philippines',
+                'date_of_birth' => $request->date_of_birth,
+                'gender' => $request->gender,
+                'emergency_contact_person' => $request->emergency_contact_person,
+                'emergency_contact_number' => $request->emergency_contact_number,
+                'role' => $request->role,
+                'is_active' => $request->is_active ?? true,
+            ]);
 
-        $user = User::create([
-            'name' => $request->name,
-            'first_name' => $request->first_name,
-            'middle_name' => $request->middle_name,
-            'last_name' => $request->last_name,
-            'email' => $request->email,
-            'username' => $request->username,
-            'password' => Hash::make($request->password),
-            'phone' => $request->phone,
-            'address' => $request->address,
-            'city' => $request->city,
-            'state' => $request->state,
-            'zip_code' => $request->zip_code,
-            'country' => $request->country ?? 'Philippines',
-            'date_of_birth' => $request->date_of_birth,
-            'gender' => $request->gender,
-            'emergency_contact_person' => $request->emergency_contact_person,
-            'emergency_contact_number' => $request->emergency_contact_number,
-            'role' => $request->role,
-            'is_active' => $request->is_active ?? true,
-            'api_token' => $apiToken,
-        ]);
+            if ($request->role === 'customer') {
+                Customer::updateOrCreate(
+                    ['user_id' => $user->id],
+                    [
+                        'name' => $request->name,
+                        'email' => $request->email,
+                        'phone' => $request->phone,
+                        'address' => $request->address,
+                        'is_active' => $request->is_active ?? true,
+                    ]
+                );
+            }
+
+            return $user;
+        });
 
         return response()->json([
             'message' => 'User created successfully',

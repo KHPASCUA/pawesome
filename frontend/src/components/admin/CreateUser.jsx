@@ -22,7 +22,7 @@ const CreateUser = () => {
     username: "",
     password: "",
     confirmPassword: "",
-    role: "customer",
+    role: "",
     emergencyContactPerson: "",
     emergencyContactNumber: "",
   });

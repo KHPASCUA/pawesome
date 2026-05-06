@@ -54,13 +54,15 @@ Route::get('/health', function () {
 Route::get('/receptionist/requests', [ServiceRequestController::class, 'receptionistRequests']);
 Route::patch('/receptionist/requests/{id}/status', [ServiceRequestController::class, 'updateStatus']);
 
-Route::middleware('throttle:auth')->prefix('auth')->group(function () {
-    Route::post('register', [AuthController::class, 'register']);
-    Route::post('login', [AuthController::class, 'login']);
-    Route::post('password/forgot', [AuthController::class, 'forgotPassword']);
-    Route::post('password/reset', [AuthController::class, 'resetPassword']);
+Route::prefix('auth')->group(function () {
+    Route::middleware('throttle:auth')->group(function () {
+        Route::post('register', [AuthController::class, 'register']);
+        Route::post('login', [AuthController::class, 'login']);
+        Route::post('password/forgot', [AuthController::class, 'forgotPassword']);
+        Route::post('password/reset', [AuthController::class, 'resetPassword']);
+    });
 
-    Route::middleware('auth.api')->group(function () {
+    Route::middleware(['auth.api', 'throttle:api'])->group(function () {
         Route::get('me', [AuthController::class, 'me']);
         Route::put('profile', [AuthController::class, 'updateProfile']);
         Route::post('profile-photo', [AuthController::class, 'uploadProfilePhoto']);
@@ -405,12 +407,12 @@ Route::middleware(['auth.api', 'throttle:api', 'role:veterinary'])->prefix('vete
     Route::get('customers/{id}/pets', [CustomersController::class, 'pets']);
 });
 
-// Public Inventory Read Routes (available to all authenticated users for store/pos)
-Route::middleware(['auth.api', 'throttle:api'])->prefix('inventory')->group(function () {
+// Public Inventory Read Routes (available to all users for store/pos)
+Route::middleware('throttle:api')->prefix('inventory')->group(function () {
     Route::get('/public/items', [InventoryDashboardController::class, 'publicItems']);
     Route::get('/public/categories', [InventoryDashboardController::class, 'categories']);
     Route::get('/public/item/{id}', [InventoryDashboardController::class, 'showPublicItem']);
-    Route::get('/sellable', [InventoryController::class, 'sellable']); // For POS and Customer Store
+    Route::get('/sellable', [InventoryController::class, 'sellable']); // For POS and Customer Store (public access)
 });
 
 // Product Search Routes (for Cashier POS)
