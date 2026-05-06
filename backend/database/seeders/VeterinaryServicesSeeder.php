@@ -1,202 +1,83 @@
 <?php
 
-namespace App\Http\Controllers\Admin;
+namespace Database\Seeders;
 
-use App\Http\Controllers\Controller;
+use Illuminate\Database\Seeder;
 use App\Models\Service;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\Validator;
 
-class ServiceController extends Controller
+class VeterinaryServicesSeeder extends Seeder
 {
-    public function index(Request $request)
+    public function run(): void
     {
-        $query = Service::query();
-
-        if (Schema::hasColumn('services', 'is_active')) {
-            $query->where(function ($activeQuery) {
-                $activeQuery
-                    ->where('is_active', true)
-                    ->orWhere('is_active', 1)
-                    ->orWhereNull('is_active');
-            });
-        }
-
-        if ($request->filled('category') && $request->category !== 'all') {
-            $query->where('category', $request->category);
-        }
-
-        if ($request->filled('search')) {
-            $search = $request->search;
-
-            $query->where(function ($searchQuery) use ($search) {
-                $searchQuery
-                    ->where('name', 'like', "%{$search}%");
-
-                if (Schema::hasColumn('services', 'category')) {
-                    $searchQuery->orWhere('category', 'like', "%{$search}%");
-                }
-
-                if (Schema::hasColumn('services', 'description')) {
-                    $searchQuery->orWhere('description', 'like', "%{$search}%");
-                }
-            });
-        }
-
-        if (Schema::hasColumn('services', 'category')) {
-            $query->orderBy('category');
-        }
-
-        $services = $query
-            ->orderBy('name')
-            ->get()
-            ->map(function ($service) {
-                return [
-                    'id' => $service->id,
-                    'name' => $service->name,
-                    'category' => $service->category ?? 'Other',
-                    'description' => $service->description ?? '',
-                    'price' => (float) ($service->price ?? 0),
-                    'duration_minutes' => (int) ($service->duration_minutes ?? $service->duration ?? 0),
-                    'is_active' => isset($service->is_active) ? (bool) $service->is_active : true,
-                    'created_at' => $service->created_at,
-                    'updated_at' => $service->updated_at,
-                ];
-            });
-
-        return response()->json([
-            'success' => true,
-            'data' => $services,
-        ]);
-    }
-
-    public function store(Request $request)
-    {
-        $rules = [
-            'name' => 'required|string|max:255',
-            'price' => 'nullable|numeric|min:0',
-            'category' => 'nullable|string|max:255',
-            'description' => 'nullable|string',
-            'duration_minutes' => 'nullable|integer|min:1',
-            'is_active' => 'nullable|boolean',
+        $services = [
+            [
+                'name' => 'General Consultation',
+                'category' => 'Consultation',
+                'description' => 'General health check-up and consultation',
+                'price' => 50.00,
+                'duration' => 30,
+                'is_active' => true,
+            ],
+            [
+                'name' => 'Vaccination',
+                'category' => 'Preventive Care',
+                'description' => 'Core and optional vaccinations',
+                'price' => 35.00,
+                'duration' => 20,
+                'is_active' => true,
+            ],
+            [
+                'name' => 'Dental Cleaning',
+                'category' => 'Dental Care',
+                'description' => 'Professional dental cleaning and polishing',
+                'price' => 120.00,
+                'duration' => 60,
+                'is_active' => true,
+            ],
+            [
+                'name' => 'Spay/Neuter',
+                'category' => 'Surgery',
+                'description' => 'Spaying or neutering procedure',
+                'price' => 200.00,
+                'duration' => 90,
+                'is_active' => true,
+            ],
+            [
+                'name' => 'X-Ray',
+                'category' => 'Diagnostics',
+                'description' => 'Digital radiography services',
+                'price' => 80.00,
+                'duration' => 30,
+                'is_active' => true,
+            ],
+            [
+                'name' => 'Blood Work',
+                'category' => 'Diagnostics',
+                'description' => 'Complete blood count and chemistry panel',
+                'price' => 65.00,
+                'duration' => 15,
+                'is_active' => true,
+            ],
+            [
+                'name' => 'Emergency Visit',
+                'category' => 'Emergency',
+                'description' => 'Emergency medical care',
+                'price' => 150.00,
+                'duration' => 45,
+                'is_active' => true,
+            ],
+            [
+                'name' => 'Grooming',
+                'category' => 'Grooming',
+                'description' => 'Full grooming service including bath and haircut',
+                'price' => 60.00,
+                'duration' => 120,
+                'is_active' => true,
+            ],
         ];
 
-        $validator = Validator::make($request->all(), $rules);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Validation failed.',
-                'errors' => $validator->errors(),
-            ], 422);
+        foreach ($services as $service) {
+            Service::create($service);
         }
-
-        $payload = [
-            'name' => $request->name,
-            'price' => $request->price ?? 0,
-        ];
-
-        if (Schema::hasColumn('services', 'category')) {
-            $payload['category'] = $request->category ?? 'Other';
-        }
-
-        if (Schema::hasColumn('services', 'description')) {
-            $payload['description'] = $request->description ?? '';
-        }
-
-        if (Schema::hasColumn('services', 'duration_minutes')) {
-            $payload['duration_minutes'] = $request->duration_minutes ?? 30;
-        }
-
-        if (Schema::hasColumn('services', 'is_active')) {
-            $payload['is_active'] = $request->has('is_active') ? $request->boolean('is_active') : true;
-        }
-
-        $service = Service::create($payload);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Service created successfully.',
-            'data' => $service,
-        ], 201);
-    }
-
-    public function update(Request $request, $id)
-    {
-        $service = Service::findOrFail($id);
-
-        $rules = [
-            'name' => 'sometimes|required|string|max:255',
-            'price' => 'nullable|numeric|min:0',
-            'category' => 'nullable|string|max:255',
-            'description' => 'nullable|string',
-            'duration_minutes' => 'nullable|integer|min:1',
-            'is_active' => 'nullable|boolean',
-        ];
-
-        $validator = Validator::make($request->all(), $rules);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Validation failed.',
-                'errors' => $validator->errors(),
-            ], 422);
-        }
-
-        if ($request->has('name')) {
-            $service->name = $request->name;
-        }
-
-        if ($request->has('price')) {
-            $service->price = $request->price ?? 0;
-        }
-
-        if ($request->has('category') && Schema::hasColumn('services', 'category')) {
-            $service->category = $request->category ?? 'Other';
-        }
-
-        if ($request->has('description') && Schema::hasColumn('services', 'description')) {
-            $service->description = $request->description ?? '';
-        }
-
-        if ($request->has('duration_minutes') && Schema::hasColumn('services', 'duration_minutes')) {
-            $service->duration_minutes = $request->duration_minutes ?? 30;
-        }
-
-        if ($request->has('is_active') && Schema::hasColumn('services', 'is_active')) {
-            $service->is_active = $request->boolean('is_active');
-        }
-
-        $service->save();
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Service updated successfully.',
-            'data' => $service,
-        ]);
-    }
-
-    public function destroy($id)
-    {
-        $service = Service::findOrFail($id);
-
-        if (Schema::hasColumn('services', 'is_active')) {
-            $service->is_active = false;
-            $service->save();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Service deactivated successfully.',
-            ]);
-        }
-
-        $service->delete();
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Service deleted successfully.',
-        ]);
     }
 }

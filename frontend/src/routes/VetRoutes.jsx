@@ -4,7 +4,7 @@ import ProtectedRoute from "../components/ProtectedRoute";
 
 const VetDashboard = lazy(() => import("../components/veterinary/VetDashboard_PinkGlass"));
 const VetAppointments = lazy(() => import("../components/veterinary/VetAppointments_PinkGlass"));
-const VetNewAppointment = lazy(() => import("../components/veterinary/VetNewAppointment_PinkGlass"));
+const VetServices = lazy(() => import("../components/veterinary/VetServices_PinkGlass"));
 const VetEditAppointment = lazy(() => import("../components/veterinary/VetEditAppointment_PinkGlass"));
 const VetHistory = lazy(() => import("../components/veterinary/VetHistory"));
 const VetCustomerProfiles = lazy(() => import("../components/veterinary/VetCustomerProfiles.jsx"));
@@ -33,8 +33,8 @@ const VetRoutes = () => (
 
         {/* Nested routes */}
         <Route path="appointments" element={<VetAppointments />} />
-        <Route path="appointments/new" element={<VetNewAppointment />} />
         <Route path="appointments/:id/edit" element={<VetEditAppointment />} />
+        <Route path="services" element={<VetServices />} />
         <Route path="history" element={<VetHistory />} />
         <Route path="customer-profiles" element={<VetCustomerProfiles />} />
         <Route path="reports" element={<VetReports />} />

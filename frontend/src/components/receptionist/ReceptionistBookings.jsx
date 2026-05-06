@@ -39,6 +39,7 @@ const ReceptionistBookings = () => {
   const [selectedHistoryBooking, setSelectedHistoryBooking] = useState(null);
   const [bookingHistory, setBookingHistory] = useState([]);
   const [bookings, setBookings] = useState([]);
+  const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState('all'); // 'all', 'pending', 'approved', 'rejected'
@@ -121,6 +122,27 @@ const ReceptionistBookings = () => {
     return pets.filter(pet => pet.customerId === bookingFormData.customerId);
   };
 
+  // Fetch services from API
+  const fetchServices = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/services`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setServices(data.data || []);
+      } else {
+        console.error('Failed to fetch services');
+      }
+    } catch (error) {
+      console.error('Error fetching services:', error);
+    }
+  };
+
   // Sort bookings by creation date (newest first)
   const sortedBookings = [...bookings].sort((a, b) => {
     return new Date(b.createdAt) - new Date(a.createdAt);
@@ -160,25 +182,15 @@ const ReceptionistBookings = () => {
       const duration = parseInt(bookingFormData.duration) || 1;
       amount = dailyRate * duration;
     } else if (bookingFormData.bookingType === "vet") {
-      serviceName = bookingFormData.service || "Regular Checkup";
-      // Vet service prices
-      const vetPrices = {
-        "Regular Checkup": 100,
-        "Vaccination": 80,
-        "Surgery": 500,
-        "Emergency": 300
-      };
-      amount = vetPrices[bookingFormData.service] || 100;
+      // Use API services for vet bookings
+      const selectedService = services.find(s => s.name === bookingFormData.service);
+      serviceName = selectedService?.name || "Regular Checkup";
+      amount = selectedService?.price || 100;
     } else if (bookingFormData.bookingType === "grooming") {
-      serviceName = bookingFormData.service || "Full Grooming";
-      // Grooming service prices
-      const groomingPrices = {
-        "Full Grooming": 60,
-        "Bath & Trim": 40,
-        "Nail Trimming": 20,
-        "Teeth Cleaning": 50
-      };
-      amount = groomingPrices[bookingFormData.service] || 60;
+      // Use API services for grooming bookings
+      const selectedService = services.find(s => s.name === bookingFormData.service && s.category === "Grooming");
+      serviceName = selectedService?.name || "Full Grooming";
+      amount = selectedService?.price || 60;
     }
 
     // Process payment
@@ -770,9 +782,10 @@ const ReceptionistBookings = () => {
     }
   };
 
-  // Fetch bookings on mount
+  // Fetch bookings and services on mount
   useEffect(() => {
     fetchBookings();
+    fetchServices();
     const intervalId = setInterval(fetchBookings, 30000); // fetch bookings every 30 seconds
     return () => clearInterval(intervalId);
   }, []);
@@ -1334,12 +1347,14 @@ const ReceptionistBookings = () => {
                           onChange={handleBookingInputChange}
                           required
                         >
-                          <option value="Checkup">Checkup</option>
-                          <option value="Vaccination">Vaccination</option>
-                          <option value="Surgery">Surgery</option>
-                          <option value="Dental Cleaning">Dental Cleaning</option>
-                          <option value="Grooming">Grooming</option>
-                          <option value="Emergency">Emergency</option>
+                          <option value="">Select a service</option>
+                          {services
+                            .filter(service => service.category !== "Grooming" && service.category !== "Boarding")
+                            .map(service => (
+                              <option key={service.id} value={service.name}>
+                                {service.name} - ₱{parseFloat(service.price).toFixed(2)}
+                              </option>
+                            ))}
                         </select>
                       </div>
                       <div className="form-group">
@@ -1364,12 +1379,14 @@ const ReceptionistBookings = () => {
                           onChange={handleBookingInputChange}
                           required
                         >
-                          <option value="Bath">Bath</option>
-                          <option value="Haircut">Haircut</option>
-                          <option value="Nail Trim">Nail Trim</option>
-                          <option value="Full Grooming">Full Grooming</option>
-                          <option value="Teeth Cleaning">Teeth Cleaning</option>
-                          <option value="Flea Treatment">Flea Treatment</option>
+                          <option value="">Select a service</option>
+                          {services
+                            .filter(service => service.category === "Grooming")
+                            .map(service => (
+                              <option key={service.id} value={service.name}>
+                                {service.name} - ₱{parseFloat(service.price).toFixed(2)}
+                              </option>
+                            ))}
                         </select>
                       </div>
                     </>

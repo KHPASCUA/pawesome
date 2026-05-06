@@ -168,6 +168,14 @@ Route::middleware(['auth.api', 'throttle:api', 'role:admin'])->prefix('admin')->
     Route::post('notifications/mark-all-read', [NotificationController::class, 'markAllAsRead']);
 });
 
+// Veterinary Services Management
+Route::middleware(['auth.api', 'throttle:api', 'role:veterinary'])->prefix('admin')->group(function () {
+    Route::get('services', [ServiceController::class, 'index']);
+    Route::post('services', [ServiceController::class, 'store']);
+    Route::put('services/{id}', [ServiceController::class, 'update']);
+    Route::delete('services/{id}', [ServiceController::class, 'destroy']);
+});
+
 Route::middleware(['auth.api', 'throttle:api'])->prefix('chatbot')->group(function () {
     Route::get('welcome', [SharedChatbotController::class, 'welcome']);
     Route::post('message', [SharedChatbotController::class, 'message']);

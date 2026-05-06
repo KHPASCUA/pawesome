@@ -22,7 +22,7 @@ class Service extends Model
     protected $casts = [
         'price' => 'decimal:2',
         'is_active' => 'boolean',
-        'duration' => 'integer',
+        'duration_minutes' => 'integer',
     ];
 
     /**
@@ -30,27 +30,7 @@ class Service extends Model
      */
     public const VALID_CATEGORIES = ['Grooming', 'Consultation', 'Vaccination', 'Surgery', 'Dental', 'Boarding', 'Other'];
 
-    /**
-     * Boot method for model-level validation
-     */
-    protected static function boot()
-    {
-        parent::boot();
-
-        static::saving(function ($service) {
-            // Validate category
-            if (!in_array($service->category, self::VALID_CATEGORIES)) {
-                $service->category = 'Other';
-            }
-
-            // Ensure non-negative price
-            $service->price = max(0, (float) $service->price);
-
-            // Ensure non-negative duration
-            $service->duration = max(0, (int) $service->duration);
-        });
-    }
-
+    
     public function appointments(): HasMany
     {
         return $this->hasMany(Appointment::class);

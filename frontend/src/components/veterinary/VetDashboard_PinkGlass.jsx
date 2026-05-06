@@ -1043,7 +1043,7 @@ const VetDashboard = () => {
                   <HeroActions>
                     <PrimaryButton to="/veterinary/appointments">
                       <FontAwesomeIcon icon={faCalendarAlt} />
-                      New Appointment
+                      View Appointments
                     </PrimaryButton>
                     <SecondaryButton to="/veterinary/current-boarders">
                       <FontAwesomeIcon icon={faHotel} />

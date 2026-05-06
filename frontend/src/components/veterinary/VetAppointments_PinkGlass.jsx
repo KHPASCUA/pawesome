@@ -5,7 +5,6 @@ import {
   faUser,
   faPaw,
   faStethoscope,
-  faPlus,
   faEdit,
   faTrash,
   faClock,
@@ -1083,11 +1082,6 @@ const VetAppointments = () => {
               <FontAwesomeIcon icon={faRotateRight} className={refreshing ? "spin" : ""} />
               {refreshing ? "Refreshing..." : "Refresh"}
             </RefreshButton>
-
-            <PrimaryButton to="/veterinary/appointments/new">
-              <FontAwesomeIcon icon={faPlus} />
-              New Appointment
-            </PrimaryButton>
           </HeroActions>
         </HeroSection>
 

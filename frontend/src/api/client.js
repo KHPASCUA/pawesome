@@ -1,7 +1,4 @@
-export const API_URL =
-  process.env.REACT_APP_API_URL ||
-  process.env.REACT_APP_API_BASE_URL ||
-  "";
+export const API_URL = "http://localhost:8000";
 
 export const USE_MOCK_DATA = false;
 
@@ -15,13 +12,19 @@ const getToken = () => {
 };
 
 const normalizeEndpoint = (endpoint) => {
+  console.log("API_URL:", API_URL);
+  console.log("Endpoint:", endpoint);
+  
   if (!endpoint) return API_URL;
 
   if (endpoint.startsWith("http")) {
     return endpoint;
   }
 
-  return `${API_URL}${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`;
+  const fullUrl = `${API_URL}/api${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`;
+  console.log("Full URL:", fullUrl);
+  
+  return fullUrl;
 };
 
 const parseResponseText = (text) => {

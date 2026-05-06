@@ -139,10 +139,16 @@ class AuthController extends Controller
                 return response()->json(['error' => 'No token provided'], 401);
             }
 
-            // Find user by api_token
-            $user = User::where('api_token', $token)->first();
-            if (!$user) {
+            // Find user by Sanctum token
+            $accessToken = \Laravel\Sanctum\PersonalAccessToken::findToken($token);
+            if (!$accessToken) {
                 return response()->json(['error' => 'Invalid token'], 401);
+            }
+
+            // Get the user from the token
+            $user = $accessToken->tokenable;
+            if (!$user) {
+                return response()->json(['error' => 'User not found'], 401);
             }
 
             return response()->json($user);

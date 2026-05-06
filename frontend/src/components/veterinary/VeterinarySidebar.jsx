@@ -12,6 +12,7 @@ import {
   faBars,
   faUser,
   faHotel,
+  faStethoscope,
 } from "@fortawesome/free-solid-svg-icons";
 import "./VeterinarySidebar.css";
 
@@ -79,6 +80,17 @@ const VeterinarySidebar = ({ collapsed, onToggleCollapse }) => {
             >
               <FontAwesomeIcon icon={faHotel} />
               {!collapsed && <span>Current Boarders</span>}
+            </NavLink>
+          </li>
+          
+          <li className="nav-item">
+            <NavLink
+              to="/veterinary/services"
+              className={({ isActive }) => (isActive ? "active" : "")}
+              title="Services"
+            >
+              <FontAwesomeIcon icon={faStethoscope} />
+              {!collapsed && <span>Services</span>}
             </NavLink>
           </li>
           
