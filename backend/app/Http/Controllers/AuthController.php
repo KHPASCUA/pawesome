@@ -7,6 +7,7 @@ use App\Models\Customer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
@@ -39,49 +40,49 @@ class AuthController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        // Create API token for the user
-        $apiToken = Hash::make(uniqid() . time());
-
-        $userRole = $request->role ?? 'customer';
-        
-        $user = User::create([
-            'name' => $request->name,
-            'first_name' => $request->first_name,
-            'middle_name' => $request->middle_name,
-            'last_name' => $request->last_name,
-            'username' => $request->username,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-            'phone' => $request->phone,
-            'address' => $request->address,
-            'city' => $request->city,
-            'state' => $request->state,
-            'zip_code' => $request->zip_code,
-            'date_of_birth' => $request->date_of_birth,
-            'gender' => $request->gender,
-            'emergency_contact_person' => $request->emergency_contact_person,
-            'emergency_contact_number' => $request->emergency_contact_number,
-            'country' => $request->country ?? 'Philippines',
-            'role' => $userRole,
-            'is_active' => true,
-            'api_token' => $apiToken,
-        ]);
-
-        // Create corresponding Customer record for customer role users
-        if ($userRole === 'customer') {
-            Customer::create([
+        $user = DB::transaction(function () use ($request) {
+            $user = User::create([
                 'name' => $request->name,
+                'first_name' => $request->first_name,
+                'middle_name' => $request->middle_name,
+                'last_name' => $request->last_name,
+                'username' => $request->username,
                 'email' => $request->email,
+                'password' => Hash::make($request->password),
                 'phone' => $request->phone,
                 'address' => $request->address,
-                'user_id' => $user->id,
+                'city' => $request->city,
+                'state' => $request->state,
+                'zip_code' => $request->zip_code,
+                'date_of_birth' => $request->date_of_birth,
+                'gender' => $request->gender,
+                'emergency_contact_person' => $request->emergency_contact_person,
+                'emergency_contact_number' => $request->emergency_contact_number,
+                'country' => $request->country ?? 'Philippines',
+                'role' => 'customer',
+                'is_active' => true,
             ]);
-        }
+
+            Customer::updateOrCreate(
+                ['user_id' => $user->id],
+                [
+                    'name' => $request->name,
+                    'email' => $request->email,
+                    'phone' => $request->phone,
+                    'address' => $request->address,
+                    'is_active' => true,
+                ]
+            );
+
+            return $user;
+        });
+
+        $token = $user->createToken('pawesome-token')->plainTextToken;
 
         return response()->json([
             'message' => 'User registered successfully',
             'user' => $user,
-            'token' => $apiToken,
+            'token' => $token,
         ], 201);
     }
 
@@ -119,8 +120,6 @@ class AuthController extends Controller
             return response()->json(['message' => 'Account is inactive'], 403);
         }
 
-        // Delete existing tokens and create new Sanctum token
-        $user->tokens()->delete();
         $token = $user->createToken('pawesome-token')->plainTextToken;
 
         return response()->json([
@@ -191,6 +190,36 @@ class AuthController extends Controller
         return response()->json([
             'message' => 'Profile updated successfully',
             'user' => $user
+        ]);
+    }
+
+    public function uploadProfilePhoto(Request $request)
+    {
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
+        $validated = $request->validate([
+            'profile_photo' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
+        ]);
+
+        if ($user->profile_photo) {
+            Storage::disk('public')->delete($user->profile_photo);
+        }
+
+        $path = $validated['profile_photo']->store('profile_photos', 'public');
+
+        $user->update([
+            'profile_photo' => $path,
+        ]);
+
+        return response()->json([
+            'message' => 'Profile photo uploaded successfully',
+            'profile_photo' => asset('storage/' . $path),
+            'url' => asset('storage/' . $path),
+            'user' => $user,
         ]);
     }
 
@@ -291,7 +320,7 @@ class AuthController extends Controller
     {
         $user = $request->user();
         if ($user) {
-            $user->update(['api_token' => null]);
+            $user->currentAccessToken()?->delete();
         }
 
         return response()->json(['message' => 'Logout successful']);

@@ -11,12 +11,13 @@ class ChatbotFaqController extends Controller
 {
     public function index(): JsonResponse
     {
-        return response()->json(
-            ChatbotFaq::query()
+        return response()->json([
+            'success' => true,
+            'data' => ChatbotFaq::query()
                 ->orderBy('sort_order')
                 ->orderBy('question')
                 ->get()
-        );
+        ]);
     }
 
     public function store(Request $request): JsonResponse
@@ -40,7 +41,10 @@ class ChatbotFaqController extends Controller
             'sort_order' => $data['sort_order'] ?? 0,
         ]);
 
-        return response()->json($faq, 201);
+        return response()->json([
+            'success' => true,
+            'data' => $faq,
+        ], 201);
     }
 
     public function update(Request $request, ChatbotFaq $faq): JsonResponse
@@ -64,13 +68,19 @@ class ChatbotFaqController extends Controller
             'sort_order' => $data['sort_order'] ?? 0,
         ]);
 
-        return response()->json($faq);
+        return response()->json([
+            'success' => true,
+            'data' => $faq,
+        ]);
     }
 
     public function destroy(ChatbotFaq $faq): JsonResponse
     {
         $faq->delete();
 
-        return response()->json(['message' => 'FAQ deleted']);
+        return response()->json([
+            'success' => true,
+            'message' => 'FAQ deleted',
+        ]);
     }
 }

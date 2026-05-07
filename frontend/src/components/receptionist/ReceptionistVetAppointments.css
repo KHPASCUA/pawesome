@@ -17,6 +17,19 @@
   border-bottom: 1px solid #e9ecef;
 }
 
+.error-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 18px;
+  padding: 12px 14px;
+  border: 1px solid rgba(220, 38, 38, 0.18);
+  border-radius: 10px;
+  background: #fff1f2;
+  color: #b91c1c;
+  font-weight: 700;
+}
+
 .header-left h1 {
   margin: 0 0 0.5rem 0;
   font-size: 2rem;

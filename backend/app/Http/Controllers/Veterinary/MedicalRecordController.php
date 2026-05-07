@@ -7,12 +7,26 @@ use App\Models\MedicalRecord;
 use App\Models\Vaccination;
 use App\Models\Prescription;
 use App\Models\Pet;
+use App\Models\Appointment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 
 class MedicalRecordController extends Controller
 {
+    private function vetCanAccessPet(Request $request, int $petId): bool
+    {
+        return Appointment::where('pet_id', $petId)
+            ->where('veterinarian_id', $request->user()->id)
+            ->exists();
+    }
+
+    private function vetCanUseAppointment(Request $request, Appointment $appointment): bool
+    {
+        return (int) $appointment->veterinarian_id === (int) $request->user()->id
+            && in_array($appointment->status, ['in_progress', 'treated'], true);
+    }
+
     /**
      * List medical records with filters
      */
@@ -74,6 +88,10 @@ class MedicalRecordController extends Controller
             'attachments',
             'lockedBy'
         ])->findOrFail($id);
+
+        if (!$record->canBeViewedBy(request()->user()) || !$this->vetCanAccessPet(request(), $record->pet_id)) {
+            return response()->json(['message' => 'Medical record not found'], 404);
+        }
         
         return response()->json($record);
     }
@@ -109,6 +127,16 @@ class MedicalRecordController extends Controller
         }
 
         $user = $request->user();
+
+        if ($request->appointment_id) {
+            $appointment = Appointment::findOrFail($request->appointment_id);
+
+            if (!$this->vetCanUseAppointment($request, $appointment) || (int) $appointment->pet_id !== (int) $request->pet_id) {
+                return response()->json(['message' => 'This appointment is not ready for consultation'], 422);
+            }
+        } elseif (!$this->vetCanAccessPet($request, (int) $request->pet_id)) {
+            return response()->json(['message' => 'Pet not found'], 404);
+        }
         
         DB::beginTransaction();
         try {
@@ -169,7 +197,7 @@ class MedicalRecordController extends Controller
         $user = $request->user();
 
         // Check if user can edit this record
-        if (!$record->canBeEditedBy($user)) {
+        if (!$record->canBeEditedBy($user) || !$this->vetCanAccessPet($request, $record->pet_id)) {
             return response()->json(['message' => 'You do not have permission to edit this record'], 403);
         }
 
@@ -289,6 +317,10 @@ class MedicalRecordController extends Controller
     public function forPet($petId)
     {
         $pet = Pet::with(['customer'])->findOrFail($petId);
+
+        if (!$this->vetCanAccessPet(request(), (int) $petId)) {
+            return response()->json(['message' => 'Pet not found'], 404);
+        }
         
         $records = MedicalRecord::with(['veterinarian', 'prescriptions', 'vaccinations'])
             ->where('pet_id', $petId)
@@ -299,6 +331,190 @@ class MedicalRecordController extends Controller
             'pet' => $pet,
             'records' => $records
         ]);
+    }
+
+    /**
+     * Get medical history for a specific pet (frontend compatible format)
+     */
+    public function indexByPet($petId)
+    {
+        try {
+            $pet = Pet::with(['customer'])->findOrFail($petId);
+
+            // Remove veterinarian access restriction for customer profiles module
+            // to allow viewing all pets
+            $records = MedicalRecord::with(['veterinarian'])
+                ->where('pet_id', $petId)
+                ->orderBy('visit_date', 'desc')
+                ->get()
+                ->map(function ($record) {
+                    return [
+                        'id' => $record->id,
+                        'date' => $record->visit_date ? $record->visit_date->format('Y-m-d') : null,
+                        'visit_date' => $record->visit_date ? $record->visit_date->format('Y-m-d') : null,
+                        'title' => $record->chief_complaint ?: 'Medical Consultation',
+                        'service_name' => $record->chief_complaint ?: 'Medical Consultation',
+                        'diagnosis' => $record->diagnosis ?: 'No diagnosis stated.',
+                        'symptoms' => $record->symptoms ?: '',
+                        'treatment' => $record->treatment_plan ?: $record->physical_examination ?: '',
+                        'prescription' => '',
+                        'notes' => $record->notes ?: $record->follow_up_instructions ?: '',
+                        'remarks' => $record->notes ?: $record->follow_up_instructions ?: '',
+                        'weight' => $record->weight_kg ? (string) $record->weight_kg : '',
+                        'temperature' => $record->temperature_celsius ? (string) $record->temperature_celsius : '',
+                        'next_visit_date' => null,
+                        'status' => $record->status ?: 'completed',
+                        'veterinarian' => [
+                            'id' => $record->veterinarian?->id,
+                            'name' => $record->veterinarian?->name ?: 'Veterinary Staff'
+                        ],
+                        'created_at' => $record->created_at ? $record->created_at->format('Y-m-d') : null
+                    ];
+                });
+
+            return response()->json([
+                'success' => true,
+                'data' => $records
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch medical history: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Store medical record for a specific pet (frontend compatible)
+     */
+    public function storeForPet(Request $request, $petId)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'visit_date' => 'nullable|date',
+                'service_type' => 'nullable|string|max:255',
+                'diagnosis' => 'nullable|string',
+                'symptoms' => 'nullable|string',
+                'treatment' => 'nullable|string',
+                'prescription' => 'nullable|string',
+                'notes' => 'nullable|string',
+                'weight' => 'nullable|numeric|min:0',
+                'temperature' => 'nullable|numeric|min:0',
+                'next_visit_date' => 'nullable|date',
+                'status' => 'nullable|string|max:50'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $pet = Pet::findOrFail($petId);
+            $user = $request->user();
+
+            $record = MedicalRecord::create([
+                'pet_id' => $petId,
+                'customer_id' => $pet->customer_id,
+                'veterinarian_id' => $user->id,
+                'visit_date' => $request->visit_date ?? now(),
+                'chief_complaint' => $request->service_type ?: 'General Consultation',
+                'symptoms' => $request->symptoms,
+                'diagnosis' => $request->diagnosis,
+                'treatment_plan' => $request->treatment,
+                'notes' => $request->notes,
+                'weight_kg' => $request->weight,
+                'temperature_celsius' => $request->temperature,
+                'status' => $request->status ?? 'completed',
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Medical record created successfully',
+                'data' => [
+                    'id' => $record->id,
+                    'date' => $record->visit_date->format('Y-m-d'),
+                    'visit_date' => $record->visit_date->format('Y-m-d'),
+                    'title' => $record->chief_complaint,
+                    'service_name' => $record->chief_complaint,
+                    'diagnosis' => $record->diagnosis,
+                    'treatment' => $record->treatment_plan,
+                    'veterinarian' => [
+                        'id' => $user->id,
+                        'name' => $user->name
+                    ]
+                ]
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to create medical record: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get medical history for a specific pet (customer read-only)
+     */
+    public function indexByCustomer($petId)
+    {
+        try {
+            $user = request()->user();
+            
+            // Find the pet and verify it belongs to the authenticated customer
+            $pet = Pet::with(['customer'])->findOrFail($petId);
+            
+            // Verify the pet belongs to the authenticated customer
+            if ($pet->customer_id !== $user->id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Pet not found or does not belong to you'
+                ], 404);
+            }
+
+            // Get medical records for this pet
+            $records = MedicalRecord::with(['veterinarian'])
+                ->where('pet_id', $petId)
+                ->orderBy('visit_date', 'desc')
+                ->get()
+                ->map(function ($record) {
+                    return [
+                        'id' => $record->id,
+                        'date' => $record->visit_date ? $record->visit_date->format('Y-m-d') : null,
+                        'visit_date' => $record->visit_date ? $record->visit_date->format('Y-m-d') : null,
+                        'title' => $record->chief_complaint ?: 'Medical Consultation',
+                        'service_name' => $record->chief_complaint ?: 'Medical Consultation',
+                        'service_type' => $record->chief_complaint ?: 'Medical Consultation',
+                        'diagnosis' => $record->diagnosis ?: 'No diagnosis stated.',
+                        'symptoms' => $record->symptoms ?: 'No symptoms recorded.',
+                        'treatment' => $record->treatment_plan ?: $record->physical_examination ?: 'No treatment stated.',
+                        'prescription' => '',
+                        'notes' => $record->notes ?: $record->follow_up_instructions ?: '',
+                        'remarks' => $record->notes ?: $record->follow_up_instructions ?: '',
+                        'weight' => $record->weight_kg ? (string) $record->weight_kg : '',
+                        'temperature' => $record->temperature_celsius ? (string) $record->temperature_celsius : '',
+                        'next_visit_date' => null,
+                        'status' => $record->status ?: 'completed',
+                        'veterinarian' => [
+                            'id' => $record->veterinarian?->id,
+                            'name' => $record->veterinarian?->name ?: 'Veterinary Staff'
+                        ],
+                        'created_at' => $record->created_at ? $record->created_at->format('Y-m-d') : null
+                    ];
+                });
+
+            return response()->json([
+                'success' => true,
+                'data' => $records
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch medical history: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     /**

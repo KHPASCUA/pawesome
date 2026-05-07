@@ -61,6 +61,9 @@ const ReportFilters = ({
   serviceTypeFilter = "all",
   onServiceTypeChange,
   serviceTypeOptions = [],
+  salespersonFilter = "all",
+  onSalespersonChange,
+  salespersonOptions = [],
   onExportCSV,
   onExportPDF,
   onExportExcel,
@@ -71,12 +74,13 @@ const ReportFilters = ({
   showStatus = true,
   showRole = false,
   showServiceType = false,
+  showSalesperson = false,
   showSearch = true,
   showExport = true,
   searchPlaceholder = "Search...",
 }) => {
   const hasActiveFilters =
-    searchTerm || startDate || endDate || statusFilter !== "all" || roleFilter !== "all" || serviceTypeFilter !== "all";
+    searchTerm || startDate || endDate || statusFilter !== "all" || roleFilter !== "all" || serviceTypeFilter !== "all" || salespersonFilter !== "all";
 
   const handleDatePresetChange = (preset) => {
     const { startDate: newStart, endDate: newEnd } = getDateRangePreset(preset);
@@ -213,6 +217,24 @@ const ReportFilters = ({
               >
                 <option value="all">All Services</option>
                 {serviceTypeOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {showSalesperson && (
+            <div className="filter-dropdown">
+              <label>Salesperson</label>
+              <select
+                value={salespersonFilter}
+                onChange={(e) => onSalespersonChange && onSalespersonChange(e.target.value)}
+                disabled={loading}
+              >
+                <option value="all">All Salespeople</option>
+                {salespersonOptions.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
                   </option>

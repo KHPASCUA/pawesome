@@ -10,12 +10,41 @@ use Illuminate\Support\Facades\Validator;
 
 class CustomersController extends Controller
 {
+    private function currentCustomer(Request $request): ?Customer
+    {
+        $user = $request->user();
+
+        if (!$user) {
+            return null;
+        }
+
+        return Customer::where('user_id', $user->id)
+            ->orWhere('email', $user->email)
+            ->first();
+    }
+
+    private function denyOtherCustomer(Request $request, int $customerId): bool
+    {
+        if ($request->user()?->role !== 'customer') {
+            return false;
+        }
+
+        $customer = $this->currentCustomer($request);
+
+        return !$customer || (int) $customer->id !== (int) $customerId;
+    }
+
     /**
      * List all customers with their pets
      */
     public function index(Request $request)
     {
         $query = Customer::with(['pets']);
+
+        if ($request->user()?->role === 'customer') {
+            $customer = $this->currentCustomer($request);
+            $query->where('id', $customer?->id ?? 0);
+        }
         
         // Search by name or email
         if ($request->has('search')) {
@@ -47,8 +76,12 @@ class CustomersController extends Controller
     /**
      * Get single customer with full details
      */
-    public function show($id)
+    public function show(Request $request, $id)
     {
+        if ($this->denyOtherCustomer($request, (int) $id)) {
+            return response()->json(['message' => 'Customer not found'], 404);
+        }
+
         $customer = Customer::with(['pets', 'pets.appointments', 'pets.boardings'])->find($id);
         
         if (!$customer) {
@@ -157,8 +190,12 @@ class CustomersController extends Controller
     /**
      * Get customer's pets
      */
-    public function pets($id)
+    public function pets(Request $request, $id)
     {
+        if ($this->denyOtherCustomer($request, (int) $id)) {
+            return response()->json(['message' => 'Customer not found'], 404);
+        }
+
         $customer = Customer::find($id);
         
         if (!$customer) {
@@ -217,6 +254,9 @@ class CustomersController extends Controller
         $query = $request->get('q', '');
 
         $customers = Customer::where('is_active', true)
+            ->when($request->user()?->role === 'customer', function ($customerQuery) use ($request) {
+                $customerQuery->where('id', $this->currentCustomer($request)?->id ?? 0);
+            })
             ->where(function ($q) use ($query) {
                 $q->where('name', 'like', "%{$query}%")
                   ->orWhere('phone', 'like', "%{$query}%");
@@ -241,8 +281,12 @@ class CustomersController extends Controller
     /**
      * Get customer purchase history
      */
-    public function purchases($id)
+    public function purchases(Request $request, $id)
     {
+        if ($this->denyOtherCustomer($request, (int) $id)) {
+            return response()->json(['error' => 'Customer not found'], 404);
+        }
+
         $customer = Customer::find($id);
 
         if (!$customer) {

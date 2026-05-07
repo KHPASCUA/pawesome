@@ -18,8 +18,11 @@ const CashierReports = lazy(() => import("../components/cashier/CashierReports")
 const InventoryReports = lazy(() => import("../components/inventory/InventoryReports"));
 const ManagerReports = lazy(() => import("../components/manager/ManagerReports"));
 const VetReports = lazy(() => import("../components/veterinary/VetReports"));
-// Customer reports use receptionist reports (shared view)
-const CustomerReports = lazy(() => import("../components/receptionist/ReceptionistReports"));
+const CustomerReport = lazy(() => import("../components/admin/CustomerReport"));
+const PaymentReports = lazy(() => import("../components/admin/PaymentReports"));
+const OrderReports = lazy(() => import("../components/admin/OrderReports"));
+const ServiceRequestReports = lazy(() => import("../components/admin/ServiceRequestReports"));
+const LogisticsReports = lazy(() => import("../components/admin/LogisticsReports"));
 const ReceptionistReports = lazy(() => import("../components/receptionist/ReceptionistReports"));
 
 // Payroll modules - lazy loaded
@@ -55,7 +58,11 @@ const AdminRoutes = () => (
         <Route path="reports/inventory" element={<InventoryReports />} />
         <Route path="reports/manager" element={<ManagerReports />} />
         <Route path="reports/veterinary" element={<VetReports />} />
-        <Route path="reports/customers" element={<CustomerReports />} />
+        <Route path="reports/customers" element={<CustomerReport />} />
+        <Route path="reports/payments" element={<PaymentReports />} />
+        <Route path="reports/orders" element={<OrderReports />} />
+        <Route path="reports/service-requests" element={<ServiceRequestReports />} />
+        <Route path="reports/logistics" element={<LogisticsReports />} />
         <Route path="reports/reception" element={<ReceptionistReports />} />
         <Route path="reports/attendance" element={<Attendance />} />
         <Route path="history" element={<History />} />

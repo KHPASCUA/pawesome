@@ -304,20 +304,20 @@
 .section-header {
   padding: 1.25rem;
   border-radius: 24px;
-  background: rgba(255, 255, 255, 0.72);
-  border: 1px solid rgba(255, 95, 147, 0.14);
-  box-shadow: 0 14px 32px rgba(255, 95, 147, 0.1);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-card);
 }
 
 .section-header h2 {
   font-size: clamp(1.4rem, 2vw, 2rem);
   font-weight: 950;
-  color: #191919 !important;
+  color: var(--color-heading) !important;
   letter-spacing: -0.04em;
 }
 
 .section-subtitle {
-  color: #64748b !important;
+  color: var(--color-muted) !important;
   font-weight: 600;
 }
 

@@ -179,7 +179,7 @@ class CustomerStoreController extends Controller
             // Do not set payment_proof during checkout - only when customer uploads proof
             $this->setIfColumnExists($orderData, 'customer_orders', 'payment_status', 'unpaid');
             $this->setIfColumnExists($orderData, 'customer_orders', 'status', 'pending');
-            $this->setIfColumnExists($orderData, 'customer_orders', 'notes', 'Waiting for approval/confirmation.');
+            $this->setIfColumnExists($orderData, 'customer_orders', 'notes', 'Order submitted and waiting for receptionist approval.');
 
             if (!isset($orderData['total_amount']) && Schema::hasColumn('customer_orders', 'total')) {
                 $orderData['total'] = $totalAmount;

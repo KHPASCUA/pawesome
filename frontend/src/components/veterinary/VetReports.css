@@ -1,11 +1,33 @@
 /* VetReports.css */
-/* Premium Pink Pawesome Veterinary Reports */
+/* Professional Premium Pink Pawesome Veterinary Reports */
 
 .vet-reports {
+  --color-primary: #ff5f93;
+  --color-primary-light: #ff8db5;
+  --color-primary-soft: #ffc8dd;
+  --color-bg-gradient: linear-gradient(135deg, #ffc8dd, #ffd6e8, #fff1f7);
+  --color-surface: rgba(255, 255, 255, 0.86);
+  --color-surface-solid: rgba(255, 255, 255, 0.96);
+  --color-border: rgba(255, 95, 147, 0.18);
+  --color-text: #1f2937;
+  --color-heading: #191919;
+  --color-muted: #64748b;
+  --color-success-bg: rgba(16, 185, 129, 0.14);
+  --color-warning-bg: rgba(245, 158, 11, 0.14);
+  --color-danger-bg: rgba(239, 68, 68, 0.12);
+  --shadow-card: 0 18px 45px rgba(255, 95, 147, 0.14);
+  --shadow-soft: 0 10px 24px rgba(15, 23, 42, 0.08);
+  --shadow-primary: 0 14px 28px rgba(255, 95, 147, 0.24);
+  --radius-md: 16px;
+  --radius-lg: 20px;
+  --radius-card: 28px;
+  --radius-pill: 999px;
+
   width: 100%;
   max-width: 100%;
   display: grid;
   gap: 24px;
+  padding: 1.5rem;
   overflow-x: hidden;
   color: var(--color-text);
 }
@@ -13,6 +35,54 @@
 .vet-reports,
 .vet-reports * {
   box-sizing: border-box;
+}
+
+.vet-reports .premium-card {
+  padding: 1.35rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+  backdrop-filter: blur(16px);
+}
+
+/* TOAST */
+
+.vet-reports-toast {
+  position: fixed;
+  top: 22px;
+  right: 22px;
+  z-index: 10000;
+  max-width: min(420px, calc(100vw - 32px));
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.15rem;
+  border-radius: 18px;
+  color: #ffffff;
+  font-weight: 850;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.22);
+  animation: vetReportsToastIn 0.28s ease both;
+}
+
+.vet-reports-toast.success {
+  background: linear-gradient(135deg, #10b981, #059669);
+}
+
+.vet-reports-toast.error {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+}
+
+@keyframes vetReportsToastIn {
+  from {
+    opacity: 0;
+    transform: translateX(80px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 /* HERO */
@@ -56,17 +126,27 @@
   letter-spacing: 0.08em;
 }
 
-.vet-reports-hero h2 {
+.vet-reports-hero h2,
+.vet-reports .premium-title {
   margin: 0 0 0.4rem;
   display: flex;
   align-items: center;
   gap: 0.7rem;
+  color: var(--color-heading);
+  font-size: clamp(1.65rem, 3vw, 2.35rem);
+  font-weight: 950;
+  letter-spacing: -0.055em;
   line-height: 1.1;
 }
 
-.vet-reports-hero p {
+.vet-reports-hero p,
+.vet-reports .premium-muted {
   max-width: 780px;
   margin: 0;
+  color: var(--color-muted);
+  font-size: 0.96rem;
+  font-weight: 750;
+  line-height: 1.55;
 }
 
 .vet-reports-hero-actions {
@@ -79,12 +159,16 @@
 /* BUTTONS / BADGES */
 
 .vet-reports-refresh-btn,
-.vet-data-source-badge {
+.vet-data-source-badge,
+.vet-filter-btn,
+.vet-export-actions button,
+.vet-table-action,
+.vet-report-modal-actions button {
   min-height: 44px;
   border: none;
   padding: 0.7rem 1rem;
   border-radius: var(--radius-pill);
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   font-weight: 950;
   transition: 0.25s ease;
   display: inline-flex;
@@ -94,7 +178,9 @@
   white-space: nowrap;
 }
 
-.vet-reports-refresh-btn {
+.vet-reports-refresh-btn,
+.vet-filter-btn.ghost,
+.vet-report-modal-actions button {
   cursor: pointer;
   background: var(--color-surface-solid);
   color: var(--color-primary);
@@ -102,7 +188,20 @@
   box-shadow: var(--shadow-soft);
 }
 
-.vet-reports-refresh-btn:hover {
+.vet-filter-btn.primary,
+.vet-table-action,
+.vet-export-actions button {
+  cursor: pointer;
+  color: #ffffff;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+  box-shadow: var(--shadow-primary);
+}
+
+.vet-reports-refresh-btn:hover,
+.vet-filter-btn:hover,
+.vet-export-actions button:hover,
+.vet-table-action:hover,
+.vet-report-modal-actions button:hover {
   transform: translateY(-2px);
 }
 
@@ -113,11 +212,6 @@
 .vet-data-source-badge.live {
   background: var(--color-success-bg);
   color: #065f46;
-}
-
-.vet-data-source-badge.demo {
-  background: var(--color-warning-bg);
-  color: #92400e;
 }
 
 @keyframes vetReportsSpin {
@@ -149,12 +243,14 @@
 }
 
 .vet-error-banner {
+  display: grid;
   grid-template-columns: auto 1fr auto;
   min-height: auto;
   text-align: left;
+  align-items: center;
   background: var(--color-warning-bg) !important;
   color: #92400e;
-  border-color: rgba(245, 158, 11, 0.25);
+  border-color: rgba(245, 158, 11, 0.25) !important;
   font-weight: 850;
 }
 
@@ -170,11 +266,99 @@
   background: rgba(245, 158, 11, 0.18);
   color: #92400e;
   cursor: pointer;
-  font-size: 1.25rem;
+  font-size: 1rem;
 }
 
 .spin-animation {
   animation: vetReportsSpin 1s linear infinite;
+}
+
+/* FILTERS */
+
+.vet-report-filters {
+  display: grid;
+  gap: 1rem;
+}
+
+.vet-report-search {
+  position: relative;
+}
+
+.vet-report-search > svg {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-primary);
+  pointer-events: none;
+}
+
+.vet-report-search input {
+  width: 100%;
+  min-height: 50px;
+  padding: 0.85rem 2.9rem 0.85rem 3rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-solid);
+  color: var(--color-text);
+  outline: none;
+  font-weight: 750;
+  transition: 0.22s ease;
+}
+
+.vet-report-search input:focus {
+  border-color: rgba(255, 95, 147, 0.55);
+  box-shadow: 0 0 0 4px rgba(255, 95, 147, 0.12);
+}
+
+.vet-report-search button {
+  position: absolute;
+  right: 9px;
+  top: 50%;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(255, 95, 147, 0.1);
+  color: var(--color-primary);
+  cursor: pointer;
+  transform: translateY(-50%);
+}
+
+.vet-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(160px, 1fr));
+  gap: 0.85rem;
+}
+
+.vet-filter-grid label {
+  display: grid;
+  gap: 0.45rem;
+  color: var(--color-heading);
+  font-size: 0.84rem;
+  font-weight: 900;
+}
+
+.vet-filter-grid input,
+.vet-filter-grid select {
+  width: 100%;
+  min-height: 46px;
+  padding: 0.72rem 0.85rem;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  outline: none;
+  background: var(--color-surface-solid);
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 750;
+}
+
+.vet-filter-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
 /* STAT CARDS */
@@ -207,7 +391,7 @@
 .vet-report-stat-card h3 {
   margin: 0;
   color: var(--color-primary);
-  font-size: 1.3rem;
+  font-size: 1.2rem;
   font-weight: 950;
   line-height: 1.08;
 }
@@ -233,6 +417,9 @@
   margin: 0;
   color: var(--color-heading);
   font-weight: 950;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
 }
 
 .vet-panel-header p {
@@ -282,13 +469,16 @@
 .vet-financial-summary strong {
   display: block;
   color: var(--color-primary);
-  font-size: 1.3rem;
+  font-size: 1.22rem;
   font-weight: 950;
 }
 
 /* CHARTS */
 
 .vet-report-chart-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.85fr);
+  gap: 1.25rem;
   align-items: stretch;
 }
 
@@ -299,7 +489,7 @@
 
 .vet-chart-box {
   width: 100%;
-  height: 340px;
+  height: 360px;
   min-width: 0;
 }
 
@@ -328,6 +518,27 @@
 
 .vet-chart-empty p {
   margin: 0;
+  font-weight: 800;
+}
+
+.vet-chart-tooltip {
+  min-width: 170px;
+  padding: 0.85rem;
+  border-radius: 16px;
+  background: var(--color-surface-solid);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-soft);
+}
+
+.vet-chart-tooltip strong {
+  display: block;
+  color: var(--color-heading);
+  margin-bottom: 0.4rem;
+}
+
+.vet-chart-tooltip p {
+  margin: 0.25rem 0;
+  color: var(--color-muted);
   font-weight: 800;
 }
 
@@ -398,7 +609,7 @@
 
 .vet-service-stats strong {
   display: block;
-  font-size: 1.12rem;
+  font-size: 1.02rem;
   font-weight: 950;
   color: var(--color-heading);
   line-height: 1.15;
@@ -425,6 +636,146 @@
   background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
 }
 
+/* TABLE */
+
+.vet-table-scroll {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.vet-report-table {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: separate;
+  border-spacing: 0 0.65rem;
+}
+
+.vet-report-table th {
+  color: var(--color-muted);
+  font-size: 0.78rem;
+  font-weight: 950;
+  text-align: left;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0 0.9rem;
+}
+
+.vet-report-table th button {
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.vet-report-table td {
+  background: rgba(255, 255, 255, 0.66);
+  border-top: 1px solid rgba(255, 95, 147, 0.08);
+  border-bottom: 1px solid rgba(255, 95, 147, 0.08);
+  padding: 0.95rem;
+  color: var(--color-text);
+  font-weight: 800;
+}
+
+.vet-report-table td:first-child {
+  border-left: 1px solid rgba(255, 95, 147, 0.08);
+  border-radius: 18px 0 0 18px;
+}
+
+.vet-report-table td:last-child {
+  border-right: 1px solid rgba(255, 95, 147, 0.08);
+  border-radius: 0 18px 18px 0;
+}
+
+.vet-table-empty {
+  min-height: 160px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 0.45rem;
+  color: var(--color-muted);
+  text-align: center;
+}
+
+.vet-table-empty svg {
+  color: var(--color-primary);
+  font-size: 2rem;
+}
+
+/* ACTIVITY */
+
+.vet-activity-list {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.vet-activity-item {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.95rem;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.62);
+  border: 1px solid rgba(255, 95, 147, 0.08);
+}
+
+.vet-activity-icon {
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  border-radius: 18px;
+  color: #ffffff;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+  box-shadow: var(--shadow-primary);
+}
+
+.vet-activity-item h4 {
+  margin: 0;
+  color: var(--color-heading);
+  font-weight: 950;
+}
+
+.vet-activity-item p {
+  margin: 0.25rem 0;
+  color: var(--color-muted);
+  font-weight: 800;
+}
+
+.vet-activity-item small {
+  color: var(--color-muted);
+  font-weight: 750;
+}
+
+.vet-status-pill {
+  min-height: 32px;
+  padding: 0 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--radius-pill);
+  background: var(--color-success-bg);
+  color: #047857;
+  font-size: 0.76rem;
+  font-weight: 950;
+  text-transform: capitalize;
+}
+
+.vet-status-pill.pending,
+.vet-status-pill.scheduled {
+  background: var(--color-warning-bg);
+  color: #92400e;
+}
+
+.vet-status-pill.cancelled,
+.vet-status-pill.rejected {
+  background: var(--color-danger-bg);
+  color: #b91c1c;
+}
+
 /* EMPTY */
 
 .vet-empty-state {
@@ -437,6 +788,10 @@
   border: 2px dashed var(--color-border);
   border-radius: var(--radius-card);
   background: rgba(255, 255, 255, 0.45);
+}
+
+.vet-empty-state.compact {
+  min-height: 170px;
 }
 
 .vet-empty-state svg {
@@ -464,29 +819,181 @@
   flex-wrap: wrap;
 }
 
-.vet-export-actions button {
-  display: inline-flex;
+/* MODAL */
+
+.vet-report-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 12000;
+  display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
+  padding: 1rem;
+  background: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(10px);
+}
+
+.vet-report-modal {
+  width: min(760px, 100%);
+  max-height: 92vh;
+  overflow-y: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-surface-solid);
+  box-shadow: 0 30px 90px rgba(15, 23, 42, 0.26);
+}
+
+.vet-report-modal-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.35rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.vet-report-modal-header h3 {
+  margin: 0;
+  color: var(--color-heading);
+  font-size: 1.45rem;
+  font-weight: 950;
+}
+
+.vet-report-modal-header p {
+  margin: 0.3rem 0 0;
+  color: var(--color-muted);
+  font-weight: 800;
+}
+
+.vet-report-modal-header button {
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: var(--color-surface);
+  color: var(--color-heading);
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.vet-report-modal-header button:hover {
+  background: var(--color-primary);
+  color: #ffffff;
+}
+
+.vet-report-modal-body {
+  padding: 1.35rem;
+  display: grid;
+  gap: 1rem;
+}
+
+.vet-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.vet-detail-grid div {
+  padding: 1rem;
+  border-radius: var(--radius-lg);
+  background: rgba(255, 241, 247, 0.58);
+  border: 1px solid rgba(255, 95, 147, 0.08);
+}
+
+.vet-detail-grid small {
+  display: block;
+  margin-bottom: 0.4rem;
+  color: var(--color-muted);
+  font-size: 0.76rem;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.vet-detail-grid strong {
+  color: var(--color-primary);
+  font-size: 1.15rem;
+  font-weight: 950;
+}
+
+.vet-modal-note {
+  display: flex;
+  gap: 0.75rem;
+  padding: 1rem;
+  border-radius: var(--radius-lg);
+  background: rgba(255, 95, 147, 0.08);
+  color: var(--color-muted);
+  font-weight: 750;
+  line-height: 1.55;
+}
+
+.vet-modal-note svg {
+  margin-top: 0.2rem;
+  color: var(--color-primary);
+}
+
+.vet-modal-note p {
+  margin: 0;
+}
+
+.vet-report-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding: 1rem 1.35rem;
+  border-top: 1px solid var(--color-border);
+}
+
+/* PRINT */
+
+@media print {
+  .vet-reports {
+    padding: 0;
+  }
+
+  .vet-reports-refresh-btn,
+  .vet-report-filters,
+  .vet-export-actions,
+  .vet-table-action,
+  .vet-reports-toast {
+    display: none !important;
+  }
+
+  .vet-reports .premium-card {
+    box-shadow: none;
+    break-inside: avoid;
+  }
 }
 
 /* DARK MODE */
 
+[data-theme="dark"] .vet-reports {
+  --color-surface: rgba(15, 23, 42, 0.9);
+  --color-surface-solid: rgba(15, 23, 42, 0.96);
+  --color-text: #f8fafc;
+  --color-heading: #ffffff;
+  --color-muted: #cbd5e1;
+  --color-border: rgba(255, 141, 181, 0.26);
+}
+
 [data-theme="dark"] .vet-reports-refresh-btn,
+[data-theme="dark"] .vet-filter-btn.ghost,
+[data-theme="dark"] .vet-report-search input,
+[data-theme="dark"] .vet-filter-grid input,
+[data-theme="dark"] .vet-filter-grid select,
 [data-theme="dark"] .vet-financial-summary div,
-[data-theme="dark"] .vet-service-stats div {
+[data-theme="dark"] .vet-service-stats div,
+[data-theme="dark"] .vet-report-table td,
+[data-theme="dark"] .vet-activity-item,
+[data-theme="dark"] .vet-report-modal,
+[data-theme="dark"] .vet-report-modal-header button {
   background: rgba(15, 23, 42, 0.94);
 }
 
 [data-theme="dark"] .vet-chart-empty,
-[data-theme="dark"] .vet-empty-state {
+[data-theme="dark"] .vet-empty-state,
+[data-theme="dark"] .vet-detail-grid div,
+[data-theme="dark"] .vet-modal-note {
   background: rgba(255, 255, 255, 0.06);
-}
-
-[data-theme="dark"] .vet-service-header > span,
-[data-theme="dark"] .vet-report-stat-card > span {
-  box-shadow: 0 8px 16px rgba(255, 95, 147, 0.2);
 }
 
 /* RESPONSIVE */
@@ -496,8 +1003,13 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .vet-financial-summary {
+  .vet-financial-summary,
+  .vet-report-chart-grid {
     grid-template-columns: 1fr;
+  }
+
+  .vet-filter-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .vet-panel-header {
@@ -520,22 +1032,36 @@
     width: 100%;
   }
 
-  .vet-export-actions {
+  .vet-export-actions,
+  .vet-filter-actions {
     display: grid;
     grid-template-columns: 1fr;
   }
 
-  .vet-export-actions button {
+  .vet-export-actions button,
+  .vet-filter-actions button {
     width: 100%;
+  }
+
+  .vet-activity-item {
+    grid-template-columns: 52px minmax(0, 1fr);
+  }
+
+  .vet-status-pill {
+    grid-column: 1 / -1;
+    justify-self: start;
   }
 }
 
 @media (max-width: 768px) {
-  .vet-report-stats {
-    grid-template-columns: 1fr;
+  .vet-reports {
+    padding: 1rem;
   }
 
-  .vet-services-grid {
+  .vet-report-stats,
+  .vet-services-grid,
+  .vet-filter-grid,
+  .vet-detail-grid {
     grid-template-columns: 1fr;
   }
 
@@ -549,8 +1075,9 @@
 }
 
 @media (max-width: 480px) {
-  .vet-reports-hero {
-    padding: 1.1rem;
+  .vet-reports .premium-card {
+    padding: 1rem;
+    border-radius: 22px;
   }
 
   .vet-chart-box {
@@ -559,6 +1086,6 @@
 
   .vet-report-stat-card h3,
   .vet-financial-summary strong {
-    font-size: 1.15rem;
+    font-size: 1.05rem;
   }
 }

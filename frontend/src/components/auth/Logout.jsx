@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { apiRequest } from "../../api/client";
+import { apiRequest, clearAuthStorage } from "../../api/client";
 import "./Logout.css";
 
 const Logout = () => {
@@ -10,11 +10,7 @@ const Logout = () => {
     apiRequest("/auth/logout", { method: "POST" })
       .catch(() => {})
       .finally(() => {
-        localStorage.removeItem("token");
-        localStorage.removeItem("role");
-        localStorage.removeItem("name");
-        localStorage.removeItem("username");
-        localStorage.removeItem("email");
+        clearAuthStorage();
 
         navigate("/");
       });

@@ -28,7 +28,20 @@ class Service extends Model
     /**
      * Valid service categories
      */
-    public const VALID_CATEGORIES = ['Grooming', 'Consultation', 'Vaccination', 'Surgery', 'Dental', 'Boarding', 'Other'];
+    public const VALID_CATEGORIES = [
+        'Consultation',
+        'Vaccination',
+        'Treatment',
+        'Emergency',
+        'Surgery',
+        'Dental',
+        'Diagnostics',
+        'Boarding Care',
+        'Medication',
+        'Grooming',
+        'Hotel',
+        'Other',
+    ];
 
     
     public function appointments(): HasMany

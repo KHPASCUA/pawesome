@@ -10,26 +10,51 @@ use Illuminate\Support\Carbon;
 
 class DashboardController extends Controller
 {
+    private function assignedAppointments()
+    {
+        return Appointment::query()->where('veterinarian_id', auth()->id());
+    }
+
     public function overview()
     {
         $today = Carbon::today();
         
         return response()->json([
-            'today_appointments' => Appointment::whereDate('scheduled_at', $today)
+            'today_appointments' => $this->assignedAppointments()
+                ->whereDate('scheduled_at', $today)
                 ->whereIn('status', ['approved', 'scheduled', 'in_progress', 'treated'])
                 ->count(),
-            'approved_appointments' => Appointment::whereIn('status', ['approved', 'scheduled'])->count(),
-            'completed_appointments' => Appointment::where('status', 'completed')->count(),
-            'total_patients' => Pet::count(),
-            'new_patients_this_month' => Pet::whereMonth('created_at', $today->month)->count(),
-            'upcoming_appointments' => Appointment::with(['customer', 'pet', 'service', 'veterinarian'])
+            'approved_appointments' => $this->assignedAppointments()
+                ->whereIn('status', ['approved', 'scheduled'])
+                ->count(),
+            'pending_appointments' => $this->assignedAppointments()
+                ->where('status', 'pending')
+                ->count(),
+            'completed_appointments' => $this->assignedAppointments()
+                ->where('status', 'completed')
+                ->count(),
+            'total_patients' => Pet::whereHas('appointments', function ($query) {
+                $query->where('veterinarian_id', auth()->id());
+            })->count(),
+            'new_patients_this_month' => Pet::whereHas('appointments', function ($query) {
+                $query->where('veterinarian_id', auth()->id());
+            })->whereMonth('created_at', $today->month)->count(),
+            'upcoming_appointments' => $this->assignedAppointments()
+                ->with(['customer', 'pet', 'service', 'veterinarian'])
                 ->where('scheduled_at', '>=', $today)
                 ->whereIn('status', ['approved', 'scheduled', 'in_progress', 'treated'])
                 ->orderBy('scheduled_at')
                 ->limit(5)
                 ->get(),
-            'recent_patients' => Pet::with('customer')->latest()->take(5)->get(),
-            'appointments_by_type' => Appointment::with('service')
+            'recent_patients' => Pet::with('customer')
+                ->whereHas('appointments', function ($query) {
+                    $query->where('veterinarian_id', auth()->id());
+                })
+                ->latest()
+                ->take(5)
+                ->get(),
+            'appointments_by_type' => $this->assignedAppointments()
+                ->with('service')
                 ->selectRaw('service_id, count(*) as count')
                 ->whereMonth('scheduled_at', $today->month)
                 ->whereIn('status', ['approved', 'scheduled', 'in_progress', 'treated', 'completed'])
@@ -57,14 +82,19 @@ class DashboardController extends Controller
         return response()->json(
             Pet::with(['customer', 'appointments' => function($query) {
                 $query->latest()->take(3);
-            }])->get()
+            }])
+                ->get()
         );
     }
 
     public function appointment($id)
     {
+        $appointment = $this->assignedAppointments()
+            ->with(['customer', 'pet', 'service', 'veterinarian'])
+            ->findOrFail($id);
+
         return response()->json([
-            'appointment' => Appointment::with(['customer', 'pet', 'service', 'veterinarian'])->findOrFail($id),
+            'appointment' => $appointment,
         ]);
     }
 
@@ -73,7 +103,8 @@ class DashboardController extends Controller
         $statuses = $request->input('status', 'completed,cancelled');
         $statusArray = explode(',', $statuses);
         
-        $appointments = Appointment::with(['customer', 'pet', 'service', 'veterinarian'])
+        $appointments = $this->assignedAppointments()
+            ->with(['customer', 'pet', 'service', 'veterinarian'])
             ->whereIn('status', $statusArray)
             ->orderBy('scheduled_at', 'desc')
             ->get();
@@ -81,37 +112,127 @@ class DashboardController extends Controller
         return response()->json($appointments);
     }
 
-    public function reports()
+    public function reports(Request $request)
     {
+        $user = auth()->user();
         $today = Carbon::today();
-        $monthStart = $today->copy()->startOfMonth();
         
-        $completedAppointments = Appointment::where('status', 'completed')
-            ->whereMonth('scheduled_at', $today->month)
-            ->count();
-            
-        $totalRevenue = Appointment::where('status', 'completed')
-            ->whereMonth('scheduled_at', $today->month)
-            ->sum('price');
-            
-        $serviceBreakdown = Appointment::with('service')
-            ->where('status', 'completed')
-            ->whereMonth('scheduled_at', $today->month)
+        // Build base query based on user role
+        $query = Appointment::with(['customer', 'pet', 'service', 'veterinarian']);
+        
+        // If not admin, filter by assigned veterinarian
+        if ($user->role !== 'admin') {
+            $query->where('veterinarian_id', $user->id);
+        }
+        
+        // Apply date filters
+        $startDate = $request->input('start_date');
+        $endDate = $request->input('end_date');
+        
+        if ($startDate) {
+            $query->whereDate('scheduled_at', '>=', $startDate);
+        } else {
+            // Default to current month if no start date
+            $query->whereMonth('scheduled_at', $today->month)
+                  ->whereYear('scheduled_at', $today->year);
+        }
+        
+        if ($endDate) {
+            $query->whereDate('scheduled_at', '<=', $endDate);
+        } else if (!$startDate) {
+            // Default to current month if no end date
+            $query->whereMonth('scheduled_at', $today->month)
+                  ->whereYear('scheduled_at', $today->year);
+        }
+        
+        // Apply status filter
+        $statusFilter = $request->input('status');
+        if ($statusFilter && $statusFilter !== 'all') {
+            $query->where('status', $statusFilter);
+        }
+        
+        // Apply service type filter
+        $serviceTypeFilter = $request->input('service_type');
+        if ($serviceTypeFilter && $serviceTypeFilter !== 'all') {
+            $query->whereHas('service', function ($q) use ($serviceTypeFilter) {
+                $q->where('name', 'like', "%{$serviceTypeFilter}%")
+                  ->orWhere('category', 'like', "%{$serviceTypeFilter}%");
+            });
+        }
+        
+        // Get all matching appointments for records
+        $records = (clone $query)
+            ->orderBy('scheduled_at', 'desc')
+            ->limit(50)
+            ->get()
+            ->map(function ($appointment) {
+                return [
+                    'id' => $appointment->id,
+                    'date' => $appointment->scheduled_at ? $appointment->scheduled_at->format('Y-m-d') : null,
+                    'appointment_date' => $appointment->scheduled_at ? $appointment->scheduled_at->format('Y-m-d') : null,
+                    'customer_name' => $appointment->customer?->name ?: 'Unknown Customer',
+                    'pet_name' => $appointment->pet?->name ?: 'Unknown Pet',
+                    'service_name' => $appointment->service?->name ?: 'Unknown Service',
+                    'status' => $appointment->status,
+                    'revenue' => (float) ($appointment->price ?? 0),
+                    'vet_name' => $appointment->veterinarian?->name ?: 'Veterinary Staff',
+                    'notes' => $appointment->notes ?: '',
+                ];
+            });
+        
+        // Calculate metrics from completed appointments only
+        $metricsQuery = clone $query;
+        $completedQuery = clone $query;
+        
+        // Filter for completed appointments for revenue and counts
+        if ($statusFilter && $statusFilter !== 'all') {
+            $completedQuery->where('status', $statusFilter);
+        } else {
+            $completedQuery->whereIn('status', ['completed', 'treated']);
+        }
+        
+        $completedAppointments = $completedQuery->count();
+        $totalRevenue = $completedQuery->sum('price') ?? 0;
+        
+        // Build service breakdown
+        $serviceBreakdown = (clone $completedQuery)
+            ->with('service')
             ->selectRaw('service_id, COUNT(*) as count, SUM(price) as revenue')
             ->groupBy('service_id')
-            ->get();
-            
+            ->get()
+            ->map(function ($item) {
+                $service = $item->service;
+                return [
+                    'id' => $service?->id ?? $item->service_id,
+                    'service_name' => $service?->name ?: 'Unknown Service',
+                    'count' => (int) $item->count,
+                    'revenue' => (float) ($item->revenue ?? 0),
+                    'status' => 'completed',
+                ];
+            });
+        
+        // Determine period label
+        $period = $startDate && $endDate
+            ? Carbon::parse($startDate)->format('M d, Y') . ' - ' . Carbon::parse($endDate)->format('M d, Y')
+            : ($startDate ? Carbon::parse($startDate)->format('F Y') : $today->format('F Y'));
+        
         return response()->json([
-            'monthly_completed' => $completedAppointments,
-            'monthly_revenue' => $totalRevenue,
-            'service_breakdown' => $serviceBreakdown,
-            'period' => $today->format('F Y'),
+            'success' => true,
+            'data' => [
+                'period' => $period,
+                'monthly_revenue' => (float) $totalRevenue,
+                'monthly_completed' => $completedAppointments,
+                'service_breakdown' => $serviceBreakdown,
+                'records' => $records,
+            ],
         ]);
     }
 
     public function receipt($id)
     {
-        $appointment = Appointment::with(['customer', 'pet', 'service', 'veterinarian'])->findOrFail($id);
+        $appointment = $this->assignedAppointments()
+            ->with(['customer', 'pet', 'service', 'veterinarian'])
+            ->findOrFail($id);
         
         return response()->json([
             'receipt' => [

@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useMemo, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faSort, faSortUp, faSortDown } from "@fortawesome/free-solid-svg-icons";
+import { getNestedValue } from "../../utils/reportExport";
 import "./StandardTable.css";
 
 /**
@@ -35,7 +36,20 @@ const StandardTable = ({
   striped = true,
   hoverable = true,
   compact = false,
+  pageSize = 10,
 }) => {
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const totalPages = Math.max(1, Math.ceil((data?.length || 0) / pageSize));
+  const paginatedData = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return data.slice(start, start + pageSize);
+  }, [data, currentPage, pageSize]);
+
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [data, pageSize]);
+
   const handleSort = (key) => {
     if (!onSort) return;
     
@@ -62,7 +76,7 @@ const StandardTable = ({
   };
 
   const renderCell = (column, item, index) => {
-    const value = item[column.key];
+    const value = getNestedValue(item, column.key);
     
     if (column.render) {
       return column.render(value, item, index);
@@ -136,7 +150,7 @@ const StandardTable = ({
           </tr>
         </thead>
         <tbody>
-          {data.map((item, index) => (
+          {paginatedData.map((item, index) => (
             <tr key={item.id || index} className="table-row">
               {columns.map((column) => (
                 <td key={column.key} className={column.className || ''}>
@@ -147,6 +161,31 @@ const StandardTable = ({
           ))}
         </tbody>
       </table>
+      {data.length > pageSize && (
+        <div className="standard-table-pagination">
+          <span>
+            Showing {(currentPage - 1) * pageSize + 1}-
+            {Math.min(currentPage * pageSize, data.length)} of {data.length}
+          </span>
+          <div className="pagination-actions">
+            <button
+              type="button"
+              onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+              disabled={currentPage === 1}
+            >
+              Previous
+            </button>
+            <strong>{currentPage} / {totalPages}</strong>
+            <button
+              type="button"
+              onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+              disabled={currentPage === totalPages}
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

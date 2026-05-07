@@ -15,6 +15,15 @@ import {
   faIdCard,
   faClipboardList,
   faEye,
+  faNotesMedical,
+  faCalendarCheck,
+  faVenusMars,
+  faCakeCandles,
+  faShieldDog,
+  faHeartPulse,
+  faArrowLeft,
+  faStethoscope,
+  faFileMedical,
 } from "@fortawesome/free-solid-svg-icons";
 import toast from "react-hot-toast";
 import { apiRequest } from "../../api/client";
@@ -23,6 +32,11 @@ import "./VetCustomerProfiles.css";
 const VetCustomerProfiles = () => {
   const [customers, setCustomers] = useState([]);
   const [selectedProfile, setSelectedProfile] = useState(null);
+  const [selectedPetHistory, setSelectedPetHistory] = useState(null);
+  const [medicalHistory, setMedicalHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState("");
+
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
@@ -32,22 +46,37 @@ const VetCustomerProfiles = () => {
     if (Array.isArray(value)) return value;
     if (Array.isArray(value?.patients)) return value.patients;
     if (Array.isArray(value?.data)) return value.data;
+    if (Array.isArray(value?.data?.data)) return value.data.data;
     if (Array.isArray(value?.records)) return value.records;
     if (Array.isArray(value?.pets)) return value.pets;
+    if (Array.isArray(value?.history)) return value.history;
+    if (Array.isArray(value?.medical_history)) return value.medical_history;
+    if (Array.isArray(value?.medicalHistory)) return value.medicalHistory;
+    if (Array.isArray(value?.appointments)) return value.appointments;
     return [];
   };
+
+  const getOwnerId = (pet) =>
+    pet?.customer?.id ||
+    pet?.owner?.id ||
+    pet?.customer_id ||
+    pet?.owner_id ||
+    pet?.user_id ||
+    "";
 
   const getOwnerName = (pet) =>
     pet?.customer?.name ||
     pet?.owner?.name ||
     pet?.customer_name ||
     pet?.owner_name ||
-    "Unknown Owner";
+    pet?.client_name ||
+    "Unknown Customer";
 
   const getOwnerEmail = (pet) =>
     pet?.customer?.email ||
     pet?.owner?.email ||
     pet?.customer_email ||
+    pet?.owner_email ||
     pet?.email ||
     "";
 
@@ -55,78 +84,155 @@ const VetCustomerProfiles = () => {
     pet?.customer?.phone ||
     pet?.owner?.phone ||
     pet?.customer_phone ||
+    pet?.owner_phone ||
     pet?.phone ||
+    pet?.contact_number ||
     "";
 
   const getOwnerAddress = (pet) =>
     pet?.customer?.address ||
     pet?.owner?.address ||
     pet?.customer_address ||
+    pet?.owner_address ||
     pet?.address ||
     "";
 
-  const getPetName = (pet) =>
-    pet?.name ||
-    pet?.pet_name ||
-    "Unknown Pet";
+  const getPetName = (pet) => pet?.name || pet?.pet_name || "Unknown Pet";
 
   const getPetSpecies = (pet) =>
-    pet?.species ||
-    pet?.pet_species ||
-    "Unknown";
+    pet?.species || pet?.pet_species || pet?.type || "Unknown";
 
   const getPetBreed = (pet) =>
-    pet?.breed ||
-    pet?.pet_breed ||
-    "Unknown";
+    pet?.breed || pet?.pet_breed || pet?.breed_name || "Unknown";
 
-  const getPetAge = (pet) =>
-    pet?.age ||
-    pet?.pet_age ||
-    "";
+  const getPetAge = (pet) => pet?.age || pet?.pet_age || "";
 
-  const transformPatient = (pet) => ({
-    id: pet?.id || `${getOwnerName(pet)}-${getPetName(pet)}`,
-    owner_id: pet?.customer?.id || pet?.owner?.id || pet?.customer_id || "",
-    name: getOwnerName(pet),
-    email: getOwnerEmail(pet),
-    phone: getOwnerPhone(pet),
-    address: getOwnerAddress(pet),
-    pet_name: getPetName(pet),
-    pet_species: getPetSpecies(pet),
-    pet_breed: getPetBreed(pet),
-    pet_age: getPetAge(pet),
-    pet_status: pet?.status || pet?.health_status || "Active",
+  const getPetGender = (pet) =>
+    pet?.gender || pet?.sex || pet?.pet_gender || "Not specified";
+
+  const getPetStatus = (pet) =>
+    pet?.status || pet?.health_status || pet?.pet_status || "Active";
+
+  const getPetNotes = (pet) =>
+    pet?.notes ||
+    pet?.medical_notes ||
+    pet?.special_needs ||
+    pet?.description ||
+    "No notes available.";
+
+  const formatDate = (value) => {
+    if (!value) return "No date";
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+
+    return date.toLocaleDateString("en-PH", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  };
+
+  const makeCustomerKey = (pet) => {
+    const ownerId = getOwnerId(pet);
+    const email = getOwnerEmail(pet);
+    const phone = getOwnerPhone(pet);
+    const name = getOwnerName(pet);
+
+    if (ownerId) return `owner-${ownerId}`;
+    if (email) return `email-${email.toLowerCase()}`;
+    if (phone) return `phone-${phone}`;
+    return `name-${name.toLowerCase()}`;
+  };
+
+  const transformPet = (pet) => ({
+    id: pet?.id || pet?.pet_id || `${getPetName(pet)}-${getPetSpecies(pet)}`,
+    name: getPetName(pet),
+    species: getPetSpecies(pet),
+    breed: getPetBreed(pet),
+    age: getPetAge(pet),
+    gender: getPetGender(pet),
+    status: getPetStatus(pet),
+    notes: getPetNotes(pet),
+    createdAt: pet?.created_at || pet?.registered_at || "",
+    lastVisit:
+      pet?.last_visit ||
+      pet?.last_appointment_date ||
+      pet?.latest_visit ||
+      pet?.updated_at ||
+      "",
     raw: pet,
   });
 
-  const fetchCustomers = useCallback(async ({ silent = false } = {}) => {
-    try {
-      if (!silent) {
-        setLoading(true);
-      } else {
-        setRefreshing(true);
+  const groupPatientsByCustomer = useCallback((patients) => {
+    const grouped = new Map();
+
+    patients.forEach((pet) => {
+      const key = makeCustomerKey(pet);
+      const existing = grouped.get(key);
+
+      const baseCustomer = {
+        id: getOwnerId(pet) || key,
+        key,
+        name: getOwnerName(pet),
+        email: getOwnerEmail(pet),
+        phone: getOwnerPhone(pet),
+        address: getOwnerAddress(pet),
+        pets: [],
+        raw: pet?.customer || pet?.owner || {},
+      };
+
+      if (!existing) {
+        grouped.set(key, baseCustomer);
       }
 
-      const data = await apiRequest("/veterinary/patients");
-      const patients = safeArray(data);
-      const mappedCustomers = patients.map(transformPatient);
+      const customerRecord = grouped.get(key);
+      const transformedPet = transformPet(pet);
 
-      setCustomers(mappedCustomers);
-      setError("");
-    } catch (err) {
-      console.error("Failed to fetch customers:", err);
-      setError("Failed to load customer profiles. Please try again.");
-      setCustomers([]);
+      const isDuplicatePet = customerRecord.pets.some(
+        (item) => String(item.id) === String(transformedPet.id)
+      );
 
-      if (!silent) {
-        toast.error("Failed to load customer profiles.");
+      if (!isDuplicatePet) {
+        customerRecord.pets.push(transformedPet);
       }
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
+    });
+
+    return Array.from(grouped.values()).sort((a, b) =>
+      a.name.localeCompare(b.name)
+    );
   }, []);
+
+  const fetchCustomers = useCallback(
+    async ({ silent = false } = {}) => {
+      try {
+        if (!silent) {
+          setLoading(true);
+        } else {
+          setRefreshing(true);
+        }
+
+        const data = await apiRequest("/veterinary/patients");
+        const patients = safeArray(data);
+        const groupedCustomers = groupPatientsByCustomer(patients);
+
+        setCustomers(groupedCustomers);
+        setError("");
+      } catch (err) {
+        console.error("Failed to fetch customers:", err);
+        setError("Failed to load customer profiles. Please try again.");
+        setCustomers([]);
+
+        if (!silent) {
+          toast.error("Failed to load customer profiles.");
+        }
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [groupPatientsByCustomer]
+  );
 
   useEffect(() => {
     fetchCustomers({ silent: false });
@@ -138,15 +244,20 @@ const VetCustomerProfiles = () => {
     if (!keyword) return customers;
 
     return customers.filter((customer) => {
+      const petSearchText = customer.pets
+        .map((pet) =>
+          [pet.name, pet.species, pet.breed, pet.age, pet.gender, pet.status]
+            .filter(Boolean)
+            .join(" ")
+        )
+        .join(" ");
+
       const searchableText = [
         customer.name,
         customer.email,
         customer.phone,
         customer.address,
-        customer.pet_name,
-        customer.pet_species,
-        customer.pet_breed,
-        customer.pet_status,
+        petSearchText,
       ]
         .filter(Boolean)
         .join(" ")
@@ -157,17 +268,20 @@ const VetCustomerProfiles = () => {
   }, [customers, searchTerm]);
 
   const stats = useMemo(() => {
-    const uniqueOwners = new Set(
-      customers.map((customer) => customer.owner_id || customer.name)
-    ).size;
+    const totalPets = customers.reduce(
+      (total, customer) => total + customer.pets.length,
+      0
+    );
 
     const speciesCount = new Set(
-      customers.map((customer) => customer.pet_species).filter(Boolean)
+      customers.flatMap((customer) =>
+        customer.pets.map((pet) => pet.species).filter(Boolean)
+      )
     ).size;
 
     return {
-      totalPatients: customers.length,
-      uniqueOwners,
+      totalCustomers: customers.length,
+      totalPets,
       speciesCount,
     };
   }, [customers]);
@@ -175,6 +289,63 @@ const VetCustomerProfiles = () => {
   const handleRefresh = () => {
     fetchCustomers({ silent: true });
     toast.success("Customer profiles refreshed.");
+  };
+
+  const getCustomerInitials = (name) => {
+    const parts = String(name || "?")
+      .trim()
+      .split(" ")
+      .filter(Boolean);
+
+    if (parts.length === 0) return "?";
+    if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+
+    return `${parts[0].charAt(0)}${parts[parts.length - 1].charAt(0)}`.toUpperCase();
+  };
+
+  const openMedicalHistory = async (pet) => {
+    setSelectedPetHistory(pet);
+    setMedicalHistory([]);
+    setHistoryError("");
+    setHistoryLoading(true);
+
+    try {
+      const result = await apiRequest(`/veterinary/pets/${pet.id}/medical-history`);
+      const records = safeArray(result).map((record, index) => ({
+        id: record?.id || index + 1,
+        date:
+          record?.date ||
+          record?.visit_date ||
+          record?.appointment_date ||
+          record?.created_at ||
+          "",
+        title:
+          record?.title ||
+          record?.service_name ||
+          record?.diagnosis ||
+          record?.type ||
+          "Medical Record",
+        diagnosis: record?.diagnosis || record?.condition || "No diagnosis stated.",
+        treatment: record?.treatment || record?.procedure || record?.notes || "",
+        veterinarian:
+          record?.veterinarian?.name ||
+          record?.vet_name ||
+          record?.doctor ||
+          record?.handled_by ||
+          "Veterinary Staff",
+        remarks: record?.remarks || record?.notes || record?.description || "",
+      }));
+
+      setMedicalHistory(records);
+    } catch (err) {
+      console.error("Failed to fetch medical history:", err);
+      setHistoryError(
+        "Medical history endpoint is not available yet, or no records were found for this pet."
+      );
+      setMedicalHistory([]);
+    } finally {
+      setHistoryLoading(false);
+    }
   };
 
   if (loading) {
@@ -194,16 +365,17 @@ const VetCustomerProfiles = () => {
         <div className="vet-profiles-hero-copy">
           <span className="vet-profiles-eyebrow">
             <FontAwesomeIcon icon={faIdCard} />
-            Veterinary Records
+            Veterinary Customer Records
           </span>
 
           <h2 className="premium-title">
-            <FontAwesomeIcon icon={faUser} />
+            <FontAwesomeIcon icon={faUsers} />
             Customer Profiles
           </h2>
 
           <p className="premium-muted">
-            View customer details, pet records, contact information, and patient ownership data.
+            Browse customers first, then open a complete profile with owner information,
+            registered pets, patient details, and medical history access.
           </p>
         </div>
 
@@ -228,21 +400,21 @@ const VetCustomerProfiles = () => {
       <div className="vet-profile-stats">
         <article className="premium-card vet-profile-stat-card">
           <span>
-            <FontAwesomeIcon icon={faPaw} />
+            <FontAwesomeIcon icon={faUsers} />
           </span>
           <div>
-            <h3>{stats.totalPatients}</h3>
-            <p>Total Patients</p>
+            <h3>{stats.totalCustomers}</h3>
+            <p>Total Customers</p>
           </div>
         </article>
 
         <article className="premium-card vet-profile-stat-card">
           <span>
-            <FontAwesomeIcon icon={faUsers} />
+            <FontAwesomeIcon icon={faPaw} />
           </span>
           <div>
-            <h3>{stats.uniqueOwners}</h3>
-            <p>Pet Owners</p>
+            <h3>{stats.totalPets}</h3>
+            <p>Registered Pets</p>
           </div>
         </article>
 
@@ -262,7 +434,7 @@ const VetCustomerProfiles = () => {
           <FontAwesomeIcon icon={faSearch} />
           <input
             type="text"
-            placeholder="Search by owner, email, phone, address, pet, species, or breed..."
+            placeholder="Search customer, email, phone, address, pet name, species, or breed..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -281,26 +453,26 @@ const VetCustomerProfiles = () => {
 
         <div className="vet-search-meta">
           Showing <strong>{filteredCustomers.length}</strong> of{" "}
-          <strong>{customers.length}</strong> profiles
+          <strong>{customers.length}</strong> customers
         </div>
       </div>
 
       {filteredCustomers.length === 0 ? (
         <div className="premium-card vet-empty-state">
           <FontAwesomeIcon icon={faUser} />
-          <h3>No customer profiles found</h3>
+          <h3>No customers found</h3>
           <p>
             {searchTerm
-              ? "Try another owner name, pet name, email, phone, species, or breed."
-              : "Patient records will appear here once available."}
+              ? "Try another customer name, pet name, email, phone, species, or breed."
+              : "Customer records will appear here once patient data is available."}
           </p>
         </div>
       ) : (
         <div className="vet-customer-list">
           {filteredCustomers.map((customer) => (
-            <article key={customer.id} className="premium-card vet-customer-card">
+            <article key={customer.key} className="premium-card vet-customer-card">
               <div className="vet-customer-avatar">
-                {customer.name?.charAt(0)?.toUpperCase() || "?"}
+                {getCustomerInitials(customer.name)}
               </div>
 
               <div className="vet-customer-info">
@@ -309,15 +481,13 @@ const VetCustomerProfiles = () => {
                     <h3>{customer.name}</h3>
                     <p className="pet-line">
                       <FontAwesomeIcon icon={faPaw} />
-                      {customer.pet_name || "Unknown Pet"} •{" "}
-                      {customer.pet_species || "Unknown"} •{" "}
-                      {customer.pet_breed || "Unknown"}
-                      {customer.pet_age ? ` • ${customer.pet_age}` : ""}
+                      {customer.pets.length} registered pet
+                      {customer.pets.length === 1 ? "" : "s"}
                     </p>
                   </div>
 
                   <span className="vet-patient-badge">
-                    {customer.pet_status || "Active"}
+                    Customer Record
                   </span>
                 </div>
 
@@ -337,6 +507,19 @@ const VetCustomerProfiles = () => {
                     {customer.address || "No address"}
                   </p>
                 </div>
+
+                <div className="vet-customer-pet-preview">
+                  {customer.pets.slice(0, 4).map((pet) => (
+                    <span key={pet.id}>
+                      <FontAwesomeIcon icon={faPaw} />
+                      {pet.name}
+                    </span>
+                  ))}
+
+                  {customer.pets.length > 4 && (
+                    <span>+{customer.pets.length - 4} more</span>
+                  )}
+                </div>
               </div>
 
               <button
@@ -345,7 +528,7 @@ const VetCustomerProfiles = () => {
                 onClick={() => setSelectedProfile(customer)}
               >
                 <FontAwesomeIcon icon={faEye} />
-                View
+                View Profile
               </button>
             </article>
           ))}
@@ -365,10 +548,13 @@ const VetCustomerProfiles = () => {
               <div>
                 <span className="vet-profiles-eyebrow">
                   <FontAwesomeIcon icon={faIdCard} />
-                  Profile Details
+                  Customer Profile
                 </span>
                 <h3>{selectedProfile.name}</h3>
-                <p>{selectedProfile.pet_name}</p>
+                <p>
+                  {selectedProfile.pets.length} registered pet
+                  {selectedProfile.pets.length === 1 ? "" : "s"}
+                </p>
               </div>
 
               <button
@@ -381,13 +567,20 @@ const VetCustomerProfiles = () => {
             </div>
 
             <div className="vet-profile-modal-body">
-              <div className="modal-profile-avatar">
-                {selectedProfile.name?.charAt(0)?.toUpperCase() || "?"}
+              <div className="modal-profile-summary">
+                <div className="modal-profile-avatar">
+                  {getCustomerInitials(selectedProfile.name)}
+                </div>
+
+                <div>
+                  <h4>{selectedProfile.name}</h4>
+                  <p>Customer / Pet Owner</p>
+                </div>
               </div>
 
               <div className="modal-profile-grid">
                 <div>
-                  <small>Owner</small>
+                  <small>Customer Name</small>
                   <strong>{selectedProfile.name}</strong>
                 </div>
 
@@ -405,19 +598,93 @@ const VetCustomerProfiles = () => {
                   <small>Address</small>
                   <strong>{selectedProfile.address || "No address"}</strong>
                 </div>
+              </div>
 
-                <div>
-                  <small>Pet Name</small>
-                  <strong>{selectedProfile.pet_name || "Unknown Pet"}</strong>
+              <div className="vet-pets-section">
+                <div className="vet-pets-section-header">
+                  <div>
+                    <span className="vet-profiles-eyebrow">
+                      <FontAwesomeIcon icon={faShieldDog} />
+                      Registered Pets
+                    </span>
+                    <h4>Pets Under This Customer</h4>
+                  </div>
+
+                  <span className="vet-patient-badge">
+                    {selectedProfile.pets.length} pet
+                    {selectedProfile.pets.length === 1 ? "" : "s"}
+                  </span>
                 </div>
 
-                <div>
-                  <small>Pet Info</small>
-                  <strong>
-                    {selectedProfile.pet_species || "Unknown"} •{" "}
-                    {selectedProfile.pet_breed || "Unknown"}
-                    {selectedProfile.pet_age ? ` • ${selectedProfile.pet_age}` : ""}
-                  </strong>
+                <div className="vet-pet-profile-list">
+                  {selectedProfile.pets.map((pet) => (
+                    <article key={pet.id} className="vet-pet-profile-card">
+                      <div className="vet-pet-profile-header">
+                        <div className="vet-pet-icon">
+                          <FontAwesomeIcon icon={faPaw} />
+                        </div>
+
+                        <div>
+                          <h5>{pet.name}</h5>
+                          <p>
+                            {pet.species || "Unknown"} • {pet.breed || "Unknown"}
+                          </p>
+                        </div>
+
+                        <span className="vet-pet-status">{pet.status}</span>
+                      </div>
+
+                      <div className="vet-pet-info-grid">
+                        <div>
+                          <small>Species</small>
+                          <strong>{pet.species || "Unknown"}</strong>
+                        </div>
+
+                        <div>
+                          <small>Breed</small>
+                          <strong>{pet.breed || "Unknown"}</strong>
+                        </div>
+
+                        <div>
+                          <small>Age</small>
+                          <strong>{pet.age || "Not specified"}</strong>
+                        </div>
+
+                        <div>
+                          <small>Gender</small>
+                          <strong>{pet.gender || "Not specified"}</strong>
+                        </div>
+
+                        <div>
+                          <small>Last Visit</small>
+                          <strong>
+                            {pet.lastVisit ? formatDate(pet.lastVisit) : "No visit recorded"}
+                          </strong>
+                        </div>
+
+                        <div>
+                          <small>Registered</small>
+                          <strong>
+                            {pet.createdAt ? formatDate(pet.createdAt) : "No date"}
+                          </strong>
+                        </div>
+                      </div>
+
+                      <div className="vet-pet-notes">
+                        <FontAwesomeIcon icon={faNotesMedical} />
+                        <span>{pet.notes || "No notes available."}</span>
+                      </div>
+
+                      <button
+                        type="button"
+                        className="vet-medical-history-btn"
+                        onClick={() => openMedicalHistory(pet)}
+                      >
+                        <FontAwesomeIcon icon={faFileMedical} />
+                        View Medical History
+                      </button>
+                    </article>
+                  ))}
                 </div>
               </div>
             </div>
@@ -430,6 +697,103 @@ const VetCustomerProfiles = () => {
               >
                 Close
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {selectedPetHistory && (
+        <div
+          className="vet-history-modal-overlay"
+          onClick={() => setSelectedPetHistory(null)}
+        >
+          <div
+            className="vet-history-modal"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="vet-profile-modal-header">
+              <div>
+                <span className="vet-profiles-eyebrow">
+                  <FontAwesomeIcon icon={faHeartPulse} />
+                  Medical History
+                </span>
+                <h3>{selectedPetHistory.name}</h3>
+                <p>
+                  {selectedPetHistory.species} • {selectedPetHistory.breed}
+                </p>
+              </div>
+
+              <button
+                className="vet-modal-close"
+                type="button"
+                onClick={() => setSelectedPetHistory(null)}
+              >
+                <FontAwesomeIcon icon={faXmark} />
+              </button>
+            </div>
+
+            <div className="vet-history-modal-body">
+              <button
+                type="button"
+                className="vet-history-back-btn"
+                onClick={() => setSelectedPetHistory(null)}
+              >
+                <FontAwesomeIcon icon={faArrowLeft} />
+                Back to Profile
+              </button>
+
+              {historyLoading ? (
+                <div className="vet-history-state">
+                  <FontAwesomeIcon icon={faSpinner} className="spin-animation" />
+                  <span>Loading medical history...</span>
+                </div>
+              ) : historyError ? (
+                <div className="vet-history-state warning">
+                  <FontAwesomeIcon icon={faExclamationTriangle} />
+                  <span>{historyError}</span>
+                </div>
+              ) : medicalHistory.length === 0 ? (
+                <div className="vet-history-state">
+                  <FontAwesomeIcon icon={faStethoscope} />
+                  <span>No medical history found for this pet.</span>
+                </div>
+              ) : (
+                <div className="vet-history-timeline">
+                  {medicalHistory.map((record) => (
+                    <article key={record.id} className="vet-history-item">
+                      <div className="vet-history-date">
+                        <FontAwesomeIcon icon={faCalendarCheck} />
+                        {formatDate(record.date)}
+                      </div>
+
+                      <div className="vet-history-content">
+                        <h4>{record.title}</h4>
+
+                        <div className="vet-history-grid">
+                          <div>
+                            <small>Diagnosis</small>
+                            <strong>{record.diagnosis}</strong>
+                          </div>
+
+                          <div>
+                            <small>Treatment</small>
+                            <strong>{record.treatment || "No treatment stated."}</strong>
+                          </div>
+
+                          <div>
+                            <small>Veterinarian</small>
+                            <strong>{record.veterinarian}</strong>
+                          </div>
+                        </div>
+
+                        {record.remarks && (
+                          <p className="vet-history-remarks">{record.remarks}</p>
+                        )}
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -7,6 +7,7 @@ use App\Models\Appointment;
 use App\Models\Customer;
 use App\Models\InventoryItem;
 use App\Models\Pet;
+use App\Models\Payroll;
 use App\Models\Sale;
 use App\Models\User;
 use Illuminate\Database\Query\Builder;
@@ -17,10 +18,60 @@ use Illuminate\Support\Facades\Schema;
 
 class ReportsController extends Controller
 {
-    public function sales()
+    public function sales(Request $request)
     {
+        $query = $this->dateRange(DB::table('sales'), $request);
+
+        $this->applyExactFilter($query, $request, 'status', 'sales.status');
+
+        $salesperson = $request->query('salesperson_id') ?: $request->query('cashier_id');
+        if ($salesperson && $salesperson !== 'all' && Schema::hasColumn('sales', 'cashier_id')) {
+            $query->where('sales.cashier_id', $salesperson);
+        }
+
+        $search = trim((string) $request->query('search', ''));
+        if ($search !== '') {
+            $query->where(function ($nested) use ($search) {
+                foreach (['transaction_number', 'type', 'payment_type', 'payment_method', 'notes'] as $column) {
+                    if (Schema::hasColumn('sales', $column)) {
+                        $nested->orWhere("sales.$column", 'like', "%$search%");
+                    }
+                }
+            });
+        }
+
+        $rows = $query
+            ->leftJoin('users as cashiers', 'cashiers.id', '=', 'sales.cashier_id')
+            ->select([
+                'sales.*',
+                DB::raw('COALESCE(cashiers.name, "Unassigned") as salesperson_name'),
+                DB::raw('DATE(sales.created_at) as date'),
+            ])
+            ->latest('sales.created_at')
+            ->limit($request->integer('limit', 500))
+            ->get();
+
+        $trend = $rows->groupBy('date')->map(fn ($group, $date) => [
+            'date' => $date,
+            'revenue' => (float) $group->sum(fn ($sale) => (float) ($sale->amount ?? $sale->total_amount ?? 0)),
+            'orders' => $group->count(),
+        ])->values();
+
         return response()->json([
-            'sales' => Sale::latest()->get(),
+            'success' => true,
+            'data' => [
+                'summary' => [
+                    'total_revenue' => (float) $rows->sum(fn ($sale) => (float) ($sale->amount ?? $sale->total_amount ?? 0)),
+                    'total_orders' => $rows->count(),
+                    'completed_orders' => $rows->where('status', 'completed')->count(),
+                    'pending_orders' => $rows->where('status', 'pending')->count(),
+                ],
+                'sales' => $rows,
+                'transactions' => $rows,
+                'trend' => $trend,
+                'salespeople' => User::whereIn('role', ['cashier', 'admin', 'manager'])->orderBy('name')->get(['id', 'name', 'role']),
+                'generated_at' => now()->toIso8601String(),
+            ],
         ]);
     }
 
@@ -67,7 +118,7 @@ class ReportsController extends Controller
             ]);
 
         return response()->json([
-            'status' => 'success',
+            'success' => true,
             'timestamp' => now()->toIso8601String(),
             'data' => [
                 'total_revenue' => Sale::sum('amount'),
@@ -93,10 +144,13 @@ class ReportsController extends Controller
     public function overview(Request $request)
     {
         return response()->json([
-            'status' => 'success',
+            'success' => true,
             'data' => [
                 'summary' => $this->overviewMetrics($request),
                 'recent_actions' => $this->recentActions($request),
+                'transactions' => $this->overviewTransactions($request),
+                'appointments' => $this->overviewAppointments($request),
+                'users' => $this->overviewUsers($request),
             ],
         ]);
     }
@@ -131,7 +185,7 @@ class ReportsController extends Controller
         $paidOrderRevenue = (clone $orders)->where('payment_status', 'paid')->sum('total_amount');
 
         return response()->json([
-            'status' => 'success',
+            'success' => true,
             'data' => [
                 'summary' => [
                     'total_revenue' => (float) $paidOrderRevenue + (float) $posRevenue,
@@ -174,7 +228,7 @@ class ReportsController extends Controller
         $topBrand = $this->topBrand($request);
 
         return response()->json([
-            'status' => 'success',
+            'success' => true,
             'data' => [
                 'summary' => [
                     'total_items' => (clone $items)->count(),
@@ -196,7 +250,7 @@ class ReportsController extends Controller
     public function manager(Request $request)
     {
         return response()->json([
-            'status' => 'success',
+            'success' => true,
             'data' => [
                 'summary' => array_merge($this->overviewMetrics($request), [
                     'inventory_value' => (float) $this->inventoryItemsBase($request)->sum(DB::raw('stock * price')),
@@ -217,7 +271,7 @@ class ReportsController extends Controller
         $serviceBreakdown = $this->serviceBreakdown($request);
 
         return response()->json([
-            'status' => 'success',
+            'success' => true,
             'data' => [
                 'summary' => [
                     'completed_appointments' => $completed,
@@ -243,7 +297,7 @@ class ReportsController extends Controller
         $customerUsers = $this->customerUsersBase($request);
 
         return response()->json([
-            'status' => 'success',
+            'success' => true,
             'data' => [
                 'summary' => [
                     'total_customers' => (clone $customers)->count() + (clone $customerUsers)->count(),
@@ -266,7 +320,7 @@ class ReportsController extends Controller
     public function reception(Request $request)
     {
         return response()->json([
-            'status' => 'success',
+            'success' => true,
             'data' => [
                 'summary' => [
                     'pending_requests' => $this->serviceRequestsBase($request)->where('status', 'pending')->count()
@@ -283,6 +337,352 @@ class ReportsController extends Controller
                 'orders' => $this->customerOrdersBase($request)->latest('created_at')->limit(250)->get(),
                 'requests_per_day' => $this->requestsPerDay($request),
                 'receptionist_activity' => $this->recentActions($request, ['order', 'service_request', 'appointment']),
+            ],
+        ]);
+    }
+
+    public function payrollReports(Request $request)
+    {
+        $query = Payroll::with('user');
+
+        $period = $request->query('period', 'monthly');
+        $from = match ($period) {
+            'weekly' => now()->subWeek(),
+            'quarterly' => now()->subQuarter(),
+            'yearly' => now()->subYear(),
+            default => now()->subMonth(),
+        };
+
+        $query->where('created_at', '>=', $from);
+        $this->applyDateRange($query->getQuery(), $request, 'payrolls.created_at');
+
+        $department = $request->query('department');
+        if ($department && $department !== 'all') {
+            $query->where('department', $department);
+        }
+
+        $payrolls = $query->latest('pay_period_start')->get();
+        $totalPayroll = (float) $payrolls->sum(fn (Payroll $payroll) => (float) ($payroll->net_pay ?: $payroll->gross_pay ?: $payroll->base_salary));
+        $totalEmployees = $payrolls->pluck('user_id')->unique()->count();
+        $totalBonuses = (float) $payrolls->sum('bonus');
+        $totalDeductions = (float) $payrolls->sum('deductions');
+
+        $departmentBreakdown = $payrolls
+            ->groupBy(fn (Payroll $payroll) => $payroll->department ?: 'Unassigned')
+            ->map(function ($group, $departmentName) use ($totalPayroll) {
+                $departmentPayroll = (float) $group->sum(fn (Payroll $payroll) => (float) ($payroll->net_pay ?: $payroll->gross_pay ?: $payroll->base_salary));
+                $employees = $group->pluck('user_id')->unique()->count();
+
+                return [
+                    'department' => $departmentName,
+                    'employees' => $employees,
+                    'totalSalary' => round($departmentPayroll, 2),
+                    'average' => $employees > 0 ? round($departmentPayroll / $employees, 2) : 0,
+                    'percentage' => $totalPayroll > 0 ? round(($departmentPayroll / $totalPayroll) * 100, 1) : 0,
+                ];
+            })
+            ->values();
+
+        $monthlyTrend = Payroll::query()
+            ->where('created_at', '>=', now()->subMonths(11)->startOfMonth())
+            ->get()
+            ->groupBy(fn (Payroll $payroll) => Carbon::parse($payroll->created_at)->format('M Y'))
+            ->map(fn ($group, $month) => [
+                'month' => $month,
+                'payroll' => round((float) $group->sum(fn (Payroll $payroll) => (float) ($payroll->net_pay ?: $payroll->gross_pay ?: $payroll->base_salary)), 2),
+                'employees' => $group->pluck('user_id')->unique()->count(),
+            ])
+            ->values();
+
+        $topEarners = $payrolls
+            ->sortByDesc(fn (Payroll $payroll) => (float) ($payroll->net_pay ?: $payroll->gross_pay ?: $payroll->base_salary))
+            ->take(10)
+            ->map(fn (Payroll $payroll) => [
+                'id' => $payroll->id,
+                'name' => $payroll->user?->name ?? 'Unknown Employee',
+                'position' => $payroll->position ?: 'Staff',
+                'department' => $payroll->department ?: 'Unassigned',
+                'salary' => (float) ($payroll->net_pay ?: $payroll->gross_pay ?: $payroll->base_salary),
+                'payPeriod' => $payroll->pay_period_label,
+            ])
+            ->values();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'summary' => [
+                    'total_payroll' => round($totalPayroll, 2),
+                    'total_employees' => $totalEmployees,
+                    'average_salary' => $totalEmployees > 0 ? round($totalPayroll / $totalEmployees, 2) : 0,
+                    'total_bonuses' => round($totalBonuses, 2),
+                    'total_deductions' => round($totalDeductions, 2),
+                    'payroll_growth' => 0,
+                ],
+                'departmentBreakdown' => $departmentBreakdown,
+                'monthlyTrend' => $monthlyTrend,
+                'topEarners' => $topEarners,
+                'payrolls' => $payrolls,
+            ],
+            'generated_at' => now()->toIso8601String(),
+        ]);
+    }
+
+    public function payments(Request $request)
+    {
+        $payments = collect();
+
+        if ($this->tableExists('payments')) {
+            $query = $this->dateRange(DB::table('payments'), $request, 'payments.created_at')
+                ->leftJoin('sales', 'sales.id', '=', 'payments.sale_id')
+                ->select([
+                    'payments.id',
+                    'payments.payment_number',
+                    DB::raw($this->columnSelect('payments', 'payment_method', 'payments.method', 'payment_method')),
+                    'payments.reference_number',
+                    'payments.amount',
+                    'payments.status',
+                    'payments.paid_at',
+                    'payments.created_at',
+                    DB::raw('"Walk-in" as customer_name'),
+                    DB::raw('sales.transaction_number as associated_record'),
+                    DB::raw('"sale" as association_type'),
+                ]);
+
+            $this->applyExactFilter($query, $request, 'status', 'payments.status');
+            $this->applyExactFilter($query, $request, 'payment_status', 'payments.status');
+
+            $payments = $payments->concat($query->latest('payments.created_at')->limit(500)->get());
+        }
+
+        if ($this->tableExists('customer_orders')) {
+            $orderQuery = $this->dateRange(DB::table('customer_orders'), $request, 'customer_orders.created_at');
+            $paymentStatus = $request->query('payment_status') ?: $request->query('status');
+            if ($paymentStatus && $paymentStatus !== 'all') {
+                $orderQuery->where('customer_orders.payment_status', $paymentStatus);
+            }
+            $search = trim((string) $request->query('search', ''));
+            if ($search !== '') {
+                $orderQuery->where(function ($nested) use ($search) {
+                    foreach (['customer_name', 'customer_email', 'receipt_number', 'payment_reference'] as $column) {
+                        if (Schema::hasColumn('customer_orders', $column)) {
+                            $nested->orWhere("customer_orders.$column", 'like', "%$search%");
+                        }
+                    }
+                });
+            }
+
+            $orders = $orderQuery
+                ->select([
+                    'customer_orders.id',
+                    DB::raw('CONCAT("ORDER-", customer_orders.id) as payment_number'),
+                    'customer_orders.payment_method',
+                    'customer_orders.payment_reference as reference_number',
+                    'customer_orders.total_amount as amount',
+                    'customer_orders.payment_status as status',
+                    'customer_orders.paid_at',
+                    'customer_orders.created_at',
+                    DB::raw('COALESCE(customer_orders.customer_name, customer_orders.customer_email, CONCAT("Customer #", customer_orders.customer_id)) as customer_name'),
+                    DB::raw('CONCAT("Order #", customer_orders.id) as associated_record'),
+                    DB::raw('"order" as association_type'),
+                ])
+                ->latest('customer_orders.created_at')
+                ->limit(500)
+                ->get();
+            $payments = $payments->concat($orders);
+        }
+
+        if ($this->tableExists('service_requests')) {
+            $requestQuery = $this->dateRange(DB::table('service_requests'), $request, 'service_requests.created_at');
+            $paymentStatus = $request->query('payment_status') ?: $request->query('status');
+            if ($paymentStatus && $paymentStatus !== 'all' && Schema::hasColumn('service_requests', 'payment_status')) {
+                $requestQuery->where('service_requests.payment_status', $paymentStatus);
+            }
+            $search = trim((string) $request->query('search', ''));
+            if ($search !== '') {
+                $requestQuery->where(function ($nested) use ($search) {
+                    foreach (['customer_name', 'customer_email', 'pet_name', 'service_name'] as $column) {
+                        if (Schema::hasColumn('service_requests', $column)) {
+                            $nested->orWhere("service_requests.$column", 'like', "%$search%");
+                        }
+                    }
+                });
+            }
+
+            $requests = $requestQuery
+                ->select([
+                    'service_requests.id',
+                    DB::raw('CONCAT("SERVICE-", service_requests.id) as payment_number'),
+                    'service_requests.payment_method',
+                    'service_requests.payment_reference as reference_number',
+                    DB::raw($this->firstAvailableColumn('service_requests', ['total_amount', 'price', 'service_price'], '0') . ' as amount'),
+                    'service_requests.payment_status as status',
+                    'service_requests.paid_at',
+                    'service_requests.created_at',
+                    DB::raw('COALESCE(service_requests.customer_name, service_requests.customer_email, "Customer") as customer_name'),
+                    DB::raw('COALESCE(service_requests.service_name, service_requests.service_type, service_requests.request_type, CONCAT("Service #", service_requests.id)) as associated_record'),
+                    DB::raw('"service_request" as association_type'),
+                ])
+                ->latest('service_requests.created_at')
+                ->limit(500)
+                ->get();
+            $payments = $payments->concat($requests);
+        }
+
+        $payments = $payments->sortByDesc('created_at')->values();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'summary' => [
+                    'total_payments' => $payments->count(),
+                    'total_amount' => (float) $payments->sum(fn ($payment) => (float) $payment->amount),
+                    'paid' => $payments->whereIn('status', ['paid', 'completed', 'verified'])->count(),
+                    'pending' => $payments->where('status', 'pending')->count(),
+                    'rejected' => $payments->where('status', 'rejected')->count(),
+                ],
+                'payments' => $payments,
+                'generated_at' => now()->toIso8601String(),
+            ],
+        ]);
+    }
+
+    public function orders(Request $request)
+    {
+        $orders = $this->customerOrdersBase($request)
+            ->select([
+                'customer_orders.*',
+                DB::raw('COALESCE(customer_orders.customer_name, customer_orders.customer_email, CONCAT("Customer #", customer_orders.customer_id)) as customer_display'),
+            ])
+            ->latest('customer_orders.created_at')
+            ->limit(500)
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'summary' => [
+                    'total_orders' => $orders->count(),
+                    'completed_orders' => $orders->whereIn('status', ['completed', 'approved'])->count(),
+                    'pending_orders' => $orders->where('status', 'pending')->count(),
+                    'cancelled_orders' => $orders->whereIn('status', ['cancelled', 'rejected'])->count(),
+                    'total_revenue' => (float) $orders->whereIn('payment_status', ['paid', 'completed', 'verified'])->sum('total_amount'),
+                ],
+                'orders' => $orders,
+                'generated_at' => now()->toIso8601String(),
+            ],
+        ]);
+    }
+
+    public function serviceRequests(Request $request)
+    {
+        $requests = collect();
+
+        if ($this->tableExists('service_requests')) {
+            $requests = $requests->concat($this->serviceRequestsBase($request)
+                ->select([
+                    'service_requests.id',
+                    DB::raw('COALESCE(service_requests.service_type, service_requests.request_type, "service") as service_type'),
+                    DB::raw('COALESCE(service_requests.service_name, service_requests.service_type, service_requests.request_type, "Service Request") as service_name'),
+                    'service_requests.customer_name',
+                    'service_requests.customer_email',
+                    'service_requests.pet_name',
+                    'service_requests.status',
+                    'service_requests.payment_status',
+                    'service_requests.created_at',
+                    DB::raw('"service_request" as source'),
+                ])
+                ->latest('service_requests.created_at')
+                ->limit(500)
+                ->get());
+        }
+
+        if ($this->tableExists('appointments')) {
+            $appointments = $this->appointmentsBase($request)
+                ->leftJoin('services', 'services.id', '=', 'appointments.service_id')
+                ->leftJoin('customers', 'customers.id', '=', 'appointments.customer_id')
+                ->leftJoin('pets', 'pets.id', '=', 'appointments.pet_id')
+                ->select([
+                    'appointments.id',
+                    DB::raw('COALESCE(services.category, "vet") as service_type'),
+                    DB::raw('COALESCE(services.name, "Veterinary Appointment") as service_name'),
+                    DB::raw('customers.name as customer_name'),
+                    DB::raw('customers.email as customer_email'),
+                    DB::raw('pets.name as pet_name'),
+                    'appointments.status',
+                    DB::raw('NULL as payment_status'),
+                    'appointments.created_at',
+                    DB::raw('"appointment" as source'),
+                ])
+                ->latest('appointments.created_at')
+                ->limit(500)
+                ->get();
+            $requests = $requests->concat($appointments);
+        }
+
+        if ($this->tableExists('boardings')) {
+            $boardings = $this->dateRange(DB::table('boardings'), $request, 'boardings.created_at')
+                ->leftJoin('pets', 'pets.id', '=', 'boardings.pet_id')
+                ->leftJoin('customers', 'customers.id', '=', 'pets.customer_id')
+                ->select([
+                    'boardings.id',
+                    DB::raw('"hotel" as service_type'),
+                    DB::raw('"Pet Hotel Boarding" as service_name'),
+                    DB::raw('customers.name as customer_name'),
+                    DB::raw('customers.email as customer_email'),
+                    DB::raw('pets.name as pet_name'),
+                    'boardings.status',
+                    DB::raw($this->columnSelect('boardings', 'payment_status', 'NULL', 'payment_status')),
+                    'boardings.created_at',
+                    DB::raw('"boarding" as source'),
+                ])
+                ->latest('boardings.created_at')
+                ->limit(500)
+                ->get();
+            $requests = $requests->concat($boardings);
+        }
+
+        $requests = $requests->sortByDesc('created_at')->values();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'summary' => [
+                    'total_requests' => $requests->count(),
+                    'pending' => $requests->where('status', 'pending')->count(),
+                    'completed' => $requests->whereIn('status', ['completed', 'checked_out'])->count(),
+                    'cancelled' => $requests->whereIn('status', ['cancelled', 'rejected'])->count(),
+                    'in_progress' => $requests->whereIn('status', ['approved', 'scheduled', 'confirmed', 'checked_in'])->count(),
+                ],
+                'requests' => $requests,
+                'generated_at' => now()->toIso8601String(),
+            ],
+        ]);
+    }
+
+    public function logistics(Request $request)
+    {
+        $candidateTables = ['shipments', 'deliveries', 'logistics'];
+        $table = collect($candidateTables)->first(fn ($candidate) => $this->tableExists($candidate));
+        $shipments = collect();
+
+        if ($table) {
+            $query = $this->dateRange(DB::table($table), $request, "$table.created_at");
+            $this->applyExactFilter($query, $request, 'status', "$table.status");
+            $shipments = $query->latest("$table.created_at")->limit(500)->get();
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'summary' => [
+                    'total_shipments' => $shipments->count(),
+                    'delayed_shipments' => $shipments->whereIn('status', ['delayed', 'late'])->count(),
+                    'completed_deliveries' => $shipments->whereIn('status', ['delivered', 'completed'])->count(),
+                    'returned_shipments' => $shipments->whereIn('status', ['returned', 'return'])->count(),
+                    'source_table' => $table,
+                ],
+                'shipments' => $shipments,
+                'generated_at' => now()->toIso8601String(),
             ],
         ]);
     }
@@ -455,6 +855,62 @@ class ReportsController extends Controller
     {
         return $this->dateRange(DB::table('sales'), $request)
             ->latest('created_at')
+            ->limit(250)
+            ->get();
+    }
+
+    private function overviewTransactions(Request $request)
+    {
+        return $this->dateRange(DB::table('sales'), $request, 'sales.created_at')
+            ->select([
+                'sales.id',
+                DB::raw('COALESCE(sales.transaction_number, CONCAT("SALE-", sales.id)) as transaction_number'),
+                DB::raw('"Walk-in" as customer'),
+                DB::raw($this->firstAvailableColumn('sales', ['type', 'payment_type', 'payment_method'], '"Sale"') . ' as type'),
+                DB::raw($this->firstAvailableColumn('sales', ['amount', 'total_amount'], '0') . ' as amount'),
+                DB::raw($this->firstAvailableColumn('sales', ['status'], '"completed"') . ' as status'),
+                DB::raw('DATE(sales.created_at) as date'),
+                'sales.created_at',
+            ])
+            ->latest('sales.created_at')
+            ->limit(250)
+            ->get();
+    }
+
+    private function overviewAppointments(Request $request)
+    {
+        return $this->appointmentsBase($request)
+            ->leftJoin('services', 'services.id', '=', 'appointments.service_id')
+            ->leftJoin('customers', 'customers.id', '=', 'appointments.customer_id')
+            ->leftJoin('pets', 'pets.id', '=', 'appointments.pet_id')
+            ->select([
+                'appointments.id',
+                DB::raw('COALESCE(customers.name, "Unknown Customer") as customer'),
+                DB::raw('COALESCE(services.name, "Appointment") as service'),
+                DB::raw('COALESCE(pets.name, "Pet") as pet'),
+                DB::raw($this->firstAvailableColumn('appointments', ['status'], '"scheduled"') . ' as status'),
+                DB::raw($this->firstAvailableColumn('appointments', ['price'], '0') . ' as amount'),
+                DB::raw('DATE(COALESCE(appointments.scheduled_at, appointments.created_at)) as date'),
+                'appointments.created_at',
+            ])
+            ->latest('appointments.created_at')
+            ->limit(250)
+            ->get();
+    }
+
+    private function overviewUsers(Request $request)
+    {
+        return $this->dateRange(DB::table('users'), $request, 'users.created_at')
+            ->select([
+                'users.id',
+                'users.name',
+                'users.email',
+                'users.role',
+                DB::raw($this->firstAvailableColumn('users', ['is_active'], '1') . ' as is_active'),
+                DB::raw('DATE(users.created_at) as date'),
+                'users.created_at',
+            ])
+            ->latest('users.created_at')
             ->limit(250)
             ->get();
     }
@@ -656,10 +1112,13 @@ class ReportsController extends Controller
 
     private function applyDateRange(Builder $query, Request $request, string $column): void
     {
-        if ($from = $request->query('from')) {
+        $from = $request->query('from') ?: $request->query('start_date') ?: $request->query('startDate');
+        $to = $request->query('to') ?: $request->query('end_date') ?: $request->query('endDate');
+
+        if ($from) {
             $query->whereDate($column, '>=', $from);
         }
-        if ($to = $request->query('to')) {
+        if ($to) {
             $query->whereDate($column, '<=', $to);
         }
     }
@@ -686,6 +1145,17 @@ class ReportsController extends Controller
         }
 
         return "$fallback as $alias";
+    }
+
+    private function firstAvailableColumn(string $table, array $columns, string $fallback): string
+    {
+        foreach ($columns as $column) {
+            if (Schema::hasColumn($table, $column)) {
+                return "$table.$column";
+            }
+        }
+
+        return $fallback;
     }
 
     private function tableExists(string $table): bool

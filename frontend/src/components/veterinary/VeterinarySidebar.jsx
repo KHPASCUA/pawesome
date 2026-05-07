@@ -18,7 +18,12 @@ import "./VeterinarySidebar.css";
 
 const VeterinarySidebar = ({ collapsed, onToggleCollapse }) => {
   const handleLogout = () => {
-    localStorage.clear();
+    // Only clear authentication-related keys, not all localStorage data
+    localStorage.removeItem("token");
+    localStorage.removeItem("role");
+    localStorage.removeItem("name");
+    localStorage.removeItem("username");
+    localStorage.removeItem("email");
     window.location.href = "/login";
   };
 

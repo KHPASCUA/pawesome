@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import styled, { createGlobalStyle, keyframes, css } from "styled-components";
-import { sharedProducts, sharedServices } from "../shared/inventorySync";
 import inventorySync, { eventEmitter } from "../../services/inventorySync";
 import { apiRequest } from "../../api/client";
 import Swal from "sweetalert2";
@@ -1710,44 +1709,6 @@ const getProductEmoji = (productName) => {
   return "🐾";
 };
 
-const categorizeProducts = (products) => {
-  const categories = {
-    Food: [],
-    Accessories: [],
-    Grooming: [],
-    Toys: [],
-    Health: [],
-    Services: [],
-  };
-
-  (products || []).forEach((product) => {
-    const item = {
-      id: product.id,
-      name: product.name,
-      price: Number(product.price || product.unit_price || 0),
-      image: getProductEmoji(product.name),
-      rating: 4.5,
-      reviews: Math.floor(Math.random() * 200) + 50,
-      inStock: product.inStock || product.stock > 0 || product.quantity > 0,
-      stock: Number(product.stock || product.quantity || 0),
-      discount: Number(product.discount || 0),
-      sku: product.sku,
-      description: product.description,
-    };
-
-    const cat = (product.category || "").toLowerCase();
-
-    if (cat.includes("food") || cat.includes("treat")) categories.Food.push(item);
-    else if (cat.includes("accessory") || cat.includes("collar") || cat.includes("bed")) categories.Accessories.push(item);
-    else if (cat.includes("groom") || cat.includes("shampoo") || cat.includes("brush")) categories.Grooming.push(item);
-    else if (cat.includes("toy") || cat.includes("ball") || cat.includes("chew")) categories.Toys.push(item);
-    else if (cat.includes("health") || cat.includes("vitamin") || cat.includes("medical")) categories.Health.push(item);
-    else if (cat.includes("service") || cat.includes("boarding")) categories.Services.push(item);
-    else categories.Food.push(item);
-  });
-
-  return categories;
-};
 
 const getCategoryIcon = (cat) => {
   const icons = {
@@ -1784,8 +1745,6 @@ const copyToClipboard = (text) => {
   });
 };
 
-const storeData = categorizeProducts([...(sharedProducts || []), ...(sharedServices || [])]);
-
 export default function CustomerStore() {
   const [category, setCategory] = useState("Food");
   const [cart, setCart] = useState([]);
@@ -1802,7 +1761,6 @@ export default function CustomerStore() {
   const [orderHistory, setOrderHistory] = useState([]);
   const [lastOrder, setLastOrder] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [apiProducts, setApiProducts] = useState({});
   const [customerName, setCustomerName] = useState("");
 
   const safeArray = (value) => {
@@ -1831,42 +1789,63 @@ export default function CustomerStore() {
   const normalizeOrderStatus = (status) =>
     String(status || "pending").toLowerCase().replace(/\s+/g, "_");
 
+  const [apiProducts, setApiProducts] = useState([]);
+  const [productsLoading, setProductsLoading] = useState(false);
+  const [productsError, setProductsError] = useState("");
+
+  // Fetch sellable products from centralized inventory
+  const fetchSellableProducts = async () => {
+    try {
+      setProductsLoading(true);
+      setProductsError("");
+      const response = await apiRequest("/inventory/sellable");
+      
+      // Normalize API response safely
+      const productsFromApi = Array.isArray(response) 
+        ? response 
+        : response.products || response.data || response.items || [];
+      
+      setApiProducts(productsFromApi);
+    } catch (err) {
+      console.error("Failed to fetch sellable products:", err);
+      setProductsError("Failed to load products. Please try again.");
+      setApiProducts([]);
+    } finally {
+      setProductsLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const unsubscribe = inventorySync.subscribe("CustomerStore", (products) => {
-      setApiProducts(products || {});
-    });
+    fetchSellableProducts();
+  }, []);
 
-    const handleStockChange = (stockChanges) => {
-      setCart((prevCart) =>
-        prevCart
-          .map((item) => {
-            const stockChange = stockChanges.find((change) => change.id === item.id);
+  const handleStockChange = (stockChanges) => {
+    setCart((prevCart) =>
+      prevCart
+        .map((item) => {
+          const stockChange = stockChanges.find((change) => change.id === item.id);
 
-            if (stockChange) {
-              const nextStock = Number(stockChange.newStock || 0);
+          if (stockChange) {
+            const nextStock = Number(stockChange.newStock || 0);
 
-              return {
-                ...item,
-                stock: nextStock,
-                inStock: nextStock > 0,
-                qty: Math.min(item.qty, nextStock),
-              };
-            }
+            return {
+              ...item,
+              stock: nextStock,
+              inStock: nextStock > 0,
+              qty: Math.min(item.qty, nextStock),
+            };
+          }
 
-            return item;
-          })
-          .filter((item) => item.qty > 0)
-      );
-    };
+          return item;
+        })
+        .filter((item) => item.qty > 0)
+    );
+  };
 
-    eventEmitter.on("stockChanged", handleStockChange);
+  eventEmitter.on("stockChanged", handleStockChange);
 
-    inventorySync.getProducts().then((products) => {
-      setApiProducts(products || {});
-    });
-
+  useEffect(() => {
     return () => {
-      unsubscribe();
       eventEmitter.off("stockChanged", handleStockChange);
     };
   }, []);
@@ -1918,7 +1897,49 @@ export default function CustomerStore() {
     if (customerName) localStorage.setItem("customer_name", customerName);
   }, [customerName]);
 
-  const currentStoreData = Object.keys(apiProducts).length > 0 ? apiProducts : storeData;
+  // Categorize products from API response
+  const categorizedProducts = (products) => {
+    const categories = {
+      Food: [],
+      Accessories: [],
+      Grooming: [],
+      Toys: [],
+      Health: [],
+      Services: [],
+    };
+
+    (products || []).forEach((product) => {
+      const item = {
+        id: product.id,
+        name: product.name,
+        price: Number(product.price || 0),
+        image: getProductEmoji(product.name),
+        rating: 4.5,
+        reviews: Math.floor(Math.random() * 200) + 50,
+        inStock: product.stock > 0,
+        stock: Number(product.stock || 0),
+        discount: Number(product.discount || 0),
+        sku: product.sku,
+        description: product.description,
+        category: product.category,
+        is_sellable: product.is_sellable,
+      };
+
+      const cat = (product.category || "").toLowerCase();
+      
+      if (cat.includes("food") || cat.includes("treat")) categories.Food.push(item);
+      else if (cat.includes("accessory") || cat.includes("collar") || cat.includes("bed")) categories.Accessories.push(item);
+      else if (cat.includes("groom") || cat.includes("shampoo") || cat.includes("brush")) categories.Grooming.push(item);
+      else if (cat.includes("toy") || cat.includes("ball") || cat.includes("chew")) categories.Toys.push(item);
+      else if (cat.includes("health") || cat.includes("vitamin") || cat.includes("medical")) categories.Health.push(item);
+      else if (cat.includes("service") || cat.includes("boarding")) categories.Services.push(item);
+      else categories.Food.push(item);
+    });
+
+    return categories;
+  };
+
+  const currentStoreData = categorizedProducts(apiProducts);
 
   const filteredProducts =
     category === "Wishlist"
@@ -1936,7 +1957,7 @@ export default function CustomerStore() {
             if (sortBy === "name") return (a.name || "").localeCompare(b.name || "");
             if (sortBy === "price-low") return Number(a.price || 0) - Number(b.price || 0);
             if (sortBy === "price-high") return Number(b.price || 0) - Number(a.price || 0);
-            if (sortBy === "rating") return Number(b.rating || 0) - Number(a.rating || 0);
+            if (sortBy === "rating") return Number(b.rating || 0) - Number(b.rating || 0);
             return 0;
           });
 
@@ -1958,7 +1979,7 @@ export default function CustomerStore() {
         Swal.fire({
           icon: "warning",
           title: "Stock limit reached",
-          text: `Only ${item.stock} available.`,
+          text: "Insufficient stock available.",
           confirmButtonColor: PINK,
         });
         return;
@@ -1982,7 +2003,7 @@ export default function CustomerStore() {
             Swal.fire({
               icon: "warning",
               title: "Stock limit reached",
-              text: `Only ${c.stock} available.`,
+              text: "Insufficient stock available.",
               confirmButtonColor: PINK,
             });
             return c;
@@ -2419,11 +2440,23 @@ const data = await apiRequest("/customer/store/checkout", {
                   </ProductCount>
                 </CategoryHeader>
 
-                {filteredProducts.length === 0 ? (
+                {productsLoading ? (
+                  <EmptyState>
+                    <FontAwesomeIcon icon={faSpinner} spin />
+                    <h3>Loading products...</h3>
+                    <p>Fetching available items from inventory</p>
+                  </EmptyState>
+                ) : productsError ? (
+                  <EmptyState>
+                    <FontAwesomeIcon icon={faExclamationTriangle} />
+                    <h3>Failed to load products</h3>
+                    <p>{productsError}</p>
+                  </EmptyState>
+                ) : filteredProducts.length === 0 ? (
                   <EmptyState>
                     <FontAwesomeIcon icon={faBoxOpen} />
-                    <h3>No products found</h3>
-                    <p>Try adjusting your filters or search terms</p>
+                    <h3>No available products right now</h3>
+                    <p>Check back later or adjust your filters</p>
                   </EmptyState>
                 ) : (
                   <ProductsGrid>
@@ -2984,7 +3017,7 @@ const data = await apiRequest("/customer/store/checkout", {
                     }`}
                   >
                     {selectedProduct.inStock
-                      ? `✓ In Stock (${selectedProduct.stock} left)`
+                      ? "✓ In Stock"
                       : "✗ Out of Stock"}
                   </span>
 

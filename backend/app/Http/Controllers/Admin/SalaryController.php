@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Payroll;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -12,11 +13,18 @@ class SalaryController extends Controller
 {
     public function index()
     {
+        $latestPayrolls = Payroll::latest('pay_period_start')
+            ->get()
+            ->unique('user_id')
+            ->keyBy('user_id');
+
         return response()->json([
+            'success' => true,
             'data' => User::where('role', '!=', 'customer')
                 ->orderBy('name')
                 ->get()
-                ->map(fn (User $user) => $this->formatEmployee($user)),
+                ->map(fn (User $user) => $this->formatEmployee($user, $latestPayrolls->get($user->id)))
+                ->values(),
         ]);
     }
 
@@ -45,7 +53,10 @@ class SalaryController extends Controller
             'employment_status' => $data['status'] ?? 'active',
         ]);
 
-        return response()->json(['data' => $this->formatEmployee($user)], 201);
+        return response()->json([
+            'success' => true,
+            'data' => $this->formatEmployee($user),
+        ], 201);
     }
 
     public function update(Request $request, $id)
@@ -68,7 +79,10 @@ class SalaryController extends Controller
             'is_active' => isset($data['status']) ? $data['status'] === 'active' : $user->is_active,
         ]);
 
-        return response()->json(['data' => $this->formatEmployee($user->fresh())]);
+        return response()->json([
+            'success' => true,
+            'data' => $this->formatEmployee($user->fresh()),
+        ]);
     }
 
     public function destroy($id)
@@ -76,22 +90,31 @@ class SalaryController extends Controller
         $user = User::findOrFail($id);
         $user->delete();
 
-        return response()->json(['message' => 'Salary record deleted']);
+        return response()->json([
+            'success' => true,
+            'message' => 'Salary record deleted',
+        ]);
     }
 
-    private function formatEmployee(User $user): array
+    private function formatEmployee(User $user, ?Payroll $payroll = null): array
     {
+        $baseSalary = (float) ($payroll?->base_salary ?? $user->base_salary ?? 0);
+
         return [
             'id' => $user->id,
             'employeeId' => 'EMP-' . str_pad((string) $user->id, 3, '0', STR_PAD_LEFT),
             'name' => $user->name,
-            'department' => $user->department ?? ucfirst($user->role),
-            'position' => $user->position ?? 'Staff',
-            'baseSalary' => (float) ($user->base_salary ?? 0),
-            'housingAllowance' => 0,
-            'transportAllowance' => 0,
-            'medicalAllowance' => 0,
-            'performanceBonus' => 0,
+            'department' => $payroll?->department ?? $user->department ?? ucfirst($user->role),
+            'position' => $payroll?->position ?? $user->position ?? 'Staff',
+            'baseSalary' => $baseSalary,
+            'housingAllowance' => 0.0,
+            'transportAllowance' => 0.0,
+            'medicalAllowance' => (float) ($payroll?->allowances ?? 0),
+            'performanceBonus' => (float) ($payroll?->bonus ?? 0),
+            'grossPay' => (float) ($payroll?->gross_pay ?? $baseSalary),
+            'netPay' => (float) ($payroll?->net_pay ?? $baseSalary),
+            'latestPayrollId' => $payroll?->id,
+            'latestPayPeriod' => $payroll?->pay_period_label,
             'status' => $user->employment_status ?? ($user->is_active ? 'active' : 'inactive'),
         ];
     }

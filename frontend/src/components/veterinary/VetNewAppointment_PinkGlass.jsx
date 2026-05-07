@@ -193,6 +193,15 @@ const VetNewAppointment = () => {
         }
       }
 
+      // Transform services to ensure required fields
+      servicesList = servicesList.map((service) => ({
+        id: service.id || service.service_id || `service-${Math.random()}`,
+        name: service.name || service.service_name || "Unknown Service",
+        category: service.category || "General",
+        price: Number(service.price || service.cost || 0),
+        duration_minutes: Number(service.duration_minutes || service.duration || 30),
+      }));
+
       if (servicesList.length === 0) {
         servicesList = defaultVetServices;
         setServiceWarning(
@@ -340,7 +349,7 @@ const VetNewAppointment = () => {
         status: "pending",
       };
 
-      await apiRequest("/appointments", {
+      await apiRequest("/veterinary/appointments", {
         method: "POST",
         body: JSON.stringify(appointmentData),
       });

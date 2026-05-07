@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { apiRequest } from "../../api/client";
+import { apiRequest, clearAuthStorage } from "../../api/client";
 import "./Register.css";
 
 const Register = () => {
@@ -73,7 +73,7 @@ const Register = () => {
 
     setLoading(true);
     try {
-      const res = await apiRequest("/auth/register", {
+      const response = await apiRequest("/auth/register", {
         method: "POST",
         body: JSON.stringify({
           name: `${formData.firstName} ${formData.lastName}`,
@@ -90,8 +90,14 @@ const Register = () => {
         }),
       });
 
-      localStorage.setItem("token", res.token);
-      alert("Registration successful!");
+      clearAuthStorage();
+      localStorage.setItem("token", response.token);
+      localStorage.setItem("role", response.user.role);
+      localStorage.setItem("name", response.user.name);
+      localStorage.setItem("username", response.user.username);
+      localStorage.setItem("email", response.user.email);
+
+      alert("Registration successful! Welcome to your customer dashboard.");
       navigate("/customer");
     } catch (err) {
       alert(err.message || "Registration failed");

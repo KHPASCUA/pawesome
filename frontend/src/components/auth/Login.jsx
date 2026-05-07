@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { apiRequest } from "../../api/client";
+import { apiRequest, clearAuthStorage } from "../../api/client";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faArrowLeft,
@@ -19,6 +19,7 @@ const roleRouteMap = {
   receptionist: "/receptionist",
   veterinary: "/veterinary",
   vet: "/veterinary",
+  veterinarian: "/veterinary",
   inventory: "/inventory",
   cashier: "/cashier",
   manager: "/manager",
@@ -71,11 +72,27 @@ const Login = () => {
         }),
       });
 
+      console.log("LOGIN SUCCESS - Storing token and user data:", {
+      token: response.token ? "exists" : "missing",
+      role: response.user.role,
+      name: response.user.name
+    });
+
+      clearAuthStorage();
       localStorage.setItem("token", response.token);
       localStorage.setItem("role", response.user.role);
       localStorage.setItem("name", response.user.name);
       localStorage.setItem("username", response.user.username);
       localStorage.setItem("email", response.user.email);
+
+      // Verify token was stored
+      const storedToken = localStorage.getItem("token");
+      const storedRole = localStorage.getItem("role");
+      console.log("TOKEN STORAGE VERIFICATION:", {
+        stored: storedToken ? "success" : "failed",
+        role: storedRole,
+        redirectPath: roleRouteMap[response.user.role] || "/dashboard"
+      });
 
       if (formData.rememberMe) {
         localStorage.setItem("rememberMe", "true");

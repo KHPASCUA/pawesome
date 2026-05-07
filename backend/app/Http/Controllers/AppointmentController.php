@@ -3,10 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Models\Appointment;
+use App\Models\Customer;
+use App\Models\Pet;
 use App\Models\Sale;
 use App\Models\User;
 use App\Models\Grooming;
 use App\Models\Service;
+use App\Models\MedicalRecord;
 use App\Services\NotificationService;
 use App\Services\WorkflowNotifier;
 use App\Models\ActivityLog;
@@ -16,12 +19,66 @@ use Illuminate\Support\Carbon;
 
 class AppointmentController extends Controller
 {
+    private function currentCustomer(Request $request): ?Customer
+    {
+        $user = $request->user();
+
+        if (!$user) {
+            return null;
+        }
+
+        return Customer::where('user_id', $user->id)
+            ->orWhere('email', $user->email)
+            ->first();
+    }
+
+    private function scopeAppointmentsForRole($query, Request $request)
+    {
+        $user = $request->user();
+
+        if (!$user) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        if ($user->role === 'customer') {
+            return $query->where('customer_id', $this->currentCustomer($request)?->id ?? 0);
+        }
+
+        if (in_array($user->role, ['veterinary', 'vet', 'veterinarian'], true)) {
+            return $query->where('veterinarian_id', $user->id);
+        }
+
+        return $query;
+    }
+
+    private function canAccessAppointment(Request $request, Appointment $appointment): bool
+    {
+        $user = $request->user();
+
+        if (!$user) {
+            return false;
+        }
+
+        if ($user->role === 'customer') {
+            $customer = $this->currentCustomer($request);
+
+            return $customer && (int) $appointment->customer_id === (int) $customer->id;
+        }
+
+        if (in_array($user->role, ['veterinary', 'vet', 'veterinarian'], true)) {
+            return (int) $appointment->veterinarian_id === (int) $user->id;
+        }
+
+        return true;
+    }
+
     /**
      * List all appointments with filters
      */
     public function index(Request $request)
     {
         $query = Appointment::with(['customer', 'pet', 'service', 'veterinarian']);
+        $query = $this->scopeAppointmentsForRole($query, $request);
         
         // Filter by status
         if ($request->has('status')) {
@@ -54,11 +111,15 @@ class AppointmentController extends Controller
     /**
      * Get single appointment details
      */
-    public function show($id)
+    public function show(Request $request, $id)
     {
         $appointment = Appointment::with(['customer', 'pet', 'service', 'veterinarian'])->find($id);
         
         if (!$appointment) {
+            return response()->json(['message' => 'Appointment not found'], 404);
+        }
+
+        if (!$this->canAccessAppointment($request, $appointment)) {
             return response()->json(['message' => 'Appointment not found'], 404);
         }
         
@@ -70,6 +131,18 @@ class AppointmentController extends Controller
      */
     public function store(Request $request)
     {
+        if ($request->user()?->role === 'customer') {
+            $customer = $this->currentCustomer($request);
+
+            if (!$customer) {
+                return response()->json(['message' => 'Customer not found'], 404);
+            }
+
+            $request->merge(['customer_id' => $customer->id]);
+        } elseif (in_array($request->user()?->role, ['veterinary', 'vet', 'veterinarian'], true)) {
+            $request->merge(['veterinarian_id' => $request->user()->id]);
+        }
+
         $validator = Validator::make($request->all(), [
             'customer_id' => 'required|integer|exists:customers,id',
             'pet_id' => 'required|integer|exists:pets,id',
@@ -83,6 +156,10 @@ class AppointmentController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
+        if (!Pet::where('id', $request->pet_id)->where('customer_id', $request->customer_id)->exists()) {
+            return response()->json(['message' => 'Pet not found for this customer'], 422);
+        }
+
         $service = Service::find($request->service_id);
 
         $appointment = Appointment::create([
@@ -90,7 +167,7 @@ class AppointmentController extends Controller
             'pet_id' => $request->pet_id,
             'service_id' => $request->service_id,
             'veterinarian_id' => $request->veterinarian_id,
-            'status' => 'pending',
+            'status' => in_array($request->user()?->role, ['veterinary', 'vet', 'veterinarian'], true) ? 'approved' : 'pending',
             'scheduled_at' => $request->scheduled_at,
             'notes' => $request->notes,
             'price' => $service->price ?? 0,
@@ -144,7 +221,7 @@ class AppointmentController extends Controller
 
         // Verify the assigned user is a veterinarian
         $vet = User::find($request->veterinarian_id);
-        if ($vet->role !== 'veterinary' && $vet->role !== 'vet') {
+        if (!in_array($vet->role, ['veterinary', 'vet', 'veterinarian'], true)) {
             return response()->json(['message' => 'Assigned user must be a veterinarian'], 422);
         }
 
@@ -305,6 +382,10 @@ class AppointmentController extends Controller
             return response()->json(['message' => 'Appointment not found'], 404);
         }
 
+        if (!$this->canAccessAppointment($request, $appointment)) {
+            return response()->json(['message' => 'Appointment not found'], 404);
+        }
+
         // Only allow starting approved/scheduled appointments
         if (!in_array($appointment->status, ['approved', 'scheduled'])) {
             return response()->json([
@@ -333,6 +414,19 @@ class AppointmentController extends Controller
 
         $appointment->update($updateData);
 
+        $medicalRecord = MedicalRecord::firstOrCreate(
+            [
+                'appointment_id' => $appointment->id,
+                'pet_id' => $appointment->pet_id,
+            ],
+            [
+                'veterinarian_id' => $request->user()->id,
+                'visit_date' => Carbon::now(),
+                'chief_complaint' => $appointment->notes,
+                'status' => MedicalRecord::STATUS_DRAFT,
+            ]
+        );
+
         // Send notification
         NotificationService::notifyAppointmentStatusChange($appointment, $oldStatus);
         ActivityLog::log(auth()->id(), 'appointment_started', "Veterinary started appointment #{$appointment->id}", [
@@ -343,7 +437,8 @@ class AppointmentController extends Controller
 
         return response()->json([
             'message' => 'Appointment started successfully',
-            'appointment' => $appointment->load(['customer', 'pet', 'service', 'veterinarian'])
+            'appointment' => $appointment->load(['customer', 'pet', 'service', 'veterinarian']),
+            'medical_record' => $medicalRecord,
         ]);
     }
 
@@ -355,6 +450,10 @@ class AppointmentController extends Controller
         $appointment = Appointment::find($id);
         
         if (!$appointment) {
+            return response()->json(['message' => 'Appointment not found'], 404);
+        }
+
+        if (!$this->canAccessAppointment($request, $appointment)) {
             return response()->json(['message' => 'Appointment not found'], 404);
         }
 
@@ -418,10 +517,20 @@ class AppointmentController extends Controller
             return response()->json(['message' => 'Appointment not found'], 404);
         }
 
+        if (!$this->canAccessAppointment($request, $appointment)) {
+            return response()->json(['message' => 'Appointment not found'], 404);
+        }
+
         if (!$appointment->canBeCompleted()) {
             return response()->json([
-                'message' => 'Only approved appointments can be completed',
+                'message' => 'Only active appointments can be completed',
                 'current_status' => $appointment->status
+            ], 422);
+        }
+
+        if (!$appointment->medicalRecords()->where('status', MedicalRecord::STATUS_FINALIZED)->exists()) {
+            return response()->json([
+                'message' => 'Finalize the consultation medical record before completing this appointment',
             ], 422);
         }
 
@@ -495,6 +604,10 @@ class AppointmentController extends Controller
         $appointment = Appointment::find($id);
         
         if (!$appointment) {
+            return response()->json(['message' => 'Appointment not found'], 404);
+        }
+
+        if (!$this->canAccessAppointment($request, $appointment)) {
             return response()->json(['message' => 'Appointment not found'], 404);
         }
 
@@ -594,8 +707,12 @@ class AppointmentController extends Controller
             return response()->json(['message' => 'Appointment not found'], 404);
         }
 
+        if (!$this->canAccessAppointment($request, $appointment)) {
+            return response()->json(['message' => 'Appointment not found'], 404);
+        }
+
         // Only allow updates to pending or approved appointments
-        if (!in_array($appointment->status, ['pending', 'approved'])) {
+        if (!in_array($appointment->status, ['pending', 'approved', 'scheduled'])) {
             return response()->json([
                 'message' => 'Cannot update appointment with status: ' . $appointment->status
             ], 422);
@@ -618,17 +735,50 @@ class AppointmentController extends Controller
             $updateData['price'] = \App\Models\Service::find($request->service_id)->price ?? $appointment->price;
         }
 
-        return response()->json($appointment);
+        if ($request->has('scheduled_at')) {
+            $updateData['scheduled_at'] = $request->scheduled_at;
+        }
+
+        if ($request->has('notes')) {
+            $updateData['notes'] = $request->notes;
+        }
+
+        if ($request->has('pet_id')) {
+            if (!Pet::where('id', $request->pet_id)->where('customer_id', $appointment->customer_id)->exists()) {
+                return response()->json(['message' => 'Pet not found for this customer'], 422);
+            }
+
+            $updateData['pet_id'] = $request->pet_id;
+        }
+
+        if ($request->has('customer_id') && in_array($request->user()?->role, ['admin', 'receptionist'], true)) {
+            $updateData['customer_id'] = $request->customer_id;
+        }
+
+        if (!empty($updateData)) {
+            $appointment->update($updateData);
+        }
+
+        return response()->json($appointment->fresh(['customer', 'pet', 'service', 'veterinarian']));
     }
 
     public function availableVeterinarians()
     {
-        $vets = User::whereIn('role', ['veterinary', 'vet'])
-            ->where('is_active', true)
-            ->select(['id', 'name', 'email'])
+        $vets = User::query()
+            ->where(function ($query) {
+                $query->whereIn('role', ['veterinary', 'vet', 'veterinarian'])
+                      ->where('is_active', true);
+            })
+            ->select(['id', 'name', 'email', 'role'])
+            ->orderBy('name')
             ->get();
             
-        return response()->json($vets);
+        return response()->json([
+            'success' => true,
+            'data' => $vets,
+            'veterinarians' => $vets,
+            'count' => $vets->count()
+        ]);
     }
 
     /**

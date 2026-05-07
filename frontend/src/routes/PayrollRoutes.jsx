@@ -1,5 +1,5 @@
 import React from "react";
-import { Routes, Route } from "react-router-dom";
+import { Navigate, Routes, Route } from "react-router-dom";
 import ProtectedRoute from "../components/ProtectedRoute";
 import AdminPayroll from "../components/admin/AdminPayroll";
 import PayrollReports from "../components/admin/PayrollReports";
@@ -8,20 +8,30 @@ import EmployeeSalaryManagement from "../components/admin/EmployeeSalaryManageme
 const PayrollRoutes = () => (
   <Routes>
     <Route
-      path="/*"
+      index
       element={
         <ProtectedRoute>
           <AdminPayroll />
         </ProtectedRoute>
       }
-    >
-      {/* Default landing page */}
-      <Route index element={<AdminPayroll />} />
-
-      {/* Nested routes */}
-      <Route path="reports" element={<PayrollReports />} />
-      <Route path="salaries" element={<EmployeeSalaryManagement />} />
-    </Route>
+    />
+    <Route
+      path="reports"
+      element={
+        <ProtectedRoute>
+          <PayrollReports />
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="salaries"
+      element={
+        <ProtectedRoute>
+          <EmployeeSalaryManagement />
+        </ProtectedRoute>
+      }
+    />
+    <Route path="*" element={<Navigate to="/payroll" replace />} />
   </Routes>
 );
 

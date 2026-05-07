@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 class ServiceRequest extends Model
 {
     protected $fillable = [
+        'customer_id',
+        'pet_id',
         'customer_name',
         'customer_email',
         'customer_phone',

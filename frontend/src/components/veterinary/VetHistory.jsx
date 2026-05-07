@@ -165,7 +165,7 @@ const VetHistory = () => {
       }
 
       const data = await apiRequest(
-        "/veterinary/history?status=completed,cancelled,no-show"
+        "/veterinary/history?status=completed,cancelled,no_show"
       );
 
       const appointments = safeArray(data);

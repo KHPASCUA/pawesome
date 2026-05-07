@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from "react";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import React, { useState, useEffect, useCallback } from "react";
+import { useLocation } from "react-router-dom";
 import { faMoneyBillWave } from "@fortawesome/free-solid-svg-icons";
+import { useRealTimeSync } from "../../hooks/useRealTimeSync";
 import {
   ResponsiveContainer,
   LineChart,
@@ -18,7 +19,6 @@ import { formatCurrency } from "../../utils/currency";
 import StandardReportLayout from "../shared/StandardReportLayout";
 import StandardSummaryCards from "../shared/StandardSummaryCards";
 import StandardTable from "../shared/StandardTable";
-import ReportFilters from "../shared/ReportFilters";
 import {
   exportToCSV,
   exportToPDF,
@@ -32,6 +32,8 @@ import "./CashierReports.css";
 const CHART_COLORS = ["#ff5f93", "#ff8db5", "#ffc8dd", "#f59e0b", "#10b981", "#3b82f6"];
 
 const CashierReports = () => {
+  const location = useLocation();
+  const isAdminReport = location.pathname.startsWith("/admin/");
   const [activeTab, setActiveTab] = useState("sales");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -41,6 +43,8 @@ const CashierReports = () => {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [salespersonFilter, setSalespersonFilter] = useState("all");
+  const [salespeople, setSalespeople] = useState([]);
 
   // Raw data storage
   const [rawTransactions, setRawTransactions] = useState([]);
@@ -60,23 +64,27 @@ const CashierReports = () => {
     setEndDate(defaultEnd);
   }, []);
 
-  useEffect(() => {
-    fetchReportData();
-  }, []);
-
-  const fetchReportData = async () => {
+  const fetchReportData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       
-      // Fetch sales and transactions data with error handling
       let sales = [];
       
       try {
-        const salesData = await apiRequest("/cashier/transactions");
+        const params = new URLSearchParams();
+        if (startDate) params.append("from", startDate);
+        if (endDate) params.append("to", endDate);
+        if (statusFilter !== "all") params.append("status", statusFilter);
+        if (salespersonFilter !== "all") params.append("salesperson_id", salespersonFilter);
+        if (searchTerm) params.append("search", searchTerm);
+        const endpoint = isAdminReport ? `/admin/reports/sales?${params}` : "/cashier/transactions";
+        const salesData = await apiRequest(endpoint);
+        const reportData = salesData?.data || salesData || {};
         sales = Array.isArray(salesData)
           ? salesData
-          : salesData.transactions || salesData.sales || salesData.data || [];
+          : reportData.transactions || reportData.sales || [];
+        setSalespeople(reportData.salespeople || []);
       } catch (apiErr) {
         console.error("Cashier transactions API failed:", apiErr);
         throw new Error("Unable to load live cashier transactions.");
@@ -121,7 +129,16 @@ const CashierReports = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [startDate, endDate, statusFilter, salespersonFilter, searchTerm, isAdminReport]);
+
+  // Use real-time sync hook for automatic polling every 30 seconds
+  useRealTimeSync(fetchReportData, [
+    startDate, 
+    endDate, 
+    statusFilter, 
+    salespersonFilter, 
+    searchTerm
+  ], 30000);
 
   const getFilteredData = () => {
     let filtered = [...rawTransactions];
@@ -141,8 +158,8 @@ const CashierReports = () => {
       const search = searchTerm.toLowerCase();
       filtered = filtered.filter(
         (item) =>
-          item.id?.toLowerCase().includes(search) ||
-          item.customer?.toLowerCase().includes(search) ||
+          String(item.id || "").toLowerCase().includes(search) ||
+          (item.customer || item.customer_name || item.salesperson_name || "").toLowerCase().includes(search) ||
           item.type?.toLowerCase().includes(search) ||
           item.payment_method?.toLowerCase().includes(search)
       );
@@ -159,6 +176,7 @@ const CashierReports = () => {
   const handleClearFilters = () => {
     setSearchTerm("");
     setStatusFilter("all");
+    setSalespersonFilter("all");
 
     const { startDate: defaultStart, endDate: defaultEnd } = getDateRangePreset("today");
     setStartDate(defaultStart);
@@ -167,7 +185,7 @@ const CashierReports = () => {
 
   const exportColumns = [
     { key: "id", label: "Transaction ID" },
-    { key: "customer", label: "Customer" },
+    { key: "customer_name", label: "Customer" },
     { key: "date", label: "Date", format: "date" },
     { key: "time", label: "Time" },
     { key: "amount", label: "Amount", format: "currency" },
@@ -244,7 +262,7 @@ const CashierReports = () => {
   // Prepare table columns
   const tableColumns = [
     { key: "id", label: "Transaction ID", sortable: true },
-    { key: "customer", label: "Customer", sortable: true },
+    { key: "salesperson_name", label: "Salesperson", sortable: true },
     { key: "date", label: "Date", format: "date", sortable: true },
     { key: "time", label: "Time", sortable: true },
     { key: "amount", label: "Amount", format: "currency", sortable: true },
@@ -366,6 +384,13 @@ const CashierReports = () => {
     onExportCSV: handleExportCSV,
     onExportPDF: handleExportPDF,
     onExportExcel: handleExportExcel,
+    salespersonFilter,
+    onSalespersonChange: setSalespersonFilter,
+    salespersonOptions: salespeople.map((person) => ({
+      value: String(person.id),
+      label: person.name || `User #${person.id}`,
+    })),
+    showSalesperson: isAdminReport,
     loading,
     onRefresh: fetchReportData,
     onClearFilters: handleClearFilters,

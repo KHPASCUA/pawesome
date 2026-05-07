@@ -3,19 +3,43 @@
 namespace App\Http\Controllers;
 
 use App\Models\VetAppointment;
+use App\Models\Customer;
+use App\Models\Pet;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
 class VetController extends Controller
 {
+    private function currentCustomerId(): ?int
+    {
+        $user = auth()->user();
+
+        if (!$user) {
+            return null;
+        }
+
+        return Customer::where('user_id', $user->id)
+            ->orWhere('email', $user->email)
+            ->value('id');
+    }
+
+    private function customerOwnsAppointment(VetAppointment $appointment): bool
+    {
+        $customerId = $this->currentCustomerId();
+
+        return $customerId && $appointment->pet_id
+            && Pet::where('id', $appointment->pet_id)->where('customer_id', $customerId)->exists();
+    }
+
     public function index(Request $request): JsonResponse
     {
         $query = VetAppointment::query();
 
         if (auth()->check() && auth()->user()->role === 'customer') {
-            $query->whereHas('pet', function ($q) {
-                $q->where('customer_id', auth()->id());
+            $customerId = $this->currentCustomerId();
+            $query->whereHas('pet', function ($q) use ($customerId) {
+                $q->where('customer_id', $customerId ?? 0);
             });
         }
 
@@ -53,6 +77,17 @@ class VetController extends Controller
             ], 422);
         }
 
+        if (auth()->user()?->role === 'customer' && $request->petId) {
+            $customerId = $this->currentCustomerId();
+
+            if (!Pet::where('id', $request->petId)->where('customer_id', $customerId ?? 0)->exists()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Pet not found',
+                ], 404);
+            }
+        }
+
         $appointment = VetAppointment::create([
             'pet_id' => $request->petId,
             'pet_name' => $request->petName,
@@ -74,6 +109,13 @@ class VetController extends Controller
         $appointment = VetAppointment::find($id);
 
         if (!$appointment) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Appointment not found'
+            ], 404);
+        }
+
+        if (auth()->user()?->role === 'customer' && !$this->customerOwnsAppointment($appointment)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Appointment not found'

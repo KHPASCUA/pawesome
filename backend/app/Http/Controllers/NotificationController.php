@@ -16,7 +16,7 @@ class NotificationController extends Controller
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
-        $query = Notification::forUser($user->id);
+        $query = Notification::forUserOrRole($user->id, $user->role);
 
         // Filter by read status
         if ($request->has('unread')) {
@@ -28,7 +28,7 @@ class NotificationController extends Controller
         $notifications = $query->recent($limit)->get();
 
         // Get unread count
-        $unreadCount = Notification::forUser($user->id)->unread()->count();
+        $unreadCount = Notification::forUserOrRole($user->id, $user->role)->unread()->count();
 
         return response()->json([
             'notifications' => $notifications->map(fn (Notification $notification) => $this->formatNotification($notification)),
@@ -43,7 +43,7 @@ class NotificationController extends Controller
     public function getUnread(Request $request): JsonResponse
     {
         $user = $request->user();
-        $notifications = Notification::forUser($user->id)
+        $notifications = Notification::forUserOrRole($user->id, $user->role)
             ->unread()
             ->latest()
             ->limit(20)
@@ -111,14 +111,30 @@ class NotificationController extends Controller
             'message' => 'nullable|string',
         ]);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Booking status notification queued',
-            'notification' => [
+        $customer = !empty($data['customerEmail'])
+            ? User::where('email', $data['customerEmail'])->first()
+            : null;
+
+        $notification = null;
+
+        if ($customer) {
+            $notification = Notification::create([
+                'user_id' => $customer->id,
                 'title' => 'Booking status updated',
                 'message' => $data['message'] ?? 'Your booking status is now ' . $data['status'],
+                'type' => in_array($data['status'], ['approved', 'rescheduled'], true) ? 'success' : 'info',
+                'related_type' => 'booking',
                 'data' => $data,
-            ],
+                'read' => false,
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => $notification
+                ? 'Booking status notification created'
+                : 'Booking status accepted, but no matching customer account was found',
+            'notification' => $notification ? $this->formatNotification($notification) : null,
         ], 201);
     }
 
@@ -128,10 +144,10 @@ class NotificationController extends Controller
     public function markAsRead(Request $request, $id): JsonResponse
     {
         $user = $request->user();
-        $notification = Notification::forUser($user->id)->findOrFail($id);
+        $notification = Notification::forUserOrRole($user->id, $user->role)->findOrFail($id);
         $notification->markAsRead();
 
-        $unreadCount = Notification::forUser($user->id)->unread()->count();
+        $unreadCount = Notification::forUserOrRole($user->id, $user->role)->unread()->count();
 
         return response()->json([
             'message' => 'Notification marked as read',
@@ -146,7 +162,7 @@ class NotificationController extends Controller
     {
         $user = $request->user();
         
-        Notification::forUser($user->id)
+        Notification::forUserOrRole($user->id, $user->role)
             ->unread()
             ->update([
                 'read' => true,
@@ -166,7 +182,7 @@ class NotificationController extends Controller
     {
         $user = $request->user();
         
-        Notification::forUser($user->id)->delete();
+        Notification::forUserOrRole($user->id, $user->role)->delete();
 
         return response()->json([
             'message' => 'All notifications cleared',
@@ -180,10 +196,10 @@ class NotificationController extends Controller
     public function destroy(Request $request, $id): JsonResponse
     {
         $user = $request->user();
-        $notification = Notification::forUser($user->id)->findOrFail($id);
+        $notification = Notification::forUserOrRole($user->id, $user->role)->findOrFail($id);
         $notification->delete();
 
-        $unreadCount = Notification::forUser($user->id)->unread()->count();
+        $unreadCount = Notification::forUserOrRole($user->id, $user->role)->unread()->count();
 
         return response()->json([
             'message' => 'Notification deleted',
@@ -197,7 +213,7 @@ class NotificationController extends Controller
     public function unreadCount(Request $request): JsonResponse
     {
         $user = $request->user();
-        $count = Notification::forUser($user->id)->unread()->count();
+        $count = Notification::forUserOrRole($user->id, $user->role)->unread()->count();
 
         return response()->json(['unread_count' => $count]);
     }

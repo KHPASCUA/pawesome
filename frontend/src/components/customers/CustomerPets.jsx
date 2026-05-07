@@ -1,12 +1,17 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  FaCalendarAlt,
   FaCat,
   FaDog,
   FaDove,
   FaExclamationTriangle,
+  FaFileMedical,
+  FaHeartbeat,
+  FaNotesMedical,
   FaPaw,
   FaPlus,
   FaSearch,
+  FaStethoscope,
   FaSyncAlt,
   FaTimes,
   FaTrash,
@@ -28,17 +33,23 @@ const initialForm = (customerEmail) => ({
 
 const CustomerPets = () => {
   const customerEmail = localStorage.getItem("email") || "";
-  const customerName = localStorage.getItem("name") || "Customer";
 
   const [pets, setPets] = useState([]);
   const [formData, setFormData] = useState(initialForm(customerEmail));
+
   const [loading, setLoading] = useState(false);
   const [pageLoading, setPageLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
+
   const [searchTerm, setSearchTerm] = useState("");
   const [speciesFilter, setSpeciesFilter] = useState("all");
   const [message, setMessage] = useState({ type: "", text: "" });
+
+  const [selectedPet, setSelectedPet] = useState(null);
+  const [medicalHistory, setMedicalHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState("");
 
   const safeArray = (value) => {
     if (Array.isArray(value)) return value;
@@ -48,6 +59,10 @@ const CustomerPets = () => {
     if (Array.isArray(value?.records)) return value.records;
     if (Array.isArray(value?.result)) return value.result;
     if (Array.isArray(value?.results)) return value.results;
+    if (Array.isArray(value?.history)) return value.history;
+    if (Array.isArray(value?.medical_history)) return value.medical_history;
+    if (Array.isArray(value?.medicalHistory)) return value.medicalHistory;
+    if (Array.isArray(value?.appointments)) return value.appointments;
     return [];
   };
 
@@ -61,10 +76,15 @@ const CustomerPets = () => {
   };
 
   const getPetName = (pet) => pet?.name || pet?.pet_name || "Unnamed Pet";
-  const getPetSpecies = (pet) => pet?.species || pet?.type || "Pet";
-  const getPetBreed = (pet) => pet?.breed || "No breed";
-  const getPetAge = (pet) => pet?.age || "N/A";
-  const getPetGender = (pet) => pet?.gender || "N/A";
+  const getPetSpecies = (pet) => pet?.species || pet?.type || pet?.pet_species || "Pet";
+  const getPetBreed = (pet) => pet?.breed || pet?.pet_breed || "No breed";
+  const getPetAge = (pet) => pet?.age || pet?.pet_age || "N/A";
+  const getPetGender = (pet) => pet?.gender || pet?.sex || pet?.pet_gender || "N/A";
+  const getPetNotes = (pet) =>
+    pet?.notes ||
+    pet?.medical_notes ||
+    pet?.special_needs ||
+    "No medical notes or special needs recorded.";
 
   const getSpeciesIcon = (species) => {
     const value = String(species || "").toLowerCase();
@@ -77,36 +97,82 @@ const CustomerPets = () => {
     return <FaPaw />;
   };
 
-  const fetchPets = useCallback(
-    async ({ silent = false } = {}) => {
-      try {
-        if (!silent) {
-          setPageLoading(true);
-        } else {
-          setRefreshing(true);
-        }
+  const formatDate = (value) => {
+    if (!value) return "No date";
 
-        let data = null;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
 
-        try {
-          data = await apiRequest("/customer/pets");
-        } catch (customerPetsError) {
-          console.warn("Customer pets endpoint failed. Trying /pets:", customerPetsError);
-          data = await apiRequest("/pets");
-        }
+    return date.toLocaleDateString("en-PH", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  };
 
-        setPets(safeArray(data));
-      } catch (error) {
-        console.error("Failed to load pets:", error);
-        setPets([]);
-        showMessage("error", "Failed to load pets. Please refresh the page.");
-      } finally {
-        setPageLoading(false);
-        setRefreshing(false);
+  const normalizeMedicalRecord = (record, index) => ({
+    id: record?.id || index + 1,
+    date:
+      record?.date ||
+      record?.visit_date ||
+      record?.appointment_date ||
+      record?.created_at ||
+      "",
+    title:
+      record?.title ||
+      record?.service_name ||
+      record?.service_type ||
+      record?.type ||
+      "Medical Record",
+    diagnosis: record?.diagnosis || record?.condition || "No diagnosis stated.",
+    symptoms: record?.symptoms || "No symptoms recorded.",
+    treatment:
+      record?.treatment ||
+      record?.procedure ||
+      record?.medical_notes ||
+      "No treatment stated.",
+    prescription: record?.prescription || "No prescription recorded.",
+    notes: record?.notes || record?.remarks || record?.description || "",
+    weight: record?.weight || "",
+    temperature: record?.temperature || "",
+    nextVisit: record?.next_visit_date || record?.follow_up_date || "",
+    veterinarian:
+      record?.veterinarian?.name ||
+      record?.vet?.name ||
+      record?.vet_name ||
+      record?.doctor ||
+      record?.handled_by ||
+      "Veterinary Staff",
+    status: record?.status || "completed",
+  });
+
+  const fetchPets = useCallback(async ({ silent = false } = {}) => {
+    try {
+      if (!silent) {
+        setPageLoading(true);
+      } else {
+        setRefreshing(true);
       }
-    },
-    []
-  );
+
+      let data = null;
+
+      try {
+        data = await apiRequest("/customer/pets");
+      } catch (customerPetsError) {
+        console.warn("Customer pets endpoint failed. Trying /pets:", customerPetsError);
+        data = await apiRequest("/pets");
+      }
+
+      setPets(safeArray(data));
+    } catch (error) {
+      console.error("Failed to load pets:", error);
+      setPets([]);
+      showMessage("error", "Failed to load pets. Please refresh the page.");
+    } finally {
+      setPageLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
 
   useEffect(() => {
     fetchPets();
@@ -134,12 +200,10 @@ const CustomerPets = () => {
   }, [pets]);
 
   const speciesOptions = useMemo(() => {
-    const values = pets
+    return pets
       .map((pet) => getPetSpecies(pet))
       .filter(Boolean)
       .filter((value, index, array) => array.indexOf(value) === index);
-
-    return values;
   }, [pets]);
 
   const filteredPets = useMemo(() => {
@@ -158,7 +222,7 @@ const CustomerPets = () => {
         getPetBreed(pet),
         getPetAge(pet),
         getPetGender(pet),
-        pet?.notes,
+        getPetNotes(pet),
       ]
         .filter(Boolean)
         .join(" ")
@@ -216,25 +280,27 @@ const CustomerPets = () => {
         age: formData.age ? Number(formData.age) : null,
         gender: formData.gender || null,
         notes: formData.notes?.trim() || null,
+        customer_email: customerEmail,
       };
 
-      const data = await apiRequest("/customer/pets", "POST", payload);
+      const data = await apiRequest("/customer/pets", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
 
       resetForm();
       await fetchPets({ silent: true });
       showMessage("success", data?.message || "Pet added successfully.");
     } catch (error) {
       console.error("ADD PET ERROR:", error);
-      console.error("Response:", error.response?.data);
 
-      const message =
+      const errorMessage =
         error?.response?.data?.message ||
         error?.response?.data?.error ||
         error?.message ||
         "Failed to add pet. Please try again.";
 
-      alert(message);
-      showMessage("error", message);
+      showMessage("error", errorMessage);
     } finally {
       setLoading(false);
     }
@@ -267,6 +333,36 @@ const CustomerPets = () => {
     } finally {
       setDeletingId(null);
     }
+  };
+
+  const fetchMedicalHistory = async (pet) => {
+    setSelectedPet(pet);
+    setMedicalHistory([]);
+    setHistoryError("");
+    setHistoryLoading(true);
+
+    const petId = pet?.id || pet?.pet_id;
+
+    try {
+      const result = await apiRequest(`/customer/pets/${petId}/medical-history`);
+      const records = safeArray(result).map(normalizeMedicalRecord);
+      setMedicalHistory(records);
+    } catch (error) {
+      console.error("Failed to load medical history:", error);
+      setHistoryError(
+        "Medical history is not available yet, or no records were found for this pet."
+      );
+      setMedicalHistory([]);
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  const closeMedicalHistory = () => {
+    setSelectedPet(null);
+    setMedicalHistory([]);
+    setHistoryError("");
+    setHistoryLoading(false);
   };
 
   const handleRefresh = () => {
@@ -303,8 +399,8 @@ const CustomerPets = () => {
 
           <h1>My Pets</h1>
           <p>
-            Add and manage your registered pets. These records are used when
-            booking hotel, grooming, and veterinary services.
+            Add and manage your registered pets. Veterinary medical history shown here
+            is synced with the records created by the veterinary role.
           </p>
         </div>
 
@@ -332,7 +428,7 @@ const CustomerPets = () => {
 
         <article className="pets-stat-card">
           <span>
-            <FaClipboardSpecies />
+            <FaNotesMedical />
           </span>
           <div>
             <strong>{stats.speciesCount}</strong>
@@ -465,7 +561,7 @@ const CustomerPets = () => {
           <div className="pets-card-header">
             <div>
               <h2>Registered Pets</h2>
-              <p>Search and manage your saved pet profiles.</p>
+              <p>Search, manage, and view veterinary medical history.</p>
             </div>
           </div>
 
@@ -544,7 +640,18 @@ const CustomerPets = () => {
                       </span>
                     </div>
 
-                    <small>{pet.notes || "No medical notes or special needs recorded."}</small>
+                    <small>{getPetNotes(pet)}</small>
+
+                    <div className="pet-actions-row">
+                      <button
+                        className="pet-history-btn"
+                        type="button"
+                        onClick={() => fetchMedicalHistory(pet)}
+                      >
+                        <FaFileMedical />
+                        Medical History
+                      </button>
+                    </div>
                   </div>
 
                   <button
@@ -562,10 +669,142 @@ const CustomerPets = () => {
           )}
         </div>
       </div>
+
+      {selectedPet && (
+        <div className="pet-history-overlay" onClick={closeMedicalHistory}>
+          <div
+            className="pet-history-modal"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="pet-history-header">
+              <div>
+                <span className="pets-eyebrow">
+                  <FaHeartbeat />
+                  Synced Veterinary Record
+                </span>
+                <h2>{getPetName(selectedPet)} Medical History</h2>
+                <p>
+                  {getPetSpecies(selectedPet)} • {getPetBreed(selectedPet)}
+                </p>
+              </div>
+
+              <button
+                className="pet-history-close"
+                type="button"
+                onClick={closeMedicalHistory}
+              >
+                <FaTimes />
+              </button>
+            </div>
+
+            <div className="pet-history-body">
+              {historyLoading ? (
+                <div className="pet-history-state">
+                  <FaSyncAlt className="spin" />
+                  <h3>Loading medical history...</h3>
+                  <p>Please wait while we load veterinary records.</p>
+                </div>
+              ) : historyError ? (
+                <div className="pet-history-state warning">
+                  <FaExclamationTriangle />
+                  <h3>Medical history unavailable</h3>
+                  <p>{historyError}</p>
+                </div>
+              ) : medicalHistory.length === 0 ? (
+                <div className="pet-history-state">
+                  <FaStethoscope />
+                  <h3>No medical history yet</h3>
+                  <p>
+                    Records added by the veterinary team will appear here once available.
+                  </p>
+                </div>
+              ) : (
+                <div className="pet-history-timeline">
+                  {medicalHistory.map((record) => (
+                    <article className="pet-history-item" key={record.id}>
+                      <div className="pet-history-date">
+                        <FaCalendarAlt />
+                        <span>{formatDate(record.date)}</span>
+                      </div>
+
+                      <div className="pet-history-content">
+                        <div className="pet-history-title-row">
+                          <div>
+                            <h3>{record.title}</h3>
+                            <p>Handled by {record.veterinarian}</p>
+                          </div>
+
+                          <span className="pet-history-status">
+                            {record.status}
+                          </span>
+                        </div>
+
+                        <div className="pet-history-grid">
+                          <div>
+                            <small>Diagnosis</small>
+                            <strong>{record.diagnosis}</strong>
+                          </div>
+
+                          <div>
+                            <small>Symptoms</small>
+                            <strong>{record.symptoms}</strong>
+                          </div>
+
+                          <div>
+                            <small>Treatment</small>
+                            <strong>{record.treatment}</strong>
+                          </div>
+
+                          <div>
+                            <small>Prescription</small>
+                            <strong>{record.prescription}</strong>
+                          </div>
+
+                          <div>
+                            <small>Weight</small>
+                            <strong>{record.weight ? `${record.weight} kg` : "N/A"}</strong>
+                          </div>
+
+                          <div>
+                            <small>Temperature</small>
+                            <strong>
+                              {record.temperature ? `${record.temperature} °C` : "N/A"}
+                            </strong>
+                          </div>
+
+                          <div>
+                            <small>Next Visit</small>
+                            <strong>{record.nextVisit ? formatDate(record.nextVisit) : "N/A"}</strong>
+                          </div>
+                        </div>
+
+                        {record.notes && (
+                          <div className="pet-history-notes">
+                            <FaNotesMedical />
+                            <span>{record.notes}</span>
+                          </div>
+                        )}
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="pet-history-footer">
+              <button
+                className="pets-reset-btn"
+                type="button"
+                onClick={closeMedicalHistory}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 };
-
-const FaClipboardSpecies = () => <FaPaw />;
 
 export default CustomerPets;

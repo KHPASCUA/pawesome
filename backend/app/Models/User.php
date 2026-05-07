@@ -3,12 +3,13 @@
 namespace App\Models;
 
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
-    use HasApiTokens, Notifiable;
+    use HasApiTokens, HasFactory, Notifiable;
 
     /**
      * The attributes that are mass assignable.
@@ -42,6 +43,7 @@ class User extends Authenticatable
         'zip_code',
         'country',
         'bio',
+        'profile_photo',
         'profile_image',
         'date_of_birth',
         'gender',
@@ -78,5 +80,10 @@ class User extends Authenticatable
     public function customer()
     {
         return $this->hasOne(Customer::class);
+    }
+
+    public function isAdmin(): bool
+    {
+        return $this->role === 'admin';
     }
 }

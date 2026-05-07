@@ -47,6 +47,6 @@ class EnsureRole
 
     private function normalizeRole(string $role): string
     {
-        return $role === 'vet' ? 'veterinary' : $role;
+        return in_array($role, ['vet', 'veterinarian'], true) ? 'veterinary' : $role;
     }
 }

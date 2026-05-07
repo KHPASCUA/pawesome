@@ -34,7 +34,10 @@ class ChatbotController extends Controller
             })
             ->values();
 
-        return response()->json($logs);
+        return response()->json([
+            'success' => true,
+            'data' => $logs,
+        ]);
     }
 
     public function userHistory(User $user): JsonResponse
@@ -51,6 +54,9 @@ class ChatbotController extends Controller
                 'created_at',
             ]);
 
-        return response()->json($history);
+        return response()->json([
+            'success' => true,
+            'data' => $history,
+        ]);
     }
 }

@@ -2,12 +2,16 @@ export const API_URL = "http://localhost:8000";
 
 export const USE_MOCK_DATA = false;
 
+const AUTH_TOKEN_KEYS = ["token", "access_token", "authToken", "customerToken", "adminToken", "clientToken"];
+
 const getToken = () => {
-  return (
-    localStorage.getItem("token") ||
-    localStorage.getItem("access_token") ||
-    localStorage.getItem("authToken") ||
-    localStorage.getItem("customerToken")
+  return AUTH_TOKEN_KEYS.map((key) => localStorage.getItem(key)).find(Boolean);
+};
+
+export const clearAuthStorage = () => {
+  AUTH_TOKEN_KEYS.forEach((key) => localStorage.removeItem(key));
+  ["role", "name", "username", "email", "user", "adminUser"].forEach((key) =>
+    localStorage.removeItem(key)
   );
 };
 
@@ -83,11 +87,13 @@ export const apiRequest = async (endpoint, methodOrOptions = "GET", data = null,
   delete config.params;
 
   try {
-    console.log("API Request:", url);
-    console.log("Request options:", {
+    // Debug Authorization header for all requests
+    console.log("API REQUEST DEBUG:", {
+      url: url,
       method: config.method,
-      headers: config.headers,
-      body: config.body,
+      hasAuthHeader: !!config.headers.Authorization,
+      authHeader: config.headers.Authorization ? "Bearer [token]" : "missing",
+      tokenFromStorage: localStorage.getItem("token") ? "exists" : "missing"
     });
 
     const response = await fetch(url, config);

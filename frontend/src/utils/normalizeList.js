@@ -1,16 +1,33 @@
-export const normalizeList = (result, keys = []) => {
+export const normalizeList = (
+  result,
+  possibleKeys = ["data", "employees", "salaries", "payrolls", "records"]
+) => {
+  if (!result) return [];
   if (Array.isArray(result)) return result;
 
-  for (const key of keys) {
-    if (Array.isArray(result?.[key])) return result[key];
-  }
+  const fallbackKeys = [
+    "data",
+    "employees",
+    "salaries",
+    "payrolls",
+    "records",
+    "items",
+    "orders",
+    "requests",
+    "appointments",
+    "payments",
+  ];
+  const keys = [...new Set([...(possibleKeys || []), ...fallbackKeys])];
 
-  if (Array.isArray(result?.data)) return result.data;
-  if (Array.isArray(result?.items)) return result.items;
-  if (Array.isArray(result?.orders)) return result.orders;
-  if (Array.isArray(result?.requests)) return result.requests;
-  if (Array.isArray(result?.appointments)) return result.appointments;
-  if (Array.isArray(result?.payments)) return result.payments;
+  for (const key of keys) {
+    const value = result?.[key];
+
+    if (Array.isArray(value)) return value;
+    if (value && typeof value === "object") {
+      const nested = normalizeList(value, possibleKeys);
+      if (nested.length > 0) return nested;
+    }
+  }
 
   return [];
 };

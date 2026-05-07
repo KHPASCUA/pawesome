@@ -5,13 +5,11 @@ import {
   faCheckCircle,
   faExclamationTriangle,
   faSpinner,
-  faTimes,
   faEye,
   faClock,
   faReceipt,
   faCreditCard,
   faCalendarAlt,
-  faPaw,
   faBox,
 } from "@fortawesome/free-solid-svg-icons";
 import "./CustomerNotifications.css";
@@ -31,7 +29,7 @@ const CustomerNotifications = () => {
     try {
       setLoading(true);
       const data = await apiRequest("/notifications");
-      setNotifications(Array.isArray(data) ? data : []);
+      setNotifications(Array.isArray(data) ? data : data.notifications || []);
       setError("");
     } catch (err) {
       setError(err.message || "Failed to load notifications");
@@ -44,7 +42,7 @@ const CustomerNotifications = () => {
   const markAsRead = async (id) => {
     try {
       await apiRequest(`/notifications/${id}/read`, {
-        method: "PUT",
+        method: "POST",
       });
       fetchNotifications();
     } catch (err) {
@@ -54,8 +52,8 @@ const CustomerNotifications = () => {
 
   const markAllAsRead = async () => {
     try {
-      await apiRequest("/notifications/read-all", {
-        method: "PUT",
+      await apiRequest("/notifications/mark-all-read", {
+        method: "POST",
       });
       fetchNotifications();
     } catch (err) {
@@ -65,6 +63,15 @@ const CustomerNotifications = () => {
 
   const getNotificationIcon = (type) => {
     switch (type?.toLowerCase()) {
+      case "success":
+        return <FontAwesomeIcon icon={faCheckCircle} className="notification-icon success" />;
+      case "warning":
+        return <FontAwesomeIcon icon={faExclamationTriangle} className="notification-icon warning" />;
+      case "error":
+      case "danger":
+        return <FontAwesomeIcon icon={faExclamationTriangle} className="notification-icon error" />;
+      case "info":
+        return <FontAwesomeIcon icon={faBell} className="notification-icon info" />;
       case "order_submitted":
         return <FontAwesomeIcon icon={faBox} className="notification-icon" />;
       case "order_approved":
@@ -92,6 +99,12 @@ const CustomerNotifications = () => {
 
   const getNotificationColor = (type) => {
     switch (type?.toLowerCase()) {
+      case "success":
+      case "info":
+      case "warning":
+      case "error":
+      case "danger":
+        return type === "danger" ? "error" : type;
       case "order_submitted":
       return "info";
       case "order_approved":
@@ -119,7 +132,14 @@ const CustomerNotifications = () => {
 
   const filteredNotifications = notifications.filter((notification) => {
     if (filter === "all") return true;
-    return notification.type?.toLowerCase() === filter.toLowerCase();
+    const searchable = [
+      notification.type,
+      notification.title,
+      notification.message,
+      notification.related_type,
+    ].join(" ").toLowerCase();
+
+    return searchable.includes(filter.toLowerCase());
   });
 
   const formatDate = (dateString) => {
@@ -180,7 +200,7 @@ const CustomerNotifications = () => {
         <div className="notifications-actions">
           <button 
             onClick={markAllAsRead} 
-            disabled={notifications.filter(n => !n.is_read).length === 0}
+            disabled={notifications.filter(n => !n.read).length === 0}
             className="mark-all-read-btn"
           >
             <FontAwesomeIcon icon={faCheckCircle} />
@@ -204,7 +224,7 @@ const CustomerNotifications = () => {
           filteredNotifications.map((notification) => (
             <article 
               key={notification.id} 
-              className={`notification-item ${getNotificationColor(notification.type)} ${!notification.is_read ? "unread" : ""}`}
+              className={`notification-item ${getNotificationColor(notification.type)} ${!notification.read ? "unread" : ""}`}
             >
               <div className="notification-header">
                 <div className="notification-icon">
@@ -215,26 +235,26 @@ const CustomerNotifications = () => {
                   <span className="notification-time">
                     {formatDate(notification.created_at)}
                   </span>
-                  {!notification.is_read && <span className="unread-indicator">New</span>}
+                  {!notification.read && <span className="unread-indicator">New</span>}
                 </div>
               </div>
 
               <div className="notification-content">
                 <p>{notification.message}</p>
-                {notification.order_id && (
+                {(notification.order_id || notification.related_type === "order") && (
                   <small className="notification-reference">
-                    Order #{notification.order_id}
+                    Order #{notification.order_id || notification.related_id}
                   </small>
                 )}
-                {notification.service_request_id && (
+                {(notification.service_request_id || notification.related_type === "service_request") && (
                   <small className="notification-reference">
-                    Request #{notification.service_request_id}
+                    Request #{notification.service_request_id || notification.related_id}
                   </small>
                 )}
               </div>
 
               <div className="notification-actions">
-                {!notification.is_read && (
+                {!notification.read && (
                   <button 
                     onClick={() => markAsRead(notification.id)}
                     className="mark-read-btn"

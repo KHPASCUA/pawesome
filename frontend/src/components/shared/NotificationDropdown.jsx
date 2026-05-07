@@ -1,4 +1,6 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { useNavigate } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faBell,
@@ -9,28 +11,32 @@ import {
   faSpinner,
 } from "@fortawesome/free-solid-svg-icons";
 import { notificationApi } from "../../api/notifications";
+import { normalizeList } from "../../utils/normalizeList";
 import "./NotificationDropdown.css";
 
-const NotificationDropdown = ({ role = "manager" }) => {
+const NotificationDropdown = ({ role }) => {
+  const navigate = useNavigate();
+  const notificationRole = role || localStorage.getItem("role") || "manager";
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
+  const dropdownRef = useRef(null);
+  const panelRef = useRef(null);
 
   const fetchNotifications = useCallback(async () => {
     setLoading(true);
 
     try {
-      const res = await notificationApi.getAll(role);
-
-      setNotifications(res.data || []);
+      const res = await notificationApi.getAll(notificationRole);
+      setNotifications(normalizeList(res, ["notifications", "data", "records"]));
       setUnreadCount(res.unread_count || 0);
     } catch (error) {
       console.error("Failed to load notifications:", error);
     } finally {
       setLoading(false);
     }
-  }, [role]);
+  }, [notificationRole]);
 
   useEffect(() => {
     fetchNotifications();
@@ -40,14 +46,38 @@ const NotificationDropdown = ({ role = "manager" }) => {
     return () => clearInterval(interval);
   }, [fetchNotifications]);
 
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      const clickedButton = dropdownRef.current?.contains(event.target);
+      const clickedPanel = panelRef.current?.contains(event.target);
+
+      if (!clickedButton && !clickedPanel) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
   const markAsRead = async (id) => {
-    await notificationApi.markAsRead(id);
-    fetchNotifications();
+    try {
+      await notificationApi.markAsRead(id);
+      fetchNotifications();
+    } catch (error) {
+      console.error("Failed to mark notification as read:", error);
+    }
   };
 
   const markAllAsRead = async () => {
-    await notificationApi.markAllAsRead(role);
-    fetchNotifications();
+    try {
+      await notificationApi.markAllAsRead(notificationRole);
+      fetchNotifications();
+    } catch (error) {
+      console.error("Failed to mark all notifications as read:", error);
+    }
   };
 
   const getIcon = (type) => {
@@ -57,71 +87,211 @@ const NotificationDropdown = ({ role = "manager" }) => {
     return faInfoCircle;
   };
 
+  const getNotificationDestination = (notification) => {
+    const role = notificationRole || localStorage.getItem("role") || "customer";
+    const relatedType = String(notification.related_type || notification.type || "").toLowerCase();
+    const text = `${notification.title || ""} ${notification.message || ""}`.toLowerCase();
+    
+    // Customer navigation
+    if (role === "customer") {
+      if (relatedType.includes("order") || text.includes("order")) {
+        return "/customer/orders";
+      }
+      if (relatedType.includes("payment") || text.includes("payment")) {
+        return "/customer/payments";
+      }
+      if (relatedType.includes("service") || relatedType.includes("booking") || text.includes("booking")) {
+        return "/customer/bookings";
+      }
+      return "/customer/notifications";
+    }
+
+    if (role === "admin") {
+      if (relatedType.includes("payroll")) return "/admin/payroll";
+      if (relatedType.includes("salary")) return "/admin/payroll/salaries";
+      if (relatedType.includes("payment")) return "/admin/reports/payments";
+      if (relatedType.includes("order")) return "/admin/reports/orders";
+      if (relatedType.includes("service") || relatedType.includes("booking")) return "/admin/reports/service-requests";
+      if (relatedType.includes("appointment") || relatedType.includes("vet")) return "/admin/reports/veterinary";
+      if (relatedType.includes("inventory") || relatedType.includes("stock")) return "/admin/reports/inventory";
+      if (relatedType.includes("user") || text.includes("user")) return "/admin/users";
+      if (relatedType.includes("chatbot")) return "/admin/chatbot";
+      return "/admin/reports";
+    }
+    
+    if (role === "manager") {
+      if (relatedType.includes("payroll") || relatedType.includes("salary") || text.includes("payroll") || text.includes("salary")) {
+        return "/manager/payroll";
+      }
+      if (relatedType.includes("attendance") || text.includes("attendance")) {
+        return "/manager/attendance";
+      }
+      if (relatedType.includes("staff") || relatedType.includes("employee") || text.includes("staff") || text.includes("employee")) {
+        return "/manager/staff";
+      }
+      return "/manager/reports";
+    }
+
+    if (role === "cashier") {
+      if (relatedType.includes("payment") || text.includes("payment") || text.includes("verification")) {
+        return "/cashier/payment-verification";
+      }
+      if (relatedType.includes("sale") || relatedType.includes("transaction") || text.includes("sale") || text.includes("transaction")) {
+        return "/cashier/transactions";
+      }
+      if (relatedType.includes("report") || text.includes("report")) {
+        return "/cashier/reports";
+      }
+      return "/cashier/pos";
+    }
+
+    if (role === "inventory") {
+      if (relatedType.includes("audit") || text.includes("audit")) {
+        return "/inventory/monthly-audit";
+      }
+      if (relatedType.includes("stock") || text.includes("stock") || text.includes("low")) {
+        return "/inventory/stock";
+      }
+      if (relatedType.includes("product") || relatedType.includes("inventory") || text.includes("product") || text.includes("inventory")) {
+        return "/inventory/products";
+      }
+      if (relatedType.includes("report") || text.includes("report")) {
+        return "/inventory/reports";
+      }
+      return "/inventory/management";
+    }
+
+    if (role === "veterinary" || role === "vet") {
+      if (relatedType.includes("board") || text.includes("boarding") || text.includes("boarder")) {
+        return "/vet/current-boarders";
+      }
+      if (relatedType.includes("customer") || relatedType.includes("profile") || text.includes("customer") || text.includes("profile")) {
+        return "/vet/customer-profiles";
+      }
+      if (relatedType.includes("report") || text.includes("report")) {
+        return "/vet/reports";
+      }
+      return "/vet/appointments";
+    }
+
+    if (role === "receptionist") {
+      if (relatedType.includes("approval") || text.includes("approval") || text.includes("pending")) {
+        return "/receptionist/approvals";
+      }
+      if (relatedType.includes("order") || text.includes("order")) {
+        return "/receptionist/orders";
+      }
+      if (relatedType.includes("customer") || text.includes("customer")) {
+        return "/receptionist/customers";
+      }
+      if (relatedType.includes("appointment") || text.includes("appointment")) {
+        return "/receptionist/appointments";
+      }
+      if (relatedType.includes("booking") || relatedType.includes("service") || text.includes("booking") || text.includes("service")) {
+        return "/receptionist/bookings";
+      }
+      if (relatedType.includes("chatbot") || text.includes("chatbot")) {
+        return "/receptionist/chatbot";
+      }
+      return "/receptionist/dashboard";
+    }
+
+    return `/${role}`;
+  };
+
+  const handleNotificationClick = (notification) => {
+    // Mark as read first
+    markAsRead(notification.id);
+    
+    // Navigate to relevant page
+    const destination = getNotificationDestination(notification);
+    navigate(destination);
+    
+    // Close dropdown
+    setIsOpen(false);
+  };
+
   return (
-    <div className="notification-dropdown">
+    <div className="pawesome-notification-dropdown" ref={dropdownRef}>
       <button
-        className="icon-btn notification-btn"
+        className="icon-btn pawesome-notification-btn"
         type="button"
-        onClick={() => setIsOpen(!isOpen)}
+        aria-label="Notifications"
+        aria-expanded={isOpen}
+        onClick={(event) => {
+          event.stopPropagation();
+          setIsOpen((current) => !current);
+        }}
       >
         <FontAwesomeIcon icon={faBell} />
 
         {unreadCount > 0 && (
-          <span className="notification-badge pulse">
+          <span className="pawesome-notification-badge pulse">
             {unreadCount > 9 ? "9+" : unreadCount}
           </span>
         )}
       </button>
 
-      {isOpen && (
-        <div className="notifications-panel">
-          <div className="notifications-header">
-            <h3>Notifications</h3>
+      {isOpen &&
+        createPortal(
+          <div className="pawesome-notifications-panel" ref={panelRef}>
+            <div className="pawesome-notifications-header">
+              <h3>Notifications</h3>
 
-            {unreadCount > 0 && (
-              <button className="clear-all" onClick={markAllAsRead}>
-                Mark all read
-              </button>
-            )}
-          </div>
-
-          <div className="notifications-list">
-            {loading ? (
-              <div className="notification-empty">
-                <FontAwesomeIcon icon={faSpinner} spin />
-                <span>Loading notifications...</span>
-              </div>
-            ) : notifications.length === 0 ? (
-              <div className="notification-empty">
-                <FontAwesomeIcon icon={faBell} />
-                <span>No notifications yet</span>
-              </div>
-            ) : (
-              notifications.map((item) => (
+              {unreadCount > 0 && (
                 <button
-                  key={item.id}
-                  className={`notification-item ${item.type} ${
-                    !item.is_read ? "unread" : ""
-                  }`}
-                  onClick={() => markAsRead(item.id)}
+                  className="pawesome-notifications-clear"
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    markAllAsRead();
+                  }}
                 >
-                  <span className="notification-icon">
-                    <FontAwesomeIcon icon={getIcon(item.type)} />
-                  </span>
-
-                  <span className="notification-content">
-                    <strong>{item.title}</strong>
-                    <p>{item.message}</p>
-                    <small className="notification-time">
-                      {new Date(item.created_at).toLocaleString()}
-                    </small>
-                  </span>
+                  Mark all read
                 </button>
-              ))
-            )}
-          </div>
-        </div>
-      )}
+              )}
+            </div>
+
+            <div className="pawesome-notifications-list">
+              {loading ? (
+                <div className="pawesome-notification-empty">
+                  <FontAwesomeIcon icon={faSpinner} spin />
+                  <span>Loading notifications...</span>
+                </div>
+              ) : notifications.length === 0 ? (
+                <div className="pawesome-notification-empty">
+                  <FontAwesomeIcon icon={faBell} />
+                  <span>No notifications yet</span>
+                </div>
+              ) : (
+                notifications.map((item) => (
+                  <button
+                    key={item.id}
+                    className={`pawesome-notification-item ${item.type} ${!item.read ? "unread" : ""}`}
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      handleNotificationClick(item);
+                    }}
+                  >
+                    <span className="pawesome-notification-icon">
+                      <FontAwesomeIcon icon={getIcon(item.type)} />
+                    </span>
+
+                    <span className="pawesome-notification-content">
+                      <strong>{item.title}</strong>
+                      <p>{item.message}</p>
+                      <small className="pawesome-notification-time">
+                        {item.created_at ? new Date(item.created_at).toLocaleString() : item.time}
+                      </small>
+                    </span>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 };

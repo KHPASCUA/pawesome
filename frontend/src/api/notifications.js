@@ -3,9 +3,8 @@ import { apiRequest } from "./client";
 export const notificationApi = {
   // Get all notifications (for role-based notifications)
   getAll: async (role) => {
-    return apiRequest(`/notifications`, {
-      params: role ? { role } : {},
-    });
+    const url = role ? `/notifications?role=${role}` : `/notifications`;
+    return apiRequest(url);
   },
 
   // Get all notifications (legacy)
@@ -14,7 +13,7 @@ export const notificationApi = {
     return apiRequest(`/notifications${params}`);
   },
 
-  // Get unread notifications (for NotificationBell)
+  // Get unread notifications
   getUnread: async () => {
     return apiRequest("/notifications/unread");
   },
@@ -35,14 +34,15 @@ export const notificationApi = {
   // Mark single notification as read
   markAsRead: async (id) => {
     return apiRequest(`/notifications/${id}/read`, {
-      method: "PATCH",
+      method: "POST",
     });
   },
 
   // Mark all as read
-  markAllAsRead: async () => {
-    return apiRequest("/notifications/read-all", {
-      method: "PATCH",
+  markAllAsRead: async (role) => {
+    const url = role ? `/notifications/mark-all-read?role=${role}` : "/notifications/mark-all-read";
+    return apiRequest(url, {
+      method: "POST",
     });
   },
 

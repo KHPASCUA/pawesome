@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Outlet, NavLink, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
@@ -11,6 +11,8 @@ import {
   PieChart,
   Pie,
   Cell,
+  CartesianGrid,
+  Legend,
 } from "recharts";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -27,6 +29,17 @@ import {
   faDatabase,
   faSync,
   faLayerGroup,
+  faRotateRight,
+  faExclamationTriangle,
+  faChartLine,
+  faChartPie,
+  faMoneyBillWave,
+  faArrowRight,
+  faCircleCheck,
+  faUserPlus,
+  faGear,
+  faFileLines,
+  faSpinner,
 } from "@fortawesome/free-solid-svg-icons";
 
 import AdminSidebar from "./AdminSidebar";
@@ -36,27 +49,32 @@ import DashboardProfile from "../shared/DashboardProfile";
 import "./AdminDashboard.css";
 import { apiRequest, uploadProfilePhoto } from "../../api/client";
 import { formatCurrency } from "../../utils/currency";
+import { normalizeList } from "../../utils/normalizeList";
 
 const cardVariants = {
   hidden: { opacity: 0, y: 18 },
   show: { opacity: 1, y: 0 },
 };
 
-const chartColors = ["#ff5f93", "#ff8db5", "#ffc8dd", "#f472b6", "#fb7185"];
+const chartColors = ["#ff5f93", "#ff8db5", "#ffc8dd", "#f472b6", "#fb7185", "#f59e0b"];
 
 const AdminDashboard = () => {
   const name = localStorage.getItem("name") || "Admin";
   const role = localStorage.getItem("role") || "admin";
   const profilePhoto = localStorage.getItem("profile_photo") || "";
 
-  const [theme, setTheme] = useState(
-    localStorage.getItem("theme") || "light"
-  );
+  const [theme, setTheme] = useState(localStorage.getItem("theme") || "light");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [dashboardData, setDashboardData] = useState(null);
   const [systemHealth, setSystemHealth] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
+  const [lastUpdated, setLastUpdated] = useState("");
+
+  const location = useLocation();
+  const normalizedPath = location.pathname.replace(/\/+$/, "");
+  const showOverview = normalizedPath === "/admin";
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -73,35 +91,70 @@ const AdminDashboard = () => {
     }
   };
 
-  const location = useLocation();
-  const normalizedPath = location.pathname.replace(/\/+$/, "");
-  const showOverview = normalizedPath === "/admin";
-
-  useEffect(() => {
-    const fetchDashboardData = async () => {
+  const fetchDashboardData = useCallback(
+    async ({ silent = false } = {}) => {
       try {
-        setLoading(true);
-        const [data, health] = await Promise.all([
+        if (silent) {
+          setRefreshing(true);
+        } else {
+          setLoading(true);
+        }
+
+        setError("");
+
+        const [dashboardResult, healthResult] = await Promise.allSettled([
           apiRequest("/admin/dashboard"),
           apiRequest("/admin/system-health"),
         ]);
-        setDashboardData(data);
-        setSystemHealth(health);
-        setError("");
+
+        if (dashboardResult.status === "rejected") {
+          throw dashboardResult.reason;
+        }
+
+        setDashboardData(dashboardResult.value || {});
+        setSystemHealth(
+          healthResult.status === "fulfilled" ? healthResult.value || null : null
+        );
+        setLastUpdated(new Date().toLocaleString("en-PH"));
       } catch (err) {
-        setError(err.message || "Failed to load dashboard data");
+        console.error("Admin dashboard fetch error:", err);
+        setError(err.message || "Failed to load admin dashboard data.");
+        setDashboardData({
+          total_users: 0,
+          active_users: 0,
+          total_customers: 0,
+          today_appointments: 0,
+          total_revenue: 0,
+          today_revenue: 0,
+          low_stock_items: 0,
+          total_appointments: 0,
+          completed_appointments: 0,
+          appointments_by_status: [],
+          users_by_role: [],
+          recent_appointments: [],
+          recent_users: [],
+        });
+        setSystemHealth(null);
       } finally {
         setLoading(false);
+        setRefreshing(false);
       }
-    };
+    },
+    []
+  );
 
-    if (showOverview) fetchDashboardData();
-  }, [showOverview]);
+  useEffect(() => {
+    if (showOverview) {
+      fetchDashboardData();
+    }
+  }, [showOverview, fetchDashboardData]);
 
   const formatRelativeTime = (timestamp) => {
     if (!timestamp) return "Just now";
 
     const time = new Date(timestamp).getTime();
+    if (Number.isNaN(time)) return "Recently";
+
     const diff = Date.now() - time;
     const minutes = Math.floor(diff / 60000);
     const hours = Math.floor(diff / 3600000);
@@ -113,105 +166,209 @@ const AdminDashboard = () => {
     return `${days}d ago`;
   };
 
-  const summaryCards = useMemo(() => {
-    if (!dashboardData) return [];
+  const formatNumber = (value) =>
+    new Intl.NumberFormat("en-PH").format(Number(value || 0));
 
-    return [
-      {
-        title: "Total Users",
-        value: dashboardData.total_users || 0,
-        subtitle: "Registered accounts",
-        icon: faUsers,
-      },
-      {
-        title: "Active Users",
-        value: dashboardData.active_users || 0,
-        subtitle: "Enabled team members",
-        icon: faUserShield,
-      },
-      {
-        title: "Total Customers",
-        value: dashboardData.total_customers || 0,
-        subtitle: "Customer records",
-        icon: faUsers,
-      },
-      {
-        title: "Today’s Appointments",
-        value: dashboardData.today_appointments || 0,
-        subtitle: "Scheduled today",
-        icon: faCalendarCheck,
-      },
-      {
-        title: "Total Revenue",
-        value: formatCurrency(dashboardData.total_revenue || 0),
-        subtitle: "All-time collections",
-        icon: faArrowTrendUp,
-      },
-      {
-        title: "Low Stock Items",
-        value: dashboardData.low_stock_items || 0,
-        subtitle: "Need replenishment",
-        icon: faBoxOpen,
-      },
-    ];
-  }, [dashboardData]);
+  const dashboard = dashboardData || {};
 
-  const appointmentStatusData = dashboardData?.appointments_by_status || [];
-  const userRoleData = dashboardData?.users_by_role || [];
+  const appointmentStatusData = useMemo(() => {
+    return normalizeList(dashboard?.appointments_by_status, [
+      "data",
+      "records",
+      "items",
+    ]).map((item) => ({
+      status: item.status || item.name || item.label || "Unknown",
+      count: Number(item.count || item.total || item.value || 0),
+    }));
+  }, [dashboard]);
 
-  const completionRate = dashboardData?.total_appointments
+  const userRoleData = useMemo(() => {
+    return normalizeList(dashboard?.users_by_role, [
+      "data",
+      "records",
+      "items",
+    ]).map((item) => ({
+      role: item.role || item.name || item.label || "Unknown",
+      count: Number(item.count || item.total || item.value || 0),
+    }));
+  }, [dashboard]);
+
+  const completionRate = dashboard?.total_appointments
     ? Math.round(
-        ((dashboardData.completed_appointments || 0) /
-          dashboardData.total_appointments) *
-          100
+        ((dashboard.completed_appointments || 0) / dashboard.total_appointments) * 100
       )
     : 0;
 
-  const activeUserRate = dashboardData?.total_users
-    ? Math.round(
-        ((dashboardData.active_users || 0) / dashboardData.total_users) * 100
-      )
+  const activeUserRate = dashboard?.total_users
+    ? Math.round(((dashboard.active_users || 0) / dashboard.total_users) * 100)
     : 0;
 
   const pendingAppointments = Math.max(
-    (dashboardData?.total_appointments || 0) -
-      (dashboardData?.completed_appointments || 0),
+    (dashboard?.total_appointments || 0) - (dashboard?.completed_appointments || 0),
     0
   );
 
-  const orderRequests = dashboardData
-    ? [
-        ...(dashboardData.recent_appointments || []).map((apt) => ({
-          id: apt.id,
-          name: apt.customer?.name || "Unknown Customer",
-          time: formatRelativeTime(apt.scheduled_at),
-          date: apt.scheduled_at
-            ? new Date(apt.scheduled_at).toLocaleDateString()
-            : "N/A",
-          service: apt.service?.name || "Service",
-          pet: apt.pet?.name || "Pet",
-          status: apt.status || "scheduled",
-          type: "appointment",
-        })),
-        ...(dashboardData.recent_users || []).map((user) => ({
-          id: user.id,
-          name: user.name || user.username,
-          time: formatRelativeTime(user.created_at),
-          date: user.created_at
-            ? new Date(user.created_at).toLocaleDateString()
-            : "N/A",
-          role: user.role || "user",
-          status: user.is_active ? "active" : "inactive",
-          type: "user",
-        })),
-      ].slice(0, 8)
-    : [];
+  const summaryCards = useMemo(
+    () => [
+      {
+        title: "Total Users",
+        value: formatNumber(dashboard.total_users || 0),
+        subtitle: "Registered platform accounts",
+        icon: faUsers,
+        color: "primary",
+      },
+      {
+        title: "Active Users",
+        value: formatNumber(dashboard.active_users || 0),
+        subtitle: `${activeUserRate}% active user rate`,
+        icon: faUserShield,
+        color: "success",
+      },
+      {
+        title: "Total Customers",
+        value: formatNumber(dashboard.total_customers || 0),
+        subtitle: "Customer records",
+        icon: faUsers,
+        color: "info",
+      },
+      {
+        title: "Today’s Appointments",
+        value: formatNumber(dashboard.today_appointments || 0),
+        subtitle: "Scheduled for today",
+        icon: faCalendarCheck,
+        color: "warning",
+      },
+      {
+        title: "Total Revenue",
+        value: formatCurrency(dashboard.total_revenue || 0),
+        subtitle: `Today: ${formatCurrency(dashboard.today_revenue || 0)}`,
+        icon: faMoneyBillWave,
+        color: "primary",
+      },
+      {
+        title: "Low Stock Items",
+        value: formatNumber(dashboard.low_stock_items || 0),
+        subtitle: "Inventory items needing attention",
+        icon: faBoxOpen,
+        color: Number(dashboard.low_stock_items || 0) > 0 ? "danger" : "success",
+      },
+    ],
+    [dashboard, activeUserRate]
+  );
+
+  const orderRequests = useMemo(() => {
+    if (!dashboardData) return [];
+
+    const appointments = normalizeList(dashboard.recent_appointments, [
+      "data",
+      "records",
+      "items",
+    ]).map((apt) => ({
+      id: apt.id || `appointment-${apt.scheduled_at || Math.random()}`,
+      name:
+        apt.customer?.name ||
+        apt.customer_name ||
+        apt.owner_name ||
+        "Unknown Customer",
+      time: formatRelativeTime(apt.scheduled_at || apt.created_at),
+      date: apt.scheduled_at
+        ? new Date(apt.scheduled_at).toLocaleDateString("en-PH")
+        : "N/A",
+      service: apt.service?.name || apt.service_name || apt.service_type || "Service",
+      pet: apt.pet?.name || apt.pet_name || "Pet",
+      status: apt.status || "scheduled",
+      type: "appointment",
+    }));
+
+    const users = normalizeList(dashboard.recent_users, [
+      "data",
+      "records",
+      "items",
+    ]).map((user) => ({
+      id: user.id || `user-${user.email || Math.random()}`,
+      name: user.name || user.username || user.email || "New User",
+      time: formatRelativeTime(user.created_at),
+      date: user.created_at
+        ? new Date(user.created_at).toLocaleDateString("en-PH")
+        : "N/A",
+      role: user.role || "user",
+      status: user.is_active === false ? "inactive" : "active",
+      type: "user",
+    }));
+
+    return [...appointments, ...users].slice(0, 8);
+  }, [dashboardData, dashboard]);
+
+  const health = systemHealth?.health || systemHealth || {};
+  const backendStatus =
+    health?.backend?.status || systemHealth?.backend_status || "unknown";
+  const databaseStatus =
+    health?.database?.status || systemHealth?.database_status || "unknown";
+  const activeModules = health?.active_modules || systemHealth?.active_modules || {};
+
+  const activeModuleCount = Object.keys(activeModules).filter(
+    (key) => activeModules[key]
+  ).length;
+
+  const systemStatusItems = [
+    {
+      title: "Backend",
+      value: backendStatus,
+      icon: faServer,
+      online:
+        String(backendStatus).toLowerCase() === "operational" ||
+        String(backendStatus).toLowerCase() === "online",
+    },
+    {
+      title: "Database",
+      value: databaseStatus,
+      icon: faDatabase,
+      online:
+        String(databaseStatus).toLowerCase() === "connected" ||
+        String(databaseStatus).toLowerCase() === "online",
+    },
+    {
+      title: "Last Sync",
+      value: systemHealth?.timestamp
+        ? new Date(systemHealth.timestamp).toLocaleTimeString("en-PH")
+        : lastUpdated || "Not available",
+      icon: faSync,
+      online: Boolean(systemHealth?.timestamp || lastUpdated),
+    },
+    {
+      title: "Active Modules",
+      value: activeModuleCount || dashboard.active_modules || "N/A",
+      icon: faLayerGroup,
+      online: activeModuleCount > 0 || Boolean(dashboard.active_modules),
+    },
+  ];
+
+  const quickActions = [
+    {
+      label: "Manage Users",
+      description: "Create, edit, and monitor role access.",
+      to: "/admin/users",
+      icon: faUserPlus,
+    },
+    {
+      label: "View Reports",
+      description: "Open admin reports and analytics.",
+      to: "/admin/reports",
+      icon: faFileLines,
+    },
+    {
+      label: "System Settings",
+      description: "Review platform configuration.",
+      to: "/admin/settings",
+      icon: faGear,
+    },
+  ];
 
   const pageCopy = showOverview
     ? {
         title: "Admin Command Center",
         subtitle:
-          "Monitor appointments, users, revenue, and inventory performance in one premium workspace.",
+          "Monitor users, appointments, revenue, inventory alerts, and system health in one professional workspace.",
       }
     : {
         title: "Admin Workspace",
@@ -219,8 +376,27 @@ const AdminDashboard = () => {
           "Manage platform operations with role-based access and live system context.",
       };
 
+  const AdminTooltip = ({ active, payload, label }) => {
+    if (!active || !payload || payload.length === 0) return null;
+
+    return (
+      <div className="admin-chart-tooltip">
+        <strong>{label}</strong>
+        {payload.map((item) => (
+          <p key={item.dataKey || item.name}>
+            {item.name || item.dataKey}: {formatNumber(item.value)}
+          </p>
+        ))}
+      </div>
+    );
+  };
+
   return (
-    <div className={`admin-dashboard ${mobileMenuOpen ? "mobile-open" : ""}`}>
+    <div
+      className={`admin-dashboard ${mobileMenuOpen ? "mobile-open" : ""} ${
+        theme === "dark" ? "dark" : ""
+      }`}
+    >
       <AdminSidebar
         mobileOpen={mobileMenuOpen}
         onMobileMenuToggle={() => setMobileMenuOpen((prev) => !prev)}
@@ -233,6 +409,7 @@ const AdminDashboard = () => {
               className="mobile-menu-toggle"
               onClick={() => setMobileMenuOpen((prev) => !prev)}
               aria-label="Toggle mobile menu"
+              type="button"
             >
               <FontAwesomeIcon icon={faBars} />
             </button>
@@ -256,6 +433,20 @@ const AdminDashboard = () => {
           </div>
 
           <div className="navbar-actions">
+            {showOverview && (
+              <button
+                className={`admin-icon-btn admin-refresh-btn ${
+                  refreshing ? "refreshing" : ""
+                }`}
+                type="button"
+                onClick={() => fetchDashboardData({ silent: true })}
+                disabled={refreshing}
+                title="Refresh dashboard"
+              >
+                <FontAwesomeIcon icon={refreshing ? faSpinner : faRotateRight} />
+              </button>
+            )}
+
             <DashboardProfile
               name={name}
               role="Administrator"
@@ -263,7 +454,7 @@ const AdminDashboard = () => {
               onUpload={handleProfilePhotoUpload}
             />
 
-            <NotificationDropdown />
+            <NotificationDropdown role="admin" />
 
             <button
               className="theme-toggle-btn"
@@ -271,6 +462,7 @@ const AdminDashboard = () => {
               onClick={() =>
                 setTheme((prev) => (prev === "light" ? "dark" : "light"))
               }
+              title="Toggle theme"
             >
               <FontAwesomeIcon icon={theme === "light" ? faMoon : faSun} />
             </button>
@@ -280,16 +472,19 @@ const AdminDashboard = () => {
         {showOverview ? (
           <>
             {loading ? (
-              <div className="loading-container">
-                <div className="loading-spinner">
-                  <span>Loading dashboard...</span>
-                </div>
+              <div className="admin-loading-state">
+                <FontAwesomeIcon icon={faSpinner} className="admin-spin" />
+                <h3>Loading admin dashboard...</h3>
+                <p>Please wait while we load live platform data.</p>
               </div>
             ) : error ? (
-              <div className="error-container">
-                <div className="error-message">{error}</div>
+              <div className="admin-error-state">
+                <FontAwesomeIcon icon={faExclamationTriangle} />
+                <h3>Unable to load dashboard</h3>
+                <p>{error}</p>
                 <button
-                  onClick={() => window.location.reload()}
+                  type="button"
+                  onClick={() => fetchDashboardData()}
                   className="retry-btn"
                 >
                   Retry
@@ -302,21 +497,79 @@ const AdminDashboard = () => {
                 animate="show"
                 transition={{ staggerChildren: 0.08 }}
               >
+                <motion.section className="admin-hero" variants={cardVariants}>
+                  <div className="admin-hero-copy">
+                    <span className="admin-eyebrow">
+                      <FontAwesomeIcon icon={faUserShield} />
+                      Administrator Overview
+                    </span>
+                    <h2>Welcome back, {name}</h2>
+                    <p>
+                      Track live operations, user activity, revenue, inventory alerts,
+                      and system health from your admin command center.
+                    </p>
+                  </div>
+
+                  <div className="admin-hero-actions">
+                    <button
+                      type="button"
+                      className="admin-secondary-action"
+                      onClick={() => fetchDashboardData({ silent: true })}
+                      disabled={refreshing}
+                    >
+                      <FontAwesomeIcon icon={faRotateRight} />
+                      {refreshing ? "Refreshing..." : "Refresh Data"}
+                    </button>
+
+                    <NavLink to="/admin/reports" className="admin-primary-action">
+                      View Reports
+                      <FontAwesomeIcon icon={faArrowRight} />
+                    </NavLink>
+                  </div>
+
+                  <span className="admin-last-updated">
+                    Last updated: {lastUpdated || "Not available"}
+                  </span>
+                </motion.section>
+
                 <section className="overview-cards">
                   {summaryCards.map((card) => (
                     <motion.article
                       key={card.title}
-                      className="overview-card"
+                      className={`overview-card ${card.color}`}
                       variants={cardVariants}
                       whileHover={{ y: -6, scale: 1.01 }}
                     >
-                      <span className="overview-card-icon">
-                        <FontAwesomeIcon icon={card.icon} />
-                      </span>
+                      <div className="overview-card-top">
+                        <span className="overview-card-icon">
+                          <FontAwesomeIcon icon={card.icon} />
+                        </span>
+                        <span className="overview-card-dot" />
+                      </div>
+
                       <h3>{card.value}</h3>
                       <p>{card.title}</p>
                       <small>{card.subtitle}</small>
                     </motion.article>
+                  ))}
+                </section>
+
+                <section className="admin-quick-actions">
+                  {quickActions.map((item) => (
+                    <NavLink
+                      key={item.label}
+                      to={item.to}
+                      className="admin-quick-action-card"
+                    >
+                      <span className="quick-action-icon">
+                        <FontAwesomeIcon icon={item.icon} />
+                      </span>
+                      <div>
+                        <strong>{item.label}</strong>
+                        <p>{item.description}</p>
+                      </div>
+                      <FontAwesomeIcon icon={faArrowRight} />
+                    </NavLink>
                   ))}
                 </section>
 
@@ -328,62 +581,65 @@ const AdminDashboard = () => {
                         <p>Visual breakdown of appointment progress.</p>
                       </div>
                       <span className="badge">
-                        {dashboardData?.total_appointments || 0} total
+                        {formatNumber(dashboard.total_appointments || 0)} total
                       </span>
                     </div>
 
                     <div className="chart-box">
-                      <ResponsiveContainer width="100%" height={260}>
-                        <BarChart data={appointmentStatusData}>
-                          <XAxis dataKey="status" />
-                          <YAxis allowDecimals={false} />
-                          <Tooltip />
-                          <Bar dataKey="count" radius={[10, 10, 0, 0]}>
-                            {appointmentStatusData.map((entry, index) => (
-                              <Cell
-                                key={entry.status}
-                                fill={chartColors[index % chartColors.length]}
-                              />
-                            ))}
-                          </Bar>
-                        </BarChart>
-                      </ResponsiveContainer>
+                      {appointmentStatusData.length === 0 ? (
+                        <div className="admin-empty-chart">
+                          <FontAwesomeIcon icon={faChartLine} />
+                          <p>No appointment status data available.</p>
+                        </div>
+                      ) : (
+                        <ResponsiveContainer width="100%" height={280}>
+                          <BarChart data={appointmentStatusData}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="status" />
+                            <YAxis allowDecimals={false} />
+                            <Tooltip content={<AdminTooltip />} />
+                            <Bar dataKey="count" name="Appointments" radius={[10, 10, 0, 0]}>
+                              {appointmentStatusData.map((entry, index) => (
+                                <Cell
+                                  key={entry.status}
+                                  fill={chartColors[index % chartColors.length]}
+                                />
+                              ))}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      )}
                     </div>
                   </motion.article>
 
-                  <motion.article
-                    className="panel quick-stat-panel"
-                    variants={cardVariants}
-                  >
+                  <motion.article className="panel quick-stat-panel" variants={cardVariants}>
                     <div className="metric-card accent">
                       <span className="metric-kicker">Daily Pulse</span>
-                      <h3>
-                        {formatCurrency(dashboardData?.today_revenue || 0)}
-                      </h3>
+                      <h3>{formatCurrency(dashboard.today_revenue || 0)}</h3>
                       <p>Revenue collected today</p>
                     </div>
 
                     <div className="metric-card">
                       <span className="metric-kicker">Service Flow</span>
-                      <h3>{pendingAppointments}</h3>
+                      <h3>{formatNumber(pendingAppointments)}</h3>
                       <p>Appointments still in progress</p>
                     </div>
 
                     <div className="metric-card">
                       <span className="metric-kicker">Staff Readiness</span>
-                      <h3>{dashboardData?.active_users || 0}</h3>
+                      <h3>{formatNumber(dashboard.active_users || 0)}</h3>
                       <p>Active dashboard accounts</p>
                     </div>
 
                     <div className="metric-card">
                       <span className="metric-kicker">System Status</span>
-                      <h3>ONLINE</h3>
-                      <p>All modules operational</p>
+                      <h3>{backendStatus !== "unknown" ? "ONLINE" : "CHECK"}</h3>
+                      <p>Backend and database monitoring</p>
                     </div>
                   </motion.article>
                 </section>
 
-                <section className="dashboard-grid">
+                <section className="dashboard-grid three-column">
                   <motion.article className="panel" variants={cardVariants}>
                     <div className="panel-header">
                       <div>
@@ -393,26 +649,34 @@ const AdminDashboard = () => {
                     </div>
 
                     <div className="chart-box">
-                      <ResponsiveContainer width="100%" height={260}>
-                        <PieChart>
-                          <Pie
-                            data={userRoleData}
-                            dataKey="count"
-                            nameKey="role"
-                            outerRadius={95}
-                            innerRadius={55}
-                            paddingAngle={4}
-                          >
-                            {userRoleData.map((entry, index) => (
-                              <Cell
-                                key={entry.role}
-                                fill={chartColors[index % chartColors.length]}
-                              />
-                            ))}
-                          </Pie>
-                          <Tooltip />
-                        </PieChart>
-                      </ResponsiveContainer>
+                      {userRoleData.length === 0 ? (
+                        <div className="admin-empty-chart">
+                          <FontAwesomeIcon icon={faChartPie} />
+                          <p>No role distribution data available.</p>
+                        </div>
+                      ) : (
+                        <ResponsiveContainer width="100%" height={280}>
+                          <PieChart>
+                            <Pie
+                              data={userRoleData}
+                              dataKey="count"
+                              nameKey="role"
+                              outerRadius={95}
+                              innerRadius={55}
+                              paddingAngle={4}
+                            >
+                              {userRoleData.map((entry, index) => (
+                                <Cell
+                                  key={entry.role}
+                                  fill={chartColors[index % chartColors.length]}
+                                />
+                              ))}
+                            </Pie>
+                            <Tooltip />
+                            <Legend />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      )}
                     </div>
                   </motion.article>
 
@@ -420,7 +684,7 @@ const AdminDashboard = () => {
                     <div className="panel-header">
                       <div>
                         <h2>Operations Snapshot</h2>
-                        <p>Quick indicators for current performance.</p>
+                        <p>Current performance indicators.</p>
                       </div>
                     </div>
 
@@ -430,11 +694,11 @@ const AdminDashboard = () => {
                         <p>Completion Rate</p>
                       </div>
                       <div className="status-card info">
-                        <strong>{dashboardData?.total_appointments || 0}</strong>
+                        <strong>{formatNumber(dashboard.total_appointments || 0)}</strong>
                         <p>Total Appointments</p>
                       </div>
                       <div className="status-card danger">
-                        <strong>{dashboardData?.low_stock_items || 0}</strong>
+                        <strong>{formatNumber(dashboard.low_stock_items || 0)}</strong>
                         <p>Low Stock Alerts</p>
                       </div>
                     </div>
@@ -444,60 +708,30 @@ const AdminDashboard = () => {
                     <div className="panel-header">
                       <div>
                         <h2>System Status</h2>
-                        <p>Real-time platform health monitoring.</p>
+                        <p>Platform health monitoring.</p>
                       </div>
                     </div>
 
                     <div className="system-status-grid">
-                      <div className="system-status-item">
-                        <span className="system-status-icon">
-                          <FontAwesomeIcon icon={faServer} />
-                        </span>
-                        <div>
-                          <strong>Backend</strong>
-                          <p className={systemHealth?.health?.backend?.status === 'operational' ? 'status-online' : 'status-offline'}>
-                            {systemHealth?.health?.backend?.status || 'Unknown'}
-                          </p>
+                      {systemStatusItems.map((item) => (
+                        <div className="system-status-item" key={item.title}>
+                          <span className="system-status-icon">
+                            <FontAwesomeIcon icon={item.icon} />
+                          </span>
+                          <div>
+                            <strong>{item.title}</strong>
+                            <p className={item.online ? "status-online" : "status-offline"}>
+                              {item.value}
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                      <div className="system-status-item">
-                        <span className="system-status-icon">
-                          <FontAwesomeIcon icon={faDatabase} />
-                        </span>
-                        <div>
-                          <strong>Database</strong>
-                          <p className={systemHealth?.health?.database?.status === 'connected' ? 'status-online' : 'status-offline'}>
-                            {systemHealth?.health?.database?.status || 'Unknown'}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="system-status-item">
-                        <span className="system-status-icon">
-                          <FontAwesomeIcon icon={faSync} />
-                        </span>
-                        <div>
-                          <strong>Last Sync</strong>
-                          <p>{systemHealth?.timestamp ? new Date(systemHealth.timestamp).toLocaleTimeString() : 'Never'}</p>
-                        </div>
-                      </div>
-                      <div className="system-status-item">
-                        <span className="system-status-icon">
-                          <FontAwesomeIcon icon={faLayerGroup} />
-                        </span>
-                        <div>
-                          <strong>Active Modules</strong>
-                          <p>{systemHealth?.health?.active_modules ? Object.keys(systemHealth.health.active_modules).filter(k => systemHealth.health.active_modules[k]).length : 0}</p>
-                        </div>
-                      </div>
+                      ))}
                     </div>
                   </motion.article>
                 </section>
 
                 <section className="dashboard-bottom">
-                  <motion.div
-                    className="panel orders-panel"
-                    variants={cardVariants}
-                  >
+                  <motion.div className="panel orders-panel" variants={cardVariants}>
                     <div className="panel-header space-between">
                       <div>
                         <h2>Recent Operational Activity</h2>
@@ -505,6 +739,7 @@ const AdminDashboard = () => {
                       </div>
                       <NavLink to="/admin/reports" className="see-all-link">
                         View reports
+                        <FontAwesomeIcon icon={faArrowRight} />
                       </NavLink>
                     </div>
 
@@ -524,9 +759,7 @@ const AdminDashboard = () => {
                                 </p>
                               </div>
                               <span className={`status-badge ${order.status}`}>
-                                {order.type === "appointment"
-                                  ? order.status
-                                  : order.role}
+                                {order.type === "appointment" ? order.status : order.role}
                               </span>
                             </div>
 
@@ -559,9 +792,7 @@ const AdminDashboard = () => {
                             <div className="request-footer">
                               <span>
                                 <FontAwesomeIcon icon={faUsers} />{" "}
-                                {order.type === "appointment"
-                                  ? "Customer"
-                                  : "New User"}
+                                {order.type === "appointment" ? "Customer" : "New User"}
                               </span>
                               <span>
                                 <FontAwesomeIcon icon={faClipboardList} />{" "}
@@ -572,10 +803,9 @@ const AdminDashboard = () => {
                         ))
                       ) : (
                         <div className="empty-panel-state">
+                          <FontAwesomeIcon icon={faCircleCheck} />
                           <h3>System is running smoothly</h3>
-                          <p>
-                            No new activity detected. All operations are stable.
-                          </p>
+                          <p>No new activity detected. All operations are stable.</p>
                         </div>
                       )}
                     </div>

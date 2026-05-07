@@ -1,11 +1,11 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
 import ReceptionistSidebar from "./ReceptionistSidebar";
-import { FaBell, FaRedoAlt, FaMoon, FaUserTie } from "react-icons/fa";
+import { FaRedoAlt, FaMoon, FaUserTie } from "react-icons/fa";
+import NotificationDropdown from "../shared/NotificationDropdown";
 import "./ReceptionistLayout.css";
 
 const ReceptionistLayout = () => {
-  const [showNotifications, setShowNotifications] = useState(false);
   const navigate = useNavigate();
 
   const toggleTheme = () => {
@@ -47,50 +47,7 @@ const ReceptionistLayout = () => {
               </span>
             </button>
 
-            <div className="notification-wrapper">
-              <button
-                className="topbar-icon"
-                type="button"
-                title="Notifications"
-                onClick={() => setShowNotifications(!showNotifications)}
-              >
-                <FaBell />
-                <span className="notif-dot">3</span>
-              </button>
-
-              {showNotifications && (
-                <div className="notification-dropdown">
-                  <div className="notif-header">
-                    <strong>Notifications</strong>
-                    <small>Recent updates</small>
-                  </div>
-
-                  <button onClick={() => navigate("/receptionist/approvals")}>
-                    <span>3</span>
-                    <div>
-                      <strong>Pending approvals</strong>
-                      <small>Review booking and order requests</small>
-                    </div>
-                  </button>
-
-                  <button onClick={() => navigate("/receptionist/bookings")}>
-                    <span>!</span>
-                    <div>
-                      <strong>New bookings</strong>
-                      <small>Check latest customer reservations</small>
-                    </div>
-                  </button>
-
-                  <button onClick={() => navigate("/receptionist/orders")}>
-                    <span>₱</span>
-                    <div>
-                      <strong>Orders for review</strong>
-                      <small>Verify customer order status</small>
-                    </div>
-                  </button>
-                </div>
-              )}
-            </div>
+            <NotificationDropdown role="receptionist" />
 
             <button
               className="topbar-icon"
