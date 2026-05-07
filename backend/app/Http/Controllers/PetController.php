@@ -3,17 +3,42 @@
 namespace App\Http\Controllers;
 
 use App\Models\Pet;
+use App\Models\Customer;
 use Illuminate\Http\Request;
 
 class PetController extends Controller
 {
+    private function currentCustomer(Request $request): ?Customer
+    {
+        $user = $request->user();
+
+        if (!$user) {
+            return null;
+        }
+
+        return Customer::where('user_id', $user->id)
+            ->orWhere('email', $user->email)
+            ->first();
+    }
+
+    private function customerOwnsPet(Request $request, Pet $pet): bool
+    {
+        $customer = $this->currentCustomer($request);
+
+        return $customer && (int) $pet->customer_id === (int) $customer->id;
+    }
+
     public function index(Request $request)
     {
         $user = $request->user();
 
-        $customer = \App\Models\Customer::where('user_id', $user->id)
-            ->orWhere('email', $user->email)
-            ->first();
+        if ($user && $user->role !== 'customer') {
+            return response()->json([
+                'pets' => Pet::with('customer')->latest()->get(),
+            ]);
+        }
+
+        $customer = $this->currentCustomer($request);
 
         if (!$customer) {
             return response()->json([
@@ -21,7 +46,7 @@ class PetController extends Controller
             ]);
         }
 
-        $pets = \App\Models\Pet::where('customer_id', $customer->id)
+        $pets = Pet::where('customer_id', $customer->id)
             ->latest()
             ->get();
 
@@ -43,7 +68,7 @@ class PetController extends Controller
 
         $user = $request->user();
 
-        $customer = \App\Models\Customer::firstOrCreate(
+        $customer = Customer::firstOrCreate(
             ['email' => $user->email],
             [
                 'user_id' => $user->id,
@@ -54,7 +79,7 @@ class PetController extends Controller
             ]
         );
 
-        $pet = \App\Models\Pet::create([
+        $pet = Pet::create([
             'customer_id' => $customer->id,
             'name' => $validated['name'],
             'species' => $validated['species'],
@@ -70,9 +95,14 @@ class PetController extends Controller
         ], 201);
     }
 
-    public function show($id)
+    public function show(Request $request, $id)
     {
         $pet = Pet::findOrFail($id);
+
+        if ($request->user()?->role === 'customer' && !$this->customerOwnsPet($request, $pet)) {
+            return response()->json(['message' => 'Pet not found'], 404);
+        }
+
         return response()->json(['pet' => $pet]);
     }
 
@@ -88,6 +118,11 @@ class PetController extends Controller
         ]);
 
         $pet = Pet::findOrFail($id);
+
+        if ($request->user()?->role === 'customer' && !$this->customerOwnsPet($request, $pet)) {
+            return response()->json(['message' => 'Pet not found'], 404);
+        }
+
         $pet->update($validated);
 
         return response()->json([
@@ -96,9 +131,14 @@ class PetController extends Controller
         ]);
     }
 
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
         $pet = Pet::findOrFail($id);
+
+        if ($request->user()?->role === 'customer' && !$this->customerOwnsPet($request, $pet)) {
+            return response()->json(['message' => 'Pet not found'], 404);
+        }
+
         $pet->delete();
 
         return response()->json(['message' => 'Pet deleted successfully']);

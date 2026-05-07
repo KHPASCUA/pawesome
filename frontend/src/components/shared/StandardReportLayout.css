@@ -1,13 +1,24 @@
 .standard-report-layout {
   min-height: 100vh;
-  background: #f8fafc;
+  --report-primary: var(--color-primary, #ff5f93);
+  --report-primary-light: var(--color-primary-light, #ff8db5);
+  --report-surface: var(--color-surface, rgba(255, 255, 255, 0.92));
+  --report-border: var(--color-border, rgba(255, 95, 147, 0.14));
+  --report-heading: #111827;
+  --report-text: #243244;
+  --report-muted: #475569;
+  --report-shadow: var(--shadow-card, 0 12px 32px rgba(255, 95, 147, 0.1));
+  background: var(--color-bg-gradient, linear-gradient(180deg, #fff7fb 0%, #f8fafc 100%));
   padding: 1rem;
+  color: var(--report-text);
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 .report-content {
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid var(--report-border);
+  border-radius: 10px;
+  box-shadow: var(--report-shadow);
   overflow: hidden;
   min-height: 400px;
 }
@@ -26,7 +37,7 @@
   width: 48px;
   height: 48px;
   border: 4px solid #e2e8f0;
-  border-top: 4px solid #3b82f6;
+  border-top: 4px solid var(--report-primary);
   border-radius: 50%;
   animation: spin 1s linear infinite;
   margin-bottom: 1.5rem;
@@ -35,13 +46,13 @@
 .loading-text {
   font-size: 1.125rem;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--report-heading);
   margin-bottom: 0.5rem;
 }
 
 .loading-subtext {
   font-size: 0.875rem;
-  color: #64748b;
+  color: var(--report-muted);
 }
 
 /* Standard Error State */
@@ -63,7 +74,7 @@
 .error-message {
   font-size: 1.125rem;
   font-weight: 600;
-  color: #1e293b;
+  color: #243244;
   margin-bottom: 2rem;
   max-width: 400px;
 }
@@ -73,7 +84,7 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.75rem 1.5rem;
-  background: #3b82f6;
+  background: linear-gradient(135deg, var(--report-primary), var(--report-primary-light));
   color: white;
   border: none;
   border-radius: 8px;
@@ -84,7 +95,7 @@
 }
 
 .retry-btn:hover {
-  background: #2563eb;
+  background: linear-gradient(135deg, #ff4f88, var(--report-primary));
   transform: translateY(-2px);
 }
 
@@ -107,7 +118,7 @@
 .empty-message {
   font-size: 1.125rem;
   font-weight: 600;
-  color: #64748b;
+  color: #475569;
   margin-bottom: 2rem;
   max-width: 400px;
 }
@@ -117,7 +128,7 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.75rem 1.5rem;
-  background: #10b981;
+  background: linear-gradient(135deg, var(--report-primary), var(--report-primary-light));
   color: white;
   border: none;
   border-radius: 8px;
@@ -128,8 +139,145 @@
 }
 
 .refresh-btn:hover {
-  background: #059669;
+  background: linear-gradient(135deg, #ff4f88, var(--report-primary));
   transform: translateY(-2px);
+}
+
+.data-table-section,
+.charts-section,
+.chart-section {
+  padding: 1rem;
+}
+
+.section-title {
+  color: var(--report-heading);
+  font-size: 1rem;
+  font-weight: 900;
+  line-height: 1.25;
+  margin: 0 0 0.9rem;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(31, 41, 55, 0.45);
+  backdrop-filter: blur(8px);
+}
+
+.modal-content {
+  width: min(860px, 100%);
+  max-height: min(86vh, 760px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: var(--report-surface);
+  border: 1px solid var(--report-border);
+  border-radius: 10px;
+  box-shadow: 0 22px 70px rgba(31, 41, 55, 0.22);
+}
+
+.modal-header,
+.modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.1rem;
+  border-bottom: 1px solid rgba(255, 95, 147, 0.12);
+}
+
+.modal-footer {
+  justify-content: flex-end;
+  border-top: 1px solid rgba(255, 95, 147, 0.12);
+  border-bottom: 0;
+}
+
+.modal-header h2 {
+  color: var(--report-heading);
+  font-size: 1.1rem;
+  font-weight: 900;
+  margin: 0;
+}
+
+.modal-close {
+  width: 34px;
+  height: 34px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: rgba(255, 95, 147, 0.08);
+  color: var(--report-heading);
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.modal-close:hover {
+  background: rgba(255, 95, 147, 0.14);
+  transform: translateY(-1px);
+}
+
+.modal-body {
+  overflow-y: auto;
+  padding: 1.1rem;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 0.8rem;
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.8rem;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(255, 95, 147, 0.1);
+  border-radius: 8px;
+}
+
+.info-item label {
+  color: var(--report-muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.info-item span {
+  color: var(--report-heading);
+  font-size: 0.9rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+[data-theme="dark"] .standard-report-layout,
+body[data-theme="dark"] .standard-report-layout {
+  --report-surface: rgba(17, 24, 39, 0.94);
+  --report-border: rgba(255, 141, 181, 0.24);
+  --report-heading: #f8fafc;
+  --report-text: #e5e7eb;
+  --report-muted: #cbd5e1;
+  --report-shadow: 0 18px 48px rgba(0, 0, 0, 0.34);
+  background: linear-gradient(180deg, #111827 0%, #1f2937 100%);
+}
+
+[data-theme="dark"] .info-item,
+body[data-theme="dark"] .info-item {
+  background: rgba(31, 41, 55, 0.9);
+  border-color: rgba(255, 141, 181, 0.2);
+}
+
+[data-theme="dark"] .error-message,
+[data-theme="dark"] .empty-message,
+body[data-theme="dark"] .error-message,
+body[data-theme="dark"] .empty-message {
+  color: #e5e7eb;
 }
 
 /* Animations */
@@ -146,6 +294,12 @@
   
   .report-content {
     border-radius: 8px;
+  }
+
+  .data-table-section,
+  .charts-section,
+  .chart-section {
+    padding: 0.8rem;
   }
   
   .standard-loading-state,
@@ -168,5 +322,9 @@
   .refresh-btn {
     padding: 0.625rem 1.25rem;
     font-size: 0.8rem;
+  }
+
+  .modal-content {
+    max-height: 90vh;
   }
 }

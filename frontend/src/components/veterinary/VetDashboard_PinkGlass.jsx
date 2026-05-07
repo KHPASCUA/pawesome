@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { Outlet, NavLink, useLocation } from "react-router-dom";
+import React, { useState, useEffect, useMemo } from "react";
+import { Outlet, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faMoon,
@@ -803,6 +803,7 @@ const EmptyState = styled.div`
 `;
 
 const VetDashboard = () => {
+  const navigate = useNavigate();
   const name = localStorage.getItem("name") || "Veterinarian";
   const profilePhoto = localStorage.getItem("profile_photo") || "";
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -872,29 +873,30 @@ const VetDashboard = () => {
 
   const handleStartAppointment = async (aptId) => {
     try {
-      await apiRequest(`/appointments/${aptId}/status`, {
-        method: "PATCH",
-        body: JSON.stringify({ status: "in_progress" }),
+      // Find the appointment to check its current status
+      const appointment = dashboardData?.upcoming_appointments?.find(apt => apt.id === aptId);
+      if (!appointment) {
+        toast.error("Appointment not found");
+        return;
+      }
+
+      // Check if appointment can be started
+      if (!['approved', 'scheduled'].includes(appointment.status)) {
+        toast.error(`Cannot start appointment with status: ${appointment.status}. Only approved or scheduled appointments can be started.`);
+        return;
+      }
+
+      await apiRequest(`/veterinary/appointments/${aptId}/start`, {
+        method: "POST",
+        body: JSON.stringify({ notes: "Appointment started by veterinarian" }),
       });
       toast.success(`Appointment #${aptId} started`);
       fetchDashboardData({ silent: true });
+      navigate(`/veterinary/appointments/${aptId}/consult`);
     } catch (err) {
       console.error("Failed to start appointment:", err);
-      toast.error("Failed to start appointment. Check backend route.");
-    }
-  };
-
-  const handleCompleteAppointment = async (aptId) => {
-    try {
-      await apiRequest(`/appointments/${aptId}/status`, {
-        method: "PATCH",
-        body: JSON.stringify({ status: "completed" }),
-      });
-      toast.success(`Appointment #${aptId} completed • Receipt generated`);
-      fetchDashboardData({ silent: true });
-    } catch (err) {
-      console.error("Failed to complete appointment:", err);
-      toast.error("Failed to complete appointment. Check backend route.");
+      const errorMessage = err?.response?.data?.message || err?.message || "Failed to start appointment";
+      toast.error(errorMessage);
     }
   };
 
@@ -908,8 +910,8 @@ const VetDashboard = () => {
         subtitle: "Scheduled today",
         icon: faCalendarCheck,
         variant: "primary",
-        trend: "+12%",
-        trendUp: true,
+        trend: "Live",
+        trendUp: null,
       },
       {
         title: "Active Patients",
@@ -917,8 +919,8 @@ const VetDashboard = () => {
         subtitle: "Patient records",
         icon: faUsers,
         variant: "info",
-        trend: "+5%",
-        trendUp: true,
+        trend: "Live",
+        trendUp: null,
       },
       {
         title: "Completed",
@@ -926,8 +928,8 @@ const VetDashboard = () => {
         subtitle: "This month",
         icon: faClipboardCheck,
         variant: "success",
-        trend: "+8%",
-        trendUp: true,
+        trend: "Live",
+        trendUp: null,
       },
       {
         title: "Pending",
@@ -935,8 +937,8 @@ const VetDashboard = () => {
         subtitle: "Awaiting confirmation",
         icon: faClock,
         variant: "warning",
-        trend: "-3%",
-        trendUp: false,
+        trend: "Live",
+        trendUp: null,
       },
     ];
   }, [dashboardData]);
@@ -1017,7 +1019,7 @@ const VetDashboard = () => {
                 onUpload={handleProfilePhotoUpload}
               />
 
-              <NotificationDropdown />
+              <NotificationDropdown role="veterinary" />
 
               <IconButton onClick={toggleTheme} title="Toggle theme">
                 <FontAwesomeIcon icon={faMoon} />
@@ -1161,6 +1163,8 @@ const VetDashboard = () => {
                       const status = apt.status || "pending";
                       const isCompleted = status === "completed";
                       const isInProgress = status === "in_progress" || status === "ongoing";
+                      const canStart = ["approved", "scheduled"].includes(status);
+                      const canConsult = ["in_progress", "treated"].includes(status);
 
                       return (
                         <AppointmentItem key={apt.id || idx}>
@@ -1186,19 +1190,25 @@ const VetDashboard = () => {
                           <AppointmentActions>
                             <ActionButton
                               variant="secondary"
-                              disabled={isCompleted}
-                              onClick={() => handleStartAppointment(apt.id || idx)}
+                              disabled={isCompleted || (!canStart && !canConsult)}
+                              onClick={() => {
+                                if (canConsult) {
+                                  navigate(`/veterinary/appointments/${apt.id}/consult`);
+                                } else {
+                                  handleStartAppointment(apt.id || idx);
+                                }
+                              }}
                             >
                               <FontAwesomeIcon icon={faStethoscope} />
-                              {isInProgress ? "Ongoing" : "Start"}
+                              {isInProgress ? "Consult" : "Start"}
                             </ActionButton>
                             <ActionButton
                               variant="primary"
-                              disabled={isCompleted}
-                              onClick={() => handleCompleteAppointment(apt.id || idx)}
+                              disabled={isCompleted || !canConsult}
+                              onClick={() => navigate(`/veterinary/appointments/${apt.id}/consult`)}
                             >
                               <FontAwesomeIcon icon={faCircleCheck} />
-                              {isCompleted ? "Done" : "Complete"}
+                              {isCompleted ? "Done" : "Finalize"}
                             </ActionButton>
                           </AppointmentActions>
                         </AppointmentItem>

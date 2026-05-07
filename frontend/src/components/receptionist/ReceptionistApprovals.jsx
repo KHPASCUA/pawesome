@@ -5,16 +5,40 @@ import {
   FaClock,
   FaSearch,
   FaPaw,
+  FaUserMd,
 } from "react-icons/fa";
-import { API_URL, apiRequest } from "../../api/client";
+import { apiRequest } from "../../api/client";
 import "./ReceptionistApprovals.css";
-
-const API_BASE = API_URL;
 
 const ReceptionistApprovals = () => {
   const [requests, setRequests] = useState([]);
+  const [veterinarians, setVeterinarians] = useState([]);
+  const [vetAssignments, setVetAssignments] = useState({});
+  const [vetError, setVetError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
+
+  const isVetRequest = (item) => {
+    const values = [
+      item.request_type,
+      item.service_type,
+      item.type,
+      item.category,
+      item.service_name,
+      item.service,
+    ]
+      .filter(Boolean)
+      .map((value) => String(value).toLowerCase());
+
+    return values.some(
+      (value) =>
+        value === "vet" ||
+        value === "veterinary" ||
+        value.includes("veterinary") ||
+        value.includes("consult") ||
+        value.includes("vaccination")
+    );
+  };
 
   const fetchRequests = async () => {
     try {
@@ -43,35 +67,58 @@ const ReceptionistApprovals = () => {
     }
   };
 
-  useEffect(() => {
-    fetchRequests();
-  }, []);
-
-  const updateStatus = async (id, status) => {
+  const fetchVeterinarians = async () => {
     try {
-      await apiRequest(
-        `/receptionist/requests/${id}/status`,
-        {
-          method: "PATCH",
-          body: JSON.stringify({ status }),
-        },
-        API_BASE
-      );
+      const result = await apiRequest("/receptionist/veterinarians/available", "GET");
+      const list = Array.isArray(result)
+        ? result
+        : result.veterinarians || result.data || [];
 
-      await fetchRequests();
+      setVeterinarians(Array.isArray(list) ? list : []);
+      setVetError(
+        Array.isArray(list) && list.length === 0
+          ? "No active veterinarian accounts found. Create or activate a veterinarian before approving vet requests."
+          : ""
+      );
     } catch (error) {
-      console.error("Failed to update status:", error);
-      alert("Failed to update request status.");
+      console.error("Failed to load veterinarians:", error);
+      setVeterinarians([]);
+      setVetError("Could not load veterinarians. Refresh the page before approving vet requests.");
     }
   };
 
-  const handleApprove = async (requestId) => {
+  useEffect(() => {
+    fetchRequests();
+    fetchVeterinarians();
+  }, []);
+
+  const handleApprove = async (item) => {
+    const requestId = item.id;
+    const veterinarianId = vetAssignments[requestId];
+    const vetRequest = isVetRequest(item);
+
+    if (vetRequest && !veterinarianId) {
+      alert("Please choose a veterinarian before approving this vet request.");
+      return;
+    }
+
     try {
-      await apiRequest(`/receptionist/requests/${requestId}/approve`, "POST", {
+      const payload = {
         receptionist_remarks: "Approved by receptionist",
-      });
+      };
+
+      if (vetRequest) {
+        payload.veterinarian_id = Number(veterinarianId);
+      }
+
+      await apiRequest(`/receptionist/requests/${requestId}/approve`, "POST", payload);
 
       alert("Request approved successfully.");
+      setVetAssignments((current) => {
+        const next = { ...current };
+        delete next[requestId];
+        return next;
+      });
       await fetchRequests();
     } catch (error) {
       console.error("APPROVE REQUEST ERROR:", error);
@@ -163,7 +210,10 @@ const ReceptionistApprovals = () => {
           </div>
         ) : (
           <div className="approval-list">
-            {filteredRequests.map((item) => (
+            {filteredRequests.map((item) => {
+              const vetRequest = isVetRequest(item);
+
+              return (
               <div className="approval-item" key={item.id}>
                 <div className="approval-main">
                   <span className={`type-pill ${item.request_type || item.service_type || item.type}`}>
@@ -191,12 +241,41 @@ const ReceptionistApprovals = () => {
                       <strong>Notes:</strong> {item.notes}
                     </p>
                   )}
+
+                  {vetRequest && (
+                    <label className="vet-assignment-field">
+                      <span>
+                        <FaUserMd />
+                        Veterinarian
+                      </span>
+                      <select
+                        value={vetAssignments[item.id] || ""}
+                        onChange={(event) =>
+                          setVetAssignments((current) => ({
+                            ...current,
+                            [item.id]: event.target.value,
+                          }))
+                        }
+                      >
+                        <option value="">
+                          {veterinarians.length ? "Choose veterinarian" : "No active vets"}
+                        </option>
+                        {veterinarians.map((vet) => (
+                          <option key={vet.id} value={vet.id}>
+                            {vet.name}
+                          </option>
+                        ))}
+                      </select>
+                      {vetError && <small>{vetError}</small>}
+                    </label>
+                  )}
                 </div>
 
                 <div className="approval-actions">
                   <button
                     className="approve-btn"
-                    onClick={() => handleApprove(item.id)}
+                    onClick={() => handleApprove(item)}
+                    disabled={vetRequest && veterinarians.length === 0}
                   >
                     <FaCheckCircle />
                     Approve
@@ -211,7 +290,8 @@ const ReceptionistApprovals = () => {
                   </button>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </section>

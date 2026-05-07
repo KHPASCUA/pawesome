@@ -15,7 +15,7 @@ const ProfileSettings = lazy(() => import("../components/shared/ProfileSettings"
 const AppointmentList = lazy(() => import("../components/receptionist/ReceptionistAppointmentList"));
 const CheckInForm = lazy(() => import("../components/receptionist/ReceptionistCheckInForm"));
 const CheckOutForm = lazy(() => import("../components/receptionist/ReceptionistCheckOutForm"));
-const Reports = lazy(() => import("../components/receptionist/ReceptionistReports"));
+const Reports = lazy(() => import("../components/customers/CustomerReports"));
 const CustomerOrders = lazy(() => import("../components/receptionist/ReceptionistCustomerOrders"));
 const Approvals = lazy(() => import("../components/receptionist/ReceptionistApprovals"));
 

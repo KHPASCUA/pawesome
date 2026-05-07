@@ -35,6 +35,7 @@ const VetAppointments = () => {
   const [error, setError] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
   const [selectedVet, setSelectedVet] = useState("");
+  const [vetAssignments, setVetAssignments] = useState({});
 
   // Fetch appointments and veterinarians on mount
   useEffect(() => {
@@ -81,20 +82,36 @@ const VetAppointments = () => {
 
   const fetchVeterinarians = async () => {
     try {
-      const data = await apiRequest("/receptionist/veterinarians/available");
-      setVeterinarians(Array.isArray(data) ? data : []);
+      const response = await apiRequest("/receptionist/veterinarians/available");
+      const vets = response.veterinarians || response.data || response;
+      const vetList = Array.isArray(vets) ? vets : [];
+
+      setVeterinarians(vetList);
+
+      if (vetList.length === 0) {
+        setError("No active veterinarian accounts found. Create or activate a veterinarian user first.");
+      }
     } catch (err) {
       console.error("Failed to fetch veterinarians:", err);
+      setError("Could not load veterinarian list. Please refresh or check the receptionist permission.");
+      setVeterinarians([]);
     }
   };
 
   // Approve appointment
   const handleApprove = async (appointmentId) => {
+    const veterinarianId = vetAssignments[appointmentId] || selectedVet;
+
+    if (!veterinarianId) {
+      setError("Please choose a veterinarian before approving this appointment.");
+      return;
+    }
+
     try {
       setActionLoading(true);
-      await apiRequest(`/receptionist/requests/${appointmentId}/status`, {
-        method: "PATCH",
-        body: JSON.stringify({ status: "approved" }),
+      await apiRequest(`/receptionist/requests/${appointmentId}/approve`, {
+        method: "POST",
+        body: JSON.stringify({ veterinarian_id: Number(veterinarianId) }),
       });
       
       await fetchAppointments();
@@ -159,9 +176,9 @@ const VetAppointments = () => {
 
   const filteredAppointments = vetAppointments.filter(appointment => {
     const matchesSearch = 
-      appointment.petName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      appointment.owner.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      appointment.doctor.toLowerCase().includes(searchTerm.toLowerCase());
+      (appointment.petName || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (appointment.owner || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (appointment.doctor || "").toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesStatus = filterStatus === "all" || appointment.status === filterStatus;
     const matchesDoctor = filterDoctor === "all" || appointment.doctor === filterDoctor;
@@ -239,6 +256,13 @@ const VetAppointments = () => {
           </button>
         </div>
       </div>
+
+      {error && (
+        <div className="error-banner">
+          <FontAwesomeIcon icon={faExclamationTriangle} />
+          <span>{error}</span>
+        </div>
+      )}
 
       {/* Summary Cards */}
       <div className="summary-cards">
@@ -342,6 +366,7 @@ const VetAppointments = () => {
               <th>Service</th>
               <th>Status</th>
               <th>Urgency</th>
+              <th>Assign Vet</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -405,13 +430,37 @@ const VetAppointments = () => {
                     {appointment.urgency}
                   </span>
                 </td>
+                <td>
+                  {appointment.status === 'pending' ? (
+                    <select
+                      value={vetAssignments[appointment.rawId] || ""}
+                      onChange={(event) =>
+                        setVetAssignments((current) => ({
+                          ...current,
+                          [appointment.rawId]: event.target.value,
+                        }))
+                      }
+                    >
+                      <option value="">
+                        {veterinarians.length ? "Choose vet" : "No active vets"}
+                      </option>
+                      {veterinarians.map((vet) => (
+                        <option key={vet.id} value={vet.id}>
+                          {vet.name}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <span>{appointment.doctor}</span>
+                  )}
+                </td>
                 <td className="actions">
                   {appointment.status === 'pending' && (
                     <button 
                       className="action-btn approve-btn" 
                       title="Approve"
                       onClick={() => handleApprove(appointment.rawId)}
-                      disabled={actionLoading}
+                      disabled={actionLoading || veterinarians.length === 0}
                     >
                       <FontAwesomeIcon icon={faCheck} />
                     </button>

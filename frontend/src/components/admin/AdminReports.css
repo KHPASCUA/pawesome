@@ -32,7 +32,7 @@
 
 .quick-access-reports {
   padding: 2rem 2.5rem;
-  background: rgba(255, 255, 255, 0.45);
+  background: var(--color-surface);
   border-bottom: 1px solid var(--color-border);
 }
 
@@ -89,7 +89,7 @@
 
 .quick-filters-bar {
   padding: 1.2rem 2.5rem;
-  background: rgba(255, 255, 255, 0.62);
+  background: var(--color-surface);
   border-bottom: 1px solid var(--color-border);
   display: flex;
   align-items: center;
@@ -405,4 +405,107 @@
     justify-content: center;
     flex-wrap: wrap;
   }
+}
+
+/* Reports contrast fix: this file is lazy-loaded with the Reports screen, so
+   keep contrast rules here as well as in the admin shell. */
+.admin-reports-navigation,
+.reports-content,
+.admin-overview-content,
+.admin-overview-content .chart-section,
+.admin-overview-content .data-table-section {
+  color: #243244;
+}
+
+.admin-reports-navigation .nav-tab {
+  color: #243244 !important;
+}
+
+.admin-reports-navigation .nav-tab:hover,
+.admin-reports-navigation .nav-tab.active {
+  color: #be185d !important;
+}
+
+.admin-overview-content h1,
+.admin-overview-content h2,
+.admin-overview-content h3,
+.admin-overview-content h4,
+.admin-overview-content .section-title,
+.admin-overview-content .card-value,
+.admin-overview-content .standard-table th {
+  color: #111827 !important;
+}
+
+.admin-overview-content p,
+.admin-overview-content span,
+.admin-overview-content label,
+.admin-overview-content td,
+.admin-overview-content .standard-table td {
+  color: #243244 !important;
+}
+
+.admin-overview-content small,
+.admin-overview-content .card-label,
+.admin-overview-content .table-empty-state,
+.admin-overview-content .standard-table-pagination {
+  color: #475569 !important;
+}
+
+.admin-overview-content .card-trend,
+.admin-overview-content .sort-icon,
+.admin-overview-content .status-badge {
+  color: #be185d !important;
+}
+
+.admin-overview-content .summary-card,
+.admin-overview-content .chart-section,
+.admin-overview-content .standard-table-container {
+  background: rgba(255, 255, 255, 0.96) !important;
+}
+
+.admin-overview-content .standard-table.striped tbody tr:nth-child(even),
+.admin-overview-content .standard-table-pagination {
+  background: rgba(255, 255, 255, 0.9) !important;
+}
+
+.admin-overview-content .recharts-text,
+.admin-overview-content .recharts-cartesian-axis-tick-value,
+.admin-overview-content .recharts-legend-item-text {
+  fill: #243244 !important;
+  color: #243244 !important;
+}
+
+[data-theme="dark"] .admin-reports-navigation,
+[data-theme="dark"] .reports-content,
+[data-theme="dark"] .admin-overview-content,
+body[data-theme="dark"] .admin-reports-navigation,
+body[data-theme="dark"] .reports-content,
+body[data-theme="dark"] .admin-overview-content {
+  color: #f8fafc;
+}
+
+[data-theme="dark"] .admin-overview-content h1,
+[data-theme="dark"] .admin-overview-content h2,
+[data-theme="dark"] .admin-overview-content h3,
+[data-theme="dark"] .admin-overview-content h4,
+[data-theme="dark"] .admin-overview-content .section-title,
+[data-theme="dark"] .admin-overview-content .card-value,
+body[data-theme="dark"] .admin-overview-content h1,
+body[data-theme="dark"] .admin-overview-content h2,
+body[data-theme="dark"] .admin-overview-content h3,
+body[data-theme="dark"] .admin-overview-content h4,
+body[data-theme="dark"] .admin-overview-content .section-title,
+body[data-theme="dark"] .admin-overview-content .card-value {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .admin-overview-content p,
+[data-theme="dark"] .admin-overview-content span,
+[data-theme="dark"] .admin-overview-content label,
+[data-theme="dark"] .admin-overview-content td,
+body[data-theme="dark"] .admin-overview-content p,
+body[data-theme="dark"] .admin-overview-content span,
+body[data-theme="dark"] .admin-overview-content label,
+body[data-theme="dark"] .admin-overview-content td {
+  color: #f8fafc !important;
 }

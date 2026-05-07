@@ -14,7 +14,7 @@ return new class extends Migration
     {
         Schema::table('appointments', function (Blueprint $table) {
             // Ensure valid status values
-            $table->enum('status', ['pending', 'approved', 'completed', 'cancelled', 'no_show'])
+            $table->enum('status', ['pending', 'approved', 'scheduled', 'in_progress', 'treated', 'completed', 'cancelled', 'rejected', 'no_show'])
                 ->default('pending')
                 ->change();
         });

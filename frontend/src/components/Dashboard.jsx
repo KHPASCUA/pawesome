@@ -1,8 +1,25 @@
 import React from "react";
+import { Navigate } from "react-router-dom";
+
+const roleHomeMap = {
+  admin: "/admin",
+  payroll: "/payroll",
+  customer: "/customer",
+  receptionist: "/receptionist",
+  veterinary: "/veterinary",
+  vet: "/veterinary",
+  inventory: "/inventory",
+  cashier: "/cashier",
+  manager: "/manager",
+};
 
 const Dashboard = () => {
   const name = localStorage.getItem("name");
   const role = localStorage.getItem("role");
+
+  if (roleHomeMap[role]) {
+    return <Navigate to={roleHomeMap[role]} replace />;
+  }
 
   return (
     <div style={{ padding: "2rem" }}>

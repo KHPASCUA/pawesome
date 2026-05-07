@@ -344,7 +344,7 @@ const ManagerDashboard = () => {
               onUpload={handleProfilePhotoUpload}
             />
 
-            <NotificationDropdown />
+            <NotificationDropdown role="manager" />
 
             <button 
               className="icon-btn refresh-btn"

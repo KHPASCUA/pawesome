@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faChartLine } from "@fortawesome/free-solid-svg-icons";
 import {
   ResponsiveContainer,
@@ -13,10 +12,10 @@ import {
 } from "recharts";
 import { apiRequest } from "../../api/client";
 import { formatCurrency } from "../../utils/currency";
+import { normalizeList } from "../../utils/normalizeList";
 import StandardReportLayout from "../shared/StandardReportLayout";
 import StandardSummaryCards from "../shared/StandardSummaryCards";
 import StandardTable from "../shared/StandardTable";
-import ReportFilters from "../shared/ReportFilters";
 import {
   exportToCSV,
   exportToPDF,
@@ -28,6 +27,7 @@ import {
 import "./AdminReports.css";
 
 const safeNumber = (value) => Number(value || 0);
+const searchable = (value) => String(value ?? "").toLowerCase();
 
 const AdminReports = () => {
   const location = useLocation();
@@ -89,12 +89,12 @@ const AdminReports = () => {
         inactive_staff: safeNumber(data.inactive_staff),
         active_roles: safeNumber(data.active_roles || 6),
         monthly_revenue_total: safeNumber(data.monthly_revenue),
-        monthly_revenue_trend: data.monthly_revenue_trend || [],
-        top_services: data.top_services || [],
-        top_customers: data.top_customers || [],
-        transactions: data.transactions || [],
-        appointments: data.appointments || [],
-        users: data.users || [],
+        monthly_revenue_trend: normalizeList(data.monthly_revenue_trend, ["data", "employees", "salaries", "payrolls", "records"]),
+        top_services: normalizeList(data.top_services, ["data", "employees", "salaries", "payrolls", "records"]),
+        top_customers: normalizeList(data.top_customers, ["data", "employees", "salaries", "payrolls", "records"]),
+        transactions: normalizeList(data.transactions, ["data", "employees", "salaries", "payrolls", "records"]),
+        appointments: normalizeList(data.appointments, ["data", "employees", "salaries", "payrolls", "records"]),
+        users: normalizeList(data.users, ["data", "employees", "salaries", "payrolls", "records"]),
       };
 
       setReportData(safeData);
@@ -180,16 +180,28 @@ const AdminReports = () => {
 
       filtered.transactions = filtered.transactions.filter(
         (t) =>
-          t.id?.toLowerCase().includes(search) ||
-          t.customer?.toLowerCase().includes(search) ||
-          t.type?.toLowerCase().includes(search)
+          searchable(t.id).includes(search) ||
+          searchable(t.transaction_number).includes(search) ||
+          searchable(t.customer).includes(search) ||
+          searchable(t.type).includes(search) ||
+          searchable(t.status).includes(search)
       );
 
       filtered.appointments = filtered.appointments.filter(
         (a) =>
-          a.id?.toLowerCase().includes(search) ||
-          a.customer?.toLowerCase().includes(search) ||
-          a.service?.toLowerCase().includes(search)
+          searchable(a.id).includes(search) ||
+          searchable(a.customer).includes(search) ||
+          searchable(a.service).includes(search) ||
+          searchable(a.pet).includes(search) ||
+          searchable(a.status).includes(search)
+      );
+
+      filtered.users = filtered.users.filter(
+        (u) =>
+          searchable(u.id).includes(search) ||
+          searchable(u.name).includes(search) ||
+          searchable(u.email).includes(search) ||
+          searchable(u.role).includes(search)
       );
     }
 
@@ -245,10 +257,10 @@ const AdminReports = () => {
   const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
   const monthlyTrend =
-    reportData?.monthly_revenue_trend?.map((item) => ({
+    normalizeList(reportData?.monthly_revenue_trend, ["data", "employees", "salaries", "payrolls", "records"]).map((item) => ({
       month: monthNames[(item.month ?? 1) - 1] || "N/A",
       revenue: safeNumber(item.total),
-    })) || [];
+    }));
 
   // Prepare summary cards data
   const summaryCards = [

@@ -448,6 +448,8 @@ class InventoryController extends Controller
                     'reorder_level' => $item->reorder_level,
                     'status' => $item->status,
                     'is_sellable' => $item->is_sellable,
+                    'brand' => $item->brand,
+                    'supplier' => $item->supplier,
                 ];
             });
 

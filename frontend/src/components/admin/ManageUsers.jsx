@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { NavLink } from "react-router-dom";
 import { apiRequest } from "../../api/client";
+import { normalizeList } from "../../utils/normalizeList";
 import "./ManageUsers.css";
 
 const ManageUsers = () => {
@@ -30,7 +31,7 @@ const ManageUsers = () => {
       setLoading(true);
       setError("");
       const data = await apiRequest("/admin/users");
-      setUsers(data || []);
+      setUsers(normalizeList(data, ["data", "employees", "salaries", "payrolls", "records"]));
     } catch (err) {
       setError(err.message || "Failed to fetch users");
     } finally {
@@ -111,7 +112,7 @@ const ManageUsers = () => {
       });
       
       // Update local state
-      setUsers(users.map((u) => 
+      setUsers(normalizeList(users, ["data", "employees", "salaries", "payrolls", "records"]).map((u) => 
         u.id === selectedUser.id ? { ...u, ...updateData } : u
       ));
       
@@ -158,7 +159,7 @@ const ManageUsers = () => {
       });
       
       // Update local state
-      setUsers(users.map((u) => 
+      setUsers(normalizeList(users, ["data", "employees", "salaries", "payrolls", "records"]).map((u) => 
         u.id === user.id ? { ...u, is_active: !u.is_active } : u
       ));
       

@@ -79,7 +79,10 @@ class Notification extends Model
     {
         return $query->where(function ($q) use ($userId, $role) {
             $q->where('user_id', $userId)
-              ->orWhere('role', $role);
+              ->orWhere(function ($roleQuery) use ($role) {
+                  $roleQuery->whereNull('user_id')
+                      ->where('role', $role);
+              });
         });
     }
 

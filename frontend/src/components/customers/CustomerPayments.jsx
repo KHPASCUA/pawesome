@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { apiRequest } from "../../api/client";
+import { apiRequest, clearAuthStorage } from "../../api/client";
 import "./CustomerPayments.css";
 
 const formatCurrency = (value) =>
@@ -49,6 +49,9 @@ const CustomerPayments = () => {
     if (Array.isArray(data)) return data;
     if (Array.isArray(data?.data)) return data.data;
     if (Array.isArray(data?.data?.data)) return data.data.data;
+    if (Array.isArray(data?.requests)) return data.requests;
+    if (Array.isArray(data?.service_requests)) return data.service_requests;
+    if (Array.isArray(data?.grooming_requests)) return data.grooming_requests;
     if (Array.isArray(data?.orders)) return data.orders;
     if (Array.isArray(data?.records)) return data.records;
     return [];
@@ -107,10 +110,11 @@ const CustomerPayments = () => {
               request.service_type ||
               "Service Request",
             total_amount:
-              request.total_amount ||
-              request.price ||
-              request.service_price ||
-              request.amount,
+            request.total_amount ||
+            request.price ||
+            request.service_price ||
+            request.amount ||
+            500,
             order_status: request.status || "approved",
             payment_status: request.payment_status || request.payment || "unpaid",
             items: [
@@ -161,11 +165,7 @@ const CustomerPayments = () => {
       // Check for authentication errors
       if (err.message && (err.message.includes("session expired") || err.message.includes("Unauthenticated") || err.message.includes("401"))) {
         // Clear session and redirect to login
-        localStorage.removeItem("token");
-        localStorage.removeItem("role");
-        localStorage.removeItem("name");
-        localStorage.removeItem("username");
-        localStorage.removeItem("email");
+        clearAuthStorage();
         window.location.href = "/login";
         return;
       }

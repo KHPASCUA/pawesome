@@ -15,6 +15,14 @@ import {
   faFileInvoiceDollar,
   faRobot,
   faCog,
+  faUserTie,
+  faStethoscope,
+  faCreditCard,
+  faShoppingCart,
+  faClipboardList,
+  faTruck,
+  faCalendarCheck,
+  faBox,
 } from "@fortawesome/free-solid-svg-icons";
 import "./AdminSidebar.css";
 
@@ -126,36 +134,67 @@ const AdminSidebar = ({ mobileOpen, onMobileMenuToggle }) => {
             <ul className={`nav-sublist ${reportsExpanded ? "expanded" : ""}`}>
               <li className="nav-subitem">
                 <NavLink to="/admin/reports" end>
+                  <FontAwesomeIcon icon={faChartBar} />
                   <span>Overview</span>
                 </NavLink>
               </li>
               <li className="nav-subitem">
                 <NavLink to="/admin/reports/cashier">
+                  <FontAwesomeIcon icon={faMoneyBillWave} />
                   <span>Cashier</span>
                 </NavLink>
               </li>
               <li className="nav-subitem">
                 <NavLink to="/admin/reports/inventory">
+                  <FontAwesomeIcon icon={faBox} />
                   <span>Inventory</span>
                 </NavLink>
               </li>
               <li className="nav-subitem">
                 <NavLink to="/admin/reports/manager">
+                  <FontAwesomeIcon icon={faUserTie} />
                   <span>Manager</span>
                 </NavLink>
               </li>
               <li className="nav-subitem">
                 <NavLink to="/admin/reports/veterinary">
+                  <FontAwesomeIcon icon={faStethoscope} />
                   <span>Veterinary</span>
                 </NavLink>
               </li>
               <li className="nav-subitem">
                 <NavLink to="/admin/reports/customers">
+                  <FontAwesomeIcon icon={faUsers} />
                   <span>Customers</span>
                 </NavLink>
               </li>
               <li className="nav-subitem">
+                <NavLink to="/admin/reports/payments">
+                  <FontAwesomeIcon icon={faCreditCard} />
+                  <span>Payments</span>
+                </NavLink>
+              </li>
+              <li className="nav-subitem">
+                <NavLink to="/admin/reports/orders">
+                  <FontAwesomeIcon icon={faShoppingCart} />
+                  <span>Orders</span>
+                </NavLink>
+              </li>
+              <li className="nav-subitem">
+                <NavLink to="/admin/reports/service-requests">
+                  <FontAwesomeIcon icon={faClipboardList} />
+                  <span>Services</span>
+                </NavLink>
+              </li>
+              <li className="nav-subitem">
+                <NavLink to="/admin/reports/logistics">
+                  <FontAwesomeIcon icon={faTruck} />
+                  <span>Logistics</span>
+                </NavLink>
+              </li>
+              <li className="nav-subitem">
                 <NavLink to="/admin/reports/reception">
+                  <FontAwesomeIcon icon={faCalendarCheck} />
                   <span>Reception</span>
                 </NavLink>
               </li>

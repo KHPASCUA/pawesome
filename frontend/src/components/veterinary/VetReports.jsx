@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { faStethoscope } from "@fortawesome/free-solid-svg-icons";
 import {
   BarChart,
@@ -15,13 +14,10 @@ import { formatCurrency } from "../../utils/currency";
 import StandardReportLayout from "../shared/StandardReportLayout";
 import StandardSummaryCards from "../shared/StandardSummaryCards";
 import StandardTable from "../shared/StandardTable";
-import ReportFilters from "../shared/ReportFilters";
 import {
   exportToCSV,
   exportToPDF,
   exportToExcel,
-  filterByDateRange,
-  filterByStatus,
   getDateRangePreset,
 } from "../../utils/reportExport";
 import "./VetReports.css";
@@ -46,7 +42,7 @@ const VetReports = () => {
     return [];
   };
 
-  const normalizeReportData = (data) => {
+  const normalizeReportData = useCallback((data) => {
     const reportData = Array.isArray(data) ? data[0] : data?.data || data || {};
     const summary = reportData.summary || {};
 
@@ -82,19 +78,9 @@ const VetReports = () => {
         })
       ),
     };
-  };
-
-  useEffect(() => {
-    const { startDate: defaultStart, endDate: defaultEnd } = getDateRangePreset("month");
-    setStartDate(defaultStart);
-    setEndDate(defaultEnd);
   }, []);
 
-  useEffect(() => {
-    fetchVetReports();
-  }, []);
-
-  const fetchVetReports = async () => {
+  const fetchVetReports = useCallback(async () => {
     try {
       setLoading(true);
       setError("");
@@ -115,7 +101,23 @@ const VetReports = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    const { startDate: defaultStart, endDate: defaultEnd } = getDateRangePreset("month");
+    setStartDate(defaultStart);
+    setEndDate(defaultEnd);
+  }, []);
+
+  useEffect(() => {
+    const { startDate: defaultStart, endDate: defaultEnd } = getDateRangePreset("month");
+    setStartDate(defaultStart);
+    setEndDate(defaultEnd);
+  }, []);
+
+  useEffect(() => {
+    fetchVetReports();
+  }, [fetchVetReports, normalizeReportData]);
 
   const handleDateChange = (key, value) => {
     if (key === "startDate") setStartDate(value);
@@ -171,8 +173,8 @@ const VetReports = () => {
       value: formatCurrency(reports?.monthly_revenue || 0),
       icon: "faMoneyBillWave",
       color: "primary",
-      trend: "up",
-      change: "+15.3%"
+      trend: "live",
+      change: "Live Data"
     },
     {
       id: "monthly-completed",
@@ -180,17 +182,17 @@ const VetReports = () => {
       value: reports?.monthly_completed || 0,
       icon: "faCalendarCheck",
       color: "success",
-      trend: "up",
-      change: "+8.7%"
+      trend: "live",
+      change: "Live Data"
     },
     {
       id: "total-services",
       label: "Total Services",
       value: reports?.service_breakdown?.length || 0,
       icon: "faStethoscope",
-      color: "secondary",
-      trend: "neutral",
-      change: "0%"
+      color: "info",
+      trend: "live",
+      change: "Live Data"
     },
     {
       id: "average-revenue",
@@ -202,8 +204,8 @@ const VetReports = () => {
       ),
       icon: "faChartLine",
       color: "warning",
-      trend: "up",
-      change: "+5.2%"
+      trend: "live",
+      change: "Live Data"
     }
   ];
 

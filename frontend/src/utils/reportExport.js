@@ -6,6 +6,14 @@
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 
+export const getNestedValue = (row, key) => {
+  if (!row || !key) return undefined;
+  return key.split(".").reduce((value, part) => {
+    if (value === null || value === undefined) return undefined;
+    return value[part];
+  }, row);
+};
+
 /**
  * Export data to CSV format
  * @param {Array} data - Array of objects to export
@@ -24,7 +32,7 @@ export const exportToCSV = (data, columns, filename = "report") => {
   // Create rows
   const rows = data.map((row) =>
     columns.map((col) => {
-      const value = row[col.key];
+      const value = getNestedValue(row, col.key);
       // Handle values that might contain commas or quotes
       if (value === null || value === undefined) return "";
       const stringValue = String(value);
@@ -79,7 +87,7 @@ export const exportToPDF = (data, columns, title = "Report", filename = "report"
   const headers = columns.map((col) => col.label || col.key);
   const rows = data.map((row) =>
     columns.map((col) => {
-      const value = row[col.key];
+      const value = getNestedValue(row, col.key);
       if (value === null || value === undefined) return "";
       if (col.format === "currency") return formatCurrencyForExport(value);
       if (col.format === "date") return formatDateForExport(value);
@@ -135,7 +143,7 @@ export const exportToExcel = (data, columns, filename = "report") => {
 
   const rows = data.map((row) =>
     columns.map((col) => {
-      const value = row[col.key];
+      const value = getNestedValue(row, col.key);
       if (value === null || value === undefined) return "";
       const stringValue = String(value);
       // Escape tabs and newlines

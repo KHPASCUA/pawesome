@@ -535,12 +535,10 @@ const CustomerBookings = () => {
     try {
       setSubmitting(true);
 
-      const selectedServicePrice =
-        selectedService?.price || selectedService?.amount || selectedService?.service_price || 0;
-
       const payload = {
         customer_name: formData.customer_name,
         customer_email: customerEmail || formData.customer_email,
+        pet_id: formData.pet_id,
         pet_name: formData.pet_name,
         service_type: formData.service_type,
         service_name: formData.service_name,

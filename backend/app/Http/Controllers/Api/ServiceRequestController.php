@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\ServiceRequest;
 use App\Models\ActivityLog;
+use App\Models\Pet;
 use App\Services\WorkflowNotifier;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
@@ -17,10 +18,12 @@ class ServiceRequestController extends Controller
     {
         return [
             'id' => $item->id,
+            'customer_id' => $item->customer_id,
             'customer' => $item->customer_name,
             'customer_name' => $item->customer_name,
             'email' => $item->customer_email,
             'customer_email' => $item->customer_email,
+            'pet_id' => $item->pet_id,
             'pet' => $item->pet_name,
             'pet_name' => $item->pet_name,
             'type' => $item->request_type,
@@ -48,8 +51,8 @@ class ServiceRequestController extends Controller
         // Map frontend field names to backend field names before validation
         $request->merge([
             'request_type' => $request->request_type ?? $request->service_type,
-            'requested_date' => $request->requested_date ?? $request->preferred_date,
-            'requested_time' => $request->requested_time ?? $request->preferred_time,
+            'requested_date' => $request->requested_date ?? $request->request_date ?? $request->preferred_date,
+            'requested_time' => $request->requested_time ?? $request->request_time ?? $request->preferred_time,
         ]);
 
         $validated = $request->validate([
@@ -58,10 +61,29 @@ class ServiceRequestController extends Controller
             'pet_id' => 'nullable|integer|exists:pets,id',
             'pet_name' => 'required|string|max:150',
             'request_type' => 'required|string|max:150',
+            'service_name' => 'nullable|string|max:150',
             'requested_date' => 'required|date|after_or_equal:today',
             'requested_time' => 'required|date_format:H:i',
             'notes' => 'nullable|string',
         ]);
+
+        if (Auth::check() && !empty($validated['pet_id'])) {
+            $pet = Pet::with('customer')->find($validated['pet_id']);
+            $customer = $pet?->customer;
+            $user = Auth::user();
+
+            $ownsPet = $customer
+                && (
+                    (int) ($customer->user_id ?? 0) === (int) $user->id
+                    || ($customer->email && $customer->email === $user->email)
+                );
+
+            if (!$ownsPet) {
+                return response()->json([
+                    'message' => 'You can only book services for your own pets.',
+                ], 403);
+            }
+        }
 
         // Validate business hours
         $time = $validated['requested_time'];
@@ -77,10 +99,10 @@ class ServiceRequestController extends Controller
             'pet_name' => $validated['pet_name'],
             'service_name' => $validated['service_name'] ?? $validated['request_type'], // Use request_type as service_name fallback
             // Use requested_date/time as primary, fallback to preferred_date/time
-            'request_date' => $validated['requested_date'] ?? $validated['preferred_date'],
-            'request_time' => $validated['requested_time'] ?? $validated['preferred_time'],
-            'preferred_date' => $validated['preferred_date'] ?? $validated['requested_date'] ?? null,
-            'preferred_time' => $validated['preferred_time'] ?? $validated['requested_time'] ?? null,
+            'request_date' => $validated['requested_date'],
+            'request_time' => $validated['requested_time'],
+            'preferred_date' => $validated['requested_date'],
+            'preferred_time' => $validated['requested_time'],
             'notes' => $validated['notes'] ?? null,
             'status' => 'pending',
             'payment_status' => 'unpaid',
@@ -141,22 +163,26 @@ class ServiceRequestController extends Controller
 
     public function customerRequests(Request $request)
     {
-        $email = $request->query('email');
+        $user = Auth::user();
 
-        if (!$email) {
+        if (!$user) {
             return response()->json([
                 'success' => false,
-                'message' => 'Customer email is required.',
-            ], 400);
+                'message' => 'Unauthorized.',
+            ], 401);
         }
 
         $query = ServiceRequest::query();
 
-        if (Schema::hasColumn('service_requests', 'customer_email')) {
-            $query->where('customer_email', $email);
-        } else {
-            $query->whereRaw('1 = 0');
-        }
+        $query->where(function ($scopedQuery) use ($user) {
+            if (Schema::hasColumn('service_requests', 'customer_id')) {
+                $scopedQuery->where('customer_id', $user->id);
+            }
+
+            if (Schema::hasColumn('service_requests', 'customer_email') && $user->email) {
+                $scopedQuery->orWhere('customer_email', $user->email);
+            }
+        });
 
         $requests = $query
             ->latest()
@@ -294,7 +320,24 @@ class ServiceRequestController extends Controller
 
     public function receipt(Request $request, $id)
     {
+        $user = Auth::user();
+
+        if (!$user) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
         $serviceRequest = ServiceRequest::findOrFail($id);
+
+        $isOwner = false;
+        if (Schema::hasColumn('service_requests', 'customer_id') && $serviceRequest->customer_id) {
+            $isOwner = (int) $serviceRequest->customer_id === (int) $user->id;
+        } elseif (Schema::hasColumn('service_requests', 'customer_email') && $serviceRequest->customer_email) {
+            $isOwner = $serviceRequest->customer_email === $user->email;
+        }
+
+        if (!$isOwner) {
+            return response()->json(['message' => 'Receipt not found'], 404);
+        }
 
         if ($serviceRequest->payment_status !== 'paid') {
             return response()->json([

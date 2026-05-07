@@ -28,6 +28,26 @@ body {
   color: var(--color-text);
 }
 
+/* ===== REPORT HEADERS - MINIMAL FIXES ===== */
+
+.standard-report-header {
+  background: linear-gradient(135deg, var(--color-primary, #ff5f93), var(--color-primary-light, #ff8db5));
+  color: white;
+  padding: 1.5rem;
+  margin-bottom: 1.25rem;
+  border-radius: 10px;
+  box-shadow: 0 14px 34px rgba(255, 95, 147, 0.18);
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.34));
+}
+
+.customer-report-container .report-header {
+  background: linear-gradient(135deg, var(--color-primary, #ff5f93), var(--color-primary-light, #ff8db5));
+  color: white;
+  padding: 1.5rem;
+  margin-bottom: 1.25rem;
+  border-radius: 8px;
+}
+
 /* ===== MAIN LAYOUT ===== */
 
 .app-main,

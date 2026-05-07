@@ -34,10 +34,10 @@
   padding: 1rem 2rem;
   min-height: 105px;
 
-  background: rgba(255, 255, 255, 0.82);
+  background: var(--color-surface);
   backdrop-filter: blur(20px);
-  border-bottom: 1px solid rgba(255, 95, 147, 0.15);
-  box-shadow: 0 14px 35px rgba(75, 34, 50, 0.08);
+  border-bottom: 1px solid var(--color-border);
+  box-shadow: var(--shadow-card);
 }
 
 /* TITLE */
@@ -51,14 +51,14 @@
   margin: 0;
   font-size: 2rem;
   font-weight: 900;
-  background: linear-gradient(135deg, #ff5f93, #ff8db5);
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
   background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
 .navbar-left p {
   margin: 0.35rem 0 0;
-  color: #666;
+  color: var(--color-muted);
   font-size: 0.9rem;
 }
 
@@ -107,12 +107,12 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  background: rgba(255, 255, 255, 0.86);
+  background: var(--color-surface);
   padding: 10px 15px;
   border-radius: 50px;
   text-decoration: none;
-  color: #191919;
-  box-shadow: 0 12px 28px rgba(75, 34, 50, 0.08);
+  color: var(--color-heading);
+  box-shadow: var(--shadow-card);
 }
 
 .profile-avatar-icon {
@@ -162,9 +162,9 @@
 .overview-card {
   padding: 1.5rem;
   border-radius: 20px;
-  background: rgba(255, 255, 255, 0.8);
+  background: var(--color-surface);
   backdrop-filter: blur(20px);
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-card);
   transition: 0.3s;
 }
 
@@ -183,7 +183,7 @@
 
 /* PANELS */
 .panel {
-  background: rgba(255, 255, 255, 0.8);
+  background: var(--color-surface);
   border-radius: 20px;
   padding: 1.5rem;
 }
@@ -276,12 +276,12 @@
 .metric-card {
   padding: 1.25rem;
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.6);
+  background: var(--color-surface);
   backdrop-filter: blur(10px);
 }
 
 .metric-card.accent {
-  background: linear-gradient(135deg, #ff5f93, #ff8db5);
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
   color: white;
 }
 
@@ -364,13 +364,14 @@
 .request-card {
   padding: 1.25rem;
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.6);
+  background: var(--color-surface);
   backdrop-filter: blur(10px);
   transition: 0.3s;
 }
 
 .request-card:hover {
-  background: rgba(255, 255, 255, 0.8);
+  background: var(--color-surface);
+  transform: translateY(-2px);
 }
 
 .request-card-top {
@@ -384,7 +385,7 @@
   margin: 0;
   font-size: 1rem;
   font-weight: 700;
-  color: #1f2937;
+  color: var(--color-heading);
 }
 
 .request-card-top p {
@@ -573,16 +574,16 @@
   align-items: center;
   gap: 0.85rem;
   padding: 0.85rem;
-  background: rgba(255, 255, 255, 0.5);
+  background: var(--color-surface);
   border-radius: 16px;
-  border: 1px solid rgba(255, 95, 147, 0.12);
+  border: 1px solid var(--color-border);
   transition: all 0.2s ease;
 }
 
 .system-status-item:hover {
-  background: rgba(255, 255, 255, 0.8);
+  background: var(--color-surface);
   transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(255, 95, 147, 0.15);
+  box-shadow: var(--shadow-card);
 }
 
 .system-status-icon {
@@ -613,4 +614,301 @@
 .status-online {
   color: #10b981;
   font-weight: 700;
+}
+
+/* Admin contrast layer: keeps the pink premium theme while making every admin
+   surface, report, table, form, and chart label readable. */
+.admin-dashboard {
+  --admin-heading-contrast: #111827;
+  --admin-text-contrast: #243244;
+  --admin-muted-contrast: #475569;
+  --admin-subtle-contrast: #5b6472;
+  --admin-primary-contrast: #be185d;
+  --admin-primary-strong: #9d174d;
+  --admin-danger-contrast: #b91c1c;
+  --admin-success-contrast: #047857;
+  --admin-warning-contrast: #92400e;
+  --admin-readable-surface: rgba(255, 255, 255, 0.96);
+  --admin-readable-surface-soft: rgba(255, 255, 255, 0.9);
+}
+
+.admin-main,
+.admin-main .dashboard-content,
+.admin-main .standard-report-layout,
+.admin-main .admin-reports-page,
+.admin-main .payroll-reports,
+.admin-main .salary-management,
+.admin-main .manage-users,
+.admin-main .attendance-container,
+.admin-main .history-container,
+.admin-main .login-history,
+.admin-main .chatbot-logs,
+.admin-main .create-user-container,
+.admin-main .admin-settings {
+  color: var(--admin-text-contrast);
+}
+
+.admin-main .standard-report-layout {
+  --report-heading: var(--admin-heading-contrast);
+  --report-text: var(--admin-text-contrast);
+  --report-muted: var(--admin-muted-contrast);
+  --report-primary: var(--admin-primary-contrast);
+  --report-primary-light: #db2777;
+  --report-surface: var(--admin-readable-surface);
+}
+
+.admin-main h1,
+.admin-main h2,
+.admin-main h3,
+.admin-main h4,
+.admin-main h5,
+.admin-main h6,
+.admin-main .page-title,
+.admin-main .section-title,
+.admin-main .panel-header h2,
+.admin-main .quick-access-title,
+.admin-main .card-value,
+.admin-main .card-content h3,
+.admin-main .stat-value,
+.admin-main .metric-value,
+.admin-main .summary-card h3,
+.admin-main .analytics-panel h3,
+.admin-main .report-panel h3,
+.admin-main .top-earners-container h3,
+.admin-main .export-section h3,
+.admin-main .form-header h2,
+.admin-main .employee-name,
+.admin-main .department-name,
+.admin-main .request-card-top h3,
+.admin-main .empty-panel-state h3,
+.admin-main .system-status-item strong {
+  color: var(--admin-heading-contrast) !important;
+}
+
+.admin-main p,
+.admin-main li,
+.admin-main td,
+.admin-main label,
+.admin-main .card-label,
+.admin-main .card-content p,
+.admin-main .stat-label,
+.admin-main .metric-title,
+.admin-main .panel-header p,
+.admin-main .request-info div p,
+.admin-main .insight-card p,
+.admin-main .insight-card li,
+.admin-main .preview-item,
+.admin-main .modal-body,
+.admin-main .form-group,
+.admin-main .user-email,
+.admin-main .user-username,
+.admin-main .salary-table td,
+.admin-main .department-table td,
+.admin-main .standard-table td {
+  color: var(--admin-text-contrast) !important;
+}
+
+.admin-main small,
+.admin-main .page-subtitle,
+.admin-main .header-left p,
+.admin-main .navbar-left p,
+.admin-main .profile-action-role,
+.admin-main .quick-access-desc,
+.admin-main .quick-filters-label,
+.admin-main .loading-subtext,
+.admin-main .empty-message,
+.admin-main .empty-table,
+.admin-main .table-empty-state,
+.admin-main .table-loading-state,
+.admin-main .last-updated,
+.admin-main .request-card-top p,
+.admin-main .request-info div strong,
+.admin-main .request-footer,
+.admin-main .employee-id,
+.admin-main .employee-position,
+.admin-main .salary-period,
+.admin-main .system-status-item p,
+.admin-main .status-card p,
+.admin-main .metric-kicker,
+.admin-main .filter-dropdown label,
+.admin-main .date-input-group label {
+  color: var(--admin-muted-contrast) !important;
+}
+
+.admin-main .premium-title,
+.admin-main .overview-card h3,
+.admin-main .badge,
+.admin-main .see-all-link,
+.admin-main .total-amount,
+.admin-main .total-salary,
+.admin-main .avg-salary,
+.admin-main .salary-amount,
+.admin-main .department-badge,
+.admin-main .earner-department,
+.admin-main .standard-table .sort-icon,
+.admin-main .refresh-mini,
+.admin-main .secondary-btn,
+.admin-main .theme-toggle-btn {
+  color: var(--admin-primary-contrast) !important;
+}
+
+.admin-main .role-pill,
+.admin-main .primary-btn,
+.admin-main .export-btn,
+.admin-main .view-full-btn,
+.admin-main .retry-btn,
+.admin-main .refresh-btn.export-btn,
+.admin-main .report-type-btn.active,
+.admin-main .quick-filter-btn.active,
+.admin-main .quick-filter-btn:hover,
+.admin-main .status-badge,
+.admin-main .profile-avatar-icon,
+.admin-main .employee-avatar,
+.admin-main .earner-rank,
+.admin-main .card-icon,
+.admin-main .overview-card-icon,
+.admin-main .system-status-icon {
+  color: #ffffff !important;
+}
+
+.admin-main input,
+.admin-main select,
+.admin-main textarea,
+.admin-main .search-input,
+.admin-main .filter-dropdown select,
+.admin-main .date-input-group input[type="date"],
+.admin-main .search-box input,
+.admin-main .filter-select,
+.admin-main .salary-form input,
+.admin-main .salary-form select {
+  background: #ffffff !important;
+  color: var(--admin-heading-contrast) !important;
+}
+
+.admin-main input::placeholder,
+.admin-main textarea::placeholder,
+.admin-main .search-input::placeholder,
+.admin-main .search-box input::placeholder {
+  color: var(--admin-subtle-contrast) !important;
+  opacity: 1;
+}
+
+.admin-main .panel,
+.admin-main .overview-card,
+.admin-main .metric-card,
+.admin-main .status-card,
+.admin-main .request-card,
+.admin-main .summary-card,
+.admin-main .analytics-panel,
+.admin-main .salary-table-container,
+.admin-main .department-table-container,
+.admin-main .report-panel,
+.admin-main .trend-analysis,
+.admin-main .top-earners-container,
+.admin-main .export-section,
+.admin-main .standard-table-container,
+.admin-main .report-filters-container,
+.admin-main .last-updated,
+.admin-main .quick-access-card,
+.admin-main .modal-content,
+.admin-main .salary-form,
+.admin-main .users-table-container {
+  background: var(--admin-readable-surface) !important;
+  color: var(--admin-text-contrast) !important;
+}
+
+.admin-main .report-content,
+.admin-main .real-chart-box,
+.admin-main .insight-card,
+.admin-main .earner-card,
+.admin-main .info-item,
+.admin-main .standard-table-pagination,
+.admin-main .export-options,
+.admin-main .export-options button {
+  background: var(--admin-readable-surface-soft) !important;
+  color: var(--admin-text-contrast) !important;
+}
+
+.admin-main th,
+.admin-main .salary-table th,
+.admin-main .department-table th,
+.admin-main .standard-table th,
+.admin-main .users-table th {
+  color: var(--admin-primary-strong) !important;
+  background: rgba(255, 95, 147, 0.12) !important;
+}
+
+.admin-main .status-badge.active,
+.admin-main .badge-success,
+.admin-main .growth-indicator.positive,
+.admin-main .trend-indicator.positive,
+.admin-main .status-online {
+  color: var(--admin-success-contrast) !important;
+}
+
+.admin-main .badge-warning,
+.admin-main .stat-change.neutral {
+  color: var(--admin-warning-contrast) !important;
+}
+
+.admin-main .error-message,
+.admin-main .warning-text,
+.admin-main .delete-btn,
+.admin-main .badge-danger,
+.admin-main .growth-indicator.negative {
+  color: var(--admin-danger-contrast) !important;
+}
+
+.admin-main .recharts-text,
+.admin-main .recharts-cartesian-axis-tick-value,
+.admin-main .recharts-legend-item-text,
+.admin-main .recharts-label {
+  fill: var(--admin-text-contrast) !important;
+  color: var(--admin-text-contrast) !important;
+}
+
+.admin-main .recharts-tooltip-wrapper .recharts-default-tooltip {
+  background: #ffffff !important;
+  border: 1px solid var(--color-border) !important;
+  color: var(--admin-heading-contrast) !important;
+}
+
+.admin-main .recharts-tooltip-wrapper .recharts-tooltip-label,
+.admin-main .recharts-tooltip-wrapper .recharts-tooltip-item,
+.admin-main .recharts-tooltip-wrapper .recharts-tooltip-item-name,
+.admin-main .recharts-tooltip-wrapper .recharts-tooltip-item-value {
+  color: var(--admin-heading-contrast) !important;
+}
+
+[data-theme="dark"] .admin-dashboard,
+body[data-theme="dark"] .admin-dashboard {
+  --admin-heading-contrast: #ffffff;
+  --admin-text-contrast: #f8fafc;
+  --admin-muted-contrast: #d7dee8;
+  --admin-subtle-contrast: #b6c2d2;
+  --admin-primary-contrast: #f9a8d4;
+  --admin-primary-strong: #fbcfe8;
+  --admin-danger-contrast: #fecaca;
+  --admin-success-contrast: #bbf7d0;
+  --admin-warning-contrast: #fde68a;
+  --admin-readable-surface: rgba(17, 24, 39, 0.96);
+  --admin-readable-surface-soft: rgba(31, 41, 55, 0.92);
+  background: var(--color-bg-gradient);
+  color: var(--admin-text-contrast);
+}
+
+[data-theme="dark"] .admin-main input,
+[data-theme="dark"] .admin-main select,
+[data-theme="dark"] .admin-main textarea,
+body[data-theme="dark"] .admin-main input,
+body[data-theme="dark"] .admin-main select,
+body[data-theme="dark"] .admin-main textarea {
+  background: rgba(15, 23, 42, 0.98) !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .admin-main .recharts-tooltip-wrapper .recharts-default-tooltip,
+body[data-theme="dark"] .admin-main .recharts-tooltip-wrapper .recharts-default-tooltip {
+  background: #111827 !important;
+  color: #ffffff !important;
 }

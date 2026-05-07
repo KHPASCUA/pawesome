@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faUser, faBell, faLock } from "@fortawesome/free-solid-svg-icons";
 import { apiRequest } from "../../api/client";
 import "./CreateUser.css";
 
@@ -184,7 +186,7 @@ const CreateUser = () => {
           <form className="create-user-form" onSubmit={handleSubmit}>
             <div className="form-section">
               <div className="section-header">
-                <span className="section-icon">👤</span>
+                <FontAwesomeIcon icon={faUser} className="section-icon" />
                 <div>
                   <h3>User Information</h3>
                   <p>Basic personal and contact information</p>
@@ -391,7 +393,7 @@ const CreateUser = () => {
 
             <div className="form-section">
               <div className="section-header">
-                <span className="section-icon">🚨</span>
+                <FontAwesomeIcon icon={faBell} className="section-icon" />
                 <div>
                   <h3>Emergency Contact</h3>
                   <p>Person to contact in case of emergency</p>
@@ -443,7 +445,7 @@ const CreateUser = () => {
 
             <div className="form-section">
               <div className="section-header">
-                <span className="section-icon">🔐</span>
+                <FontAwesomeIcon icon={faLock} className="section-icon" />
                 <div>
                   <h3>Account & Role</h3>
                   <p>Login credentials and system access level</p>

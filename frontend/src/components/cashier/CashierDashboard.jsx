@@ -934,7 +934,7 @@ Thank you for choosing Pawesome!
               onUpload={handleProfilePhotoUpload}
             />
 
-            <NotificationDropdown />
+            <NotificationDropdown role="cashier" />
 
             <button
               className="btn-secondary"

@@ -36,6 +36,7 @@ import DashboardProfile from "../shared/DashboardProfile";
 import "./AdminDashboard.css";
 import { apiRequest, uploadProfilePhoto } from "../../api/client";
 import { formatCurrency } from "../../utils/currency";
+import { normalizeList } from "../../utils/normalizeList";
 
 const cardVariants = {
   hidden: { opacity: 0, y: 18 },
@@ -156,8 +157,8 @@ const AdminDashboard = () => {
     ];
   }, [dashboardData]);
 
-  const appointmentStatusData = dashboardData?.appointments_by_status || [];
-  const userRoleData = dashboardData?.users_by_role || [];
+  const appointmentStatusData = normalizeList(dashboardData?.appointments_by_status, ["data", "employees", "salaries", "payrolls", "records"]);
+  const userRoleData = normalizeList(dashboardData?.users_by_role, ["data", "employees", "salaries", "payrolls", "records"]);
 
   const completionRate = dashboardData?.total_appointments
     ? Math.round(
@@ -181,7 +182,7 @@ const AdminDashboard = () => {
 
   const orderRequests = dashboardData
     ? [
-        ...(dashboardData.recent_appointments || []).map((apt) => ({
+        ...normalizeList(dashboardData.recent_appointments, ["data", "employees", "salaries", "payrolls", "records"]).map((apt) => ({
           id: apt.id,
           name: apt.customer?.name || "Unknown Customer",
           time: formatRelativeTime(apt.scheduled_at),
@@ -193,7 +194,7 @@ const AdminDashboard = () => {
           status: apt.status || "scheduled",
           type: "appointment",
         })),
-        ...(dashboardData.recent_users || []).map((user) => ({
+        ...normalizeList(dashboardData.recent_users, ["data", "employees", "salaries", "payrolls", "records"]).map((user) => ({
           id: user.id,
           name: user.name || user.username,
           time: formatRelativeTime(user.created_at),
@@ -263,7 +264,7 @@ const AdminDashboard = () => {
               onUpload={handleProfilePhotoUpload}
             />
 
-            <NotificationDropdown />
+            <NotificationDropdown role="admin" />
 
             <button
               className="theme-toggle-btn"
@@ -339,7 +340,7 @@ const AdminDashboard = () => {
                           <YAxis allowDecimals={false} />
                           <Tooltip />
                           <Bar dataKey="count" radius={[10, 10, 0, 0]}>
-                            {appointmentStatusData.map((entry, index) => (
+                            {normalizeList(appointmentStatusData, ["data", "employees", "salaries", "payrolls", "records"]).map((entry, index) => (
                               <Cell
                                 key={entry.status}
                                 fill={chartColors[index % chartColors.length]}
@@ -403,7 +404,7 @@ const AdminDashboard = () => {
                             innerRadius={55}
                             paddingAngle={4}
                           >
-                            {userRoleData.map((entry, index) => (
+                            {normalizeList(userRoleData, ["data", "employees", "salaries", "payrolls", "records"]).map((entry, index) => (
                               <Cell
                                 key={entry.role}
                                 fill={chartColors[index % chartColors.length]}

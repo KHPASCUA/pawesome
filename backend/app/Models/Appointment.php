@@ -11,11 +11,12 @@ class Appointment extends Model
 
     protected $fillable = [
         'customer_id', 'pet_id', 'service_id', 'veterinarian_id', 'status',
-        'scheduled_at', 'completed_at', 'price', 'notes', 'cancellation_reason'
+        'scheduled_at', 'started_at', 'completed_at', 'price', 'notes', 'cancellation_reason'
     ];
 
     protected $casts = [
         'scheduled_at' => 'datetime',
+        'started_at' => 'datetime',
         'completed_at' => 'datetime',
         'reminder_sent_at' => 'datetime',
     ];
@@ -93,6 +94,11 @@ class Appointment extends Model
         return $this->belongsTo(User::class, 'veterinarian_id');
     }
 
+    public function medicalRecords()
+    {
+        return $this->hasMany(MedicalRecord::class);
+    }
+
     // Check if appointment can be cancelled
     public function canBeCancelled(): bool
     {
@@ -108,6 +114,11 @@ class Appointment extends Model
     // Check if appointment can be completed
     public function canBeCompleted(): bool
     {
-        return $this->status === self::STATUS_APPROVED;
+        return in_array($this->status, [
+            self::STATUS_APPROVED,
+            self::STATUS_SCHEDULED,
+            self::STATUS_IN_PROGRESS,
+            self::STATUS_TREATED,
+        ], true);
     }
 }

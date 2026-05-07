@@ -7,6 +7,7 @@ use App\Models\Customer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
@@ -176,6 +177,36 @@ class AuthController extends Controller
         return response()->json([
             'message' => 'Profile updated successfully',
             'user' => $user
+        ]);
+    }
+
+    public function uploadProfilePhoto(Request $request)
+    {
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
+        $validated = $request->validate([
+            'profile_photo' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
+        ]);
+
+        if ($user->profile_photo) {
+            Storage::disk('public')->delete($user->profile_photo);
+        }
+
+        $path = $validated['profile_photo']->store('profile_photos', 'public');
+
+        $user->update([
+            'profile_photo' => $path,
+        ]);
+
+        return response()->json([
+            'message' => 'Profile photo uploaded successfully',
+            'profile_photo' => asset('storage/' . $path),
+            'url' => asset('storage/' . $path),
+            'user' => $user,
         ]);
     }
 

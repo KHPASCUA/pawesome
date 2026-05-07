@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Bar,
   BarChart,
@@ -26,23 +26,9 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { apiRequest } from "../../api/client";
 import { formatCurrency } from "../../utils/currency";
+import { normalizeList } from "../../utils/normalizeList";
 import "./EmployeeSalaryManagement.css";
 
-const fallbackEmployees = [
-  {
-    id: 1,
-    employeeId: "EMP-001",
-    name: "John Smith",
-    department: "Veterinary",
-    position: "Senior Veterinarian",
-    baseSalary: 8500,
-    housingAllowance: 1200,
-    transportAllowance: 300,
-    medicalAllowance: 500,
-    performanceBonus: 1000,
-    status: "active",
-  },
-];
 
 const emptyForm = {
   employeeId: "",
@@ -77,6 +63,7 @@ const EmployeeSalaryManagement = () => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [newEmployee, setNewEmployee] = useState(emptyForm);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   const normalizeEmployee = (emp) => ({
     id: emp.id,
@@ -99,22 +86,25 @@ const EmployeeSalaryManagement = () => {
     Number(employee.medicalAllowance || 0) +
     Number(employee.performanceBonus || 0);
 
-  const loadEmployees = async () => {
+  const loadEmployees = useCallback(async () => {
     try {
       setLoading(true);
+      setError("");
       const data = await apiRequest("/admin/salaries");
-      const rows = Array.isArray(data) ? data : data?.data || [];
-      setEmployees(rows.map(normalizeEmployee));
-    } catch {
-      setEmployees(fallbackEmployees.map(normalizeEmployee));
+      setEmployees(
+        normalizeList(data, ["data", "employees", "salaries", "payrolls", "records"]).map(normalizeEmployee)
+      );
+    } catch (err) {
+      setError(err.message || "Failed to load employee salary data");
+      setEmployees([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadEmployees();
-  }, []);
+  }, [loadEmployees]);
 
   const filteredEmployees = useMemo(() => {
     return employees.filter((employee) => {
@@ -207,15 +197,11 @@ const EmployeeSalaryManagement = () => {
         body: JSON.stringify(payload),
       });
 
-      setEmployees((prev) => [
-        ...prev,
-        normalizeEmployee(saved?.data || saved || { ...payload, id: Date.now() }),
-      ]);
-    } catch {
-      setEmployees((prev) => [
-        ...prev,
-        normalizeEmployee({ ...payload, id: Date.now() }),
-      ]);
+      setEmployees((prev) => [...prev, normalizeEmployee(saved?.data || saved)]);
+      setError("");
+    } catch (err) {
+      setError(err.message || "Failed to save employee salary data");
+      return;
     }
 
     setNewEmployee(emptyForm);
@@ -233,17 +219,20 @@ const EmployeeSalaryManagement = () => {
     };
 
     try {
-      await apiRequest(`/admin/salaries/${editingEmployee.id}`, {
+      const saved = await apiRequest(`/admin/salaries/${editingEmployee.id}`, {
         method: "PUT",
         body: JSON.stringify(payload),
       });
-    } catch {}
-
-    setEmployees((prev) =>
-      prev.map((emp) =>
-        emp.id === editingEmployee.id ? normalizeEmployee(payload) : emp
-      )
-    );
+      setEmployees((prev) =>
+        normalizeList(prev, ["data", "employees", "salaries", "payrolls", "records"]).map((emp) =>
+          emp.id === editingEmployee.id ? normalizeEmployee(saved?.data || payload) : emp
+        )
+      );
+      setError("");
+    } catch (err) {
+      setError(err.message || "Failed to update employee salary data");
+      return;
+    }
 
     setEditingEmployee(null);
   };
@@ -251,9 +240,11 @@ const EmployeeSalaryManagement = () => {
   const handleDeleteEmployee = async (id) => {
     try {
       await apiRequest(`/admin/salaries/${id}`, { method: "DELETE" });
-    } catch {}
-
-    setEmployees((prev) => prev.filter((emp) => emp.id !== id));
+      setEmployees((prev) => normalizeList(prev, ["data", "employees", "salaries", "payrolls", "records"]).filter((emp) => emp.id !== id));
+      setError("");
+    } catch (err) {
+      setError(err.message || "Failed to delete employee salary data");
+    }
   };
 
   const renderSalaryForm = (employee, setEmployee, onSave, title) => (
@@ -486,7 +477,9 @@ const EmployeeSalaryManagement = () => {
 
               {filteredEmployees.length === 0 && (
                 <tr>
-                  <td colSpan="8" className="empty-table">No salary records found.</td>
+                  <td colSpan="8" className="empty-table">
+                    {error ? `${error}. No salary records to display.` : "No salary records found."}
+                  </td>
                 </tr>
               )}
             </tbody>

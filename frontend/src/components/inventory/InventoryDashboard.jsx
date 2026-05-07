@@ -198,7 +198,7 @@ const InventoryDashboard = () => {
               onUpload={handleProfilePhotoUpload}
             />
 
-            <NotificationDropdown />
+            <NotificationDropdown role="inventory" />
 
             <button
               className="theme-toggle-btn"

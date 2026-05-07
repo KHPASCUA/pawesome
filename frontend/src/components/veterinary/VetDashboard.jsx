@@ -121,8 +121,8 @@ const VetDashboard = () => {
           subtitle: "Scheduled today",
           icon: faCalendarCheck,
           iconClass: "appointments",
-          trend: "+12%",
-          trendUp: true,
+          trend: "Live",
+          trendUp: null,
         },
         {
           title: "Active Patients",
@@ -130,8 +130,8 @@ const VetDashboard = () => {
           subtitle: "Patient records",
           icon: faUsers,
           iconClass: "patients",
-          trend: "+5%",
-          trendUp: true,
+          trend: "Live",
+          trendUp: null,
         },
         {
           title: "Completed",
@@ -139,8 +139,8 @@ const VetDashboard = () => {
           subtitle: "This month",
           icon: faClipboardCheck,
           iconClass: "completed",
-          trend: "+8%",
-          trendUp: true,
+          trend: "Live",
+          trendUp: null,
         },
         {
           title: "Pending",
@@ -148,8 +148,8 @@ const VetDashboard = () => {
           subtitle: "Awaiting confirmation",
           icon: faClock,
           iconClass: "pending",
-          trend: "-3%",
-          trendUp: false,
+          trend: "Live",
+          trendUp: null,
         },
       ]
     : [];
@@ -189,14 +189,65 @@ const VetDashboard = () => {
   };
 
   // Handle appointment actions
-  const handleStartAppointment = (aptId) => {
-    toast.success(`Appointment #${aptId} started`);
+  const handleStartAppointment = async (aptId) => {
+    try {
+      // Find appointment to check its current status
+      const appointment = dashboardData?.upcoming_appointments?.find(apt => apt.id === aptId);
+      if (!appointment) {
+        toast.error("Appointment not found");
+        return;
+      }
+
+      // Check if appointment can be started
+      if (!['approved', 'scheduled'].includes(appointment.status)) {
+        toast.error(`Cannot start appointment with status: ${appointment.status}. Only approved or scheduled appointments can be started.`);
+        return;
+      }
+
+      await apiRequest(`/veterinary/appointments/${aptId}/start`, {
+        method: "POST",
+        body: JSON.stringify({ notes: "Appointment started by veterinarian" }),
+      });
+      toast.success(`Appointment #${aptId} started`);
+      // Refresh dashboard data
+      const data = await apiRequest("/veterinary/dashboard");
+      setDashboardData(data);
+    } catch (err) {
+      console.error("Failed to start appointment:", err);
+      const errorMessage = err?.response?.data?.message || err?.message || "Failed to start appointment";
+      toast.error(errorMessage);
+    }
   };
 
-  const handleCompleteAppointment = (aptId) => {
-    toast.success(`Appointment #${aptId} completed • Receipt generated`);
-    // In real implementation: navigate to receipt
-    // navigate(`/veterinary/receipt/${aptId}`);
+  const handleCompleteAppointment = async (aptId) => {
+    try {
+      // Find appointment to check its current status
+      const appointment = dashboardData?.upcoming_appointments?.find(apt => apt.id === aptId);
+      if (!appointment) {
+        toast.error("Appointment not found");
+        return;
+      }
+
+      // Check if appointment can be completed
+      const completableStatuses = ['approved', 'scheduled', 'in_progress', 'treated'];
+      if (!completableStatuses.includes(appointment.status)) {
+        toast.error(`Cannot complete appointment with status: ${appointment.status}. Only ${completableStatuses.join(', ')} appointments can be completed.`);
+        return;
+      }
+
+      await apiRequest(`/veterinary/appointments/${aptId}/complete`, {
+        method: "POST",
+        body: JSON.stringify({ notes: "Appointment completed by veterinarian" }),
+      });
+      toast.success(`Appointment #${aptId} completed • Receipt generated`);
+      // Refresh dashboard data
+      const data = await apiRequest("/veterinary/dashboard");
+      setDashboardData(data);
+    } catch (err) {
+      console.error("Failed to complete appointment:", err);
+      const errorMessage = err?.response?.data?.message || err?.message || "Failed to complete appointment";
+      toast.error(errorMessage);
+    }
   };
 
   const toggleTheme = () => {
@@ -237,7 +288,7 @@ const VetDashboard = () => {
               onUpload={handleProfilePhotoUpload}
             />
 
-            <NotificationDropdown />
+            <NotificationDropdown role="veterinary" />
 
             <button className="theme-toggle-btn" type="button" onClick={toggleTheme}>
               <FontAwesomeIcon icon={faMoon} />

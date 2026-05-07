@@ -17,12 +17,40 @@ use Illuminate\Support\Facades\Auth;
 
 class BoardingController extends Controller
 {
+    private function currentCustomerId(Request $request): ?int
+    {
+        $user = $request->user();
+
+        if (!$user) {
+            return null;
+        }
+
+        return Customer::where('user_id', $user->id)
+            ->orWhere('email', $user->email)
+            ->value('id');
+    }
+
+    private function customerCanAccess(Request $request, Boarding $boarding): bool
+    {
+        if ($request->user()?->role !== 'customer') {
+            return true;
+        }
+
+        $customerId = $this->currentCustomerId($request);
+
+        return $customerId && (int) $boarding->customer_id === (int) $customerId;
+    }
+
     /**
      * List all boarding reservations with filters
      */
     public function index(Request $request): JsonResponse
     {
         $query = Boarding::with(['pet', 'customer', 'hotelRoom']);
+
+        if ($request->user()?->role === 'customer') {
+            $query->where('customer_id', $this->currentCustomerId($request) ?? 0);
+        }
 
         // Filter by status
         if ($request->has('status')) {
@@ -54,14 +82,19 @@ class BoardingController extends Controller
 
         $boardings = $query->orderBy('check_in', 'desc')->paginate(20);
 
+        $summaryQuery = Boarding::query();
+        if ($request->user()?->role === 'customer') {
+            $summaryQuery->where('customer_id', $this->currentCustomerId($request) ?? 0);
+        }
+
         return response()->json([
             'boardings' => $boardings,
             'summary' => [
-                'total' => Boarding::count(),
-                'checked_in' => Boarding::checkedIn()->count(),
-                'pending' => Boarding::pending()->count(),
-                'today_checkins' => Boarding::whereDate('check_in', today())->count(),
-                'today_checkouts' => Boarding::whereDate('check_out', today())->count(),
+                'total' => (clone $summaryQuery)->count(),
+                'checked_in' => (clone $summaryQuery)->checkedIn()->count(),
+                'pending' => (clone $summaryQuery)->pending()->count(),
+                'today_checkins' => (clone $summaryQuery)->whereDate('check_in', today())->count(),
+                'today_checkouts' => (clone $summaryQuery)->whereDate('check_out', today())->count(),
             ]
         ]);
     }
@@ -71,6 +104,16 @@ class BoardingController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
+        if ($request->user()?->role === 'customer') {
+            $customerId = $this->currentCustomerId($request);
+
+            if (!$customerId) {
+                return response()->json(['error' => 'Customer not found'], 404);
+            }
+
+            $request->merge(['customer_id' => $customerId]);
+        }
+
         $validator = Validator::make($request->all(), [
             'pet_id' => 'required|exists:pets,id',
             'customer_id' => 'required|exists:customers,id',
@@ -85,6 +128,12 @@ class BoardingController extends Controller
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        if ($request->user()?->role === 'customer') {
+            if (!Pet::where('id', $request->pet_id)->where('customer_id', $request->customer_id)->exists()) {
+                return response()->json(['error' => 'Pet not found'], 404);
+            }
         }
 
         // Check room availability
@@ -133,6 +182,11 @@ class BoardingController extends Controller
     public function show($id): JsonResponse
     {
         $boarding = Boarding::with(['pet', 'customer', 'hotelRoom'])->findOrFail($id);
+
+        if (!$this->customerCanAccess(request(), $boarding)) {
+            return response()->json(['message' => 'Reservation not found'], 404);
+        }
+
         return response()->json(['boarding' => $boarding]);
     }
 
@@ -333,6 +387,10 @@ class BoardingController extends Controller
     public function cancel($id): JsonResponse
     {
         $boarding = Boarding::findOrFail($id);
+
+        if (!$this->customerCanAccess(request(), $boarding)) {
+            return response()->json(['message' => 'Reservation not found'], 404);
+        }
 
         if ($boarding->status === 'checked_out') {
             return response()->json(['error' => 'Cannot cancel completed reservation'], 422);

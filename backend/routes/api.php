@@ -8,8 +8,10 @@ use App\Http\Controllers\Admin\CustomersController;
 use App\Http\Controllers\Admin\ChatbotController;
 use App\Http\Controllers\Admin\ChatbotFaqController;
 use App\Http\Controllers\Admin\ReportsController;
+use App\Http\Controllers\Admin\CustomerReportController;
 use App\Http\Controllers\Admin\ActivityLogController;
 use App\Http\Controllers\Admin\LoginLogController;
+use App\Http\Controllers\Admin\SalaryController;
 use App\Http\Controllers\ChatbotController as SharedChatbotController;
 use App\Http\Controllers\ChatbotWorkflowController;
 use App\Http\Controllers\Customer\PortalController;
@@ -51,8 +53,10 @@ Route::get('/health', function () {
 });
 
 // Service Request API endpoints
-Route::get('/receptionist/requests', [ServiceRequestController::class, 'receptionistRequests']);
-Route::patch('/receptionist/requests/{id}/status', [ServiceRequestController::class, 'updateStatus']);
+Route::middleware(['auth.api', 'throttle:api', 'role:receptionist,admin'])->group(function () {
+    Route::get('/receptionist/requests', [ServiceRequestController::class, 'receptionistRequests']);
+    Route::patch('/receptionist/requests/{id}/status', [ServiceRequestController::class, 'updateStatus']);
+});
 
 Route::prefix('auth')->group(function () {
     Route::middleware('throttle:auth')->group(function () {
@@ -144,8 +148,17 @@ Route::middleware(['auth.api', 'throttle:api', 'role:admin'])->prefix('admin')->
     Route::get('reports/inventory', [ReportsController::class, 'inventory']);
     Route::get('reports/manager', [ReportsController::class, 'manager']);
     Route::get('reports/veterinary', [ReportsController::class, 'veterinary']);
-    Route::get('reports/customers', [ReportsController::class, 'customers']);
+    Route::get('reports/customers', [CustomerReportController::class, 'getCustomerReports']);
+    Route::get('reports/customers/export', [CustomerReportController::class, 'exportCustomerReports']);
+    Route::get('reports/customers/export-pdf', [CustomerReportController::class, 'exportCustomerReportsPdf']);
+    Route::get('reports/customers/{id}', [CustomerReportController::class, 'getCustomerDetail']);
+    Route::get('reports/payments', [ReportsController::class, 'payments']);
+    Route::get('reports/orders', [ReportsController::class, 'orders']);
+    Route::get('reports/service-requests', [ReportsController::class, 'serviceRequests']);
+    Route::get('reports/logistics', [ReportsController::class, 'logistics']);
     Route::get('reports/reception', [ReportsController::class, 'reception']);
+    Route::get('payroll', [ReportsController::class, 'payrollReports']);
+    Route::get('payroll/reports', [ReportsController::class, 'payrollReports']);
     Route::get('appointments', [AppointmentController::class, 'index']);
 
     
@@ -288,6 +301,9 @@ Route::middleware(['auth.api', 'throttle:api', 'role:receptionist'])->prefix('re
     Route::patch('requests/{id}/status', [ReceptionistRequestController::class, 'updateStatus']);
     Route::post('requests/{id}/approve', [ReceptionistRequestController::class, 'approve']);
     Route::post('requests/{id}/reject', [ReceptionistRequestController::class, 'reject']);
+    
+    // Veterinarian Management
+    Route::get('veterinarians/available', [AppointmentController::class, 'availableVeterinarians']);
 });
 
 Route::middleware(['auth.api', 'throttle:api'])->get('inventory/items', [InventoryDashboardController::class, 'publicItems']);
@@ -357,6 +373,14 @@ Route::middleware(['auth.api', 'throttle:api', 'role:admin,payroll'])->prefix('p
     Route::put('/{id}', [PayrollController::class, 'update']);
 });
 
+// Admin Salaries Routes (for EmployeeSalaryManagement component)
+Route::middleware(['auth.api', 'throttle:api', 'role:admin'])->prefix('admin/salaries')->group(function () {
+    Route::get('/', [SalaryController::class, 'index']);
+    Route::post('/', [SalaryController::class, 'store']);
+    Route::put('/{id}', [SalaryController::class, 'update']);
+    Route::delete('/{id}', [SalaryController::class, 'destroy']);
+});
+
 // Role-based Notifications API Routes
 Route::middleware(['auth.api', 'throttle:api'])->prefix('notifications')->group(function () {
     Route::get('/', [ApiNotificationController::class, 'index']);
@@ -371,10 +395,12 @@ Route::middleware(['auth.api', 'throttle:api'])->group(function () {
     Route::get('/my-payroll', [PayrollController::class, 'myPayroll']);
 });
 
-Route::middleware(['auth.api', 'throttle:api', 'role:veterinary'])->prefix('veterinary')->group(function () {
+Route::middleware(['auth.api', 'throttle:api', 'role:veterinary,vet'])->prefix('veterinary')->group(function () {
     Route::get('dashboard', [VeterinaryDashboardController::class, 'overview']);
     Route::get('appointments', [VeterinaryDashboardController::class, 'appointments']);
+    Route::post('appointments', [AppointmentController::class, 'store']);
     Route::get('appointments/{id}', [VeterinaryDashboardController::class, 'appointment']);
+    Route::put('appointments/{id}', [AppointmentController::class, 'update']);
     Route::get('patients', [VeterinaryDashboardController::class, 'patients']);
     Route::get('history', [VeterinaryDashboardController::class, 'history']);
     Route::get('reports', [VeterinaryDashboardController::class, 'reports']);
@@ -385,7 +411,7 @@ Route::middleware(['auth.api', 'throttle:api', 'role:veterinary'])->prefix('vete
     Route::post('appointments/{id}/start', [AppointmentController::class, 'start']);
     Route::post('appointments/{id}/complete', [AppointmentController::class, 'complete']);
     Route::put('appointments/{id}/medical', [AppointmentController::class, 'updateMedical']);
-    Route::put('appointments/{id}/status', [AppointmentController::class, 'updateStatus']);
+    Route::match(['put', 'patch'], 'appointments/{id}/status', [AppointmentController::class, 'updateStatus']);
     
     // Medical Records Management
     Route::get('medical-records', [MedicalRecordController::class, 'index']);
@@ -580,7 +606,7 @@ Route::middleware(['auth.api', 'throttle:api', 'role:receptionist,admin,manager,
 });
 
 // Legacy Route Aliases (for backward compatibility with tests)
-Route::middleware(['auth.api', 'throttle:api'])->group(function () {
+Route::middleware(['auth.api', 'throttle:api', 'role:receptionist,admin'])->group(function () {
     // Legacy appointments endpoint (alias to receptionist appointments)
     Route::get('/appointments', [AppointmentController::class, 'index']);
     Route::post('/appointments', [AppointmentController::class, 'store']);
@@ -588,17 +614,21 @@ Route::middleware(['auth.api', 'throttle:api'])->group(function () {
     // Public appointment status update endpoint
     Route::patch('/appointments/{id}/status', [AppointmentController::class, 'updateStatus']);
     Route::put('/appointments/{id}', [AppointmentController::class, 'update']);
-    
+});
+
+Route::middleware(['auth.api', 'throttle:api'])->group(function () {
     // Public services endpoint (accessible to all authenticated users)
     Route::get('/services', [ServiceController::class, 'index']);
-    
-    // Public customers endpoint (accessible to all authenticated users)
+});
+
+Route::middleware(['auth.api', 'throttle:api', 'role:receptionist,admin,manager,cashier,veterinary,customer'])->group(function () {
+    // Customer endpoint is scoped by CustomersController when role is customer
     Route::get('/customers', [CustomersController::class, 'index']);
-    
-    // Public pets endpoint (accessible to all authenticated users)
+
+    // Pets endpoint is scoped by PetController when role is customer
     Route::get('/pets', [PetController::class, 'index']);
-    
-    // Public customer pets endpoint (accessible to all authenticated users)
+
+    // Customer pets endpoint is scoped by CustomersController when role is customer
     Route::get('/customers/{id}/pets', [CustomersController::class, 'pets']);
 });
 

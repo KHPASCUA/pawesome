@@ -22,12 +22,12 @@ class ApiTokenAuth
             'auth_header' => $request->header('Authorization') ? 'present' : 'missing'
         ]);
 
-        if ($request->user()) {
-            Log::info('API TOKEN AUTH: User already authenticated');
+        $token = $request->bearerToken();
+
+        if (!$token && $request->user()) {
+            Log::info('API TOKEN AUTH: User already authenticated without bearer token');
             return $next($request);
         }
-
-        $token = $request->bearerToken();
 
         if (!$token) {
             Log::warning('API TOKEN AUTH: No bearer token found');

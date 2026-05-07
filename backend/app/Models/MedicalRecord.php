@@ -93,7 +93,7 @@ class MedicalRecord extends Model
     public function canBeEditedBy(User $user): bool
     {
         // Only veterinarians can edit
-        if ($user->role !== 'veterinary' && $user->role !== 'vet') {
+        if (!in_array($user->role, ['veterinary', 'vet', 'veterinarian'], true)) {
             return false;
         }
 
@@ -102,9 +102,9 @@ class MedicalRecord extends Model
             return false;
         }
 
-        // Draft records can be edited by the creating vet or any vet
+        // Draft records can be edited by the creating vet
         if ($this->status === self::STATUS_DRAFT) {
-            return true;
+            return $this->veterinarian_id === $user->id;
         }
 
         // Finalized records can only be edited by admin or the original vet
@@ -118,7 +118,7 @@ class MedicalRecord extends Model
     public function canBeViewedBy(User $user): bool
     {
         // All staff roles can view medical records
-        return in_array($user->role, ['admin', 'veterinary', 'vet', 'receptionist', 'manager']);
+        return in_array($user->role, ['admin', 'veterinary', 'vet', 'veterinarian', 'receptionist', 'manager']);
     }
 
     public function lock(User $user): void

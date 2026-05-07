@@ -9,8 +9,8 @@ const routeRoleMap = {
   inventory: ["inventory"],
   manager: ["manager"],
   payroll: ["payroll"],
-  veterinary: ["veterinary", "vet"],
-  vet: ["veterinary", "vet"],
+  veterinary: ["veterinary", "vet", "veterinarian"],
+  vet: ["veterinary", "vet", "veterinarian"],
 };
 
 const roleHomeMap = {
@@ -20,6 +20,7 @@ const roleHomeMap = {
   receptionist: "/receptionist",
   veterinary: "/veterinary",
   vet: "/veterinary",
+  veterinarian: "/veterinary",
   inventory: "/inventory",
   cashier: "/cashier",
   manager: "/manager",
@@ -52,7 +53,7 @@ const ProtectedRoute = ({ children }) => {
     hasAccess: allowedRoles ? allowedRoles.includes(role) : true
   });
 
-  if (allowedRoles && !allowedRoles.includes(role)) {
+  if (!allowedRoles || !allowedRoles.includes(role)) {
     console.log("PROTECTED ROUTE: Role access denied, redirecting to:", roleHomeMap[role] || "/login");
     return <Navigate to={roleHomeMap[role] || "/login"} replace />;
   }

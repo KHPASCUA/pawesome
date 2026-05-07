@@ -15,11 +15,7 @@ class NotificationController extends Controller
         $userId = $user->id;
 
         // Get notifications for user or their role
-        $query = Notification::query()
-            ->where(function ($q) use ($userId, $role) {
-                $q->where('user_id', $userId)
-                  ->orWhere('role', $role);
-            })
+        $query = Notification::forUserOrRole($userId, $role)
             ->latest();
 
         $notifications = $query->limit(30)->get();
@@ -27,7 +23,9 @@ class NotificationController extends Controller
 
         return response()->json([
             'success' => true,
-            'notifications' => $notifications->map(fn ($n) => $this->formatNotification($n)),
+            'notifications' => $notifications->map(function ($n) {
+                return $this->formatNotification($n);
+            }),
             'unread_count' => $unreadCount,
         ]);
     }
@@ -59,6 +57,85 @@ class NotificationController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'All notifications marked as read.',
+        ]);
+    }
+
+    public function unreadCount(Request $request)
+    {
+        $user = $request->user();
+        $role = $user->role ?? null;
+        $userId = $user->id;
+
+        $unreadCount = Notification::where(function ($q) use ($userId, $role) {
+            $q->where('user_id', $userId)
+              ->orWhere('role', $role);
+        })->where('read', false)->count();
+
+        return response()->json([
+            'success' => true,
+            'unread_count' => $unreadCount,
+        ]);
+    }
+
+    public function getUnread(Request $request)
+    {
+        $user = $request->user();
+        $role = $user->role ?? null;
+        $userId = $user->id;
+
+        $notifications = Notification::forUserOrRole($userId, $role)
+            ->unread()
+            ->recent(20)
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'notifications' => $notifications->map(function ($n) {
+                return $this->formatNotification($n);
+            }),
+            'unread_count' => $notifications->count(),
+        ]);
+    }
+
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'user_id' => 'nullable|exists:users,id',
+            'role' => 'nullable|string|in:admin,customer,receptionist,cashier,veterinary,manager,inventory',
+            'title' => 'required|string|max:255',
+            'message' => 'required|string|max:1000',
+            'type' => 'nullable|string|in:info,warning,success,error',
+            'related_type' => 'nullable|string|max:255',
+            'related_id' => 'nullable|integer',
+            'data' => 'nullable|array',
+        ]);
+
+        $notification = Notification::create([
+            'user_id' => $validated['user_id'] ?? null,
+            'role' => $validated['role'] ?? null,
+            'title' => $validated['title'],
+            'message' => $validated['message'],
+            'type' => $validated['type'] ?? 'info',
+            'related_type' => $validated['related_type'] ?? null,
+            'related_id' => $validated['related_id'] ?? null,
+            'data' => $validated['data'] ?? null,
+            'read' => false,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Notification created successfully.',
+            'notification' => $this->formatNotification($notification),
+        ], 201);
+    }
+
+    public function destroy(Notification $notification)
+    {
+        $notification->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Notification deleted successfully.',
         ]);
     }
 

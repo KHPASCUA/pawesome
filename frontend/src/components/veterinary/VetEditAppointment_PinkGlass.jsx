@@ -130,8 +130,8 @@ const VetEditAppointment = () => {
       }
 
       try {
-        const appointmentResponse = await apiRequest(`/appointments/${appointmentId}`);
-        appointmentData = appointmentResponse;
+        const appointmentResponse = await apiRequest(`/veterinary/appointments/${appointmentId}`);
+        appointmentData = appointmentResponse?.appointment || appointmentResponse;
         console.log("APPOINTMENT RESPONSE:", appointmentData);
       } catch (appointmentErr) {
         console.error("Failed to load appointment:", appointmentErr);
@@ -144,8 +144,8 @@ const VetEditAppointment = () => {
           customer_id: appointmentData.customer_id || "",
           pet_id: appointmentData.pet_id || "",
           service_id: appointmentData.service_id || "",
-          appointment_date: appointmentData.appointment_date || "",
-          appointment_time: appointmentData.appointment_time || "",
+          appointment_date: appointmentData.appointment_date || (appointmentData.scheduled_at ? new Date(appointmentData.scheduled_at).toISOString().split("T")[0] : ""),
+          appointment_time: appointmentData.appointment_time || (appointmentData.scheduled_at ? new Date(appointmentData.scheduled_at).toTimeString().slice(0, 5) : ""),
           notes: appointmentData.notes || "",
         });
 
@@ -153,10 +153,10 @@ const VetEditAppointment = () => {
           const customer = customersList.find(c => c.id === appointmentData.customer_id);
           if (customer) {
             setSelectedCustomer(customer);
-            await fetchCustomerPets(customer.id);
-            
+            const customerPets = await fetchCustomerPets(customer.id);
+
             if (appointmentData.pet_id) {
-              const pet = pets.find(p => p.id === appointmentData.pet_id);
+              const pet = customerPets.find(p => String(p.id) === String(appointmentData.pet_id));
               if (pet) setSelectedPet(pet);
             }
           }
@@ -180,11 +180,14 @@ const VetEditAppointment = () => {
     try {
       setPetsLoading(true);
       const data = await apiRequest(`/customers/${customerId}/pets`);
-      setPets(safeArray(data));
+      const petsList = safeArray(data);
+      setPets(petsList);
+      return petsList;
     } catch (err) {
       console.error("Failed to fetch customer pets:", err);
       setPets([]);
       toast.error("Failed to load customer pets.");
+      return [];
     } finally {
       setPetsLoading(false);
     }
@@ -265,7 +268,7 @@ const VetEditAppointment = () => {
         notes: formData.notes.trim(),
       };
 
-      await apiRequest(`/appointments/${appointmentId}`, {
+      await apiRequest(`/veterinary/appointments/${appointmentId}`, {
         method: "PUT",
         body: JSON.stringify(appointmentData),
       });

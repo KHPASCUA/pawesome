@@ -115,15 +115,16 @@ class DashboardController extends Controller
 
     private function checkMemoryUsage()
     {
-        $memoryUsage = memory_get_usage(true);
+        $currentUsage = memory_get_usage(true);
+        $peakUsage = memory_get_peak_usage(true);
         $memoryLimit = ini_get('memory_limit');
         $parsedLimit = $this->parseMemoryLimit($memoryLimit);
         
         return [
-            'current_usage' => $memoryUsage['real'],
-            'peak_usage' => $memoryUsage['peak'],
+            'current_usage' => $currentUsage,
+            'peak_usage' => $peakUsage,
             'limit' => $memoryLimit,
-            'usage_percentage' => $parsedLimit > 0 ? round(($memoryUsage['real'] / $parsedLimit) * 100, 2) : 0,
+            'usage_percentage' => $parsedLimit > 0 ? round(($currentUsage / $parsedLimit) * 100, 2) : 0,
         ];
     }
 

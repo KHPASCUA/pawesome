@@ -24,7 +24,7 @@ import {
   faChartLine,
   faXmark,
 } from "@fortawesome/free-solid-svg-icons";
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { apiRequest } from "../../api/client";
 import styled, { createGlobalStyle } from "styled-components";
@@ -732,6 +732,7 @@ const LoadingSpinner = styled.div`
 `;
 
 const VetAppointments = () => {
+  const navigate = useNavigate();
   const [appointments, setAppointments] = useState([]);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -1005,16 +1006,36 @@ const VetAppointments = () => {
     try {
       setActionLoadingId(`${appointmentId}-${nextStatus}`);
 
-      await apiRequest(`/appointments/${appointmentId}/status`, {
-        method: "PATCH",
-        body: JSON.stringify({ status: nextStatus }),
-      });
+      if (nextStatus === "in_progress") {
+        await apiRequest(`/veterinary/appointments/${appointmentId}/start`, {
+          method: "POST",
+          body: JSON.stringify({ notes: "Appointment started by veterinarian" }),
+        });
+      } else if (nextStatus === "completed") {
+        await apiRequest(`/veterinary/appointments/${appointmentId}/complete`, {
+          method: "POST",
+          body: JSON.stringify({ notes: "Appointment completed by veterinarian" }),
+        });
+      } else {
+        await apiRequest(`/veterinary/appointments/${appointmentId}/status`, {
+          method: "PATCH",
+          body: JSON.stringify({ status: nextStatus }),
+        });
+      }
 
       toast.success(`Appointment marked as ${getStatusLabel(nextStatus)}.`);
       await fetchAppointments({ silent: true });
+
+      if (nextStatus === "in_progress") {
+        navigate(`/veterinary/appointments/${appointmentId}/consult`);
+      }
     } catch (err) {
       console.error("Failed to update appointment:", err);
-      toast.error("Failed to update appointment status. Check backend route.");
+      const errorMessage =
+        err?.response?.data?.message ||
+        err?.message ||
+        "Failed to update appointment status.";
+      toast.error(errorMessage);
     } finally {
       setActionLoadingId(null);
     }
@@ -1201,14 +1222,10 @@ const VetAppointments = () => {
               appointment.status === "canceled" ||
               appointment.status === "rejected";
 
-            const canStart =
-              !isCompleted &&
-              !isCancelled &&
-              appointment.status !== "in_progress";
+            const canStart = ["approved", "scheduled"].includes(appointment.status);
 
-            const canComplete =
-              !isCompleted &&
-              !isCancelled;
+            const canConsult = ["in_progress", "treated"].includes(appointment.status);
+            const canComplete = canConsult;
 
             return (
               <AppointmentCard key={appointment.id || `${appointment.pet}-${appointment.time}`}>
@@ -1303,10 +1320,10 @@ const VetAppointments = () => {
                       variant="primary"
                       type="button"
                       disabled={!canComplete || actionLoadingId === `${appointment.id}-completed`}
-                      onClick={() => updateAppointmentStatus(appointment.id, "completed")}
+                      onClick={() => navigate(`/veterinary/appointments/${appointment.id}/consult`)}
                     >
                       <FontAwesomeIcon icon={faCircleCheck} />
-                      Complete
+                      Consult
                     </ActionButton>
 
                     <ActionButton
@@ -1416,9 +1433,7 @@ const VetAppointments = () => {
                   variant="success"
                   type="button"
                   disabled={
-                    selectedAppointment.status === "completed" ||
-                    selectedAppointment.status === "cancelled" ||
-                    selectedAppointment.status === "in_progress"
+                    !["approved", "scheduled"].includes(selectedAppointment.status)
                   }
                   onClick={() => updateAppointmentStatus(selectedAppointment.id, "in_progress")}
                 >
@@ -1430,13 +1445,12 @@ const VetAppointments = () => {
                   variant="primary"
                   type="button"
                   disabled={
-                    selectedAppointment.status === "completed" ||
-                    selectedAppointment.status === "cancelled"
+                    !["in_progress", "treated"].includes(selectedAppointment.status)
                   }
-                  onClick={() => updateAppointmentStatus(selectedAppointment.id, "completed")}
+                  onClick={() => navigate(`/veterinary/appointments/${selectedAppointment.id}/consult`)}
                 >
                   <FontAwesomeIcon icon={faCircleCheck} />
-                  Complete
+                  Consult
                 </ActionButton>
 
                 <ActionButton

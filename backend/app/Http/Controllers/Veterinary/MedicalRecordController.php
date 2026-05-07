@@ -7,12 +7,26 @@ use App\Models\MedicalRecord;
 use App\Models\Vaccination;
 use App\Models\Prescription;
 use App\Models\Pet;
+use App\Models\Appointment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 
 class MedicalRecordController extends Controller
 {
+    private function vetCanAccessPet(Request $request, int $petId): bool
+    {
+        return Appointment::where('pet_id', $petId)
+            ->where('veterinarian_id', $request->user()->id)
+            ->exists();
+    }
+
+    private function vetCanUseAppointment(Request $request, Appointment $appointment): bool
+    {
+        return (int) $appointment->veterinarian_id === (int) $request->user()->id
+            && in_array($appointment->status, ['in_progress', 'treated'], true);
+    }
+
     /**
      * List medical records with filters
      */
@@ -74,6 +88,10 @@ class MedicalRecordController extends Controller
             'attachments',
             'lockedBy'
         ])->findOrFail($id);
+
+        if (!$record->canBeViewedBy(request()->user()) || !$this->vetCanAccessPet(request(), $record->pet_id)) {
+            return response()->json(['message' => 'Medical record not found'], 404);
+        }
         
         return response()->json($record);
     }
@@ -109,6 +127,16 @@ class MedicalRecordController extends Controller
         }
 
         $user = $request->user();
+
+        if ($request->appointment_id) {
+            $appointment = Appointment::findOrFail($request->appointment_id);
+
+            if (!$this->vetCanUseAppointment($request, $appointment) || (int) $appointment->pet_id !== (int) $request->pet_id) {
+                return response()->json(['message' => 'This appointment is not ready for consultation'], 422);
+            }
+        } elseif (!$this->vetCanAccessPet($request, (int) $request->pet_id)) {
+            return response()->json(['message' => 'Pet not found'], 404);
+        }
         
         DB::beginTransaction();
         try {
@@ -169,7 +197,7 @@ class MedicalRecordController extends Controller
         $user = $request->user();
 
         // Check if user can edit this record
-        if (!$record->canBeEditedBy($user)) {
+        if (!$record->canBeEditedBy($user) || !$this->vetCanAccessPet($request, $record->pet_id)) {
             return response()->json(['message' => 'You do not have permission to edit this record'], 403);
         }
 
@@ -289,6 +317,10 @@ class MedicalRecordController extends Controller
     public function forPet($petId)
     {
         $pet = Pet::with(['customer'])->findOrFail($petId);
+
+        if (!$this->vetCanAccessPet(request(), (int) $petId)) {
+            return response()->json(['message' => 'Pet not found'], 404);
+        }
         
         $records = MedicalRecord::with(['veterinarian', 'prescriptions', 'vaccinations'])
             ->where('pet_id', $petId)

@@ -1,5 +1,5 @@
-import React, { useState, useMemo, useEffect } from "react";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
+import { useLocation } from "react-router-dom";
 import { faBox } from "@fortawesome/free-solid-svg-icons";
 import {
   ResponsiveContainer,
@@ -14,26 +14,27 @@ import {
   CartesianGrid,
 } from "recharts";
 import { inventoryApi } from "../../api/inventory";
+import { apiRequest } from "../../api/client";
 import { formatCurrency } from "../../utils/currency";
 import StandardReportLayout from "../shared/StandardReportLayout";
 import StandardSummaryCards from "../shared/StandardSummaryCards";
 import StandardTable from "../shared/StandardTable";
-import ReportFilters from "../shared/ReportFilters";
 import {
   exportToCSV,
   exportToPDF,
   exportToExcel,
-  filterByDateRange,
-  filterByStatus,
-  getDateRangePreset,
 } from "../../utils/reportExport";
 import "./InventoryReports.css";
 
 const CHART_COLORS = ["#ff5f93", "#ff8db5", "#ffc8dd", "#f59e0b", "#10b981", "#3b82f6"];
 
 const InventoryReports = () => {
+  const location = useLocation();
+  const isAdminReport = location.pathname.startsWith("/admin/");
   const [loading, setLoading] = useState(true);
   const [apiItems, setApiItems] = useState([]);
+  const [stockLogs, setStockLogs] = useState([]);
+  const [backendSummary, setBackendSummary] = useState({});
 
   // Filter states
   const [searchTerm, setSearchTerm] = useState("");
@@ -42,25 +43,42 @@ const InventoryReports = () => {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
 
-  // Fetch data from API
-  useEffect(() => {
-    const fetchData = async () => {
+  const fetchData = useCallback(async () => {
       setLoading(true);
       try {
-        const itemsResponse = await inventoryApi.getItems();
-        const items = itemsResponse.items || itemsResponse.data || [];
+        const params = new URLSearchParams();
+        if (startDate) params.append("from", startDate);
+        if (endDate) params.append("to", endDate);
+        if (statusFilter !== "all") params.append("status", statusFilter);
+        if (categoryFilter !== "all") params.append("category", categoryFilter);
+        if (searchTerm) params.append("search", searchTerm);
+        const response = isAdminReport
+          ? await apiRequest(`/admin/reports/inventory?${params}`)
+          : await inventoryApi.getReports({ startDate, endDate, category: categoryFilter !== "all" ? categoryFilter : undefined });
+        const data = response?.data || response || {};
+        const items = data.items || response.items || response.data || [];
 
         setApiItems(items);
+        setStockLogs(data.logs || []);
+        setBackendSummary(data.summary || {});
       } catch (err) {
         console.error("Failed to fetch live inventory report data:", err);
         setApiItems([]);
+        setStockLogs([]);
+        setBackendSummary({});
       } finally {
         setLoading(false);
       }
-    };
+    }, [startDate, endDate, statusFilter, categoryFilter, searchTerm, isAdminReport]);
 
+  useEffect(() => {
     fetchData();
-  }, []);
+  }, [fetchData]);
+
+  useEffect(() => {
+    const interval = setInterval(fetchData, 30000);
+    return () => clearInterval(interval);
+  }, [fetchData]);
 
   // Filter out service items from inventory data
   const inventoryItems = useMemo(() => {
@@ -77,17 +95,17 @@ const InventoryReports = () => {
   }, [apiItems]);
 
   // Helper functions
-  const getQuantity = (item) => Number(item.quantity ?? item.stock ?? 0);
-  const getPrice = (item) => Number(item.price ?? item.unit_price ?? 0);
+  const getQuantity = useCallback((item) => Number(item.quantity ?? item.stock ?? 0), []);
+  const getPrice = useCallback((item) => Number(item.price ?? item.unit_price ?? 0), []);
 
-  const getItemStatus = (item) => {
+  const getItemStatus = useCallback((item) => {
     const quantity = getQuantity(item);
     const minimum = Number(item.minimum_stock_level ?? item.reorder_level ?? 10);
 
     if (quantity <= 0) return "Out of stock";
     if (quantity <= minimum) return "Low stock";
     return "In stock";
-  };
+  }, [getQuantity]);
 
   // Apply filters to inventory items
   const filteredItems = useMemo(() => {
@@ -131,13 +149,13 @@ const InventoryReports = () => {
   const summaryStats = useMemo(() => {
     const totalItems = inventoryItems.length;
     const inStockItems = inventoryItems.filter(item => getQuantity(item) > 0).length;
-    const lowStockItems = inventoryItems.filter(item => {
+    const lowStockItems = backendSummary.low_stock_items ?? inventoryItems.filter(item => {
       const quantity = getQuantity(item);
       const minimum = Number(item.minimum_stock_level ?? item.reorder_level ?? 10);
       return quantity > 0 && quantity <= minimum;
     }).length;
-    const outOfStockItems = inventoryItems.filter(item => getQuantity(item) <= 0).length;
-    const totalValue = inventoryItems.reduce((sum, item) => sum + (getQuantity(item) * getPrice(item)), 0);
+    const outOfStockItems = backendSummary.out_of_stock_items ?? inventoryItems.filter(item => getQuantity(item) <= 0).length;
+    const totalValue = backendSummary.stock_value ?? inventoryItems.reduce((sum, item) => sum + (getQuantity(item) * getPrice(item)), 0);
 
     return {
       totalItems,
@@ -146,7 +164,7 @@ const InventoryReports = () => {
       outOfStockItems,
       totalValue,
     };
-  }, [inventoryItems]);
+  }, [inventoryItems, backendSummary, getQuantity, getPrice]);
 
   const handleDateChange = (key, value) => {
     if (key === "startDate") setStartDate(value);
@@ -335,6 +353,25 @@ const InventoryReports = () => {
           emptyMessage="No inventory items found"
         />
       </div>
+
+      <div className="data-table-section">
+        <h3 className="section-title">Stock Movements</h3>
+        <StandardTable
+          columns={[
+            { key: "id", label: "Log ID", sortable: true },
+            { key: "item_name", label: "Item", sortable: true },
+            { key: "movement_type", label: "Movement", sortable: true },
+            { key: "quantity", label: "Quantity", sortable: true },
+            { key: "previous_stock", label: "Previous", sortable: true },
+            { key: "new_stock", label: "New", sortable: true },
+            { key: "reason", label: "Reason", sortable: true },
+            { key: "performed_by", label: "Performed By", sortable: true },
+            { key: "created_at", label: "Date", format: "datetime", sortable: true },
+          ]}
+          data={stockLogs}
+          emptyMessage="No stock movements found"
+        />
+      </div>
     </div>
   );
 
@@ -362,7 +399,7 @@ const InventoryReports = () => {
     onExportPDF: handleExportPDF,
     onExportExcel: handleExportExcel,
     loading,
-    onRefresh: () => window.location.reload(),
+    onRefresh: fetchData,
     onClearFilters: handleClearFilters,
     searchPlaceholder: "Search inventory items...",
   };
@@ -374,7 +411,7 @@ const InventoryReports = () => {
       icon={faBox}
       loading={loading}
       error=""
-      onRefresh={() => window.location.reload()}
+      onRefresh={fetchData}
       lastUpdated={new Date().toLocaleTimeString()}
       filterProps={filterProps}
     >

@@ -1,10 +1,11 @@
 .standard-report-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--color-primary, #ff5f93), var(--color-primary-light, #ff8db5));
   color: white;
-  padding: 2rem;
-  margin-bottom: 2rem;
-  border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  padding: 1.5rem;
+  margin-bottom: 1.25rem;
+  border-radius: 10px;
+  box-shadow: 0 14px 34px rgba(255, 95, 147, 0.18);
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.34));
 }
 
 .header-content {
@@ -32,10 +33,11 @@
 }
 
 .page-title {
-  font-size: 2rem;
-  font-weight: 700;
+  font-size: 1.75rem;
+  font-weight: 900;
   margin: 0;
   line-height: 1.2;
+  letter-spacing: 0;
 }
 
 .page-subtitle {
@@ -73,7 +75,7 @@
   font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
   background: rgba(255, 255, 255, 0.2);
   color: white;
   backdrop-filter: blur(10px);
@@ -81,7 +83,8 @@
 
 .action-btn:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.3);
-  transform: translateY(-2px);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(127, 29, 65, 0.16);
 }
 
 .action-btn:disabled {
@@ -113,7 +116,7 @@
 /* Mobile responsiveness */
 @media (max-width: 768px) {
   .standard-report-header {
-    padding: 1.5rem;
+    padding: 1.25rem;
   }
   
   .header-content {
@@ -136,7 +139,7 @@
   }
   
   .page-title {
-    font-size: 1.5rem;
+    font-size: 1.35rem;
   }
   
   .page-subtitle {

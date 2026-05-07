@@ -85,7 +85,7 @@ const VetCustomerProfiles = () => {
     pet?.pet_age ||
     "";
 
-  const transformPatient = (pet) => ({
+  const transformPatient = useCallback((pet) => ({
     id: pet?.id || `${getOwnerName(pet)}-${getPetName(pet)}`,
     owner_id: pet?.customer?.id || pet?.owner?.id || pet?.customer_id || "",
     name: getOwnerName(pet),
@@ -98,7 +98,7 @@ const VetCustomerProfiles = () => {
     pet_age: getPetAge(pet),
     pet_status: pet?.status || pet?.health_status || "Active",
     raw: pet,
-  });
+  }), []);
 
   const fetchCustomers = useCallback(async ({ silent = false } = {}) => {
     try {
@@ -126,7 +126,7 @@ const VetCustomerProfiles = () => {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [transformPatient]);
 
   useEffect(() => {
     fetchCustomers({ silent: false });

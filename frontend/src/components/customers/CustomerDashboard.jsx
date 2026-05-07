@@ -24,7 +24,7 @@ import CustomerSidebar from "./CustomerSidebar";
 import CustomerDashboardChatbot from "../CustomerDashboardChatbot";
 import NotificationDropdown from "../shared/NotificationDropdown";
 import DashboardProfile from "../shared/DashboardProfile";
-import { apiRequest, uploadProfilePhoto } from "../../api/client";
+import { apiRequest, clearAuthStorage, uploadProfilePhoto } from "../../api/client";
 import "../../styles/dashboardGlobal.css";
 import "./CustomerDashboard.css";
 
@@ -38,6 +38,7 @@ const CustomerDashboard = () => {
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -46,7 +47,10 @@ const CustomerDashboard = () => {
 
   const handleProfilePhotoUpload = async (file) => {
     try {
-      const data = await uploadProfilePhoto(file);
+      const formData = new FormData();
+      formData.append("profile_photo", file);
+
+      const data = await uploadProfilePhoto("/auth/profile-photo", formData);
       localStorage.setItem("profile_photo", data.url || data.profile_photo);
       window.location.reload();
     } catch (err) {
@@ -67,12 +71,7 @@ const CustomerDashboard = () => {
         setError("");
       } catch (err) {
         if (err.message && (err.message.includes("session expired") || err.message.includes("Unauthenticated"))) {
-          // Clear session and redirect to login
-          localStorage.removeItem("token");
-          localStorage.removeItem("role");
-          localStorage.removeItem("name");
-          localStorage.removeItem("username");
-          localStorage.removeItem("email");
+          clearAuthStorage();
           window.location.href = "/login";
           return;
         }
@@ -164,13 +163,34 @@ const CustomerDashboard = () => {
 
   const recentBookings = dashboardData
     ? (dashboardData.recent_bookings || []).map((booking) => ({
-        petName: booking.pet?.name || "Pet",
-        service: booking.service?.name || "Service",
-        date: formatDate(booking.scheduled_at),
+        petName: booking.pet?.name || booking.pet_name || "Pet",
+        service: booking.service?.name || booking.service_name || booking.request_type || "Service",
+        date: formatDate(booking.scheduled_at || booking.request_date || booking.date),
+        rawDate: booking.scheduled_at || booking.request_date || booking.date,
         status: booking.status || "pending",
         id: booking.id,
       }))
     : [];
+
+  const recentPets = dashboardData?.recent_pets || [];
+  const dashboardSearch = searchTerm.trim().toLowerCase();
+  const filteredRecentBookings = dashboardSearch
+    ? recentBookings.filter((booking) =>
+        [booking.petName, booking.service, booking.status]
+          .join(" ")
+          .toLowerCase()
+          .includes(dashboardSearch)
+      )
+    : recentBookings;
+  const filteredRecentPets = dashboardSearch
+    ? recentPets.filter((pet) =>
+        [pet.name, pet.species, pet.type, pet.breed]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase()
+          .includes(dashboardSearch)
+      )
+    : recentPets;
 
   const getBookingProgress = (status) => {
     const steps = [
@@ -210,6 +230,7 @@ const CustomerDashboard = () => {
     { label: "Shop Products", icon: faShoppingCart, link: "/customer/store", tone: "success" },
     { label: "Upload Payment", icon: faCreditCard, link: "/customer/payments", tone: "gold" },
     { label: "View Orders", icon: faList, link: "/customer/requests", tone: "info" },
+    { label: "View Notifications", icon: faBell, link: "/customer/notifications", tone: "soft" },
   ];
 
   return (
@@ -228,7 +249,12 @@ const CustomerDashboard = () => {
           </div>
 
           <div className="search-group">
-            <input type="text" placeholder="Search bookings, pets, services..." />
+            <input
+              type="text"
+              placeholder="Search bookings, pets, services..."
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+            />
           </div>
 
           <div className="navbar-actions">
@@ -239,7 +265,7 @@ const CustomerDashboard = () => {
               onUpload={handleProfilePhotoUpload}
             />
 
-            <NotificationDropdown />
+            <NotificationDropdown role="customer" />
 
             <button
               className="theme-toggle-btn"
@@ -328,8 +354,12 @@ const CustomerDashboard = () => {
                       <div className="appointment-visual">
                         <FontAwesomeIcon icon={faCalendarAlt} className="appointment-icon" />
                         <div className="appointment-date-badge">
-                          <span className="date-day">{new Date(upcomingAppointment.date).getDate()}</span>
-                          <span className="date-month">{new Date(upcomingAppointment.date).toLocaleDateString("en-US", { month: "short" })}</span>
+                          <span className="date-day">{upcomingAppointment.rawDate ? new Date(upcomingAppointment.rawDate).getDate() : "--"}</span>
+                          <span className="date-month">
+                            {upcomingAppointment.rawDate
+                              ? new Date(upcomingAppointment.rawDate).toLocaleDateString("en-US", { month: "short" })
+                              : "TBD"}
+                          </span>
                         </div>
                       </div>
                       <div className="appointment-details">
@@ -365,33 +395,33 @@ const CustomerDashboard = () => {
                     </div>
 
                     <div className="pets-list">
-                      {(dashboardData?.recent_bookings || []).slice(0, 3).map((booking, idx) => (
+                      {filteredRecentPets.map((pet, idx) => (
                         <div key={idx} className="pet-card">
                           <div className="pet-card-header">
                             <div className="pet-avatar">
                               <FontAwesomeIcon icon={faPaw} />
                             </div>
                             <div>
-                              <strong>{booking.pet?.name || "Pet"}</strong>
-                              <span className="pet-type">Dog</span>
+                              <strong>{pet.name || "Pet"}</strong>
+                              <span className="pet-type">{pet.species || pet.type || "Pet"}</span>
                             </div>
                           </div>
                           <div className="pet-card-body">
                             <div className="pet-service-tag">
-                              <FontAwesomeIcon icon={faCalendarAlt} />
-                              {booking.service?.name || "Service"}
+                              <FontAwesomeIcon icon={faPaw} />
+                              {pet.breed || "Registered pet"}
                             </div>
                             <p className="pet-last-visit">
-                              Last visit: {formatDate(booking.scheduled_at)}
+                              Added: {formatDate(pet.created_at)}
                             </p>
                           </div>
                         </div>
                       ))}
 
-                      {(dashboardData?.recent_bookings || []).length === 0 && (
+                      {filteredRecentPets.length === 0 && (
                         <div className="empty-state compact">
                           <FontAwesomeIcon icon={faPaw} />
-                          <p>No recent pet bookings yet.</p>
+                          <p>{dashboardSearch ? "No pets match your search." : "No registered pets yet."}</p>
                         </div>
                       )}
                     </div>
@@ -446,8 +476,8 @@ const CustomerDashboard = () => {
                     </div>
 
                     <div className="booking-list">
-                      {recentBookings.length > 0 ? (
-                        recentBookings.map((booking, index) => (
+                      {filteredRecentBookings.length > 0 ? (
+                        filteredRecentBookings.map((booking, index) => (
                           <div key={index} className="booking-card">
                             <div className="booking-card-top">
                               <div>
@@ -504,7 +534,11 @@ const CustomerDashboard = () => {
                         <div className="empty-state">
                           <FontAwesomeIcon icon={faCalendarAlt} className="empty-icon" />
                           <h3>No bookings yet</h3>
-                          <p>Your recent bookings will appear here once you schedule a service.</p>
+                          <p>
+                            {dashboardSearch
+                              ? "No bookings match your search."
+                              : "Your recent bookings will appear here once you schedule a service."}
+                          </p>
                           <NavLink to="/customer/bookings" className="primary-btn">
                             Book a Service
                           </NavLink>
