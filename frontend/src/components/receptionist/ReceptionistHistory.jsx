@@ -16,468 +16,737 @@ import {
   faCut,
   faStethoscope,
   faClipboardCheck,
+  faRefresh,
+  faTimes,
+  faUser,
+  faMoneyBillWave,
+  faClipboardList,
+  faHistory,
+  faInfoCircle,
 } from "@fortawesome/free-solid-svg-icons";
 import { apiRequest } from "../../api/client";
 import { formatCurrency } from "../../utils/currency";
 import { useTheme } from "../../utils/theme";
 import "./ReceptionistHistory.css";
 
+const HISTORY_TABS = [
+  {
+    id: "approvals",
+    label: "Order Approvals",
+    icon: faCheckCircle,
+    endpoint: "/receptionist/orders/approval-history",
+    keys: ["data", "approvals", "history", "orders"],
+    emptyText: "Order approval history will appear here once records are available.",
+  },
+  {
+    id: "services",
+    label: "Service Approvals",
+    icon: faClipboardCheck,
+    endpoint: "/receptionist/requests/approval-history",
+    keys: ["data", "approvals", "history", "requests"],
+    emptyText: "Service approval history will appear here once records are available.",
+  },
+  {
+    id: "scheduling",
+    label: "Scheduling",
+    icon: faCalendarAlt,
+    endpoint: "/receptionist/scheduling/history",
+    keys: ["data", "history", "schedules", "appointments"],
+    emptyText: "Scheduling history will appear here once records are available.",
+  },
+  {
+    id: "rejected",
+    label: "Rejected",
+    icon: faTimesCircle,
+    endpoint: "/receptionist/requests/rejected-history",
+    keys: ["data", "rejected", "history", "requests"],
+    emptyText: "Rejected request history will appear here once records are available.",
+  },
+];
+
+const INITIAL_HISTORY = {
+  approvals: [],
+  services: [],
+  scheduling: [],
+  rejected: [],
+};
+
+const normalizeList = (result, keys = []) => {
+  if (Array.isArray(result)) return result;
+
+  for (const key of keys) {
+    if (Array.isArray(result?.[key])) return result[key];
+    if (Array.isArray(result?.data?.[key])) return result.data[key];
+    if (Array.isArray(result?.[key]?.data)) return result[key].data;
+    if (Array.isArray(result?.data?.[key]?.data)) return result.data[key].data;
+  }
+
+  if (Array.isArray(result?.data)) return result.data;
+  if (Array.isArray(result?.data?.data)) return result.data.data;
+  if (Array.isArray(result?.items)) return result.items;
+  if (Array.isArray(result?.records)) return result.records;
+  if (Array.isArray(result?.approvals)) return result.approvals;
+  if (Array.isArray(result?.history)) return result.history;
+  if (Array.isArray(result?.requests)) return result.requests;
+
+  return [];
+};
+
+const normalizeStatus = (value) =>
+  String(value || "recorded").toLowerCase().replace(/\s+/g, "_");
+
+const formatLabel = (value) =>
+  String(value || "N/A")
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+
+const formatDate = (value) => {
+  if (!value) return "N/A";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "N/A";
+
+  return date.toLocaleDateString("en-PH", {
+    month: "short",
+    day: "2-digit",
+    year: "numeric",
+  });
+};
+
+const formatTime = (value) => {
+  if (!value) return "";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+
+  return date.toLocaleTimeString("en-PH", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+};
+
+const getRecordId = (record) =>
+  record.id ||
+  record.order_id ||
+  record.request_id ||
+  record.booking_id ||
+  record.appointment_id ||
+  "N/A";
+
+const getCustomerName = (record) =>
+  record.customer_name ||
+  record.customer?.name ||
+  record.customer ||
+  record.client_name ||
+  record.owner_name ||
+  "N/A";
+
+const getPetName = (record) =>
+  record.pet_name || record.pet?.name || record.pet || record.petName || "";
+
+const getServiceType = (record) =>
+  record.service_type ||
+  record.request_type ||
+  record.type ||
+  record.category ||
+  record.service_name ||
+  record.service?.name ||
+  "General";
+
+const getDateValue = (record) =>
+  record.approved_at ||
+  record.rejected_at ||
+  record.scheduled_at ||
+  record.completed_at ||
+  record.updated_at ||
+  record.created_at ||
+  record.date ||
+  "";
+
+const getActionBy = (record) =>
+  record.approved_by ||
+  record.rejected_by ||
+  record.scheduled_by ||
+  record.created_by ||
+  record.user_name ||
+  record.receptionist_name ||
+  "N/A";
+
+const getAmount = (record) =>
+  record.total_amount || record.amount || record.price || record.grand_total || "";
+
+const getReason = (record) =>
+  record.rejection_reason ||
+  record.cancellation_reason ||
+  record.reason ||
+  record.remarks ||
+  record.notes ||
+  "";
+
+const getStatusBadgeClass = (status) => {
+  const normalized = normalizeStatus(status);
+
+  if (["approved", "verified", "confirmed", "paid"].includes(normalized)) {
+    return "approved";
+  }
+
+  if (["rejected", "cancelled", "canceled", "failed"].includes(normalized)) {
+    return "rejected";
+  }
+
+  if (["completed", "done", "closed"].includes(normalized)) {
+    return "completed";
+  }
+
+  if (["scheduled", "rescheduled"].includes(normalized)) {
+    return "scheduled";
+  }
+
+  if (["in_progress", "processing", "ongoing"].includes(normalized)) {
+    return "in-progress";
+  }
+
+  return "pending";
+};
+
+const getServiceIcon = (serviceType) => {
+  const type = String(serviceType || "").toLowerCase();
+
+  if (type.includes("hotel") || type.includes("boarding") || type.includes("board")) {
+    return faHotel;
+  }
+
+  if (type.includes("groom")) {
+    return faCut;
+  }
+
+  if (
+    type.includes("vet") ||
+    type.includes("medical") ||
+    type.includes("consult") ||
+    type.includes("vaccination")
+  ) {
+    return faStethoscope;
+  }
+
+  return faPaw;
+};
+
+const escapeCsvValue = (value) =>
+  `"${String(value ?? "").replace(/"/g, '""')}"`;
+
 const ReceptionistHistory = () => {
   const { theme } = useTheme();
+
   const [activeTab, setActiveTab] = useState("approvals");
-  const [orderApprovals, setOrderApprovals] = useState([]);
-  const [serviceApprovals, setServiceApprovals] = useState([]);
-  const [schedulingHistory, setSchedulingHistory] = useState([]);
-  const [rejectedRequests, setRejectedRequests] = useState([]);
+  const [historyData, setHistoryData] = useState(INITIAL_HISTORY);
+
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
   const [error, setError] = useState("");
+  const [lastUpdated, setLastUpdated] = useState("");
+
   const [searchTerm, setSearchTerm] = useState("");
-  const [sortBy, setSortBy] = useState("date");
+  const [sortBy, setSortBy] = useState("date_desc");
   const [selectedRecord, setSelectedRecord] = useState(null);
 
-  // Safe data normalization
-  const normalizeList = (result, keys = []) => {
-    if (Array.isArray(result)) return result;
-    
-    for (const key of keys) {
-      if (Array.isArray(result?.[key])) return result[key];
-    }
-    
-    if (Array.isArray(result?.data)) return result.data;
-    if (Array.isArray(result?.items)) return result.items;
-    if (Array.isArray(result?.approvals)) return result.approvals;
-    if (Array.isArray(result?.history)) return result.history;
-    if (Array.isArray(result?.requests)) return result.requests;
-    
-    return [];
-  };
+  const activeConfig = useMemo(
+    () => HISTORY_TABS.find((tab) => tab.id === activeTab) || HISTORY_TABS[0],
+    [activeTab]
+  );
 
-  const formatDate = (value) => {
-    if (!value) return "N/A";
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return "N/A";
-    return date.toLocaleDateString("en-PH", {
-      month: "short",
-      day: "numeric", 
-      year: "numeric",
-    });
-  };
+  const fetchHistory = useCallback(
+    async (tabId = activeTab, { silent = false } = {}) => {
+      const config = HISTORY_TABS.find((tab) => tab.id === tabId);
 
-  const formatTime = (value) => {
-    if (!value) return "N/A";
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return "N/A";
-    return date.toLocaleTimeString("en-PH", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
+      if (!config) return;
 
-  const getStatusBadgeClass = (status) => {
-    const statusMap = {
-      pending: "pending",
-      approved: "approved",
-      rejected: "rejected",
-      completed: "completed",
-      cancelled: "cancelled",
-      scheduled: "scheduled",
-      confirmed: "confirmed",
-      in_progress: "in-progress",
-    };
-    return statusMap[status?.toLowerCase()] || "pending";
-  };
+      try {
+        if (silent) {
+          setRefreshing(true);
+        } else {
+          setLoading(true);
+        }
 
-  // Fetch order approval history
-  const fetchOrderApprovals = useCallback(async ({ silent = false } = {}) => {
-    try {
-      if (!silent) setLoading(true);
-      else setRefreshing(true);
+        setError("");
 
-      const response = await apiRequest("/receptionist/orders/approval-history");
-      const approvalsData = normalizeList(response, ["data", "approvals", "history"]);
-      
-      setOrderApprovals(approvalsData);
-      setError("");
-    } catch (err) {
-      console.error("Failed to fetch order approvals:", err);
-      setError(err.message || "Failed to load order approval history");
-      setOrderApprovals([]);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
+        const response = await apiRequest(config.endpoint);
+        const records = normalizeList(response, config.keys);
 
-  // Fetch service approval history
-  const fetchServiceApprovals = useCallback(async ({ silent = false } = {}) => {
-    try {
-      if (!silent) setLoading(true);
-      else setRefreshing(true);
+        setHistoryData((prev) => ({
+          ...prev,
+          [tabId]: records,
+        }));
 
-      const response = await apiRequest("/receptionist/requests/approval-history");
-      const approvalsData = normalizeList(response, ["data", "approvals", "history"]);
-      
-      setServiceApprovals(approvalsData);
-      setError("");
-    } catch (err) {
-      console.error("Failed to fetch service approvals:", err);
-      setError(err.message || "Failed to load service approval history");
-      setServiceApprovals([]);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
+        setLastUpdated(new Date().toLocaleString("en-PH"));
+      } catch (err) {
+        console.error(`Failed to fetch ${tabId} history:`, err);
 
-  // Fetch scheduling history
-  const fetchSchedulingHistory = useCallback(async ({ silent = false } = {}) => {
-    try {
-      if (!silent) setLoading(true);
-      else setRefreshing(true);
+        setHistoryData((prev) => ({
+          ...prev,
+          [tabId]: [],
+        }));
 
-      const response = await apiRequest("/receptionist/scheduling/history");
-      const schedulingData = normalizeList(response, ["data", "history", "schedules"]);
-      
-      setSchedulingHistory(schedulingData);
-      setError("");
-    } catch (err) {
-      console.error("Failed to fetch scheduling history:", err);
-      setError(err.message || "Failed to load scheduling history");
-      setSchedulingHistory([]);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
+        setError(err.message || `Failed to load ${config.label.toLowerCase()} history.`);
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [activeTab]
+  );
 
-  // Fetch rejected requests
-  const fetchRejectedRequests = useCallback(async ({ silent = false } = {}) => {
-    try {
-      if (!silent) setLoading(true);
-      else setRefreshing(true);
-
-      const response = await apiRequest("/receptionist/requests/rejected-history");
-      const rejectedData = normalizeList(response, ["data", "rejected", "history"]);
-      
-      setRejectedRequests(rejectedData);
-      setError("");
-    } catch (err) {
-      console.error("Failed to fetch rejected requests:", err);
-      setError(err.message || "Failed to load rejected requests history");
-      setRejectedRequests([]);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
-
-  // Load data based on active tab
   useEffect(() => {
-    switch (activeTab) {
-      case "approvals":
-        fetchOrderApprovals();
-        break;
-      case "services":
-        fetchServiceApprovals();
-        break;
-      case "scheduling":
-        fetchSchedulingHistory();
-        break;
-      case "rejected":
-        fetchRejectedRequests();
-        break;
-      default:
-        break;
-    }
-  }, [activeTab, fetchOrderApprovals, fetchServiceApprovals, fetchSchedulingHistory, fetchRejectedRequests]);
+    fetchHistory(activeTab);
+  }, [activeTab, fetchHistory]);
 
-  // Filter and sort data
+  const activeRecords = historyData[activeTab] || [];
+
+  const summary = useMemo(() => {
+    const allRecords = Object.values(historyData).flat();
+
+    return {
+      total: allRecords.length,
+      approvals: historyData.approvals.length,
+      services: historyData.services.length,
+      scheduling: historyData.scheduling.length,
+      rejected: historyData.rejected.length,
+    };
+  }, [historyData]);
+
   const filteredData = useMemo(() => {
-    let data = [];
-    switch (activeTab) {
-      case "approvals":
-        data = orderApprovals;
-        break;
-      case "services":
-        data = serviceApprovals;
-        break;
-      case "scheduling":
-        data = schedulingHistory;
-        break;
-      case "rejected":
-        data = rejectedRequests;
-        break;
-      default:
-        data = [];
-        break;
-    }
+    const keyword = searchTerm.trim().toLowerCase();
 
-    if (!data) return [];
-
-    // Apply search filter
-    const filtered = data.filter(item => {
-      const searchLower = searchTerm.toLowerCase();
+    const filtered = activeRecords.filter((record) => {
       const searchableFields = [
-        item.id,
-        item.order_id,
-        item.request_id,
-        item.customer_name,
-        item.customer,
-        item.pet_name,
-        item.service_type,
-        item.status,
-        item.approved_by,
-        item.rejected_by,
-        item.total_amount,
-      ].filter(Boolean).join(' ').toLowerCase();
-      
-      return searchableFields.includes(searchLower);
+        getRecordId(record),
+        record.order_id,
+        record.request_id,
+        getCustomerName(record),
+        getPetName(record),
+        getServiceType(record),
+        record.status,
+        getActionBy(record),
+        getAmount(record),
+        getReason(record),
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      return !keyword || searchableFields.includes(keyword);
     });
 
-    // Apply sorting
-    return filtered.sort((a, b) => {
-      if (sortBy === "date") {
-        const dateA = new Date(a.created_at || a.approved_at || a.rejected_at || a.scheduled_at || 0);
-        const dateB = new Date(b.created_at || b.approved_at || b.rejected_at || b.scheduled_at || 0);
-        return dateB - dateA;
+    return [...filtered].sort((a, b) => {
+      if (sortBy === "date_desc") {
+        return new Date(getDateValue(b) || 0) - new Date(getDateValue(a) || 0);
       }
+
+      if (sortBy === "date_asc") {
+        return new Date(getDateValue(a) || 0) - new Date(getDateValue(b) || 0);
+      }
+
       if (sortBy === "customer") {
-        const customerA = (a.customer_name || a.customer || "").toLowerCase();
-        const customerB = (b.customer_name || b.customer || "").toLowerCase();
-        return customerA.localeCompare(customerB);
+        return getCustomerName(a).toLowerCase().localeCompare(
+          getCustomerName(b).toLowerCase()
+        );
       }
+
+      if (sortBy === "status") {
+        return normalizeStatus(a.status).localeCompare(normalizeStatus(b.status));
+      }
+
       return 0;
     });
-  }, [activeTab, orderApprovals, serviceApprovals, schedulingHistory, rejectedRequests, searchTerm, sortBy]);
-
-  const getServiceIcon = (serviceType) => {
-    const type = String(serviceType || "").toLowerCase();
-    if (type.includes("hotel") || type.includes("boarding")) return faHotel;
-    if (type.includes("groom")) return faCut;
-    if (type.includes("vet") || type.includes("medical")) return faStethoscope;
-    return faPaw;
-  };
+  }, [activeRecords, searchTerm, sortBy]);
 
   const handleRefresh = () => {
-    switch (activeTab) {
-      case "approvals":
-        fetchOrderApprovals({ silent: true });
-        break;
-      case "services":
-        fetchServiceApprovals({ silent: true });
-        break;
-      case "scheduling":
-        fetchSchedulingHistory({ silent: true });
-        break;
-      case "rejected":
-        fetchRejectedRequests({ silent: true });
-        break;
-      default:
-        break;
-    }
+    fetchHistory(activeTab, { silent: true });
   };
 
   const handleExport = () => {
-    // TODO: Implement export functionality
-    alert("Export feature coming soon!");
+    if (filteredData.length === 0) {
+      setError("No records available to export.");
+      return;
+    }
+
+    const headers = [
+      "Record ID",
+      "Tab",
+      "Customer",
+      "Pet",
+      "Service Type",
+      "Status",
+      "Amount",
+      "Action By",
+      "Date",
+      "Time",
+      "Reason or Remarks",
+    ];
+
+    const rows = filteredData.map((record) => {
+      const dateValue = getDateValue(record);
+
+      return [
+        getRecordId(record),
+        activeConfig.label,
+        getCustomerName(record),
+        getPetName(record) || "N/A",
+        getServiceType(record),
+        formatLabel(record.status || "recorded"),
+        getAmount(record) ? formatCurrency(getAmount(record)) : "N/A",
+        getActionBy(record),
+        formatDate(dateValue),
+        formatTime(dateValue) || "N/A",
+        getReason(record) || "N/A",
+      ];
+    });
+
+    const csv = [headers, ...rows]
+      .map((row) => row.map(escapeCsvValue).join(","))
+      .join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+
+    anchor.href = url;
+    anchor.download = `receptionist-${activeTab}-history-${new Date()
+      .toISOString()
+      .slice(0, 10)}.csv`;
+    anchor.click();
+
+    URL.revokeObjectURL(url);
+  };
+
+  const clearSearch = () => {
+    setSearchTerm("");
   };
 
   if (loading) {
     return (
-      <div className="receptionist-history loading">
-        <div className="loading-container">
-          <FontAwesomeIcon icon={faSpinner} spin className="loading-spinner" />
-          <p>Loading history...</p>
+      <div className={`receptionist-history ${theme || ""}`}>
+        <div className="rh-loading-state">
+          <FontAwesomeIcon icon={faSpinner} spin />
+          <h3>Loading history...</h3>
+          <p>Please wait while receptionist history records are loaded.</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className={`receptionist-history ${theme}`}>
-      <div className="history-header">
-        <div className="header-content">
-          <h1>Receptionist History</h1>
-          <p>View your approval actions, scheduling history, and rejected requests</p>
-        </div>
-        <div className="header-actions">
-          <button 
-            className="refresh-btn" 
-            onClick={handleRefresh}
-            disabled={refreshing}
-          >
-            <FontAwesomeIcon icon={faSpinner} spin={refreshing} />
-            {refreshing ? "Refreshing..." : "Refresh"}
-          </button>
-          <button className="export-btn" onClick={handleExport}>
-            <FontAwesomeIcon icon={faDownload} />
-            Export
-          </button>
-        </div>
-      </div>
-
+    <div className={`receptionist-history ${theme || ""}`}>
       {error && (
-        <div className="error-banner">
+        <div className="rh-toast error">
           <FontAwesomeIcon icon={faExclamationTriangle} />
           <span>{error}</span>
+          <button type="button" onClick={() => setError("")}>
+            <FontAwesomeIcon icon={faTimes} />
+          </button>
         </div>
       )}
 
-      <div className="history-tabs">
-        <button 
-          className={`tab-btn ${activeTab === "approvals" ? "active" : ""}`}
-          onClick={() => setActiveTab("approvals")}
-        >
-          <FontAwesomeIcon icon={faCheckCircle} />
-          Order Approvals
-        </button>
-        <button 
-          className={`tab-btn ${activeTab === "services" ? "active" : ""}`}
-          onClick={() => setActiveTab("services")}
-        >
-          <FontAwesomeIcon icon={faClipboardCheck} />
-          Service Approvals
-        </button>
-        <button 
-          className={`tab-btn ${activeTab === "scheduling" ? "active" : ""}`}
-          onClick={() => setActiveTab("scheduling")}
-        >
-          <FontAwesomeIcon icon={faCalendarAlt} />
-          Scheduling
-        </button>
-        <button 
-          className={`tab-btn ${activeTab === "rejected" ? "active" : ""}`}
-          onClick={() => setActiveTab("rejected")}
-        >
-          <FontAwesomeIcon icon={faTimesCircle} />
-          Rejected
-        </button>
-      </div>
+      <section className="rh-hero">
+        <div>
+          <span className="rh-eyebrow">
+            <FontAwesomeIcon icon={faHistory} />
+            Receptionist Activity History
+          </span>
 
-      <div className="history-toolbar">
-        <div className="search-box">
+          <h1>Receptionist History</h1>
+
+          <p>
+            Track order approvals, service request approvals, scheduling updates,
+            and rejected requests handled by the receptionist.
+          </p>
+
+          <small>Last updated: {lastUpdated || "Not refreshed yet"}</small>
+        </div>
+
+        <div className="rh-hero-actions">
+          <button
+            type="button"
+            className={`rh-secondary-btn ${refreshing ? "loading" : ""}`}
+            onClick={handleRefresh}
+            disabled={refreshing}
+          >
+            <FontAwesomeIcon icon={refreshing ? faSpinner : faRefresh} spin={refreshing} />
+            {refreshing ? "Refreshing..." : "Refresh"}
+          </button>
+
+          <button type="button" className="rh-secondary-btn" onClick={handleExport}>
+            <FontAwesomeIcon icon={faDownload} />
+            Export CSV
+          </button>
+        </div>
+      </section>
+
+      <section className="rh-summary-grid">
+        <button type="button" className="rh-summary-card" onClick={() => setActiveTab("approvals")}>
+          <span>
+            <FontAwesomeIcon icon={faCheckCircle} />
+          </span>
+          <div>
+            <strong>{summary.approvals}</strong>
+            <p>Order Approvals</p>
+          </div>
+        </button>
+
+        <button type="button" className="rh-summary-card services" onClick={() => setActiveTab("services")}>
+          <span>
+            <FontAwesomeIcon icon={faClipboardCheck} />
+          </span>
+          <div>
+            <strong>{summary.services}</strong>
+            <p>Service Approvals</p>
+          </div>
+        </button>
+
+        <button type="button" className="rh-summary-card scheduling" onClick={() => setActiveTab("scheduling")}>
+          <span>
+            <FontAwesomeIcon icon={faCalendarAlt} />
+          </span>
+          <div>
+            <strong>{summary.scheduling}</strong>
+            <p>Scheduling Records</p>
+          </div>
+        </button>
+
+        <button type="button" className="rh-summary-card rejected" onClick={() => setActiveTab("rejected")}>
+          <span>
+            <FontAwesomeIcon icon={faTimesCircle} />
+          </span>
+          <div>
+            <strong>{summary.rejected}</strong>
+            <p>Rejected Requests</p>
+          </div>
+        </button>
+      </section>
+
+      <section className="rh-tabs">
+        {HISTORY_TABS.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            className={activeTab === tab.id ? "active" : ""}
+            onClick={() => {
+              setActiveTab(tab.id);
+              setSearchTerm("");
+              setSelectedRecord(null);
+            }}
+          >
+            <FontAwesomeIcon icon={tab.icon} />
+            {tab.label}
+          </button>
+        ))}
+      </section>
+
+      <section className="rh-toolbar">
+        <div className="rh-search-box">
           <FontAwesomeIcon icon={faSearch} />
           <input
             type="text"
-            placeholder={`Search ${activeTab}...`}
+            placeholder={`Search ${activeConfig.label.toLowerCase()}...`}
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(event) => setSearchTerm(event.target.value)}
           />
-        </div>
-        <div className="toolbar-controls">
-          <label>
-            <FontAwesomeIcon icon={faSort} />
-            <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
-              <option value="date">Sort by Date</option>
-              <option value="customer">Sort by Customer</option>
-            </select>
-          </label>
-        </div>
-        <div className="result-count">
-          Showing <strong>{filteredData.length}</strong> records
-        </div>
-      </div>
 
-      <div className="history-content">
+          {searchTerm && (
+            <button type="button" onClick={clearSearch}>
+              <FontAwesomeIcon icon={faTimes} />
+            </button>
+          )}
+        </div>
+
+        <label className="rh-sort-box">
+          <FontAwesomeIcon icon={faSort} />
+          <select value={sortBy} onChange={(event) => setSortBy(event.target.value)}>
+            <option value="date_desc">Newest First</option>
+            <option value="date_asc">Oldest First</option>
+            <option value="customer">Customer Name</option>
+            <option value="status">Status</option>
+          </select>
+        </label>
+
+        <div className="rh-result-count">
+          Showing <strong>{filteredData.length}</strong> of{" "}
+          <strong>{activeRecords.length}</strong> record(s)
+        </div>
+      </section>
+
+      <section className="rh-content-card">
+        <div className="rh-content-header">
+          <div>
+            <span className="rh-eyebrow">
+              <FontAwesomeIcon icon={activeConfig.icon} />
+              {activeConfig.label}
+            </span>
+
+            <h2>{activeConfig.label} History</h2>
+
+            <p>{activeConfig.emptyText}</p>
+          </div>
+        </div>
+
         {filteredData.length === 0 ? (
-          <div className="empty-state">
+          <div className="rh-empty-state">
             <FontAwesomeIcon icon={faClipboardCheck} />
             <h3>No history found</h3>
             <p>
-              {searchTerm 
-                ? "Try adjusting your search terms." 
-                : `Your ${activeTab} history will appear here once you have records.`
-              }
+              {searchTerm
+                ? "Try adjusting your search term or clear the search filter."
+                : activeConfig.emptyText}
             </p>
           </div>
         ) : (
-          <div className="history-list">
-            {filteredData.map((record) => (
-              <div key={record.id} className="history-card">
-                <div className="card-header">
-                  <div className="record-info">
-                    <span className="record-id">#{record.id}</span>
-                    <span className={`status-badge ${getStatusBadgeClass(record.status)}`}>
-                      {record.status}
-                    </span>
-                  </div>
-                  <div className="record-date">
-                    <FontAwesomeIcon icon={faClock} />
-                    {formatDate(record.approved_at || record.rejected_at || record.scheduled_at || record.created_at)} 
-                    {" "}
-                    {formatTime(record.approved_at || record.rejected_at || record.scheduled_at || record.created_at)}
-                  </div>
-                </div>
-                <div className="card-body">
-                  <div className="record-details">
-                    <div className="detail-row">
-                      <span>Customer:</span>
-                      <strong>{record.customer_name || record.customer || "N/A"}</strong>
+          <div className="rh-history-list">
+            {filteredData.map((record, index) => {
+              const recordDate = getDateValue(record);
+              const serviceType = getServiceType(record);
+              const status = normalizeStatus(record.status || activeTab);
+              const amount = getAmount(record);
+              const reason = getReason(record);
+
+              return (
+                <article
+                  key={`${activeTab}-${getRecordId(record)}-${index}`}
+                  className="rh-history-card"
+                >
+                  <div className="rh-card-main">
+                    <div className="rh-card-top">
+                      <span className="rh-record-id">#{getRecordId(record)}</span>
+                      <span className={`rh-status-badge ${getStatusBadgeClass(status)}`}>
+                        {formatLabel(status)}
+                      </span>
                     </div>
-                    <div className="detail-row">
-                      <span>Type:</span>
-                      <div className="service-type">
-                        <FontAwesomeIcon icon={getServiceIcon(record.service_type)} />
-                        {record.service_type || record.type || "General"}
+
+                    <div className="rh-record-title-row">
+                      <div className="rh-record-icon">
+                        <FontAwesomeIcon icon={getServiceIcon(serviceType)} />
+                      </div>
+
+                      <div>
+                        <h3>{serviceType}</h3>
+                        <p>
+                          {formatDate(recordDate)}{" "}
+                          {formatTime(recordDate) ? `at ${formatTime(recordDate)}` : ""}
+                        </p>
                       </div>
                     </div>
-                    {record.pet_name && (
-                      <div className="detail-row">
-                        <span>Pet:</span>
-                        <strong>{record.pet_name}</strong>
-                      </div>
-                    )}
-                    {record.total_amount && (
-                      <div className="detail-row">
-                        <span>Amount:</span>
-                        <strong>{formatCurrency(record.total_amount)}</strong>
-                      </div>
-                    )}
-                    {(record.approved_by || record.rejected_by) && (
-                      <div className="detail-row">
-                        <span>Action By:</span>
-                        <strong>{record.approved_by || record.rejected_by}</strong>
-                      </div>
-                    )}
-                    {record.rejection_reason && (
-                      <div className="detail-row">
-                        <span>Reason:</span>
-                        <span className="rejection-reason">{record.rejection_reason}</span>
-                      </div>
-                    )}
-                    {record.remarks && (
-                      <div className="detail-row">
-                        <span>Remarks:</span>
-                        <span className="remarks">{record.remarks}</span>
+
+                    <div className="rh-detail-grid">
+                      <DetailItem
+                        icon={faUser}
+                        label="Customer"
+                        value={getCustomerName(record)}
+                      />
+
+                      <DetailItem
+                        icon={faPaw}
+                        label="Pet"
+                        value={getPetName(record) || "N/A"}
+                      />
+
+                      <DetailItem
+                        icon={faClipboardList}
+                        label="Action By"
+                        value={getActionBy(record)}
+                      />
+
+                      <DetailItem
+                        icon={faMoneyBillWave}
+                        label="Amount"
+                        value={amount ? formatCurrency(amount) : "N/A"}
+                      />
+                    </div>
+
+                    {reason && (
+                      <div className="rh-note-box">
+                        <strong>Reason / Remarks</strong>
+                        <p>{reason}</p>
                       </div>
                     )}
                   </div>
-                </div>
-                <div className="card-footer">
-                  <button 
-                    className="view-btn"
-                    onClick={() => setSelectedRecord(record)}
-                  >
-                    <FontAwesomeIcon icon={faEye} />
-                    View Details
-                  </button>
-                </div>
-              </div>
-            ))}
+
+                  <div className="rh-card-actions">
+                    <button
+                      type="button"
+                      className="rh-view-btn"
+                      onClick={() => setSelectedRecord(record)}
+                    >
+                      <FontAwesomeIcon icon={faEye} />
+                      View Details
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
           </div>
         )}
-      </div>
+      </section>
 
       {selectedRecord && (
-        <div className="modal-overlay" onClick={() => setSelectedRecord(null)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>History Record Details</h3>
-              <button onClick={() => setSelectedRecord(null)}>×</button>
+        <div className="rh-modal-overlay" onClick={() => setSelectedRecord(null)}>
+          <div className="rh-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="rh-modal-header">
+              <div>
+                <span className="rh-eyebrow">
+                  <FontAwesomeIcon icon={faInfoCircle} />
+                  History Record Details
+                </span>
+
+                <h2>Record #{getRecordId(selectedRecord)}</h2>
+              </div>
+
+              <button
+                type="button"
+                className="rh-close-btn"
+                onClick={() => setSelectedRecord(null)}
+              >
+                <FontAwesomeIcon icon={faTimes} />
+              </button>
             </div>
-            <div className="modal-body">
-              <pre>{JSON.stringify(selectedRecord, null, 2)}</pre>
+
+            <div className="rh-modal-body">
+              <div className="rh-modal-grid">
+                <ModalItem label="Record ID" value={getRecordId(selectedRecord)} />
+                <ModalItem label="Customer" value={getCustomerName(selectedRecord)} />
+                <ModalItem label="Pet" value={getPetName(selectedRecord) || "N/A"} />
+                <ModalItem label="Service Type" value={getServiceType(selectedRecord)} />
+                <ModalItem
+                  label="Status"
+                  value={formatLabel(selectedRecord.status || activeTab)}
+                />
+                <ModalItem
+                  label="Amount"
+                  value={getAmount(selectedRecord) ? formatCurrency(getAmount(selectedRecord)) : "N/A"}
+                />
+                <ModalItem label="Action By" value={getActionBy(selectedRecord)} />
+                <ModalItem label="Date" value={formatDate(getDateValue(selectedRecord))} />
+                <ModalItem label="Time" value={formatTime(getDateValue(selectedRecord)) || "N/A"} />
+                <ModalItem
+                  label="Reason / Remarks"
+                  value={getReason(selectedRecord) || "N/A"}
+                  wide
+                />
+              </div>
+
+              <details className="rh-raw-details">
+                <summary>Show raw record data</summary>
+                <pre>{JSON.stringify(selectedRecord, null, 2)}</pre>
+              </details>
+            </div>
+
+            <div className="rh-modal-actions">
+              <button
+                type="button"
+                className="rh-secondary-btn"
+                onClick={() => setSelectedRecord(null)}
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>
@@ -485,5 +754,25 @@ const ReceptionistHistory = () => {
     </div>
   );
 };
+
+const DetailItem = ({ icon, label, value }) => (
+  <div className="rh-detail-item">
+    <span>
+      <FontAwesomeIcon icon={icon} />
+    </span>
+
+    <div>
+      <small>{label}</small>
+      <strong>{value || "N/A"}</strong>
+    </div>
+  </div>
+);
+
+const ModalItem = ({ label, value, wide = false }) => (
+  <div className={`rh-modal-item ${wide ? "wide" : ""}`}>
+    <small>{label}</small>
+    <strong>{value || "N/A"}</strong>
+  </div>
+);
 
 export default ReceptionistHistory;

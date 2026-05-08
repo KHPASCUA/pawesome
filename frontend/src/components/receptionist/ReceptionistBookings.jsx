@@ -1,109 +1,276 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  faHotel,
-  faStethoscope,
-  faCut,
+  faBan,
   faCalendarAlt,
-  faPlus,
+  faCalendarCheck,
   faCheck,
   faClock,
-  faBan,
+  faCut,
+  faDownload,
+  faEye,
+  faFilter,
   faHistory,
+  faHotel,
+  faInfoCircle,
+  faMoneyBillWave,
+  faPaw,
+  faPlus,
+  faRefresh,
+  faSearch,
+  faSpinner,
+  faStethoscope,
+  faTimes,
+  faUser,
 } from "@fortawesome/free-solid-svg-icons";
 import "./ReceptionistBookings.css";
 import { apiRequest } from "../../api/client";
 
+const initialBookingForm = {
+  customerId: "",
+  petId: "",
+  ownerName: "",
+  petName: "",
+  petType: "",
+  breed: "",
+  appointmentDate: "",
+  appointmentTime: "10:00",
+  service: "",
+  duration: "1 day",
+  roomType: "Standard Room",
+  symptoms: "",
+  medicalNotes: "",
+  specialRequests: "",
+  bookingType: "hotel",
+  paymentMethod: "cash",
+  paymentStatus: "pending",
+  paidAmount: "0",
+};
+
+const STATUS_TABS = [
+  { value: "all", label: "All" },
+  { value: "pending", label: "Pending" },
+  { value: "confirmed", label: "Approved" },
+  { value: "cancel_requested", label: "Cancel Requests" },
+  { value: "reschedule_requested", label: "Reschedule" },
+  { value: "cancelled", label: "Cancelled" },
+  { value: "rejected", label: "Rejected" },
+];
+
+const TYPE_OPTIONS = [
+  { value: "all", label: "All Types" },
+  { value: "hotel", label: "Hotel" },
+  { value: "vet", label: "Veterinary" },
+  { value: "grooming", label: "Grooming" },
+];
+
+const PAYMENT_OPTIONS = [
+  { value: "all", label: "All Payments" },
+  { value: "paid", label: "Paid" },
+  { value: "partial", label: "Partial" },
+  { value: "pending", label: "Pending" },
+  { value: "unpaid", label: "Unpaid" },
+];
+
+const roomRates = {
+  "Standard Room": 50,
+  "Deluxe Suite": 80,
+  "Presidential Suite": 120,
+};
+
+const safeArray = (data, key) => {
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.[key])) return data[key];
+  if (Array.isArray(data?.data)) return data.data;
+  if (Array.isArray(data?.data?.[key])) return data.data[key];
+  if (Array.isArray(data?.records)) return data.records;
+  if (Array.isArray(data?.items)) return data.items;
+  return [];
+};
+
+const formatCurrency = (value) => {
+  const amount = Number(value || 0);
+
+  return new Intl.NumberFormat("en-PH", {
+    style: "currency",
+    currency: "PHP",
+    minimumFractionDigits: 2,
+  }).format(amount);
+};
+
+const formatDate = (value) => {
+  if (!value) return "N/A";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  return date.toLocaleDateString("en-PH", {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+  });
+};
+
+const formatDateTime = (value) => {
+  if (!value) return "N/A";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  return date.toLocaleString("en-PH", {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+};
+
+const formatTime = (value) => {
+  if (!value) return "N/A";
+
+  if (String(value).includes("AM") || String(value).includes("PM")) {
+    return value;
+  }
+
+  if (String(value).includes("T")) {
+    const date = new Date(value);
+    if (!Number.isNaN(date.getTime())) {
+      return date.toLocaleTimeString("en-PH", {
+        hour: "numeric",
+        minute: "2-digit",
+      });
+    }
+  }
+
+  const [hour, minute] = String(value).split(":");
+  if (!hour || !minute) return value;
+
+  const date = new Date();
+  date.setHours(Number(hour), Number(minute), 0, 0);
+
+  return date.toLocaleTimeString("en-PH", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+};
+
+const combineDateTime = (date, time) => {
+  if (!date) return "";
+  const safeTime = time || "10:00";
+  return `${date}T${safeTime}:00`;
+};
+
+const getDateFromDateTime = (value) => {
+  if (!value) return "";
+
+  if (String(value).includes("T")) {
+    return String(value).split("T")[0];
+  }
+
+  return value;
+};
+
+const getTimeFromDateTime = (value) => {
+  if (!value) return "";
+
+  if (String(value).includes("T")) {
+    return String(value).split("T")[1]?.slice(0, 5) || "";
+  }
+
+  return value;
+};
+
+const parseDurationDays = (duration) => {
+  if (!duration) return 1;
+  if (duration === "1 week") return 7;
+
+  const number = parseInt(duration, 10);
+  return Number.isNaN(number) ? 1 : number;
+};
+
+const normalizeStatus = (status) => {
+  const value = String(status || "pending").toLowerCase();
+
+  if (value === "approved" || value === "scheduled") return "confirmed";
+  if (value === "canceled") return "cancelled";
+
+  return value;
+};
+
+const normalizePaymentStatus = (status) => {
+  const value = String(status || "pending").toLowerCase();
+
+  if (value === "verified" || value === "completed") return "paid";
+  if (value === "for_payment" || value === "for payment") return "pending";
+
+  return value;
+};
+
 const ReceptionistBookings = () => {
   const [showNewBookingModal, setShowNewBookingModal] = useState(false);
+
   const [showActionModal, setShowActionModal] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState(null);
-  const [actionType, setActionType] = useState(null); // 'approve', 'reject', 'reschedule'
-  const [actionNote, setActionNote] = useState('');
-  const [newDate, setNewDate] = useState('');
+  const [actionType, setActionType] = useState(null);
+  const [actionNote, setActionNote] = useState("");
+  const [newDate, setNewDate] = useState("");
+
   const [availability, setAvailability] = useState(null);
   const [checkingAvailability, setCheckingAvailability] = useState(false);
-  // Payment verification controls removed - cashier handles payment verification
+
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [selectedCancelBooking, setSelectedCancelBooking] = useState(null);
-  const [cancelAction, setCancelAction] = useState(null); // 'approve', 'reject'
-  const [cancelNote, setCancelNote] = useState('');
+  const [cancelAction, setCancelAction] = useState(null);
+  const [cancelNote, setCancelNote] = useState("");
+
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
   const [selectedRescheduleBooking, setSelectedRescheduleBooking] = useState(null);
-  const [rescheduleAction, setRescheduleAction] = useState(null); // 'approve', 'reject'
-  const [rescheduleNote, setRescheduleNote] = useState('');
-  const [rescheduleNewDate, setRescheduleNewDate] = useState('');
+  const [rescheduleAction, setRescheduleAction] = useState(null);
+  const [rescheduleNote, setRescheduleNote] = useState("");
+  const [rescheduleNewDate, setRescheduleNewDate] = useState("");
+
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [selectedHistoryBooking, setSelectedHistoryBooking] = useState(null);
   const [bookingHistory, setBookingHistory] = useState([]);
+
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [selectedDetailsBooking, setSelectedDetailsBooking] = useState(null);
+
   const [bookings, setBookings] = useState([]);
   const [services, setServices] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [pets, setPets] = useState([]);
+
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [processing, setProcessing] = useState(false);
+
   const [error, setError] = useState("");
-  const [filter, setFilter] = useState('all'); // 'all', 'pending', 'approved', 'rejected'
+  const [success, setSuccess] = useState("");
+  const [lastUpdated, setLastUpdated] = useState("");
+
+  const [filter, setFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [paymentFilter, setPaymentFilter] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
-  const [bookingFormData, setBookingFormData] = useState({
-    customerId: "",
-    petId: "",
-    ownerName: "",
-    petName: "",
-    petType: "",
-    breed: "",
-    appointmentDate: "",
-    appointmentTime: "10:00 AM",
-    service: "",
-    duration: "1 day",
-    roomType: "",
-    symptoms: "",
-    medicalNotes: "",
-    specialRequests: "",
-    bookingType: "hotel",
-    paymentMethod: "cash",
-    paymentStatus: "pending",
-    amount: "",
-    paidAmount: "0"
-  });
 
-  const normalizeList = (data, key) => (
-    Array.isArray(data) ? data : data?.[key] || data?.data || []
-  );
+  const [bookingFormData, setBookingFormData] = useState(initialBookingForm);
 
-  // Customer selection handler
-  const handleCustomerChange = (customerId) => {
-    const customer = customers.find(c => c.id === customerId);
-    if (customer) {
-      setBookingFormData(prev => ({
-        ...prev,
-        customerId,
-        petId: "",
-        ownerName: customer.name,
-        petName: "",
-        petType: "",
-        breed: ""
-      }));
+  const notify = (type, message) => {
+    if (type === "success") {
+      setSuccess(message);
+      window.clearTimeout(window.receptionistBookingsSuccessTimer);
+      window.receptionistBookingsSuccessTimer = window.setTimeout(
+        () => setSuccess(""),
+        3000
+      );
+      return;
     }
-  };
 
-  // Pet selection handler
-  const handlePetChange = (petId) => {
-    const pet = pets.find(p => p.id === petId);
-    if (pet) {
-      setBookingFormData(prev => ({
-        ...prev,
-        petId,
-        petName: pet.name,
-        petType: pet.type || pet.species || "",
-        breed: pet.breed
-      }));
-    }
-  };
-
-  // Get pets for selected customer
-  const getAvailablePets = () => {
-    if (!bookingFormData.customerId) return [];
-    return pets.filter(pet => String(pet.customer_id || pet.customerId) === String(bookingFormData.customerId));
+    setError(message);
+    window.clearTimeout(window.receptionistBookingsErrorTimer);
+    window.receptionistBookingsErrorTimer = window.setTimeout(() => setError(""), 5000);
   };
 
   const fetchCustomersAndPets = async () => {
@@ -113,120 +280,283 @@ const ReceptionistBookings = () => {
         apiRequest("/pets"),
       ]);
 
-      setCustomers(normalizeList(customersData, "customers"));
-      setPets(normalizeList(petsData, "pets"));
-    } catch {
+      setCustomers(safeArray(customersData, "customers"));
+      setPets(safeArray(petsData, "pets"));
+    } catch (err) {
+      console.warn("Failed to fetch customers/pets:", err);
       setCustomers([]);
       setPets([]);
     }
   };
 
-  // Fetch services from API
   const fetchServices = async () => {
     try {
       const data = await apiRequest("/services");
-      setServices(data.data || data || []);
-    } catch {
+      setServices(safeArray(data, "services"));
+    } catch (err) {
+      console.warn("Failed to fetch services:", err);
       setServices([]);
     }
   };
 
-  // Sort bookings by creation date (newest first)
-  const sortedBookings = [...bookings].sort((a, b) => {
-    return new Date(b.createdAt) - new Date(a.createdAt);
-  });
+  const fetchBookings = async ({ silent = false } = {}) => {
+    try {
+      if (silent) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
 
-  // Form handlers
-  const handleBookingInputChange = (e) => {
-    const { name, value } = e.target;
-    setBookingFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+      setError("");
+
+      const [appointmentsData, boardingsData, groomingData] = await Promise.all([
+        apiRequest("/receptionist/appointment/list").catch(() => null),
+        apiRequest("/boardings").catch(() => null),
+        apiRequest("/grooming").catch(() => null),
+      ]);
+
+      const allBookings = [];
+
+      safeArray(appointmentsData, "appointments").forEach((booking) => {
+        const scheduledAt =
+          booking.scheduled_at ||
+          booking.appointment_date ||
+          booking.date ||
+          booking.booking_date ||
+          "";
+
+        allBookings.push({
+          id: booking.id,
+          customerId: booking.customer_id || booking.customer?.id || booking.user_id,
+          type: "vet",
+          petName: booking.pet?.name || booking.pet_name || "Pet",
+          petType: booking.pet?.species || booking.pet?.type || "Pet",
+          breed: booking.pet?.breed || "",
+          owner: booking.customer?.name || booking.customer_name || "Customer",
+          ownerPhone: booking.customer?.phone || booking.customer_phone || "",
+          service: booking.service?.name || booking.service_name || booking.service || "Veterinary Service",
+          appointmentDate: getDateFromDateTime(scheduledAt),
+          appointmentTime: booking.appointment_time || getTimeFromDateTime(booking.scheduled_at),
+          status: normalizeStatus(booking.status),
+          amount: booking.price || booking.amount || booking.total_amount || 0,
+          paidAmount: booking.paid_amount || 0,
+          paymentStatus: normalizePaymentStatus(booking.payment_status),
+          symptoms: booking.symptoms || "",
+          medicalNotes: booking.medical_notes || "",
+          createdAt: booking.created_at || scheduledAt || new Date().toISOString(),
+          raw: booking,
+        });
+      });
+
+      safeArray(boardingsData, "boardings").forEach((boarding) => {
+        allBookings.push({
+          id: boarding.id,
+          customerId: boarding.customer_id || boarding.customer?.id || boarding.user_id,
+          type: "hotel",
+          petName: boarding.pet?.name || boarding.pet_name || "Pet",
+          petType: boarding.pet?.species || boarding.pet?.type || "Pet",
+          breed: boarding.pet?.breed || "",
+          owner: boarding.customer?.name || boarding.customer_name || "Customer",
+          ownerPhone: boarding.customer?.phone || boarding.customer_phone || "",
+          roomType: boarding.room_type || boarding.hotel_room?.name || boarding.hotel_room_id || "Room",
+          checkIn: boarding.check_in || "",
+          checkOut: boarding.check_out || "",
+          service: boarding.service_name || "Hotel Stay",
+          appointmentDate: boarding.check_in || "",
+          appointmentTime: "",
+          status: normalizeStatus(boarding.status),
+          amount: boarding.total_amount || boarding.amount || 0,
+          paidAmount: boarding.paid_amount || 0,
+          paymentStatus: normalizePaymentStatus(boarding.payment_status || "pending"),
+          createdAt: boarding.created_at || boarding.check_in || new Date().toISOString(),
+          raw: boarding,
+        });
+      });
+
+      safeArray(groomingData, "groomings").forEach((grooming) => {
+        const scheduledAt =
+          grooming.scheduled_at ||
+          grooming.appointment_date ||
+          grooming.date ||
+          grooming.booking_date ||
+          "";
+
+        allBookings.push({
+          id: grooming.id,
+          customerId: grooming.customer_id || grooming.customer?.id || grooming.user_id,
+          type: "grooming",
+          petName: grooming.pet?.name || grooming.pet_name || "Pet",
+          petType: grooming.pet?.species || grooming.pet?.type || "Pet",
+          breed: grooming.pet?.breed || "",
+          owner: grooming.customer?.name || grooming.customer_name || "Customer",
+          ownerPhone: grooming.customer?.phone || grooming.customer_phone || "",
+          service: grooming.service?.name || grooming.service_name || grooming.service || "Grooming",
+          appointmentDate: getDateFromDateTime(scheduledAt),
+          appointmentTime: grooming.appointment_time || getTimeFromDateTime(grooming.scheduled_at),
+          status: normalizeStatus(grooming.status),
+          amount: grooming.amount || grooming.price || grooming.total_amount || 0,
+          paidAmount: grooming.paid_amount || 0,
+          paymentStatus: normalizePaymentStatus(grooming.payment_status || "unpaid"),
+          specialRequests: grooming.special_requests || grooming.notes || "",
+          createdAt: grooming.created_at || scheduledAt || new Date().toISOString(),
+          raw: grooming,
+        });
+      });
+
+      allBookings.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+      setBookings(allBookings);
+      setLastUpdated(new Date().toLocaleString("en-PH"));
+    } catch (err) {
+      console.error("Failed to load bookings:", err);
+      notify("error", err.message || "Failed to load bookings.");
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   };
 
-  const handleBookingSubmit = async (e) => {
-    e.preventDefault();
+  useEffect(() => {
+    fetchBookings();
+    fetchServices();
+    fetchCustomersAndPets();
 
-    // Validation
+    const intervalId = setInterval(() => fetchBookings({ silent: true }), 30000);
+
+    return () => clearInterval(intervalId);
+  }, []);
+
+  const handleCustomerChange = (customerId) => {
+    const customer = customers.find((item) => String(item.id) === String(customerId));
+
+    if (customer) {
+      setBookingFormData((prev) => ({
+        ...prev,
+        customerId,
+        petId: "",
+        ownerName: customer.name || customer.full_name || "Customer",
+        petName: "",
+        petType: "",
+        breed: "",
+      }));
+    }
+  };
+
+  const handlePetChange = (petId) => {
+    const pet = pets.find((item) => String(item.id) === String(petId));
+
+    if (pet) {
+      setBookingFormData((prev) => ({
+        ...prev,
+        petId,
+        petName: pet.name || "",
+        petType: pet.type || pet.species || "",
+        breed: pet.breed || "",
+      }));
+    }
+  };
+
+  const getAvailablePets = () => {
+    if (!bookingFormData.customerId) return [];
+
+    return pets.filter(
+      (pet) =>
+        String(pet.customer_id || pet.customerId || pet.owner_id || pet.user_id) ===
+        String(bookingFormData.customerId)
+    );
+  };
+
+  const handleBookingInputChange = (event) => {
+    const { name, value } = event.target;
+
+    setBookingFormData((prev) => {
+      if (name === "bookingType") {
+        return {
+          ...prev,
+          bookingType: value,
+          service: value === "hotel" ? "Pet Hotel Stay" : "",
+          symptoms: "",
+          medicalNotes: "",
+          specialRequests: "",
+        };
+      }
+
+      return {
+        ...prev,
+        [name]: value,
+      };
+    });
+  };
+
+  const vetServices = useMemo(() => {
+    return services.filter((service) => {
+      const category = String(service.category || "").toLowerCase();
+      return !category.includes("groom") && !category.includes("boarding") && !category.includes("hotel");
+    });
+  }, [services]);
+
+  const groomingServices = useMemo(() => {
+    return services.filter((service) =>
+      String(service.category || "").toLowerCase().includes("groom")
+    );
+  }, [services]);
+
+  const selectedService = useMemo(() => {
+    return services.find(
+      (service) =>
+        String(service.id) === String(bookingFormData.service) ||
+        String(service.name) === String(bookingFormData.service)
+    );
+  }, [services, bookingFormData.service]);
+
+  const calculatedAmount = useMemo(() => {
+    if (bookingFormData.bookingType === "hotel") {
+      const dailyRate = roomRates[bookingFormData.roomType] || roomRates["Standard Room"];
+      return dailyRate * parseDurationDays(bookingFormData.duration);
+    }
+
+    if (selectedService) {
+      return Number(selectedService.price || 0);
+    }
+
+    return 0;
+  }, [
+    bookingFormData.bookingType,
+    bookingFormData.roomType,
+    bookingFormData.duration,
+    selectedService,
+  ]);
+
+  const getPaymentStatusFromAmount = (amount, paidAmount) => {
+    const paid = Number(paidAmount || 0);
+
+    if (paid >= Number(amount || 0) && Number(amount || 0) > 0) return "paid";
+    if (paid > 0) return "partial";
+
+    return "pending";
+  };
+
+  const handleBookingSubmit = async (event) => {
+    event.preventDefault();
+
     if (!bookingFormData.customerId || !bookingFormData.petId || !bookingFormData.appointmentDate) {
-      alert("Please select a customer, pet, and appointment date.");
+      notify("error", "Please select a customer, pet, and appointment date.");
       return;
     }
 
-    // Create service name and calculate amount based on booking type
-    let serviceName = "";
-    let amount = 0;
-
-    if (bookingFormData.bookingType === "hotel") {
-      serviceName = "Pet Hotel Stay";
-      // Calculate based on room type and duration
-      const roomRates = {
-        "Standard Room": 50,
-        "Deluxe Suite": 80,
-        "Premium Suite": 120
-      };
-      const dailyRate = roomRates[bookingFormData.roomType] || 50;
-      const duration = parseInt(bookingFormData.duration) || 1;
-      amount = dailyRate * duration;
-    } else if (bookingFormData.bookingType === "vet") {
-      // Use API services for vet bookings
-      const selectedService = services.find(s => s.name === bookingFormData.service);
-      serviceName = selectedService?.name || "Regular Checkup";
-      amount = selectedService?.price || 100;
-    } else if (bookingFormData.bookingType === "grooming") {
-      // Use API services for grooming bookings
-      const selectedService = services.find(s => s.name === bookingFormData.service && s.category === "Grooming");
-      serviceName = selectedService?.name || "Full Grooming";
-      amount = selectedService?.price || 60;
+    if (bookingFormData.bookingType !== "hotel" && !bookingFormData.service) {
+      notify("error", "Please select a service.");
+      return;
     }
 
-    // Process payment
-    let paymentStatus = "pending";
-    let paidAmount = parseFloat(bookingFormData.paidAmount) || 0;
-
-    if (paidAmount >= amount) {
-      paymentStatus = "paid";
-    } else if (paidAmount > 0) {
-      paymentStatus = "partial";
-    }
-
-    // Create new booking object
-    const newBooking = {
-      id: `${bookingFormData.bookingType.toUpperCase()}-${Date.now()}`,
-      type: bookingFormData.bookingType,
-      petName: bookingFormData.petName,
-      petType: bookingFormData.petType,
-      breed: bookingFormData.breed,
-      owner: bookingFormData.ownerName,
-      ownerPhone: customers.find(c => c.id === bookingFormData.customerId)?.phone || "",
-      service: serviceName,
-      appointmentDate: bookingFormData.appointmentDate,
-      appointmentTime: bookingFormData.appointmentTime,
-      status: "confirmed",
-      amount: amount,
-      paidAmount: paidAmount,
-      paymentMethod: bookingFormData.paymentMethod,
-      paymentStatus: paymentStatus,
-      createdAt: new Date().toISOString()
-    };
-
-    // Add booking type specific fields
-    if (bookingFormData.bookingType === "hotel") {
-      newBooking.roomType = bookingFormData.roomType;
-      newBooking.duration = bookingFormData.duration;
-      newBooking.checkIn = bookingFormData.appointmentDate;
-      newBooking.checkOut = bookingFormData.appointmentDate;
-    } else if (bookingFormData.bookingType === "vet") {
-      newBooking.symptoms = bookingFormData.symptoms;
-      newBooking.medicalNotes = bookingFormData.medicalNotes;
-    } else if (bookingFormData.bookingType === "grooming") {
-      newBooking.specialRequests = bookingFormData.specialRequests;
-    }
-
-    // POST to backend
     try {
-      let endpoint = '';
+      setProcessing(true);
+
+      const amount = calculatedAmount;
+      const paidAmount = Number(bookingFormData.paidAmount || 0);
+      const paymentStatus = getPaymentStatusFromAmount(amount, paidAmount);
+
+      let endpoint = "";
       let payload = {};
 
       if (bookingFormData.bookingType === "hotel") {
@@ -235,75 +565,76 @@ const ReceptionistBookings = () => {
           pet_id: bookingFormData.petId,
           customer_id: bookingFormData.customerId,
           hotel_room_id: bookingFormData.roomType,
+          room_type: bookingFormData.roomType,
           check_in: bookingFormData.appointmentDate,
           check_out: bookingFormData.appointmentDate,
           total_amount: amount,
           payment_status: paymentStatus,
           paid_amount: paidAmount,
-          payment_method: bookingFormData.paymentMethod
+          payment_method: bookingFormData.paymentMethod,
+          notes: bookingFormData.specialRequests,
         };
-      } else if (bookingFormData.bookingType === "vet") {
+      }
+
+      if (bookingFormData.bookingType === "vet") {
         endpoint = "/receptionist/appointments";
         payload = {
           pet_id: bookingFormData.petId,
           customer_id: bookingFormData.customerId,
           service_id: bookingFormData.service,
-          scheduled_at: `${bookingFormData.appointmentDate}T${bookingFormData.appointmentTime}`,
+          scheduled_at: combineDateTime(
+            bookingFormData.appointmentDate,
+            bookingFormData.appointmentTime
+          ),
           price: amount,
           payment_status: paymentStatus,
           paid_amount: paidAmount,
           payment_method: bookingFormData.paymentMethod,
           symptoms: bookingFormData.symptoms,
-          medical_notes: bookingFormData.medicalNotes
+          medical_notes: bookingFormData.medicalNotes,
+          notes: bookingFormData.specialRequests,
         };
-      } else if (bookingFormData.bookingType === "grooming") {
+      }
+
+      if (bookingFormData.bookingType === "grooming") {
         endpoint = "/grooming";
         payload = {
           pet_id: bookingFormData.petId,
           customer_id: bookingFormData.customerId,
           service_id: bookingFormData.service,
-          scheduled_at: `${bookingFormData.appointmentDate}T${bookingFormData.appointmentTime}`,
+          scheduled_at: combineDateTime(
+            bookingFormData.appointmentDate,
+            bookingFormData.appointmentTime
+          ),
           price: amount,
           payment_status: paymentStatus,
           paid_amount: paidAmount,
           payment_method: bookingFormData.paymentMethod,
-          special_requests: bookingFormData.specialRequests
+          special_requests: bookingFormData.specialRequests,
         };
       }
 
-      await apiRequest(endpoint, "POST", payload);
-      setBookings(prev => [...prev, newBooking]);
-      alert(`${bookingFormData.bookingType} appointment booked successfully!`);
+      await apiRequest(endpoint, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+
+      notify("success", "Walk-in booking created successfully.");
       handleBookingCancel();
-      fetchBookings();
-    } catch {
-      alert('Failed to create booking. Please try again.');
+      await fetchBookings({ silent: true });
+    } catch (err) {
+      console.error("Create booking error:", err);
+      notify("error", err.message || "Failed to create booking. Please try again.");
+    } finally {
+      setProcessing(false);
     }
   };
 
   const handleBookingCancel = () => {
-    setBookingFormData({
-      customerId: "",
-      petId: "",
-      ownerName: "",
-      petName: "",
-      petType: "",
-      breed: "",
-      appointmentDate: "",
-      appointmentTime: "10:00 AM",
-      service: "",
-      duration: "1 day",
-      roomType: "Standard Room",
-      specialRequests: "",
-      bookingType: "hotel",
-      paymentMethod: "cash",
-      paymentStatus: "pending",
-      paidAmount: "0"
-    });
+    setBookingFormData(initialBookingForm);
     setShowNewBookingModal(false);
   };
 
-  // Check availability before approving
   const checkAvailability = async (booking, newDateValue = null) => {
     setCheckingAvailability(true);
     setAvailability(null);
@@ -311,59 +642,183 @@ const ReceptionistBookings = () => {
     try {
       const targetDate = newDateValue || booking.appointmentDate || booking.checkIn;
 
-      let endpoint = '';
-      if (booking.type === 'hotel') {
+      let endpoint = "";
+
+      if (booking.type === "hotel") {
         endpoint = `/boardings/available-rooms?check_in=${targetDate}&check_out=${targetDate}`;
-      } else if (booking.type === 'vet') {
+      } else if (booking.type === "vet") {
         endpoint = `/receptionist/appointment/list?from_date=${targetDate}&to_date=${targetDate}`;
-      } else if (booking.type === 'grooming') {
+      } else if (booking.type === "grooming") {
         endpoint = "/grooming";
       }
-      
+
       const data = await apiRequest(endpoint);
+
       setAvailability({
-        available: data.available !== false,
-        message: data.message || 'Live route reachable',
-        details: data
+        available: data?.available !== false,
+        message: data?.message || "Availability route is reachable.",
+        details: data,
       });
     } catch {
       setAvailability({
         available: false,
-        message: 'Error checking availability',
-        details: null
+        message: "Unable to verify availability. Please refresh and try again.",
+        details: null,
       });
     } finally {
       setCheckingAvailability(false);
     }
   };
 
-  // Send notification to customer about booking status change
   const sendCustomerNotification = async (booking, action, note) => {
     try {
-      const notificationData = {
-        customer_id: booking.customerId,
-        booking_id: booking.id,
-        booking_type: booking.type,
-        pet_name: booking.petName,
-        service: booking.service,
-        action: action, // 'approved', 'rejected', 'rescheduled'
-        note: note,
-        date: booking.appointmentDate || booking.checkIn
-      };
-
-      await apiRequest("/notifications/booking-status", "POST", notificationData);
+      await apiRequest("/notifications/booking-status", {
+        method: "POST",
+        body: JSON.stringify({
+          customer_id: booking.customerId,
+          booking_id: booking.id,
+          booking_type: booking.type,
+          pet_name: booking.petName,
+          service: booking.service,
+          action,
+          note,
+          date: booking.appointmentDate || booking.checkIn,
+        }),
+      });
     } catch {
-      // Notification failure should not block the booking workflow.
+      // Notification failure should not block receptionist workflow.
     }
   };
 
-  // Payment verification handlers removed - cashier handles payment verification
+  const openActionModal = (booking, type) => {
+    setSelectedBooking(booking);
+    setActionType(type);
+    setActionNote("");
+    setNewDate("");
+    setAvailability(null);
+    setShowActionModal(true);
 
-  // Cancel request handlers
+    if (type === "approve" || type === "reschedule") {
+      checkAvailability(booking);
+    }
+  };
+
+  const closeActionModal = () => {
+    setShowActionModal(false);
+    setSelectedBooking(null);
+    setActionType(null);
+    setActionNote("");
+    setNewDate("");
+    setAvailability(null);
+  };
+
+  const handleActionSubmit = async () => {
+    if (!selectedBooking) return;
+
+    if (actionType === "reschedule" && !newDate) {
+      notify("error", "Please select a new date.");
+      return;
+    }
+
+    if (
+      (actionType === "approve" || actionType === "reschedule") &&
+      availability?.available === false
+    ) {
+      notify("error", "Selected schedule is not available.");
+      return;
+    }
+
+    try {
+      setProcessing(true);
+
+      let endpoint = "";
+      let method = "POST";
+      let payload = {};
+
+      if (selectedBooking.type === "hotel") {
+        endpoint = `/boardings/${selectedBooking.id}`;
+        method = "PUT";
+
+        if (actionType === "approve") {
+          payload = { status: "confirmed", notes: actionNote };
+        }
+
+        if (actionType === "reject") {
+          payload = { status: "rejected", reason: actionNote };
+        }
+
+        if (actionType === "reschedule") {
+          payload = {
+            check_in: newDate,
+            check_out: newDate,
+            notes: actionNote,
+          };
+        }
+      } else if (selectedBooking.type === "grooming") {
+        endpoint = `/grooming/${selectedBooking.id}/status`;
+        method = "PUT";
+
+        payload = {
+          status:
+            actionType === "approve"
+              ? "approved"
+              : actionType === "reject"
+              ? "rejected"
+              : "pending",
+          scheduled_at:
+            actionType === "reschedule"
+              ? combineDateTime(newDate, selectedBooking.appointmentTime || "10:00")
+              : undefined,
+          notes: actionNote,
+        };
+      } else {
+        if (actionType === "approve") {
+          endpoint = `/appointments/${selectedBooking.id}/status`;
+          method = "PATCH";
+          payload = { status: "scheduled", notes: actionNote };
+        }
+
+        if (actionType === "reject") {
+          endpoint = `/receptionist/appointments/${selectedBooking.id}/reject`;
+          method = "POST";
+          payload = { reason: actionNote };
+        }
+
+        if (actionType === "reschedule") {
+          endpoint = `/receptionist/appointments/${selectedBooking.id}/reschedule`;
+          method = "POST";
+          payload = {
+            scheduled_at: combineDateTime(
+              newDate,
+              selectedBooking.appointmentTime || "10:00"
+            ),
+            notes: actionNote,
+          };
+        }
+      }
+
+      await apiRequest(endpoint, {
+        method,
+        body: JSON.stringify(payload),
+      });
+
+      await sendCustomerNotification(selectedBooking, actionType, actionNote);
+
+      notify("success", `Booking ${actionType}d successfully.`);
+      closeActionModal();
+      await fetchBookings({ silent: true });
+    } catch (err) {
+      console.error("Action submit error:", err);
+      notify("error", err.message || "Failed to update booking.");
+    } finally {
+      setProcessing(false);
+    }
+  };
+
   const openCancelModal = (booking, action) => {
     setSelectedCancelBooking(booking);
     setCancelAction(action);
-    setCancelNote('');
+    setCancelNote("");
     setShowCancelModal(true);
   };
 
@@ -371,40 +826,54 @@ const ReceptionistBookings = () => {
     setShowCancelModal(false);
     setSelectedCancelBooking(null);
     setCancelAction(null);
-    setCancelNote('');
+    setCancelNote("");
   };
 
   const handleCancelSubmit = async () => {
     if (!selectedCancelBooking) return;
 
     try {
-      let endpoint = `/receptionist/appointments/${selectedCancelBooking.id}/cancel`;
-      if (selectedCancelBooking.type === 'hotel') {
-        endpoint = `/boardings/${selectedCancelBooking.id}/cancel`;
-      }
+      setProcessing(true);
 
-      const payload = {
-        action: cancelAction, // 'approve' or 'reject'
-        note: cancelNote
-      };
+      const endpoint =
+        selectedCancelBooking.type === "hotel"
+          ? `/boardings/${selectedCancelBooking.id}/cancel`
+          : `/receptionist/appointments/${selectedCancelBooking.id}/cancel`;
 
-      await apiRequest(endpoint, "POST", payload);
-      await sendCustomerNotification(selectedCancelBooking, cancelAction === 'approve' ? 'cancelled' : 'cancel_rejected', cancelNote);
+      await apiRequest(endpoint, {
+        method: "POST",
+        body: JSON.stringify({
+          action: cancelAction,
+          note: cancelNote,
+        }),
+      });
 
-      alert(`Cancel request ${cancelAction === 'approve' ? 'approved' : 'rejected'} successfully`);
+      await sendCustomerNotification(
+        selectedCancelBooking,
+        cancelAction === "approve" ? "cancelled" : "cancel_rejected",
+        cancelNote
+      );
+
+      notify(
+        "success",
+        `Cancel request ${cancelAction === "approve" ? "approved" : "rejected"} successfully.`
+      );
+
       closeCancelModal();
-      fetchBookings();
-    } catch {
-      alert('Failed to update cancel request');
+      await fetchBookings({ silent: true });
+    } catch (err) {
+      console.error("Cancel request error:", err);
+      notify("error", err.message || "Failed to update cancel request.");
+    } finally {
+      setProcessing(false);
     }
   };
 
-  // Reschedule request handlers
   const openRescheduleModal = (booking, action) => {
     setSelectedRescheduleBooking(booking);
     setRescheduleAction(action);
-    setRescheduleNote('');
-    setRescheduleNewDate('');
+    setRescheduleNote("");
+    setRescheduleNewDate("");
     setShowRescheduleModal(true);
   };
 
@@ -412,49 +881,92 @@ const ReceptionistBookings = () => {
     setShowRescheduleModal(false);
     setSelectedRescheduleBooking(null);
     setRescheduleAction(null);
-    setRescheduleNote('');
-    setRescheduleNewDate('');
+    setRescheduleNote("");
+    setRescheduleNewDate("");
   };
 
   const handleRescheduleSubmit = async () => {
     if (!selectedRescheduleBooking) return;
 
+    if (rescheduleAction === "approve" && !rescheduleNewDate) {
+      notify("error", "Please select the approved new date.");
+      return;
+    }
+
     try {
+      setProcessing(true);
+
       let endpoint = `/receptionist/appointments/${selectedRescheduleBooking.id}/reschedule`;
+      let method = "POST";
       let payload = {
-        scheduled_at: rescheduleNewDate,
-        reason: rescheduleNote
+        action: rescheduleAction,
+        scheduled_at:
+          rescheduleAction === "approve"
+            ? combineDateTime(
+                rescheduleNewDate,
+                selectedRescheduleBooking.appointmentTime || "10:00"
+              )
+            : null,
+        reason: rescheduleNote,
       };
 
-      if (selectedRescheduleBooking.type === 'hotel') {
+      if (selectedRescheduleBooking.type === "hotel") {
         endpoint = `/boardings/${selectedRescheduleBooking.id}`;
-        payload = {
-          check_in: rescheduleNewDate,
-          check_out: rescheduleNewDate,
-          notes: rescheduleNote
-        };
+        method = "PUT";
+        payload =
+          rescheduleAction === "approve"
+            ? {
+                check_in: rescheduleNewDate,
+                check_out: rescheduleNewDate,
+                notes: rescheduleNote,
+              }
+            : {
+                status: "confirmed",
+                notes: rescheduleNote,
+              };
       }
 
-      await apiRequest(endpoint, "POST", payload);
-      await sendCustomerNotification(selectedRescheduleBooking, rescheduleAction === 'approve' ? 'rescheduled' : 'reschedule_rejected', rescheduleNote);
+      await apiRequest(endpoint, {
+        method,
+        body: JSON.stringify(payload),
+      });
 
-      alert(`Reschedule request ${rescheduleAction === 'approve' ? 'approved' : 'rejected'} successfully`);
+      await sendCustomerNotification(
+        selectedRescheduleBooking,
+        rescheduleAction === "approve" ? "rescheduled" : "reschedule_rejected",
+        rescheduleNote
+      );
+
+      notify(
+        "success",
+        `Reschedule request ${
+          rescheduleAction === "approve" ? "approved" : "rejected"
+        } successfully.`
+      );
+
       closeRescheduleModal();
-      fetchBookings();
-    } catch {
-      alert('Failed to update reschedule request');
+      await fetchBookings({ silent: true });
+    } catch (err) {
+      console.error("Reschedule request error:", err);
+      notify("error", err.message || "Failed to update reschedule request.");
+    } finally {
+      setProcessing(false);
     }
   };
 
-  // Booking history handlers
   const openHistoryModal = async (booking) => {
     setSelectedHistoryBooking(booking);
     setShowHistoryModal(true);
+    setBookingHistory([]);
 
     try {
-      const endpoint = `/${booking.type === 'hotel' ? 'boardings' : 'receptionist/appointments'}/${booking.id}`;
+      const endpoint =
+        booking.type === "hotel"
+          ? `/boardings/${booking.id}`
+          : `/receptionist/appointments/${booking.id}`;
+
       const data = await apiRequest(endpoint);
-      setBookingHistory(data.history || []);
+      setBookingHistory(safeArray(data?.history || data?.data?.history || [], "history"));
     } catch {
       setBookingHistory([]);
     }
@@ -466,447 +978,621 @@ const ReceptionistBookings = () => {
     setBookingHistory([]);
   };
 
-  // Action handlers for booking requests
-  const openActionModal = (booking, type) => {
-    setSelectedBooking(booking);
-    setActionType(type);
-    setActionNote('');
-    setNewDate('');
-    setAvailability(null);
-    setShowActionModal(true);
-    
-    // Check availability for approve and reschedule actions
-    if (type === 'approve' || type === 'reschedule') {
-      checkAvailability(booking);
+  const openDetailsModal = (booking) => {
+    setSelectedDetailsBooking(booking);
+    setShowDetailsModal(true);
+  };
+
+  const closeDetailsModal = () => {
+    setSelectedDetailsBooking(null);
+    setShowDetailsModal(false);
+  };
+
+  const filteredBookings = useMemo(() => {
+    const keyword = searchTerm.trim().toLowerCase();
+
+    return bookings.filter((booking) => {
+      const matchesStatus = filter === "all" || booking.status === filter;
+      const matchesType = typeFilter === "all" || booking.type === typeFilter;
+      const matchesPayment =
+        paymentFilter === "all" || booking.paymentStatus === paymentFilter;
+
+      const searchableText = [
+        booking.id,
+        booking.petName,
+        booking.owner,
+        booking.service,
+        booking.type,
+        booking.status,
+        booking.paymentStatus,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      const matchesSearch = !keyword || searchableText.includes(keyword);
+
+      return matchesStatus && matchesType && matchesPayment && matchesSearch;
+    });
+  }, [bookings, filter, typeFilter, paymentFilter, searchTerm]);
+
+  const stats = useMemo(() => {
+    return {
+      total: bookings.length,
+      pending: bookings.filter((item) => item.status === "pending").length,
+      approved: bookings.filter(
+        (item) => item.status === "confirmed" || item.status === "approved"
+      ).length,
+      cancelRequests: bookings.filter((item) => item.status === "cancel_requested").length,
+      rescheduleRequests: bookings.filter(
+        (item) => item.status === "reschedule_requested"
+      ).length,
+      pendingPayments: bookings.filter(
+        (item) => item.paymentStatus === "pending" || item.paymentStatus === "unpaid"
+      ).length,
+    };
+  }, [bookings]);
+
+  const exportCSV = () => {
+    if (filteredBookings.length === 0) {
+      notify("error", "No bookings to export.");
+      return;
     }
+
+    const headers = [
+      "Booking ID",
+      "Type",
+      "Pet",
+      "Owner",
+      "Service",
+      "Date",
+      "Time",
+      "Payment",
+      "Status",
+      "Amount",
+    ];
+
+    const rows = filteredBookings.map((booking) => [
+      booking.id,
+      booking.type,
+      booking.petName,
+      booking.owner,
+      booking.service,
+      formatDate(booking.appointmentDate || booking.checkIn),
+      formatTime(booking.appointmentTime),
+      booking.paymentStatus,
+      booking.status,
+      booking.amount,
+    ]);
+
+    const csv = [headers, ...rows]
+      .map((row) =>
+        row.map((value) => `"${String(value ?? "").replace(/"/g, '""')}"`).join(",")
+      )
+      .join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+
+    anchor.href = url;
+    anchor.download = `receptionist-bookings-${new Date().toISOString().slice(0, 10)}.csv`;
+    anchor.click();
+
+    URL.revokeObjectURL(url);
+    notify("success", "Bookings exported successfully.");
   };
 
-  const closeActionModal = () => {
-    setShowActionModal(false);
-    setSelectedBooking(null);
-    setActionType(null);
-    setActionNote('');
-    setNewDate('');
+  const clearFilters = () => {
+    setFilter("all");
+    setTypeFilter("all");
+    setPaymentFilter("all");
+    setSearchTerm("");
   };
 
-  const handleActionSubmit = async () => {
-    if (!selectedBooking) return;
-
-    try {
-      let endpoint = '';
-      let method = 'POST';
-      let payload = {};
-
-      if (selectedBooking.type === 'hotel') {
-        if (actionType === 'approve') {
-          endpoint = `/boardings/${selectedBooking.id}`;
-          method = 'PUT';
-          payload = { status: 'confirmed', notes: actionNote };
-        } else if (actionType === 'reject') {
-          endpoint = `/boardings/${selectedBooking.id}`;
-          method = 'PUT';
-          payload = { status: 'rejected', reason: actionNote };
-        } else if (actionType === 'reschedule') {
-          endpoint = `/boardings/${selectedBooking.id}`;
-          method = 'PUT';
-          payload = { check_in: newDate, check_out: newDate, notes: actionNote };
-        }
-      } else if (selectedBooking.type === 'grooming') {
-        endpoint = `/grooming/${selectedBooking.id}/status`;
-        method = 'PUT';
-        payload = {
-          status: actionType === 'approve' ? 'approved' : actionType === 'reject' ? 'rejected' : 'pending',
-          notes: actionNote,
-        };
-      } else {
-        if (actionType === 'approve') {
-          endpoint = `/appointments/${selectedBooking.id}/status`;
-          method = 'PATCH';
-          payload = { status: 'scheduled', notes: actionNote };
-        } else if (actionType === 'reject') {
-          endpoint = `/receptionist/appointments/${selectedBooking.id}/reject`;
-          payload = { reason: actionNote };
-        } else if (actionType === 'reschedule') {
-          endpoint = `/receptionist/appointments/${selectedBooking.id}/reschedule`;
-          payload = { scheduled_at: newDate, notes: actionNote };
-        }
-      }
-
-      await apiRequest(endpoint, method, payload);
-      await sendCustomerNotification(selectedBooking, actionType, actionNote);
-
-      alert(`Booking ${actionType}d successfully`);
-      closeActionModal();
-      fetchBookings();
-    } catch {
-      alert('Failed to update booking');
-    }
+  const getTypeIcon = (type) => {
+    if (type === "hotel") return faHotel;
+    if (type === "vet") return faStethoscope;
+    if (type === "grooming") return faCut;
+    return faPaw;
   };
 
-  const fetchBookings = async () => {
-    setLoading(true);
-    setError("");
-
-    try {
-      const [bookingsData, boardingsData, groomingData] = await Promise.all([
-        apiRequest("/receptionist/appointment/list").catch(() => null),
-        apiRequest("/boardings").catch(() => null),
-        apiRequest("/grooming").catch(() => null)
-      ]);
-
-      const allBookings = [];
-
-      if (bookingsData) {
-        const data = bookingsData;
-        const bookings = Array.isArray(data) ? data : data.bookings || data.appointments || data.data || [];
-        bookings.forEach(booking => {
-          allBookings.push({
-            id: booking.id,
-            type: 'vet',
-            petName: booking.pet?.name || 'Pet',
-            petType: booking.pet?.species || 'Pet',
-            breed: booking.pet?.breed || '',
-            owner: booking.customer?.name || 'Customer',
-            ownerPhone: booking.customer?.phone || '',
-            service: booking.service?.name || booking.service || 'Veterinary Service',
-            appointmentDate: booking.appointment_date || booking.scheduled_at || '',
-            appointmentTime: booking.appointment_time || '',
-            status: booking.status || 'pending',
-            amount: 0,
-            paidAmount: 0,
-            paymentStatus: 'pending',
-            createdAt: booking.created_at || new Date().toISOString()
-          });
-        });
-      }
-
-      if (boardingsData) {
-        const data = boardingsData;
-        const boardings = Array.isArray(data) ? data : data.boardings || data.data || [];
-        boardings.forEach(boarding => {
-          allBookings.push({
-            id: boarding.id,
-            type: 'hotel',
-            petName: boarding.pet?.name || 'Pet',
-            petType: boarding.pet?.species || 'Pet',
-            breed: boarding.pet?.breed || '',
-            owner: boarding.customer?.name || 'Customer',
-            ownerPhone: boarding.customer?.phone || '',
-            roomType: boarding.room_type || 'Room',
-            checkIn: boarding.check_in || '',
-            checkOut: boarding.check_out || '',
-            service: 'Hotel Stay',
-            appointmentDate: boarding.check_in || '',
-            appointmentTime: '',
-            status: boarding.status || 'pending',
-            amount: boarding.total_amount || 0,
-            paidAmount: boarding.paid_amount || 0,
-            paymentStatus: boarding.payment_status || 'pending',
-            createdAt: boarding.created_at || new Date().toISOString()
-          });
-        });
-      }
-
-      if (groomingData) {
-        const data = groomingData;
-        const groomings = Array.isArray(data) ? data : data.groomings || data.data || [];
-        groomings.forEach((grooming) => {
-          allBookings.push({
-            id: grooming.id,
-            type: 'grooming',
-            petName: grooming.pet?.name || grooming.pet_name || 'Pet',
-            petType: grooming.pet?.species || 'Pet',
-            breed: grooming.pet?.breed || '',
-            owner: grooming.customer?.name || grooming.customer_name || 'Customer',
-            ownerPhone: grooming.customer?.phone || '',
-            service: grooming.service || grooming.service_name || 'Grooming',
-            appointmentDate: grooming.appointment_date || grooming.scheduled_at || '',
-            appointmentTime: grooming.appointment_time || '',
-            status: grooming.status || 'pending',
-            amount: grooming.amount || grooming.price || 0,
-            paidAmount: grooming.paid_amount || 0,
-            paymentStatus: grooming.payment_status || 'unpaid',
-            createdAt: grooming.created_at || new Date().toISOString()
-          });
-        });
-      }
-
-      allBookings.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-      setBookings(allBookings);
-    } catch (error) {
-      setError(error.message || "Failed to load bookings");
-    } finally {
-      setLoading(false);
-    }
+  const getTypeLabel = (type) => {
+    if (type === "hotel") return "Hotel";
+    if (type === "vet") return "Vet";
+    if (type === "grooming") return "Grooming";
+    return "Service";
   };
-
-  // Fetch bookings and services on mount
-  useEffect(() => {
-    fetchBookings();
-    fetchServices();
-    fetchCustomersAndPets();
-    const intervalId = setInterval(fetchBookings, 30000); // fetch bookings every 30 seconds
-    return () => clearInterval(intervalId);
-  }, []);
-
-  // Filter bookings
-  const filteredBookings = bookings.filter((booking) => {
-    const matchesStatus = filter === "all" || booking.status === filter;
-
-    const keyword = searchTerm.toLowerCase();
-
-    const matchesSearch =
-      booking.id?.toString().toLowerCase().includes(keyword) ||
-      booking.petName?.toLowerCase().includes(keyword) ||
-      booking.owner?.toLowerCase().includes(keyword) ||
-      booking.service?.toLowerCase().includes(keyword) ||
-      booking.type?.toLowerCase().includes(keyword);
-
-    return matchesStatus && matchesSearch;
-  });
-
-  // Dashboard summary stats
-  const pendingBookings = bookings.filter(b => b.status === 'pending').length;
-  const pendingPayments = bookings.filter(b => b.paymentStatus === 'pending').length;
-  const cancelRequests = bookings.filter(b => b.status === 'cancel_requested').length;
-  const rescheduleRequests = bookings.filter(b => b.status === 'reschedule_requested').length;
 
   return (
     <div className="receptionist-bookings">
-      <div className="booking-header">
-        <h2>
-          <FontAwesomeIcon icon={faCalendarAlt} /> Booking Management
-        </h2>
+      {success && (
+        <div className="rb-toast success">
+          <FontAwesomeIcon icon={faCheck} />
+          <span>{success}</span>
+        </div>
+      )}
+
+      {error && (
+        <div className="rb-toast error">
+          <FontAwesomeIcon icon={faBan} />
+          <span>{error}</span>
+        </div>
+      )}
+
+      <section className="booking-hero">
+        <div>
+          <span className="rb-eyebrow">
+            <FontAwesomeIcon icon={faCalendarCheck} />
+            Front Desk Booking Center
+          </span>
+
+          <h1>Booking Management</h1>
+
+          <p>
+            Manage walk-in bookings, review pending requests, handle cancellation and
+            reschedule requests, and monitor booking history from one workspace.
+          </p>
+
+          <small>Last updated: {lastUpdated || "Not refreshed yet"}</small>
+        </div>
+
+        <div className="booking-hero-actions">
+          <button
+            type="button"
+            className={`secondary-btn ${refreshing ? "loading" : ""}`}
+            onClick={() => fetchBookings({ silent: true })}
+            disabled={refreshing}
+          >
+            <FontAwesomeIcon icon={refreshing ? faSpinner : faRefresh} />
+            {refreshing ? "Refreshing..." : "Refresh"}
+          </button>
+
+          <button type="button" className="secondary-btn" onClick={exportCSV}>
+            <FontAwesomeIcon icon={faDownload} />
+            Export CSV
+          </button>
+
+          <button
+            type="button"
+            className="primary-btn create-btn"
+            onClick={() => setShowNewBookingModal(true)}
+          >
+            <FontAwesomeIcon icon={faPlus} />
+            Create Booking
+          </button>
+        </div>
+      </section>
+
+      <section className="dashboard-summary">
+        <button type="button" className="summary-card" onClick={() => setFilter("pending")}>
+          <span>
+            <FontAwesomeIcon icon={faClock} />
+          </span>
+          <div>
+            <h3>Pending Bookings</h3>
+            <p className="summary-number">{stats.pending}</p>
+          </div>
+        </button>
+
         <button
-          className="primary-btn create-btn"
-          onClick={() => setShowNewBookingModal(true)}
+          type="button"
+          className="summary-card payment"
+          onClick={() => setPaymentFilter("pending")}
         >
-          <FontAwesomeIcon icon={faPlus} />
-          Create Booking
+          <span>
+            <FontAwesomeIcon icon={faMoneyBillWave} />
+          </span>
+          <div>
+            <h3>Pending Payments</h3>
+            <p className="summary-number">{stats.pendingPayments}</p>
+          </div>
         </button>
-      </div>
 
-      {/* Dashboard Summary */}
-      <div className="dashboard-summary">
-        <div className="summary-card">
-          <h3>Pending Bookings</h3>
-          <p className="summary-number">{pendingBookings}</p>
+        <button
+          type="button"
+          className="summary-card cancel"
+          onClick={() => setFilter("cancel_requested")}
+        >
+          <span>
+            <FontAwesomeIcon icon={faBan} />
+          </span>
+          <div>
+            <h3>Cancel Requests</h3>
+            <p className="summary-number">{stats.cancelRequests}</p>
+          </div>
+        </button>
+
+        <button
+          type="button"
+          className="summary-card reschedule"
+          onClick={() => setFilter("reschedule_requested")}
+        >
+          <span>
+            <FontAwesomeIcon icon={faCalendarAlt} />
+          </span>
+          <div>
+            <h3>Reschedule Requests</h3>
+            <p className="summary-number">{stats.rescheduleRequests}</p>
+          </div>
+        </button>
+      </section>
+
+      <section className="booking-tools">
+        <div className="booking-search-wrap">
+          <FontAwesomeIcon icon={faSearch} />
+          <input
+            type="text"
+            placeholder="Search by pet, owner, service, type, status, or booking ID..."
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
+            className="booking-search"
+          />
+
+          {searchTerm && (
+            <button type="button" onClick={() => setSearchTerm("")}>
+              <FontAwesomeIcon icon={faTimes} />
+            </button>
+          )}
         </div>
-        <div className="summary-card">
-          <h3>Pending Payments</h3>
-          <p className="summary-number">{pendingPayments}</p>
-        </div>
-        <div className="summary-card">
-          <h3>Cancel Requests</h3>
-          <p className="summary-number">{cancelRequests}</p>
-        </div>
-        <div className="summary-card">
-          <h3>Reschedule Requests</h3>
-          <p className="summary-number">{rescheduleRequests}</p>
-        </div>
-      </div>
 
-      {/* Search Input */}
-      <div className="booking-tools">
-        <input
-          type="text"
-          placeholder="Search by pet, owner, service, type, or booking ID..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="booking-search"
-        />
-      </div>
-
-      {/* Filter Tabs */}
-      <div className="filter-tabs">
-        <button className={filter === "all" ? "active" : ""} onClick={() => setFilter("all")}>
-          All
-        </button>
-
-        <button className={filter === "pending" ? "active" : ""} onClick={() => setFilter("pending")}>
-          Pending
-        </button>
-
-        <button className={filter === "confirmed" ? "active" : ""} onClick={() => setFilter("confirmed")}>
-          Approved
-        </button>
-
-        <button className={filter === "cancel_requested" ? "active" : ""} onClick={() => setFilter("cancel_requested")}>
-          Cancel Requests
-        </button>
-
-        <button className={filter === "reschedule_requested" ? "active" : ""} onClick={() => setFilter("reschedule_requested")}>
-          Reschedule
-        </button>
-
-        <button className={filter === "cancelled" ? "active" : ""} onClick={() => setFilter("cancelled")}>
-          Rejected
-        </button>
-      </div>
-      
-      {/* Bookings Table */}
-      <div className="bookings-table-container">
-        <table className="bookings-table">
-          <thead>
-            <tr>
-              <th>Type</th>
-              <th>Pet</th>
-              <th>Owner</th>
-              <th>Service</th>
-              <th>Date</th>
-              <th>Time</th>
-              <th>Payment</th>
-              <th>Status</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredBookings.length === 0 && (
-              <tr>
-                <td colSpan="9" style={{ textAlign: "center", padding: "24px", color: "#64748b" }}>
-                  No bookings found.
-                </td>
-              </tr>
-            )}
-            {filteredBookings.map((booking) => (
-              <tr key={booking.id}>
-                <td>
-                  <span className={`booking-type ${booking.type}`}>
-                    {booking.type === "hotel" && <FontAwesomeIcon icon={faHotel} />}
-                    {booking.type === "vet" && <FontAwesomeIcon icon={faStethoscope} />}
-                    {booking.type === "grooming" && <FontAwesomeIcon icon={faCut} />}
-                    {booking.type === "hotel" && "Hotel"}
-                    {booking.type === "vet" && "Vet"}
-                    {booking.type === "grooming" && "Grooming"}
-                  </span>
-                </td>
-                <td>{booking.petName}</td>
-                <td>{booking.owner}</td>
-                <td>{booking.service}</td>
-                <td>{booking.appointmentDate || booking.checkIn}</td>
-                <td>{booking.appointmentTime || "N/A"}</td>
-                <td>
-                  <span className={`payment-status ${booking.paymentStatus || 'pending'}`}>
-                    {booking.paymentStatus === 'paid' ? 'Paid' :
-                     booking.paymentStatus === 'partial' ? 'Partial' : 'Pending'}
-                  </span>
-                </td>
-                <td>
-                  <span className={`status ${booking.status}`}>
-                    {booking.status}
-                  </span>
-                </td>
-                <td>
-                  <div className="action-buttons">
-                    {booking.status === 'pending' && (
-                      <>
-                        <button className="action-btn approve" onClick={() => openActionModal(booking, 'approve')} title="Approve">
-                          <FontAwesomeIcon icon={faCheck} />
-                        </button>
-                        <button className="action-btn reject" onClick={() => openActionModal(booking, 'reject')} title="Reject">
-                          <FontAwesomeIcon icon={faBan} />
-                        </button>
-                        <button className="action-btn reschedule" onClick={() => openActionModal(booking, 'reschedule')} title="Reschedule">
-                          <FontAwesomeIcon icon={faClock} />
-                        </button>
-                      </>
-                    )}
-                    {booking.status === 'cancel_requested' && (
-                      <>
-                        <button className="action-btn approve" onClick={() => openCancelModal(booking, 'approve')} title="Approve Cancel">
-                          <FontAwesomeIcon icon={faCheck} />
-                        </button>
-                        <button className="action-btn reject" onClick={() => openCancelModal(booking, 'reject')} title="Reject Cancel">
-                          <FontAwesomeIcon icon={faBan} />
-                        </button>
-                      </>
-                    )}
-                    {booking.status === 'reschedule_requested' && (
-                      <>
-                        <button className="action-btn approve" onClick={() => openRescheduleModal(booking, 'approve')} title="Approve Reschedule">
-                          <FontAwesomeIcon icon={faCheck} />
-                        </button>
-                        <button className="action-btn reject" onClick={() => openRescheduleModal(booking, 'reject')} title="Reject Reschedule">
-                          <FontAwesomeIcon icon={faBan} />
-                        </button>
-                      </>
-                    )}
-                    <button className="action-btn history" onClick={() => openHistoryModal(booking)} title="View History">
-                      <FontAwesomeIcon icon={faHistory} />
-                    </button>
-                  </div>
-                </td>
-              </tr>
+        <label className="booking-filter">
+          <FontAwesomeIcon icon={faPaw} />
+          <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
+            {TYPE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
             ))}
-          </tbody>
-        </table>
-      </div>
+          </select>
+        </label>
 
-      {/* Action Modal */}
+        <label className="booking-filter">
+          <FontAwesomeIcon icon={faMoneyBillWave} />
+          <select
+            value={paymentFilter}
+            onChange={(event) => setPaymentFilter(event.target.value)}
+          >
+            {PAYMENT_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <button type="button" className="clear-btn" onClick={clearFilters}>
+          <FontAwesomeIcon icon={faFilter} />
+          Clear
+        </button>
+      </section>
+
+      <section className="filter-tabs">
+        {STATUS_TABS.map((tab) => (
+          <button
+            key={tab.value}
+            type="button"
+            className={filter === tab.value ? "active" : ""}
+            onClick={() => setFilter(tab.value)}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </section>
+
+      <section className="bookings-table-container">
+        <div className="bookings-table-header">
+          <div>
+            <span className="rb-eyebrow">
+              <FontAwesomeIcon icon={faCalendarAlt} />
+              Live Booking Queue
+            </span>
+
+            <h2>Bookings List</h2>
+
+            <p>
+              Showing <strong>{filteredBookings.length}</strong> of{" "}
+              <strong>{bookings.length}</strong> booking(s).
+            </p>
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="booking-state">
+            <FontAwesomeIcon icon={faSpinner} spin />
+            <h3>Loading bookings...</h3>
+            <p>Please wait while receptionist bookings are loaded.</p>
+          </div>
+        ) : (
+          <div className="table-scroll">
+            <table className="bookings-table">
+              <thead>
+                <tr>
+                  <th>Type</th>
+                  <th>Pet</th>
+                  <th>Owner</th>
+                  <th>Service</th>
+                  <th>Date</th>
+                  <th>Time</th>
+                  <th>Payment</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {filteredBookings.length === 0 && (
+                  <tr>
+                    <td colSpan="9">
+                      <div className="empty-table-state">
+                        <FontAwesomeIcon icon={faSearch} />
+                        <h3>No bookings found</h3>
+                        <p>Try changing your search keyword or filters.</p>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+
+                {filteredBookings.map((booking) => (
+                  <tr key={`${booking.type}-${booking.id}`}>
+                    <td>
+                      <span className={`booking-type ${booking.type}`}>
+                        <FontAwesomeIcon icon={getTypeIcon(booking.type)} />
+                        {getTypeLabel(booking.type)}
+                      </span>
+                    </td>
+
+                    <td>
+                      <div className="pet-cell">
+                        <strong>{booking.petName}</strong>
+                        <small>
+                          {booking.petType}
+                          {booking.breed ? ` • ${booking.breed}` : ""}
+                        </small>
+                      </div>
+                    </td>
+
+                    <td>
+                      <div className="owner-cell">
+                        <FontAwesomeIcon icon={faUser} />
+                        <span>{booking.owner}</span>
+                      </div>
+                    </td>
+
+                    <td>{booking.service}</td>
+
+                    <td>{formatDate(booking.appointmentDate || booking.checkIn)}</td>
+
+                    <td>{formatTime(booking.appointmentTime)}</td>
+
+                    <td>
+                      <span className={`payment-status ${booking.paymentStatus || "pending"}`}>
+                        {booking.paymentStatus || "pending"}
+                      </span>
+                    </td>
+
+                    <td>
+                      <span className={`status ${booking.status}`}>{booking.status}</span>
+                    </td>
+
+                    <td>
+                      <div className="action-buttons">
+                        <button
+                          type="button"
+                          className="action-btn details"
+                          onClick={() => openDetailsModal(booking)}
+                          title="View Details"
+                        >
+                          <FontAwesomeIcon icon={faEye} />
+                        </button>
+
+                        {booking.status === "pending" && (
+                          <>
+                            <button
+                              type="button"
+                              className="action-btn approve"
+                              onClick={() => openActionModal(booking, "approve")}
+                              title="Approve"
+                            >
+                              <FontAwesomeIcon icon={faCheck} />
+                            </button>
+
+                            <button
+                              type="button"
+                              className="action-btn reject"
+                              onClick={() => openActionModal(booking, "reject")}
+                              title="Reject"
+                            >
+                              <FontAwesomeIcon icon={faBan} />
+                            </button>
+
+                            <button
+                              type="button"
+                              className="action-btn reschedule"
+                              onClick={() => openActionModal(booking, "reschedule")}
+                              title="Reschedule"
+                            >
+                              <FontAwesomeIcon icon={faClock} />
+                            </button>
+                          </>
+                        )}
+
+                        {booking.status === "cancel_requested" && (
+                          <>
+                            <button
+                              type="button"
+                              className="action-btn approve"
+                              onClick={() => openCancelModal(booking, "approve")}
+                              title="Approve Cancel"
+                            >
+                              <FontAwesomeIcon icon={faCheck} />
+                            </button>
+
+                            <button
+                              type="button"
+                              className="action-btn reject"
+                              onClick={() => openCancelModal(booking, "reject")}
+                              title="Reject Cancel"
+                            >
+                              <FontAwesomeIcon icon={faBan} />
+                            </button>
+                          </>
+                        )}
+
+                        {booking.status === "reschedule_requested" && (
+                          <>
+                            <button
+                              type="button"
+                              className="action-btn approve"
+                              onClick={() => openRescheduleModal(booking, "approve")}
+                              title="Approve Reschedule"
+                            >
+                              <FontAwesomeIcon icon={faCheck} />
+                            </button>
+
+                            <button
+                              type="button"
+                              className="action-btn reject"
+                              onClick={() => openRescheduleModal(booking, "reject")}
+                              title="Reject Reschedule"
+                            >
+                              <FontAwesomeIcon icon={faBan} />
+                            </button>
+                          </>
+                        )}
+
+                        <button
+                          type="button"
+                          className="action-btn history"
+                          onClick={() => openHistoryModal(booking)}
+                          title="View History"
+                        >
+                          <FontAwesomeIcon icon={faHistory} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
       {showActionModal && selectedBooking && (
         <div className="appointment-modal-overlay" onClick={closeActionModal}>
-          <div className="appointment-modal" onClick={(e) => e.stopPropagation()}>
+          <div className="appointment-modal" onClick={(event) => event.stopPropagation()}>
             <div className="modal-header">
-              <h2>
-                {actionType === 'approve' && 'Approve Booking'}
-                {actionType === 'reject' && 'Reject Booking'}
-                {actionType === 'reschedule' && 'Reschedule Booking'}
-              </h2>
-              <button className="close-btn" onClick={closeActionModal}>×</button>
-            </div>
-            <div className="modal-content">
-              <div className="booking-details-summary">
-                <p><strong>Pet:</strong> {selectedBooking.petName}</p>
-                <p><strong>Owner:</strong> {selectedBooking.owner}</p>
-                <p><strong>Service:</strong> {selectedBooking.service}</p>
-                <p><strong>Date:</strong> {selectedBooking.appointmentDate || selectedBooking.checkIn}</p>
+              <div>
+                <span className="rb-eyebrow">
+                  <FontAwesomeIcon icon={faInfoCircle} />
+                  Booking Action
+                </span>
+
+                <h2>
+                  {actionType === "approve" && "Approve Booking"}
+                  {actionType === "reject" && "Reject Booking"}
+                  {actionType === "reschedule" && "Reschedule Booking"}
+                </h2>
               </div>
-              
-              {/* Availability Check Display */}
-              {(actionType === 'approve' || actionType === 'reschedule') && (
-                <div className={`availability-check ${availability?.available ? 'available' : 'unavailable'}`}>
+
+              <button className="close-btn" type="button" onClick={closeActionModal}>
+                <FontAwesomeIcon icon={faTimes} />
+              </button>
+            </div>
+
+            <div className="modal-content">
+              <BookingSummary booking={selectedBooking} />
+
+              {(actionType === "approve" || actionType === "reschedule") && (
+                <div
+                  className={`availability-check ${
+                    availability?.available ? "available" : "unavailable"
+                  }`}
+                >
                   {checkingAvailability ? (
-                    <p><strong>Checking availability...</strong></p>
+                    <p>
+                      <FontAwesomeIcon icon={faSpinner} spin /> Checking availability...
+                    </p>
                   ) : availability ? (
                     <>
-                      <p><strong>Status:</strong> {availability.available ? '✓ Available' : '✗ Not Available'}</p>
+                      <p>
+                        <strong>Status:</strong>{" "}
+                        {availability.available ? "Available" : "Not Available"}
+                      </p>
                       <p>{availability.message}</p>
                     </>
                   ) : (
-                    <p><strong>Status:</strong> Checking...</p>
+                    <p>Preparing availability check...</p>
                   )}
                 </div>
               )}
-              
-              <form className="appointment-form" onSubmit={(e) => { e.preventDefault(); handleActionSubmit(); }}>
-                <div className="form-group">
-                  <label>
-                    {actionType === 'reschedule' ? 'New Date' : 'Receptionist Note'}
-                  </label>
-                  {actionType === 'reschedule' ? (
+
+              <form
+                className="appointment-form"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  handleActionSubmit();
+                }}
+              >
+                {actionType === "reschedule" && (
+                  <div className="form-group">
+                    <label>New Date</label>
                     <input
                       type="date"
                       value={newDate}
-                      onChange={(e) => setNewDate(e.target.value)}
+                      onChange={(event) => {
+                        setNewDate(event.target.value);
+                        checkAvailability(selectedBooking, event.target.value);
+                      }}
                       required
                     />
-                  ) : (
-                    <textarea
-                      value={actionNote}
-                      onChange={(e) => setActionNote(e.target.value)}
-                      placeholder={actionType === 'approve' ? 'Add approval note (optional)...' : 'Provide reason for rejection...'}
-                      rows={4}
-                    />
-                  )}
+                  </div>
+                )}
+
+                <div className="form-group">
+                  <label>
+                    {actionType === "reject"
+                      ? "Reason / Receptionist Note"
+                      : "Receptionist Note"}
+                  </label>
+                  <textarea
+                    value={actionNote}
+                    onChange={(event) => setActionNote(event.target.value)}
+                    placeholder={
+                      actionType === "approve"
+                        ? "Add approval note..."
+                        : actionType === "reject"
+                        ? "Provide reason for rejection..."
+                        : "Add reschedule note..."
+                    }
+                    rows={4}
+                  />
                 </div>
+
                 <div className="modal-actions">
-                  <button type="button" className="secondary-btn" onClick={closeActionModal}>
+                  <button
+                    type="button"
+                    className="secondary-btn"
+                    onClick={closeActionModal}
+                    disabled={processing}
+                  >
                     Cancel
                   </button>
-                  <button type="submit" className="primary-btn" disabled={!availability?.available && (actionType === 'approve' || actionType === 'reschedule')}>
-                    {actionType === 'approve' && 'Approve'}
-                    {actionType === 'reject' && 'Reject'}
-                    {actionType === 'reschedule' && 'Reschedule'}
+
+                  <button
+                    type="submit"
+                    className="primary-btn"
+                    disabled={
+                      processing ||
+                      (!availability?.available &&
+                        (actionType === "approve" || actionType === "reschedule"))
+                    }
+                  >
+                    {processing && <FontAwesomeIcon icon={faSpinner} spin />}
+                    {actionType === "approve" && "Approve"}
+                    {actionType === "reject" && "Reject"}
+                    {actionType === "reschedule" && "Reschedule"}
                   </button>
                 </div>
               </form>
@@ -915,43 +1601,65 @@ const ReceptionistBookings = () => {
         </div>
       )}
 
-      {/* Payment Verification Modal removed - cashier handles payment verification */}
-
-      {/* Cancel Request Modal */}
       {showCancelModal && selectedCancelBooking && (
         <div className="appointment-modal-overlay" onClick={closeCancelModal}>
-          <div className="appointment-modal" onClick={(e) => e.stopPropagation()}>
+          <div className="appointment-modal" onClick={(event) => event.stopPropagation()}>
             <div className="modal-header">
-              <h2>
-                {cancelAction === 'approve' ? 'Approve Cancel Request' : 'Reject Cancel Request'}
-              </h2>
-              <button className="close-btn" onClick={closeCancelModal}>×</button>
-            </div>
-            <div className="modal-content">
-              <div className="booking-details-summary">
-                <p><strong>Pet:</strong> {selectedCancelBooking.petName}</p>
-                <p><strong>Owner:</strong> {selectedCancelBooking.owner}</p>
-                <p><strong>Service:</strong> {selectedCancelBooking.service}</p>
-                <p><strong>Date:</strong> {selectedCancelBooking.appointmentDate || selectedCancelBooking.checkIn}</p>
-                <p><strong>Amount:</strong> ${selectedCancelBooking.amount}</p>
+              <div>
+                <span className="rb-eyebrow">
+                  <FontAwesomeIcon icon={faBan} />
+                  Cancel Request
+                </span>
+
+                <h2>
+                  {cancelAction === "approve"
+                    ? "Approve Cancel Request"
+                    : "Reject Cancel Request"}
+                </h2>
               </div>
-              
-              <form className="appointment-form" onSubmit={(e) => { e.preventDefault(); handleCancelSubmit(); }}>
+
+              <button className="close-btn" type="button" onClick={closeCancelModal}>
+                <FontAwesomeIcon icon={faTimes} />
+              </button>
+            </div>
+
+            <div className="modal-content">
+              <BookingSummary booking={selectedCancelBooking} />
+
+              <form
+                className="appointment-form"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  handleCancelSubmit();
+                }}
+              >
                 <div className="form-group">
                   <label>Receptionist Note</label>
                   <textarea
                     value={cancelNote}
-                    onChange={(e) => setCancelNote(e.target.value)}
-                    placeholder={cancelAction === 'approve' ? 'Add approval note (optional)...' : 'Provide reason for rejection...'}
+                    onChange={(event) => setCancelNote(event.target.value)}
+                    placeholder={
+                      cancelAction === "approve"
+                        ? "Add cancellation approval note..."
+                        : "Provide reason for rejecting cancellation..."
+                    }
                     rows={4}
                   />
                 </div>
+
                 <div className="modal-actions">
-                  <button type="button" className="secondary-btn" onClick={closeCancelModal}>
+                  <button
+                    type="button"
+                    className="secondary-btn"
+                    onClick={closeCancelModal}
+                    disabled={processing}
+                  >
                     Cancel
                   </button>
-                  <button type="submit" className="primary-btn">
-                    {cancelAction === 'approve' ? 'Approve Cancel' : 'Reject Cancel'}
+
+                  <button type="submit" className="primary-btn" disabled={processing}>
+                    {processing && <FontAwesomeIcon icon={faSpinner} spin />}
+                    {cancelAction === "approve" ? "Approve Cancel" : "Reject Cancel"}
                   </button>
                 </div>
               </form>
@@ -960,43 +1668,190 @@ const ReceptionistBookings = () => {
         </div>
       )}
 
-      {/* Booking History Modal */}
+      {showRescheduleModal && selectedRescheduleBooking && (
+        <div className="appointment-modal-overlay" onClick={closeRescheduleModal}>
+          <div className="appointment-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="modal-header">
+              <div>
+                <span className="rb-eyebrow">
+                  <FontAwesomeIcon icon={faCalendarAlt} />
+                  Reschedule Request
+                </span>
+
+                <h2>
+                  {rescheduleAction === "approve"
+                    ? "Approve Reschedule Request"
+                    : "Reject Reschedule Request"}
+                </h2>
+              </div>
+
+              <button className="close-btn" type="button" onClick={closeRescheduleModal}>
+                <FontAwesomeIcon icon={faTimes} />
+              </button>
+            </div>
+
+            <div className="modal-content">
+              <BookingSummary booking={selectedRescheduleBooking} />
+
+              <form
+                className="appointment-form"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  handleRescheduleSubmit();
+                }}
+              >
+                {rescheduleAction === "approve" && (
+                  <div className="form-group">
+                    <label>Approved New Date</label>
+                    <input
+                      type="date"
+                      value={rescheduleNewDate}
+                      onChange={(event) => setRescheduleNewDate(event.target.value)}
+                      required
+                    />
+                  </div>
+                )}
+
+                <div className="form-group">
+                  <label>Receptionist Note</label>
+                  <textarea
+                    value={rescheduleNote}
+                    onChange={(event) => setRescheduleNote(event.target.value)}
+                    placeholder={
+                      rescheduleAction === "approve"
+                        ? "Add reschedule approval note..."
+                        : "Provide reason for rejecting reschedule..."
+                    }
+                    rows={4}
+                  />
+                </div>
+
+                <div className="modal-actions">
+                  <button
+                    type="button"
+                    className="secondary-btn"
+                    onClick={closeRescheduleModal}
+                    disabled={processing}
+                  >
+                    Cancel
+                  </button>
+
+                  <button type="submit" className="primary-btn" disabled={processing}>
+                    {processing && <FontAwesomeIcon icon={faSpinner} spin />}
+                    {rescheduleAction === "approve"
+                      ? "Approve Reschedule"
+                      : "Reject Reschedule"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDetailsModal && selectedDetailsBooking && (
+        <div className="appointment-modal-overlay" onClick={closeDetailsModal}>
+          <div className="appointment-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="modal-header">
+              <div>
+                <span className="rb-eyebrow">
+                  <FontAwesomeIcon icon={faEye} />
+                  Booking Details
+                </span>
+                <h2>{getTypeLabel(selectedDetailsBooking.type)} Booking</h2>
+              </div>
+
+              <button className="close-btn" type="button" onClick={closeDetailsModal}>
+                <FontAwesomeIcon icon={faTimes} />
+              </button>
+            </div>
+
+            <div className="modal-content">
+              <div className="detail-grid">
+                <DetailItem label="Booking ID" value={selectedDetailsBooking.id} />
+                <DetailItem label="Type" value={getTypeLabel(selectedDetailsBooking.type)} />
+                <DetailItem label="Pet" value={selectedDetailsBooking.petName} />
+                <DetailItem label="Pet Type" value={selectedDetailsBooking.petType} />
+                <DetailItem label="Breed" value={selectedDetailsBooking.breed || "N/A"} />
+                <DetailItem label="Owner" value={selectedDetailsBooking.owner} />
+                <DetailItem label="Phone" value={selectedDetailsBooking.ownerPhone || "N/A"} />
+                <DetailItem label="Service" value={selectedDetailsBooking.service} />
+                <DetailItem
+                  label="Date"
+                  value={formatDate(
+                    selectedDetailsBooking.appointmentDate || selectedDetailsBooking.checkIn
+                  )}
+                />
+                <DetailItem
+                  label="Time"
+                  value={formatTime(selectedDetailsBooking.appointmentTime)}
+                />
+                <DetailItem
+                  label="Amount"
+                  value={formatCurrency(selectedDetailsBooking.amount)}
+                />
+                <DetailItem
+                  label="Paid Amount"
+                  value={formatCurrency(selectedDetailsBooking.paidAmount)}
+                />
+                <DetailItem label="Status" value={selectedDetailsBooking.status} />
+                <DetailItem label="Payment" value={selectedDetailsBooking.paymentStatus} />
+              </div>
+            </div>
+
+            <div className="modal-actions">
+              <button type="button" className="secondary-btn" onClick={closeDetailsModal}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showHistoryModal && selectedHistoryBooking && (
         <div className="appointment-modal-overlay" onClick={closeHistoryModal}>
-          <div className="appointment-modal" onClick={(e) => e.stopPropagation()}>
+          <div className="appointment-modal" onClick={(event) => event.stopPropagation()}>
             <div className="modal-header">
-              <h2>Booking History</h2>
-              <button className="close-btn" onClick={closeHistoryModal}>×</button>
-            </div>
-            <div className="modal-content">
-              <div className="booking-details-summary">
-                <p><strong>Pet:</strong> {selectedHistoryBooking.petName}</p>
-                <p><strong>Owner:</strong> {selectedHistoryBooking.owner}</p>
-                <p><strong>Service:</strong> {selectedHistoryBooking.service}</p>
-                <p><strong>Date:</strong> {selectedHistoryBooking.appointmentDate || selectedHistoryBooking.checkIn}</p>
+              <div>
+                <span className="rb-eyebrow">
+                  <FontAwesomeIcon icon={faHistory} />
+                  Booking Activity
+                </span>
+                <h2>Booking History</h2>
               </div>
-              
+
+              <button className="close-btn" type="button" onClick={closeHistoryModal}>
+                <FontAwesomeIcon icon={faTimes} />
+              </button>
+            </div>
+
+            <div className="modal-content">
+              <BookingSummary booking={selectedHistoryBooking} />
+
               <div className="history-timeline">
                 {bookingHistory.length === 0 ? (
-                  <p className="no-history">No history available</p>
+                  <p className="no-history">No history available.</p>
                 ) : (
-                  bookingHistory.map((historyItem) => (
-                    <div key={historyItem.id} className="history-item">
+                  bookingHistory.map((historyItem, index) => (
+                    <div key={historyItem.id || index} className="history-item">
                       <div className="history-timestamp">
-                        {new Date(historyItem.timestamp).toLocaleString()}
+                        {formatDateTime(historyItem.timestamp || historyItem.created_at)}
                       </div>
+
                       <div className="history-content">
                         <div className="history-action">
-                          <strong>{historyItem.action}</strong>
+                          <strong>{historyItem.action || "Updated"}</strong>
                           {historyItem.status && (
                             <span className={`history-status ${historyItem.status}`}>
                               {historyItem.status}
                             </span>
                           )}
                         </div>
+
                         {historyItem.note && (
                           <div className="history-note">{historyItem.note}</div>
                         )}
+
                         {historyItem.user && (
                           <div className="history-user">by {historyItem.user}</div>
                         )}
@@ -1010,21 +1865,33 @@ const ReceptionistBookings = () => {
         </div>
       )}
 
-      {/* Walk-in Booking Modal */}
       {showNewBookingModal && (
-        <div className="appointment-modal-overlay" onClick={() => setShowNewBookingModal(false)}>
-          <div className="appointment-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="appointment-modal-overlay" onClick={handleBookingCancel}>
+          <div
+            className="appointment-modal large-modal"
+            onClick={(event) => event.stopPropagation()}
+          >
             <div className="modal-header">
-              <h2>New Booking (Walk-in)</h2>
-              <button 
-                className="close-btn"
-                onClick={() => setShowNewBookingModal(false)}
-              >
-                ×
+              <div>
+                <span className="rb-eyebrow">
+                  <FontAwesomeIcon icon={faPlus} />
+                  Walk-in Transaction
+                </span>
+                <h2>New Booking</h2>
+              </div>
+
+              <button className="close-btn" type="button" onClick={handleBookingCancel}>
+                <FontAwesomeIcon icon={faTimes} />
               </button>
             </div>
+
             <div className="modal-content">
               <form className="appointment-form" onSubmit={handleBookingSubmit}>
+                <div className="form-section-title">
+                  <h3>Customer & Pet Information</h3>
+                  <p>Select an existing customer and their registered pet.</p>
+                </div>
+
                 <div className="form-grid">
                   <div className="form-group">
                     <label>Booking Type *</label>
@@ -1034,95 +1901,81 @@ const ReceptionistBookings = () => {
                       onChange={handleBookingInputChange}
                       required
                     >
-                      <option value="">Select booking type...</option>
                       <option value="hotel">Hotel</option>
                       <option value="vet">Veterinary</option>
                       <option value="grooming">Grooming</option>
                     </select>
                   </div>
+
                   <div className="form-group">
                     <label>Select Customer *</label>
                     <select
                       name="customerId"
                       value={bookingFormData.customerId}
-                      onChange={(e) => handleCustomerChange(e.target.value)}
+                      onChange={(event) => handleCustomerChange(event.target.value)}
                       required
                     >
                       <option value="">Choose a customer...</option>
-                      {customers.map(customer => (
+                      {customers.map((customer) => (
                         <option key={customer.id} value={customer.id}>
-                          {customer.name} ({customer.phone || "No phone"})
+                          {customer.name || customer.full_name || "Customer"} (
+                          {customer.phone || "No phone"})
                         </option>
                       ))}
                     </select>
                   </div>
+
                   <div className="form-group">
                     <label>Select Pet *</label>
                     <select
                       name="petId"
                       value={bookingFormData.petId}
-                      onChange={(e) => handlePetChange(e.target.value)}
+                      onChange={(event) => handlePetChange(event.target.value)}
                       required
                       disabled={!bookingFormData.customerId}
                     >
                       <option value="">
-                        {bookingFormData.customerId ? "Choose a pet..." : "Select customer first"}
+                        {bookingFormData.customerId
+                          ? "Choose a pet..."
+                          : "Select customer first"}
                       </option>
-                      {getAvailablePets().map(pet => (
+
+                      {getAvailablePets().map((pet) => (
                         <option key={pet.id} value={pet.id}>
-                          {pet.name} ({pet.type || pet.species || "Pet"} - {pet.breed || "Unknown breed"})
+                          {pet.name} ({pet.type || pet.species || "Pet"} -{" "}
+                          {pet.breed || "Unknown breed"})
                         </option>
                       ))}
                     </select>
                   </div>
+
                   <div className="form-group">
                     <label>Pet Name</label>
-                    <input
-                      type="text"
-                      name="petName"
-                      value={bookingFormData.petName}
-                      onChange={handleBookingInputChange}
-                      placeholder="Pet name (auto-filled)"
-                      disabled
-                      style={{ backgroundColor: '#f8f9fa' }}
-                    />
+                    <input value={bookingFormData.petName} disabled />
                   </div>
+
                   <div className="form-group">
                     <label>Pet Type</label>
-                    <input
-                      type="text"
-                      name="petType"
-                      value={bookingFormData.petType}
-                      onChange={handleBookingInputChange}
-                      placeholder="Pet type (auto-filled)"
-                      disabled
-                      style={{ backgroundColor: '#f8f9fa' }}
-                    />
+                    <input value={bookingFormData.petType} disabled />
                   </div>
+
                   <div className="form-group">
                     <label>Breed</label>
-                    <input
-                      type="text"
-                      name="breed"
-                      value={bookingFormData.breed}
-                      onChange={handleBookingInputChange}
-                      placeholder="Breed (auto-filled)"
-                      disabled
-                      style={{ backgroundColor: '#f8f9fa' }}
-                    />
+                    <input value={bookingFormData.breed} disabled />
                   </div>
+
                   <div className="form-group">
                     <label>Owner Name</label>
-                    <input
-                      type="text"
-                      name="ownerName"
-                      value={bookingFormData.ownerName}
-                      onChange={handleBookingInputChange}
-                      placeholder="Owner name (auto-filled)"
-                      disabled
-                      style={{ backgroundColor: '#f8f9fa' }}
-                    />
+                    <input value={bookingFormData.ownerName} disabled />
                   </div>
+                </div>
+
+                <div className="form-section-title">
+                  <h3>Schedule & Service</h3>
+                  <p>Choose the date, time, and service information.</p>
+                </div>
+
+                <div className="form-grid">
                   <div className="form-group">
                     <label>Appointment Date *</label>
                     <input
@@ -1133,6 +1986,7 @@ const ReceptionistBookings = () => {
                       required
                     />
                   </div>
+
                   <div className="form-group">
                     <label>Appointment Time</label>
                     <select
@@ -1140,17 +1994,16 @@ const ReceptionistBookings = () => {
                       value={bookingFormData.appointmentTime}
                       onChange={handleBookingInputChange}
                     >
-                      <option value="09:00 AM">9:00 AM</option>
-                      <option value="10:00 AM">10:00 AM</option>
-                      <option value="11:00 AM">11:00 AM</option>
-                      <option value="02:00 PM">2:00 PM</option>
-                      <option value="03:00 PM">3:00 PM</option>
-                      <option value="04:00 PM">4:00 PM</option>
-                      <option value="05:00 PM">5:00 PM</option>
+                      <option value="09:00">9:00 AM</option>
+                      <option value="10:00">10:00 AM</option>
+                      <option value="11:00">11:00 AM</option>
+                      <option value="14:00">2:00 PM</option>
+                      <option value="15:00">3:00 PM</option>
+                      <option value="16:00">4:00 PM</option>
+                      <option value="17:00">5:00 PM</option>
                     </select>
                   </div>
 
-                  {/* Dynamic fields based on booking type */}
                   {bookingFormData.bookingType === "hotel" && (
                     <>
                       <div className="form-group">
@@ -1166,6 +2019,7 @@ const ReceptionistBookings = () => {
                           <option value="Presidential Suite">Presidential Suite</option>
                         </select>
                       </div>
+
                       <div className="form-group">
                         <label>Duration *</label>
                         <select
@@ -1180,11 +2034,12 @@ const ReceptionistBookings = () => {
                           <option value="1 week">1 week</option>
                         </select>
                       </div>
+
                       <div className="form-group">
                         <label>Service *</label>
                         <select
                           name="service"
-                          value={bookingFormData.service}
+                          value={bookingFormData.service || "Pet Hotel Stay"}
                           onChange={handleBookingInputChange}
                           required
                         >
@@ -1207,16 +2062,15 @@ const ReceptionistBookings = () => {
                           required
                         >
                           <option value="">Select a service</option>
-                          {services
-                            .filter(service => service.category !== "Grooming" && service.category !== "Boarding")
-                            .map(service => (
-                              <option key={service.id} value={service.name}>
-                                {service.name} - ₱{parseFloat(service.price).toFixed(2)}
-                              </option>
-                            ))}
+                          {vetServices.map((service) => (
+                            <option key={service.id} value={service.id}>
+                              {service.name} - {formatCurrency(service.price)}
+                            </option>
+                          ))}
                         </select>
                       </div>
-                      <div className="form-group">
+
+                      <div className="form-group full">
                         <label>Symptoms</label>
                         <textarea
                           name="symptoms"
@@ -1225,64 +2079,39 @@ const ReceptionistBookings = () => {
                           placeholder="Describe symptoms or reason for visit..."
                         />
                       </div>
-                    </>
-                  )}
 
-                  {bookingFormData.bookingType === "grooming" && (
-                    <>
-                      <div className="form-group">
-                        <label>Service *</label>
-                        <select
-                          name="service"
-                          value={bookingFormData.service}
+                      <div className="form-group full">
+                        <label>Medical Notes</label>
+                        <textarea
+                          name="medicalNotes"
+                          value={bookingFormData.medicalNotes}
                           onChange={handleBookingInputChange}
-                          required
-                        >
-                          <option value="">Select a service</option>
-                          {services
-                            .filter(service => service.category === "Grooming")
-                            .map(service => (
-                              <option key={service.id} value={service.name}>
-                                {service.name} - ₱{parseFloat(service.price).toFixed(2)}
-                              </option>
-                            ))}
-                        </select>
+                          placeholder="Optional medical notes..."
+                        />
                       </div>
                     </>
                   )}
 
-                  {/* Payment Section */}
-                  <div className="payment-section">
-                    <h4>Payment Information</h4>
+                  {bookingFormData.bookingType === "grooming" && (
                     <div className="form-group">
-                      <label>Payment Method *</label>
+                      <label>Service *</label>
                       <select
-                        name="paymentMethod"
-                        value={bookingFormData.paymentMethod}
+                        name="service"
+                        value={bookingFormData.service}
                         onChange={handleBookingInputChange}
                         required
                       >
-                        <option value="cash">Cash</option>
-                        <option value="card">Credit Card</option>
-                        <option value="gcash">GCash</option>
-                        <option value="bank">Bank Transfer</option>
+                        <option value="">Select a service</option>
+                        {groomingServices.map((service) => (
+                          <option key={service.id} value={service.id}>
+                            {service.name} - {formatCurrency(service.price)}
+                          </option>
+                        ))}
                       </select>
                     </div>
-                    <div className="form-group">
-                      <label>Paid Amount</label>
-                      <input
-                        type="number"
-                        name="paidAmount"
-                        value={bookingFormData.paidAmount}
-                        onChange={handleBookingInputChange}
-                        placeholder="0.00"
-                        min="0"
-                        step="0.01"
-                      />
-                    </div>
-                  </div>
+                  )}
 
-                  <div className="form-group">
+                  <div className="form-group full">
                     <label>Special Requests</label>
                     <textarea
                       name="specialRequests"
@@ -1292,11 +2121,76 @@ const ReceptionistBookings = () => {
                     />
                   </div>
                 </div>
+
+                <div className="form-section-title">
+                  <h3>Payment Information</h3>
+                  <p>Payment verification is still handled by the cashier.</p>
+                </div>
+
+                <div className="payment-preview-card">
+                  <div>
+                    <span>Estimated Amount</span>
+                    <strong>{formatCurrency(calculatedAmount)}</strong>
+                  </div>
+
+                  <div>
+                    <span>Paid Amount</span>
+                    <strong>{formatCurrency(bookingFormData.paidAmount)}</strong>
+                  </div>
+
+                  <div>
+                    <span>Payment Status</span>
+                    <strong>
+                      {getPaymentStatusFromAmount(
+                        calculatedAmount,
+                        bookingFormData.paidAmount
+                      )}
+                    </strong>
+                  </div>
+                </div>
+
+                <div className="form-grid">
+                  <div className="form-group">
+                    <label>Payment Method *</label>
+                    <select
+                      name="paymentMethod"
+                      value={bookingFormData.paymentMethod}
+                      onChange={handleBookingInputChange}
+                      required
+                    >
+                      <option value="cash">Cash</option>
+                      <option value="card">Credit Card</option>
+                      <option value="gcash">GCash</option>
+                      <option value="bank">Bank Transfer</option>
+                    </select>
+                  </div>
+
+                  <div className="form-group">
+                    <label>Paid Amount</label>
+                    <input
+                      type="number"
+                      name="paidAmount"
+                      value={bookingFormData.paidAmount}
+                      onChange={handleBookingInputChange}
+                      placeholder="0.00"
+                      min="0"
+                      step="0.01"
+                    />
+                  </div>
+                </div>
+
                 <div className="modal-actions">
-                  <button type="button" className="secondary-btn" onClick={handleBookingCancel}>
+                  <button
+                    type="button"
+                    className="secondary-btn"
+                    onClick={handleBookingCancel}
+                    disabled={processing}
+                  >
                     Cancel
                   </button>
-                  <button type="submit" className="primary-btn">
+
+                  <button type="submit" className="primary-btn" disabled={processing}>
+                    {processing && <FontAwesomeIcon icon={faSpinner} spin />}
                     Create Booking
                   </button>
                 </div>
@@ -1308,5 +2202,46 @@ const ReceptionistBookings = () => {
     </div>
   );
 };
+
+const BookingSummary = ({ booking }) => (
+  <div className="booking-details-summary">
+    <div>
+      <small>Pet</small>
+      <strong>{booking.petName}</strong>
+    </div>
+
+    <div>
+      <small>Owner</small>
+      <strong>{booking.owner}</strong>
+    </div>
+
+    <div>
+      <small>Service</small>
+      <strong>{booking.service}</strong>
+    </div>
+
+    <div>
+      <small>Date</small>
+      <strong>{formatDate(booking.appointmentDate || booking.checkIn)}</strong>
+    </div>
+
+    <div>
+      <small>Amount</small>
+      <strong>{formatCurrency(booking.amount)}</strong>
+    </div>
+
+    <div>
+      <small>Status</small>
+      <strong>{booking.status}</strong>
+    </div>
+  </div>
+);
+
+const DetailItem = ({ label, value }) => (
+  <div className="detail-item">
+    <small>{label}</small>
+    <strong>{value || "N/A"}</strong>
+  </div>
+);
 
 export default ReceptionistBookings;
