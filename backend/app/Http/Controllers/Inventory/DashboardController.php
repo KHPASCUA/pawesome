@@ -5,11 +5,14 @@ namespace App\Http\Controllers\Inventory;
 use App\Http\Controllers\Controller;
 use App\Models\InventoryItem;
 use App\Models\InventoryLog;
+use App\Models\InventoryMonthlyAudit;
 use App\Services\InventoryService;
 use App\Services\WorkflowNotifier;
 use App\Models\ActivityLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class DashboardController extends Controller
 {
@@ -171,6 +174,192 @@ class DashboardController extends Controller
         ]);
     }
 
+    public function expiryAlerts()
+    {
+        $dateColumn = Schema::hasColumn('inventory_items', 'expiry_date')
+            ? 'expiry_date'
+            : (Schema::hasColumn('inventory_items', 'expiration_date') ? 'expiration_date' : null);
+
+        if (!$dateColumn) {
+            return response()->json([
+                'success' => true,
+                'alerts' => [],
+                'data' => [],
+                'count' => 0,
+            ]);
+        }
+
+        $today = now()->toDateString();
+        $soon = now()->addDays(30)->toDateString();
+        $items = InventoryItem::whereNotNull($dateColumn)
+            ->whereDate($dateColumn, '<=', $soon)
+            ->orderBy($dateColumn)
+            ->get()
+            ->map(function ($item) use ($dateColumn, $today) {
+                $expiryDate = Carbon::parse($item->{$dateColumn});
+
+                return [
+                    'id' => $item->id,
+                    'name' => $item->name,
+                    'sku' => $item->sku,
+                    'stock' => (int) ($item->stock ?? 0),
+                    'expiry_date' => $expiryDate->toDateString(),
+                    'days_until_expiry' => now()->startOfDay()->diffInDays($expiryDate, false),
+                    'status' => $expiryDate->lt(Carbon::parse($today)) ? 'expired' : 'expiring_soon',
+                ];
+            })
+            ->values();
+
+        return response()->json([
+            'success' => true,
+            'alerts' => $items,
+            'data' => $items,
+            'count' => $items->count(),
+        ]);
+    }
+
+    public function monthlyAudit(Request $request)
+    {
+        $month = $request->query('month', now()->format('Y-m'));
+
+        $items = InventoryItem::orderBy('name')
+            ->get()
+            ->map(function ($item) use ($month) {
+                $audit = InventoryMonthlyAudit::where('inventory_item_id', $item->id)
+                    ->where('audit_month', $month)
+                    ->first();
+
+                return [
+                    'id' => $item->id,
+                    'inventory_item_id' => $item->id,
+                    'name' => $item->name,
+                    'sku' => $item->sku,
+                    'category' => $item->category,
+                    'system_stock' => (int) ($audit?->system_stock ?? $item->stock ?? 0),
+                    'actual_stock' => $audit ? (int) $audit->actual_stock : '',
+                    'variance' => $audit ? (int) $audit->variance : 0,
+                    'audit_status' => $audit?->status ?? 'pending',
+                    'status' => $audit?->status ?? 'pending',
+                    'reason' => $audit?->reason ?? '',
+                    'checked_by' => $audit?->checked_by,
+                ];
+            })
+            ->values();
+
+        return response()->json([
+            'success' => true,
+            'month' => $month,
+            'items' => $items,
+            'data' => $items,
+        ]);
+    }
+
+    public function saveMonthlyAudit(Request $request)
+    {
+        $validated = $request->validate([
+            'audit_month' => 'required|string',
+            'items' => 'required|array',
+            'items.*.inventory_item_id' => 'required|exists:inventory_items,id',
+            'items.*.actual_stock' => 'required|integer|min:0',
+            'items.*.reason' => 'nullable|string',
+        ]);
+
+        $checkedBy = $request->user()?->name ?? 'System';
+        $saved = collect($validated['items'])->map(function ($row) use ($validated, $checkedBy) {
+            $item = InventoryItem::findOrFail($row['inventory_item_id']);
+            $systemStock = (int) ($item->stock ?? 0);
+            $actualStock = (int) $row['actual_stock'];
+            $variance = $actualStock - $systemStock;
+
+            return InventoryMonthlyAudit::updateOrCreate(
+                [
+                    'inventory_item_id' => $item->id,
+                    'audit_month' => $validated['audit_month'],
+                ],
+                [
+                    'system_stock' => $systemStock,
+                    'actual_stock' => $actualStock,
+                    'variance' => $variance,
+                    'status' => $variance === 0 ? 'matched' : 'discrepancy',
+                    'reason' => $row['reason'] ?? null,
+                    'checked_by' => $checkedBy,
+                ]
+            );
+        });
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Monthly inventory audit saved successfully.',
+            'audits' => $saved,
+        ]);
+    }
+
+    public function monthlyAuditReport(Request $request)
+    {
+        $month = $request->query('month', now()->format('Y-m'));
+        $audits = InventoryMonthlyAudit::with('item')
+            ->where('audit_month', $month)
+            ->orderBy('inventory_item_id')
+            ->get();
+
+        $summary = [
+            'total_items' => $audits->count(),
+            'matched_items' => $audits->where('status', 'matched')->count(),
+            'discrepancy_items' => $audits->where('status', 'discrepancy')->count(),
+            'total_variance' => (int) $audits->sum('variance'),
+        ];
+
+        return response()->json([
+            'success' => true,
+            'month' => $month,
+            'summary' => $summary,
+            'items' => $audits->map(fn ($audit) => $this->formatAudit($audit))->values(),
+            'data' => $audits->map(fn ($audit) => $this->formatAudit($audit))->values(),
+        ]);
+    }
+
+    public function auditAnalytics(Request $request)
+    {
+        $months = max(1, min(24, (int) $request->query('months', 6)));
+        $startMonth = now()->startOfMonth()->subMonths($months - 1)->format('Y-m');
+
+        $monthly = InventoryMonthlyAudit::select(
+                'audit_month',
+                DB::raw('COUNT(*) as total_items'),
+                DB::raw("SUM(CASE WHEN status = 'matched' THEN 1 ELSE 0 END) as matched_items"),
+                DB::raw("SUM(CASE WHEN status = 'discrepancy' THEN 1 ELSE 0 END) as discrepancy_items"),
+                DB::raw('SUM(variance) as total_variance')
+            )
+            ->where('audit_month', '>=', $startMonth)
+            ->groupBy('audit_month')
+            ->orderBy('audit_month')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'months' => $months,
+            'trends' => $monthly,
+            'data' => $monthly,
+        ]);
+    }
+
+    public function discrepancyReasons()
+    {
+        $reasons = InventoryMonthlyAudit::select('reason', DB::raw('COUNT(*) as count'))
+            ->where('status', 'discrepancy')
+            ->whereNotNull('reason')
+            ->where('reason', '!=', '')
+            ->groupBy('reason')
+            ->orderByDesc('count')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'reasons' => $reasons,
+            'data' => $reasons,
+        ]);
+    }
+
     public function adjustStock(Request $request, $id)
     {
         $validated = $request->validate([
@@ -246,6 +435,26 @@ class DashboardController extends Controller
             'user_name' => $log->performed_by ?? $log->user?->name,
             'role' => $log->role,
             'created_at' => $log->created_at,
+        ];
+    }
+
+    private function formatAudit(InventoryMonthlyAudit $audit): array
+    {
+        return [
+            'id' => $audit->id,
+            'inventory_item_id' => $audit->inventory_item_id,
+            'name' => $audit->item?->name,
+            'sku' => $audit->item?->sku,
+            'category' => $audit->item?->category,
+            'system_stock' => (int) $audit->system_stock,
+            'actual_stock' => (int) $audit->actual_stock,
+            'variance' => (int) $audit->variance,
+            'status' => $audit->status,
+            'reason' => $audit->reason,
+            'checked_by' => $audit->checked_by,
+            'audit_month' => $audit->audit_month,
+            'created_at' => $audit->created_at,
+            'updated_at' => $audit->updated_at,
         ];
     }
 

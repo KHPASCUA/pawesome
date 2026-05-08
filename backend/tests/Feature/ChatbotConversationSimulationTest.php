@@ -40,32 +40,27 @@ class ChatbotConversationSimulationTest extends TestCase
         $this->admin = User::factory()->create([
             'role' => 'admin',
             'name' => 'Admin User',
-            'api_token' => 'test-admin-token',
         ]);
         
         $this->cashier = User::factory()->create([
             'role' => 'cashier',
             'name' => 'Cashier User',
-            'api_token' => 'test-cashier-token',
         ]);
         
         $this->receptionist = User::factory()->create([
             'role' => 'receptionist',
             'name' => 'Receptionist User',
-            'api_token' => 'test-receptionist-token',
         ]);
         
         $this->veterinary = User::factory()->create([
             'role' => 'veterinary',
             'name' => 'Veterinary User',
-            'api_token' => 'test-veterinary-token',
         ]);
         
         $this->customerUser = User::factory()->create([
             'role' => 'customer',
             'name' => 'John Customer',
             'email' => 'john@example.com',
-            'api_token' => 'test-customer-token',
         ]);
         
         $this->customer = Customer::factory()->create([
@@ -80,7 +75,7 @@ class ChatbotConversationSimulationTest extends TestCase
 
     protected function withAuth(User $user): array
     {
-        return ['Authorization' => 'Bearer ' . $user->api_token];
+        return ['Authorization' => 'Bearer ' . $user->createToken('test-token')->plainTextToken];
     }
 
     protected function seedTestData(): void
@@ -380,7 +375,7 @@ class ChatbotConversationSimulationTest extends TestCase
         $logs = $this->getJson('/api/admin/chatbot/logs', $this->withAuth($this->admin));
         $logs->assertStatus(200);
         
-        $logData = $logs->json();
+        $logData = $logs->json('data');
         $this->assertNotEmpty($logData);
         
         // Find customer in logs
@@ -398,7 +393,7 @@ class ChatbotConversationSimulationTest extends TestCase
         );
         
         $history->assertStatus(200);
-        $this->assertNotEmpty($history->json());
+        $this->assertNotEmpty($history->json('data'));
     }
 
     // ============================================

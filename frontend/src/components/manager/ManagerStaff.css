@@ -1116,86 +1116,86 @@
 }
 
 /* Dark mode support */
-.manager-staff.dark {
+[data-theme="dark"] .manager-staff {
   background: #0f172a;
   color: #f8fafc;
 }
 
-.manager-staff.dark .staff-header h1 {
+[data-theme="dark"] .manager-staff .staff-header h1 {
   color: #f8fafc;
 }
 
-.manager-staff.dark .staff-header p {
+[data-theme="dark"] .manager-staff .staff-header p {
   color: #94a3b8;
 }
 
-.manager-staff.dark .stat-card {
+[data-theme="dark"] .manager-staff .stat-card {
   background: #1e293b;
   border-color: #334155;
 }
 
-.manager-staff.dark .stat-info h3 {
+[data-theme="dark"] .manager-staff .stat-info h3 {
   color: #f8fafc;
 }
 
-.manager-staff.dark .stat-info p {
+[data-theme="dark"] .manager-staff .stat-info p {
   color: #94a3b8;
 }
 
-.manager-staff.dark .search-filters {
+[data-theme="dark"] .manager-staff .search-filters {
   background: #1e293b;
   border-color: #334155;
 }
 
-.manager-staff.dark .search-input input {
+[data-theme="dark"] .manager-staff .search-input input {
   background: #0f172a;
   border-color: #334155;
   color: #f8fafc;
 }
 
-.manager-staff.dark .filter-toggle {
+[data-theme="dark"] .manager-staff .filter-toggle {
   background: #1e293b;
   border-color: #334155;
   color: #94a3b8;
 }
 
-.manager-staff.dark .staff-table-container {
+[data-theme="dark"] .manager-staff .staff-table-container {
   background: #1e293b;
   border-color: #334155;
 }
 
-.manager-staff.dark .staff-table thead {
+[data-theme="dark"] .manager-staff .staff-table thead {
   background: #0f172a;
   border-color: #334155;
 }
 
-.manager-staff.dark .staff-table th {
+[data-theme="dark"] .manager-staff .staff-table th {
   color: #f8fafc;
 }
 
-.manager-staff.dark .staff-table tbody tr:hover {
+[data-theme="dark"] .manager-staff .staff-table tbody tr:hover {
   background: #0f172a;
 }
 
-.manager-staff.dark .staff-name {
+[data-theme="dark"] .manager-staff .staff-name {
   color: #f8fafc;
 }
 
-.manager-staff.dark .staff-email {
+[data-theme="dark"] .manager-staff .staff-email {
   color: #94a3b8;
 }
 
-.manager-staff.dark .pagination {
+[data-theme="dark"] .manager-staff .pagination {
   background: #1e293b;
   border-color: #334155;
 }
 
-.manager-staff.dark .modal {
+[data-theme="dark"] .manager-staff .modal {
   background: #1e293b;
   color: #f8fafc;
 }
 
-.manager-staff.dark .modal-header {
+[data-theme="dark"] .manager-staff .modal-header {
   border-color: #334155;
 }
 

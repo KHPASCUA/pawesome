@@ -16,7 +16,6 @@ import {
 /* ─── Constants ────────────────────────────────────────────────── */
 const PRODUCT_ENDPOINT  = "/inventory/sellable";
 const CHECKOUT_ENDPOINT = "/cashier/pos/transaction";
-const VOUCHER_ENDPOINT  = "/cashier/validate-voucher";
 const TAX_RATE = 0.12;
 
 const PAYMENT_METHODS = [
@@ -1196,7 +1195,6 @@ const CashierPOS = () => {
   const [customerName, setCustomerName]   = useState("");
   const [voucher, setVoucher]             = useState("");
   const [validatedVoucher, setValidatedVoucher] = useState(null);
-  const [voucherLoading, setVoucherLoading] = useState(false);
   const [voucherMessage, setVoucherMessage] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("Cash");
   const [amountReceived, setAmountReceived] = useState("");
@@ -1561,27 +1559,8 @@ const CashierPOS = () => {
   const handleValidateVoucher = async () => {
     const code = voucher.trim();
     if (!code) { setVoucherMessage("Please enter a voucher code."); return; }
-    try {
-      setVoucherLoading(true);
-      setVoucherMessage("");
-      const res = await apiRequest(VOUCHER_ENDPOINT, {
-        method: "POST",
-        body: JSON.stringify({ code, subtotal, items: cart.map(i => ({ product_id: i.id, quantity: i.quantity, price: i.price })) }),
-      });
-      if (!res?.valid) {
-        setValidatedVoucher(null);
-        setVoucherMessage(res?.message || "Invalid or expired voucher.");
-        return;
-      }
-      setValidatedVoucher({ code: res.code || code, type: res.type || "percentage", value: Number(res.value) || 0 });
-      setVoucherMessage(res.message || "Voucher applied successfully!");
-      addToast("Voucher applied!", "success");
-    } catch (err) {
-      setValidatedVoucher(null);
-      setVoucherMessage(err.message || "Unable to validate voucher.");
-    } finally {
-      setVoucherLoading(false);
-    }
+    setValidatedVoucher(null);
+    setVoucherMessage("Voucher validation is not available yet.");
   };
 
   /* Hold order */
@@ -1979,9 +1958,10 @@ const CashierPOS = () => {
                 />
                 <VoucherBtn
                   onClick={handleValidateVoucher}
-                  disabled={voucherLoading || cart.length === 0}
+                  disabled={true}
+                  title="Voucher validation is not available yet."
                 >
-                  {voucherLoading ? "…" : "Apply"}
+                  Apply
                 </VoucherBtn>
               </VoucherRow>
               {voucherMessage && (

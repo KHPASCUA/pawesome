@@ -20,21 +20,6 @@ import {
   FaClipboardList,
 } from "react-icons/fa";
 
-const defaultVetServices = [
-  { id: "fallback-1", name: "General Consultation", category: "Consultation", price: 500 },
-  { id: "fallback-2", name: "Wellness Checkup", category: "Consultation", price: 700 },
-  { id: "fallback-3", name: "Vaccination", category: "Vaccination", price: 800 },
-  { id: "fallback-4", name: "Anti-Rabies Vaccination", category: "Vaccination", price: 600 },
-  { id: "fallback-5", name: "Deworming", category: "Treatment", price: 400 },
-  { id: "fallback-6", name: "Emergency Care", category: "Emergency", price: 1500 },
-  { id: "fallback-7", name: "Wound Treatment", category: "Treatment", price: 900 },
-  { id: "fallback-8", name: "Minor Surgery", category: "Surgery", price: 3500 },
-  { id: "fallback-9", name: "Dental Cleaning", category: "Dental", price: 1200 },
-  { id: "fallback-10", name: "Laboratory Test", category: "Diagnostics", price: 1000 },
-  { id: "fallback-11", name: "Boarding Health Check", category: "Boarding Care", price: 500 },
-  { id: "fallback-12", name: "Medication Administration", category: "Medication", price: 300 },
-];
-
 const groomingServices = [
   {
     name: "Basic Bath",
@@ -222,7 +207,7 @@ const CustomerBookings = () => {
 
   const serviceOptions = useMemo(() => {
     if (selectedBooking === "Hotel") return hotelServices;
-    if (selectedBooking === "Vet") return vetServices.length > 0 ? vetServices : defaultVetServices;
+    if (selectedBooking === "Vet") return vetServices;
     if (selectedBooking === "Groom") return groomingServices;
     return [];
   }, [selectedBooking, vetServices]);
@@ -263,10 +248,9 @@ const CustomerBookings = () => {
       const data = await apiRequest("/services");
       const services = safeArray(data);
 
-      setVetServices(services.length > 0 ? services : defaultVetServices);
+      setVetServices(services);
     } catch (error) {
-      console.error("Failed to load vet services:", error);
-      setVetServices(defaultVetServices);
+      setVetServices([]);
     } finally {
       setServicesLoading(false);
     }

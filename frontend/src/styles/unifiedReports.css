@@ -108,7 +108,7 @@ button,
 .quick-filter-btn.active,
 .nav-tab.active {
   background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light)) !important;
-  color: #fff !important;
+  color: var(--color-text) !important;
   border: none !important;
 }
 

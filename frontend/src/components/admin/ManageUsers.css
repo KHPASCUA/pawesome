@@ -2,33 +2,11 @@
 /* Professional Admin Manage Users UI - Pink Theme */
 
 .manage-users {
-  --mu-primary: #ff5f93;
-  --mu-primary-light: #ff8db5;
-  --mu-primary-soft: #ffc8dd;
-  --mu-bg-gradient: linear-gradient(135deg, #ffc8dd, #ffd6e8, #fff1f7);
-  --mu-surface: rgba(255, 255, 255, 0.88);
-  --mu-surface-solid: rgba(255, 255, 255, 0.96);
-  --mu-border: rgba(255, 95, 147, 0.18);
-  --mu-heading: #191919;
-  --mu-text: #1f2937;
-  --mu-muted: #64748b;
-  --mu-success: #059669;
-  --mu-danger: #dc2626;
-  --mu-warning: #d97706;
-  --mu-info: #2563eb;
-  --mu-shadow-soft: 0 10px 24px rgba(15, 23, 42, 0.08);
-  --mu-shadow-card: 0 18px 45px rgba(255, 95, 147, 0.14);
-  --mu-shadow-primary: 0 14px 28px rgba(255, 95, 147, 0.24);
-  --mu-radius-md: 16px;
-  --mu-radius-lg: 22px;
-  --mu-radius-card: 28px;
-  --mu-radius-pill: 999px;
-
   display: grid;
   gap: 1.35rem;
   width: 100%;
   padding: 1rem;
-  color: var(--mu-text);
+  color: var(--color-text);
 }
 
 .manage-users,
@@ -85,12 +63,12 @@
   gap: 1.25rem;
   overflow: hidden;
   padding: 2rem;
-  border: 1px solid var(--mu-border);
-  border-radius: var(--mu-radius-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
   background:
     radial-gradient(circle at top left, rgba(255, 95, 147, 0.18), transparent 34%),
-    var(--mu-bg-gradient);
-  box-shadow: var(--mu-shadow-card);
+    var(--color-bg-gradient);
+  box-shadow: var(--shadow-card);
 }
 
 .manage-users-header::after {
@@ -116,7 +94,7 @@
   align-items: center;
   gap: 0.45rem;
   margin-bottom: 0.55rem;
-  color: var(--mu-primary);
+  color: var(--color-primary);
   font-size: 0.78rem;
   font-weight: 950;
   text-transform: uppercase;
@@ -125,7 +103,7 @@
 
 .manage-users-header h1 {
   margin: 0;
-  color: var(--mu-heading);
+  color: var(--color-heading);
   font-size: clamp(1.7rem, 3vw, 2.35rem);
   font-weight: 950;
   letter-spacing: -0.055em;
@@ -134,7 +112,7 @@
 .manage-users-header p {
   max-width: 760px;
   margin: 0.45rem 0 0;
-  color: var(--mu-muted);
+  color: var(--color-muted);
   font-size: 0.96rem;
   font-weight: 750;
   line-height: 1.55;
@@ -157,7 +135,7 @@
   min-height: 44px;
   border: none;
   padding: 0 1rem;
-  border-radius: var(--mu-radius-pill);
+  border-radius: var(--radius-pill);
   font-size: 0.88rem;
   font-weight: 950;
   text-decoration: none;
@@ -173,17 +151,17 @@
 .add-user-btn,
 .confirm-btn.primary {
   color: #ffffff;
-  background: linear-gradient(135deg, var(--mu-primary), var(--mu-primary-light));
-  box-shadow: var(--mu-shadow-primary);
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+  box-shadow: var(--shadow-primary);
 }
 
 .mu-secondary-btn,
 .mu-clear-btn,
 .cancel-btn {
-  color: var(--mu-primary);
-  background: var(--mu-surface-solid);
-  border: 1px solid var(--mu-border);
-  box-shadow: var(--mu-shadow-soft);
+  color: var(--color-primary);
+  background: var(--color-surface-solid);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-soft);
 }
 
 .confirm-btn.danger {
@@ -224,10 +202,10 @@
   align-items: center;
   gap: 0.9rem;
   padding: 1.15rem;
-  border: 1px solid var(--mu-border);
+  border: 1px solid var(--color-border);
   border-radius: 24px;
-  background: var(--mu-surface);
-  box-shadow: var(--mu-shadow-card);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
   backdrop-filter: blur(16px);
 }
 
@@ -239,8 +217,8 @@
   place-items: center;
   border-radius: 18px;
   color: #ffffff;
-  background: linear-gradient(135deg, var(--mu-primary), var(--mu-primary-light));
-  box-shadow: var(--mu-shadow-primary);
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+  box-shadow: var(--shadow-primary);
 }
 
 .mu-stat-card.success > span {
@@ -253,7 +231,7 @@
 
 .mu-stat-card strong {
   display: block;
-  color: var(--mu-primary);
+  color: var(--color-primary);
   font-size: 1.6rem;
   font-weight: 950;
   line-height: 1;
@@ -261,7 +239,7 @@
 
 .mu-stat-card p {
   margin: 0.25rem 0 0;
-  color: var(--mu-muted);
+  color: var(--color-muted);
   font-size: 0.86rem;
   font-weight: 800;
 }
@@ -281,10 +259,10 @@
   min-width: 0;
   display: flex;
   align-items: center;
-  background: var(--mu-surface);
+  background: var(--color-surface);
   border-radius: 22px;
-  border: 1px solid var(--mu-border);
-  box-shadow: var(--mu-shadow-card);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-card);
   overflow: hidden;
 }
 
@@ -292,7 +270,7 @@
 .filter-box > svg {
   position: absolute;
   left: 16px;
-  color: var(--mu-primary);
+  color: var(--color-primary);
   pointer-events: none;
 }
 
@@ -306,7 +284,7 @@
   padding: 0 1rem 0 3rem;
   font-size: 0.93rem;
   font-weight: 750;
-  color: var(--mu-text);
+  color: var(--color-text);
 }
 
 .filter-box select {
@@ -323,7 +301,7 @@
   border: none;
   border-radius: 999px;
   background: rgba(255, 95, 147, 0.1);
-  color: var(--mu-primary);
+  color: var(--color-primary);
   cursor: pointer;
   transform: translateY(-50%);
 }
@@ -340,10 +318,10 @@
 
 .users-table-container {
   overflow: hidden;
-  border: 1px solid var(--mu-border);
-  border-radius: var(--mu-radius-card);
-  background: var(--mu-surface);
-  box-shadow: var(--mu-shadow-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
   backdrop-filter: blur(16px);
 }
 
@@ -353,12 +331,12 @@
   align-items: center;
   gap: 1rem;
   padding: 1.25rem 1.35rem;
-  border-bottom: 1px solid var(--mu-border);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .mu-table-header h2 {
   margin: 0;
-  color: var(--mu-heading);
+  color: var(--color-heading);
   font-size: 1.2rem;
   font-weight: 950;
   letter-spacing: -0.04em;
@@ -366,13 +344,13 @@
 
 .mu-table-header p {
   margin: 0.3rem 0 0;
-  color: var(--mu-muted);
+  color: var(--color-muted);
   font-size: 0.88rem;
   font-weight: 750;
 }
 
 .mu-table-header strong {
-  color: var(--mu-primary);
+  color: var(--color-primary);
 }
 
 .mu-table-scroll {
@@ -393,7 +371,7 @@
 .users-table thead th {
   padding: 0.7rem 0.75rem;
   text-align: left;
-  color: var(--mu-muted);
+  color: var(--color-muted);
   font-size: 0.74rem;
   font-weight: 950;
   text-transform: uppercase;
@@ -422,7 +400,7 @@
 .users-table td {
   padding: 0.95rem 0.75rem;
   vertical-align: middle;
-  color: var(--mu-text);
+  color: var(--color-text);
   font-size: 0.9rem;
   font-weight: 750;
   background: rgba(255, 255, 255, 0.66);
@@ -441,7 +419,7 @@
 }
 
 .user-id {
-  color: var(--mu-primary);
+  color: var(--color-primary);
   font-weight: 950;
 }
 
@@ -459,20 +437,20 @@
   display: grid;
   place-items: center;
   border-radius: 15px;
-  background: linear-gradient(135deg, var(--mu-primary), var(--mu-primary-light));
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
   color: #ffffff;
   font-weight: 950;
-  box-shadow: var(--mu-shadow-primary);
+  box-shadow: var(--shadow-primary);
 }
 
 .user-profile strong {
   display: block;
-  color: var(--mu-heading);
+  color: var(--color-heading);
   font-weight: 950;
 }
 
 .user-profile small {
-  color: var(--mu-muted);
+  color: var(--color-muted);
   font-size: 0.78rem;
   font-weight: 800;
   text-transform: capitalize;
@@ -483,11 +461,11 @@
   align-items: center;
   gap: 0.45rem;
   min-width: 0;
-  color: var(--mu-text);
+  color: var(--color-text);
 }
 
 .user-email svg {
-  color: var(--mu-primary);
+  color: var(--color-primary);
 }
 
 .user-email span {
@@ -498,7 +476,7 @@
 
 .user-username,
 .user-date {
-  color: var(--mu-muted);
+  color: var(--color-muted);
 }
 
 .role-badge {
@@ -506,9 +484,9 @@
   align-items: center;
   min-height: 32px;
   padding: 0 0.75rem;
-  border-radius: var(--mu-radius-pill);
+  border-radius: var(--radius-pill);
   background: rgba(255, 95, 147, 0.1);
-  color: var(--mu-primary);
+  color: var(--color-primary);
   border: 1px solid rgba(255, 95, 147, 0.14);
   font-size: 0.78rem;
   font-weight: 950;
@@ -532,7 +510,7 @@
 
 .status-toggle {
   min-height: 34px;
-  border-radius: var(--mu-radius-pill);
+  border-radius: var(--radius-pill);
   padding: 0 0.8rem;
   border: 1px solid transparent;
   cursor: pointer;
@@ -577,14 +555,14 @@
   width: 36px;
   height: 36px;
   min-width: 36px;
-  border: 1px solid var(--mu-border);
+  border: 1px solid var(--color-border);
   border-radius: 14px;
   cursor: pointer;
   transition: 0.22s ease;
   display: grid;
   place-items: center;
-  background: var(--mu-surface-solid);
-  color: var(--mu-primary);
+  background: var(--color-surface-solid);
+  color: var(--color-primary);
 }
 
 .action-btn:hover {
@@ -599,13 +577,13 @@
 
 .edit-btn:hover {
   background: rgba(255, 95, 147, 0.1);
-  color: var(--mu-primary);
-  border-color: var(--mu-primary);
+  color: var(--color-primary);
+  border-color: var(--color-primary);
 }
 
 .delete-btn:hover {
   background: rgba(239, 68, 68, 0.12);
-  color: var(--mu-danger);
+  color: var(--color-danger);
   border-color: rgba(239, 68, 68, 0.3);
 }
 
@@ -619,27 +597,27 @@
   align-content: center;
   gap: 0.75rem;
   padding: 3rem;
-  color: var(--mu-muted);
+  color: var(--color-muted);
   text-align: center;
 }
 
 .loading-container svg,
 .empty-state svg {
-  color: var(--mu-primary);
+  color: var(--color-primary);
   font-size: 2.8rem;
 }
 
 .loading-container h3,
 .empty-state h3 {
   margin: 0;
-  color: var(--mu-heading);
+  color: var(--color-heading);
   font-weight: 950;
 }
 
 .loading-container p,
 .empty-state p {
   margin: 0;
-  color: var(--mu-muted);
+  color: var(--color-muted);
   font-weight: 750;
 }
 
@@ -661,9 +639,9 @@
   width: min(680px, 100%);
   max-height: 92vh;
   overflow-y: auto;
-  border: 1px solid var(--mu-border);
-  border-radius: var(--mu-radius-card);
-  background: var(--mu-surface-solid);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-surface-solid);
   box-shadow: 0 30px 90px rgba(15, 23, 42, 0.26);
 }
 
@@ -672,12 +650,12 @@
   justify-content: space-between;
   gap: 1rem;
   padding: 1.35rem;
-  border-bottom: 1px solid var(--mu-border);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .mu-modal-header h3 {
   margin: 0;
-  color: var(--mu-heading);
+  color: var(--color-heading);
   font-size: 1.45rem;
   font-weight: 950;
 }
@@ -686,16 +664,16 @@
   width: 42px;
   height: 42px;
   min-width: 42px;
-  border: 1px solid var(--mu-border);
+  border: 1px solid var(--color-border);
   border-radius: 14px;
-  background: var(--mu-surface);
-  color: var(--mu-heading);
+  background: var(--color-surface);
+  color: var(--color-heading);
   cursor: pointer;
   transition: 0.2s ease;
 }
 
 .close-btn:hover {
-  background: var(--mu-primary);
+  background: var(--color-primary);
   color: #ffffff;
 }
 
@@ -720,7 +698,7 @@
 }
 
 .form-group label {
-  color: var(--mu-heading);
+  color: var(--color-heading);
   font-size: 0.86rem;
   font-weight: 900;
 }
@@ -730,10 +708,10 @@
   width: 100%;
   min-height: 46px;
   padding: 0.75rem 0.9rem;
-  border: 1px solid var(--mu-border);
+  border: 1px solid var(--color-border);
   border-radius: 16px;
-  background: var(--mu-surface-solid);
-  color: var(--mu-text);
+  background: var(--color-surface-solid);
+  color: var(--color-text);
   outline: none;
   font-family: inherit;
   font-weight: 750;
@@ -749,7 +727,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.65rem;
-  color: var(--mu-heading);
+  color: var(--color-heading);
   font-weight: 900;
   cursor: pointer;
 }
@@ -757,7 +735,7 @@
 .checkbox-label input {
   width: 18px;
   height: 18px;
-  accent-color: var(--mu-primary);
+  accent-color: var(--color-primary);
 }
 
 .mu-user-detail {
@@ -783,22 +761,22 @@
   place-items: center;
   border-radius: 24px;
   color: #ffffff;
-  background: linear-gradient(135deg, var(--mu-primary), var(--mu-primary-light));
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
   font-size: 1.35rem;
   font-weight: 950;
-  box-shadow: var(--mu-shadow-primary);
+  box-shadow: var(--shadow-primary);
 }
 
 .mu-user-detail-top h4 {
   margin: 0;
-  color: var(--mu-heading);
+  color: var(--color-heading);
   font-size: 1.25rem;
   font-weight: 950;
 }
 
 .mu-user-detail-top p {
   margin: 0.3rem 0 0;
-  color: var(--mu-muted);
+  color: var(--color-muted);
   font-weight: 750;
 }
 
@@ -811,7 +789,7 @@
 .mu-detail-grid div {
   min-width: 0;
   padding: 0.95rem;
-  border-radius: var(--mu-radius-md);
+  border-radius: var(--radius-md);
   background: rgba(255, 241, 247, 0.58);
   border: 1px solid rgba(255, 95, 147, 0.08);
 }
@@ -819,7 +797,7 @@
 .mu-detail-grid small {
   display: block;
   margin-bottom: 0.35rem;
-  color: var(--mu-muted);
+  color: var(--color-muted);
   font-size: 0.76rem;
   font-weight: 950;
   text-transform: uppercase;
@@ -827,7 +805,7 @@
 }
 
 .mu-detail-grid strong {
-  color: var(--mu-heading);
+  color: var(--color-heading);
   font-weight: 900;
   word-break: break-word;
 }
@@ -841,25 +819,25 @@
 }
 
 .delete-confirmation svg {
-  color: var(--mu-danger);
+  color: var(--color-danger);
   font-size: 3rem;
 }
 
 .delete-confirmation h4 {
   margin: 0;
-  color: var(--mu-heading);
+  color: var(--color-heading);
   font-size: 1.25rem;
   font-weight: 950;
 }
 
 .delete-confirmation p {
   margin: 0;
-  color: var(--mu-text);
+  color: var(--color-text);
   font-weight: 750;
 }
 
 .warning-text {
-  color: var(--mu-danger) !important;
+  color: var(--color-danger) !important;
   font-size: 0.9rem;
   font-weight: 900 !important;
 }
@@ -869,7 +847,7 @@
   justify-content: flex-end;
   gap: 0.75rem;
   padding: 1rem 1.35rem;
-  border-top: 1px solid var(--mu-border);
+  border-top: 1px solid var(--color-border);
 }
 
 .mu-modal-actions button:disabled {

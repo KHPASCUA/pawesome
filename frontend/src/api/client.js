@@ -1,4 +1,4 @@
-export const API_URL = "http://localhost:8000";
+export const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8000/api";
 
 export const USE_MOCK_DATA = false;
 
@@ -16,17 +16,13 @@ export const clearAuthStorage = () => {
 };
 
 const normalizeEndpoint = (endpoint) => {
-  console.log("API_URL:", API_URL);
-  console.log("Endpoint:", endpoint);
-  
   if (!endpoint) return API_URL;
 
   if (endpoint.startsWith("http")) {
     return endpoint;
   }
 
-  const fullUrl = `${API_URL}/api${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`;
-  console.log("Full URL:", fullUrl);
+  const fullUrl = `${API_URL}${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`;
   
   return fullUrl;
 };
@@ -87,23 +83,11 @@ export const apiRequest = async (endpoint, methodOrOptions = "GET", data = null,
   delete config.params;
 
   try {
-    // Debug Authorization header for all requests
-    console.log("API REQUEST DEBUG:", {
-      url: url,
-      method: config.method,
-      hasAuthHeader: !!config.headers.Authorization,
-      authHeader: config.headers.Authorization ? "Bearer [token]" : "missing",
-      tokenFromStorage: localStorage.getItem("token") ? "exists" : "missing"
-    });
-
     const response = await fetch(url, config);
     const text = await response.text();
     const result = parseResponseText(text);
 
-    console.log("Response status:", response.status);
-    console.log("Response ok:", response.ok);
-    console.log("Response text:", text);
-
+    
     if (response.status === 401) {
       throw new Error("Your session expired or you are not logged in. Please log in again.");
     }

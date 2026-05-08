@@ -5,7 +5,7 @@ import InventoryDashboard from "../components/inventory/InventoryDashboard";
 import InventoryProducts from "../components/inventory/InventoryProducts";
 import InventoryStock from "../components/inventory/InventoryStock_Polished";
 import InventoryReports from "../components/inventory/InventoryReports";
-import InventoryHistory from "../components/inventory/InventoryHistory_Polished";
+import InventoryHistory from "../components/inventory/InventoryHistory_Fixed";
 import ProfileSettings from "../components/shared/ProfileSettings";
 import InventoryManagement from "../components/inventory/InventoryManagement";
 import MonthlyInventoryAudit from "../components/inventory/MonthlyInventoryAudit";

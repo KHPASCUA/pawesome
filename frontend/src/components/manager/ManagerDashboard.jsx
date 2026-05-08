@@ -35,6 +35,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { apiRequest, uploadProfilePhoto } from "../../api/client";
 import { formatCurrency } from "../../utils/currency";
+import { useTheme } from "../../utils/theme";
 import ManagerSidebar from "./ManagerSidebar";
 import RoleAwareChatbot from "../chatbot/RoleAwareChatbot";
 import NotificationDropdown from "../shared/NotificationDropdown";
@@ -44,9 +45,8 @@ import "./ManagerDashboard.css";
 const ManagerDashboard = () => {
   const name = localStorage.getItem("name") || "Manager";
   const profilePhoto = localStorage.getItem("profile_photo") || "";
-  const [theme, setTheme] = useState(
-    localStorage.getItem("theme") || "light"
-  );
+
+  const { theme, toggle } = useTheme();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [refreshing, setRefreshing] = useState(false);
@@ -70,11 +70,6 @@ const ManagerDashboard = () => {
     pendingTasks: 0,
   });
   const location = useLocation();
-
-  useEffect(() => {
-    document.documentElement.setAttribute("data-theme", theme);
-    localStorage.setItem("theme", theme);
-  }, [theme]);
 
   const handleProfilePhotoUpload = async (file) => {
     try {
@@ -277,20 +272,17 @@ const ManagerDashboard = () => {
 
     const fetchHotelStats = async () => {
       try {
-        const data = await apiRequest("/receptionist/requests");
-
-        const hotelRequests = data.requests.filter(item => item.type === "hotel");
-        const totalRooms = 50; // Fixed total rooms
-        const occupiedRooms = hotelRequests.filter(r => r.status === "checked_in").length;
-        const occupancyRate = Math.round((occupiedRooms / totalRooms) * 100);
+        const data = await apiRequest("/manager/dashboard");
+        const executiveMetrics = data?.executive_metrics || {};
+        const occupancyRate = Math.round(Number(executiveMetrics.occupancy_rate) || 0);
 
         setHotelStats({
-          totalRooms,
-          occupiedRooms,
+          totalRooms: Number(data?.hotel_stats?.total_rooms) || 0,
+          occupiedRooms: Number(data?.hotel_stats?.occupied_rooms) || 0,
           occupancyRate,
-          todayCheckIns: hotelRequests.filter(r => r.status === "approved").length,
-          todayCheckOuts: hotelRequests.filter(r => r.status === "checked_out").length,
-          revenue: 0, // Would need separate revenue endpoint
+          todayCheckIns: Number(data?.hotel_stats?.today_check_ins) || 0,
+          todayCheckOuts: Number(data?.hotel_stats?.today_check_outs) || 0,
+          revenue: Number(data?.hotel_stats?.revenue) || 0,
         });
       } catch (error) {
         console.error("Failed to fetch hotel stats:", error);
@@ -358,7 +350,7 @@ const ManagerDashboard = () => {
             <button
               className="theme-toggle-btn"
               type="button"
-              onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+              onClick={toggle}
               title="Toggle theme"
             >
               <FontAwesomeIcon icon={theme === "light" ? faMoon : faSun} />

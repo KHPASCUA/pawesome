@@ -31,7 +31,7 @@ class HotelRoom extends Model
     /**
      * Valid room statuses
      */
-    public const VALID_STATUSES = ['available', 'occupied', 'maintenance', 'cleaning', 'reserved'];
+    public const VALID_STATUSES = ['available', 'occupied', 'maintenance', 'cleaning', 'reserved', 'inactive'];
 
     /**
      * Valid room sizes
@@ -82,10 +82,15 @@ class HotelRoom extends Model
         return $this->hasMany(Boarding::class);
     }
 
+    public function medicalConfinements(): HasMany
+    {
+        return $this->hasMany(MedicalConfinement::class, 'room_id');
+    }
+
     public function currentBoarding()
     {
         return $this->boardings()
-            ->whereIn('status', ['checked_in', 'confirmed'])
+            ->whereIn('status', ['approved', 'scheduled', 'confirmed', 'checked_in', 'in_care'])
             ->where('check_out', '>=', now())
             ->first();
     }

@@ -123,10 +123,7 @@ const VetEditAppointment = () => {
       }
 
       if (servicesList.length === 0) {
-        servicesList = defaultVetServices;
-        setServiceWarning(
-          "Live services API returned empty or failed. Showing fallback veterinary services."
-        );
+        setServiceWarning("No live veterinary services found. Add services before editing appointments.");
       }
 
       try {
@@ -602,20 +599,5 @@ const VetEditAppointment = () => {
     </div>
   );
 };
-
-const defaultVetServices = [
-  { id: "fallback-1", name: "General Consultation", category: "Consultation", price: 500, duration_minutes: 30 },
-  { id: "fallback-2", name: "Wellness Checkup", category: "Consultation", price: 700, duration_minutes: 45 },
-  { id: "fallback-3", name: "Vaccination", category: "Vaccination", price: 800, duration_minutes: 20 },
-  { id: "fallback-4", name: "Anti-Rabies Vaccination", category: "Vaccination", price: 600, duration_minutes: 20 },
-  { id: "fallback-5", name: "Deworming", category: "Treatment", price: 400, duration_minutes: 20 },
-  { id: "fallback-6", name: "Emergency Care", category: "Emergency", price: 1500, duration_minutes: 60 },
-  { id: "fallback-7", name: "Wound Treatment", category: "Treatment", price: 900, duration_minutes: 45 },
-  { id: "fallback-8", name: "Minor Surgery", category: "Surgery", price: 3500, duration_minutes: 90 },
-  { id: "fallback-9", name: "Dental Cleaning", category: "Dental", price: 1200, duration_minutes: 60 },
-  { id: "fallback-10", name: "Laboratory Test", category: "Diagnostics", price: 1000, duration_minutes: 45 },
-  { id: "fallback-11", name: "Boarding Health Check", category: "Boarding Care", price: 500, duration_minutes: 30 },
-  { id: "fallback-12", name: "Medication Administration", category: "Medication", price: 300, duration_minutes: 15 },
-];
 
 export default VetEditAppointment;

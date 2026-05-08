@@ -47,6 +47,7 @@ const ManagerReports = () => {
   const [revenue, setRevenue] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [workflowMetrics, setWorkflowMetrics] = useState({});
+  const [stayReports, setStayReports] = useState({ boarding: {}, confinement: {}, rooms: {}, vet: {} });
 
   // Set default date range to current month
   useEffect(() => {
@@ -62,9 +63,13 @@ const ManagerReports = () => {
   const fetchReportData = async () => {
     try {
       setLoading(true);
-      const [staffData, reportResult] = await Promise.all([
+      const [staffData, reportResult, boardingResult, confinementResult, roomResult, vetResult] = await Promise.all([
         apiRequest("/manager/staff").catch(() => []),
         apiRequest("/manager/reports/live"),
+        apiRequest("/manager/reports/boarding").catch(() => ({})),
+        apiRequest("/manager/reports/medical-confinement").catch(() => ({})),
+        apiRequest("/manager/reports/room-occupancy").catch(() => ({})),
+        apiRequest("/manager/reports/veterinary-services").catch(() => ({})),
       ]);
       const reportData = reportResult?.data || reportResult || {};
       const summary = reportData.summary || {};
@@ -77,6 +82,12 @@ const ManagerReports = () => {
       setRevenue(reportData.revenue || reportData.monthly_revenue || []);
       setTransactions(reportData.transactions || reportData.sales || []);
       setWorkflowMetrics(summary);
+      setStayReports({
+        boarding: boardingResult?.summary || {},
+        confinement: confinementResult?.summary || {},
+        rooms: roomResult?.summary || {},
+        vet: vetResult?.summary || {},
+      });
 
       setError("");
     } catch (err) {
@@ -188,6 +199,24 @@ const ManagerReports = () => {
       color: "warning",
       trend: "up",
       change: "+8.3%"
+    },
+    {
+      id: "active-stays",
+      label: "Active Stays",
+      value: (stayReports.boarding.active || 0) + (stayReports.confinement.active || 0),
+      icon: "faHotel",
+      color: "info",
+      trend: "neutral",
+      change: "Live"
+    },
+    {
+      id: "ready-discharge",
+      label: "Ready Discharge",
+      value: stayReports.confinement.ready_for_discharge || 0,
+      icon: "faStethoscope",
+      color: "success",
+      trend: "neutral",
+      change: "Live"
     },
     {
       id: "staff-on-leave",

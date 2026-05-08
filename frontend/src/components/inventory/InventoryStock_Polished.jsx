@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { inventoryApi } from "../../api/inventory";
+import { apiRequest } from "../../api/client";
 import { formatCurrency } from "../../utils/currency";
 import { exportToCSV } from "../../utils/reportExport";
-import { demoItems } from "./inventoryData";
 import StockAdjustmentModal from "./StockAdjustmentModal";
 import ExpiryAlerts from "./ExpiryAlerts";
 import { useNavigate } from "react-router-dom";
@@ -12,7 +12,7 @@ const InventoryStock = () => {
   const navigate = useNavigate();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [usingDemoData, setUsingDemoData] = useState(false);
+  const [stockError, setStockError] = useState("");
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [selectedItem, setSelectedItem] = useState(null);
@@ -32,12 +32,10 @@ const InventoryStock = () => {
         const response = await inventoryApi.getItems();
         const apiItems = response.items || response.data || [];
         setItems(apiItems);
-        setUsingDemoData(false);
+        setStockError("");
       } catch (err) {
-        console.error("Stock API failed, using demo:", err);
-        // Only use demo data on API failure, not empty response
-        setItems(demoItems);
-        setUsingDemoData(true);
+        setItems([]);
+        setStockError(err.message || "Failed to load live stock records.");
       } finally {
         setLoading(false);
       }
@@ -54,10 +52,9 @@ const InventoryStock = () => {
         const apiItems = response.items || response.data || [];
 
         setItems(apiItems);
-        setUsingDemoData(false);
+        setStockError("");
         setLastUpdated(new Date());
-      } catch (err) {
-        console.log("Auto refresh failed");
+      } catch {
       }
     }, 5000);
 
@@ -253,9 +250,8 @@ const InventoryStock = () => {
       const response = await inventoryApi.getItems();
       const apiItems = response.items || response.data || [];
       setItems(apiItems);
-      setUsingDemoData(false);
     } catch (err) {
-      console.error("Stock refresh failed:", err);
+      setStockError(err.message || "Failed to refresh live stock records.");
     }
     // Close modal and clear selection
     setShowAdjustModal(false);
@@ -265,26 +261,19 @@ const InventoryStock = () => {
   // Notification helper function
   const createInventoryNotification = async (item, type) => {
     try {
-      await fetch(`${process.env.REACT_APP_API_URL}/notifications`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-        body: JSON.stringify({
-          title:
-            type === "out"
-              ? "Out of Stock Alert"
-              : "Low Stock Alert",
-          message:
-            type === "out"
-              ? `${item.name} is out of stock.`
-              : `${item.name} is running low. Current stock: ${getStock(item)}`,
-          module: "Inventory",
-          type,
-          priority: type === "out" ? "high" : "medium",
-          reference_id: item.id,
-        }),
+      await apiRequest("/notifications", "POST", {
+        title:
+          type === "out"
+            ? "Out of Stock Alert"
+            : "Low Stock Alert",
+        message:
+          type === "out"
+            ? `${item.name} is out of stock.`
+            : `${item.name} is running low. Current stock: ${getStock(item)}`,
+        module: "Inventory",
+        type,
+        priority: type === "out" ? "high" : "medium",
+        reference_id: item.id,
       });
     } catch (error) {
       console.error("Failed to create inventory notification:", error);
@@ -327,7 +316,7 @@ const InventoryStock = () => {
         <div className="header-title">
           <h2>Stock Management</h2>
           <p>Monitor inventory levels, track expirations, and adjust stock</p>
-          {usingDemoData && <span className="demo-badge">Demo Mode</span>}
+          {stockError && <span className="demo-badge">No live records</span>}
         </div>
         <div className="header-actions">
           <button className="btn-export" onClick={handleExportCSV}>

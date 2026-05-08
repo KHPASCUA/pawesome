@@ -7,12 +7,13 @@ const VetAppointments = lazy(() => import("../components/veterinary/VetAppointme
 const VetServices = lazy(() => import("../components/veterinary/VetServices_PinkGlass"));
 const VetEditAppointment = lazy(() => import("../components/veterinary/VetEditAppointment_PinkGlass"));
 const VetConsultation = lazy(() => import("../components/veterinary/VetConsultation"));
-const VetHistory = lazy(() => import("../components/veterinary/VetHistory"));
+const VetHistory = lazy(() => import("../components/veterinary/VetHistory_Fixed"));
 const VetCustomerProfiles = lazy(() => import("../components/veterinary/VetCustomerProfiles.jsx"));
 const VetReports = lazy(() => import("../components/veterinary/VetReports"));
 const VetReceipt = lazy(() => import("../components/veterinary/VetReceipt"));
 const ProfileSettings = lazy(() => import("../components/shared/ProfileSettings"));
 const VetCurrentBoarders = lazy(() => import("../components/veterinary/VetCurrentBoarders"));
+const VetMedicalConfinements = lazy(() => import("../components/veterinary/VetMedicalConfinements"));
 
 const RouteLoading = () => (
   <div style={{ padding: "20px", textAlign: "center" }}>Loading...</div>
@@ -42,6 +43,7 @@ const VetRoutes = () => (
         <Route path="reports" element={<VetReports />} />
         <Route path="receipt" element={<VetReceipt />} />
         <Route path="current-boarders" element={<VetCurrentBoarders />} />
+        <Route path="medical-confinements" element={<VetMedicalConfinements />} />
         <Route path="profile" element={<ProfileSettings />} />
       </Route>
     </Routes>

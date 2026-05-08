@@ -1,31 +1,7 @@
-import { API_URL } from "./client";
-
-const API_BASE_URL =
-  API_URL.replace(/\/$/, "");
-
-function getToken() {
-  return localStorage.getItem("token") || localStorage.getItem("authToken");
-}
+import { apiRequest } from "./client";
 
 async function request(endpoint, options = {}) {
-  const token = getToken();
-
-  const res = await fetch(`${API_BASE_URL}${endpoint}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: token ? `Bearer ${token}` : "",
-      ...(options.headers || {}),
-    },
-  });
-
-  const data = await res.json().catch(() => null);
-
-  if (!res.ok) {
-    throw new Error(data?.message || "Request failed");
-  }
-
-  return data;
+  return apiRequest(endpoint, options);
 }
 
 export const groomingApi = {

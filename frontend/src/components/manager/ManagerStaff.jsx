@@ -74,6 +74,7 @@ import {
   faChevronRight,
 } from "@fortawesome/free-solid-svg-icons";
 import { formatCurrency } from "../../utils/currency";
+import { apiRequest } from "../../api/client";
 
 const ManagerStaff = () => {
   // State management
@@ -94,125 +95,15 @@ const ManagerStaff = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  // Mock data for demonstration
-  const mockStaff = [
-    {
-      id: 1,
-      name: "Dr. Sarah Johnson",
-      email: "sarah.johnson@pawesome.com",
-      phone: "+1-555-0123",
-      department: "Veterinary",
-      role: "Senior Veterinarian",
-      status: "active",
-      joinDate: "2020-03-15",
-      avatar: null,
-      specialization: "Small Animals",
-      experience: "8 years",
-      education: "DVM - Cornell University",
-      certifications: ["Licensed Veterinarian", "Surgery Specialist"],
-      languages: ["English", "Spanish"],
-      schedule: "Mon-Fri 9AM-6PM",
-      salary: 85000,
-      performance: 4.8,
-      lastLogin: "2024-04-13 08:30 AM",
-      emergencyContact: "John Johnson - +1-555-0124",
-    },
-    {
-      id: 2,
-      name: "Michael Chen",
-      email: "michael.chen@pawesome.com",
-      phone: "+1-555-0125",
-      department: "Customer Service",
-      role: "Customer Service Manager",
-      status: "active",
-      joinDate: "2019-07-22",
-      avatar: null,
-      specialization: "Customer Relations",
-      experience: "5 years",
-      education: "BA Business Admin",
-      certifications: ["Customer Service Excellence"],
-      languages: ["English", "Mandarin"],
-      schedule: "Mon-Sat 8AM-8PM",
-      salary: 45000,
-      performance: 4.6,
-      lastLogin: "2024-04-13 07:45 AM",
-      emergencyContact: "Lisa Chen - +1-555-0126",
-    },
-    {
-      id: 3,
-      name: "Emily Rodriguez",
-      email: "emily.rodriguez@pawesome.com",
-      phone: "+1-555-0127",
-      department: "Inventory",
-      role: "Inventory Manager",
-      status: "active",
-      joinDate: "2021-01-10",
-      avatar: null,
-      specialization: "Supply Chain",
-      experience: "3 years",
-      education: "BS Supply Chain Management",
-      certifications: ["Inventory Management"],
-      languages: ["English", "Spanish"],
-      schedule: "Mon-Fri 7AM-5PM",
-      salary: 52000,
-      performance: 4.5,
-      lastLogin: "2024-04-13 06:30 AM",
-      emergencyContact: "Carlos Rodriguez - +1-555-0128",
-    },
-    {
-      id: 4,
-      name: "James Wilson",
-      email: "james.wilson@pawesome.com",
-      phone: "+1-555-0129",
-      department: "Cashier",
-      role: "Senior Cashier",
-      status: "on_leave",
-      joinDate: "2022-05-18",
-      avatar: null,
-      specialization: "Payment Processing",
-      experience: "2 years",
-      education: "High School Diploma",
-      certifications: ["Cash Handling Certified"],
-      languages: ["English"],
-      schedule: "Part-time - Weekends",
-      salary: 28000,
-      performance: 4.3,
-      lastLogin: "2024-04-10 02:15 PM",
-      emergencyContact: "Mary Wilson - +1-555-0130",
-    },
-    {
-      id: 5,
-      name: "Dr. Robert Kim",
-      email: "robert.kim@pawesome.com",
-      phone: "+1-555-0131",
-      department: "Veterinary",
-      role: "Veterinary Technician",
-      status: "active",
-      joinDate: "2020-11-30",
-      avatar: null,
-      specialization: "Surgical Assistance",
-      experience: "4 years",
-      education: "Associates - Vet Tech",
-      certifications: ["Certified Vet Tech", "Anesthesia"],
-      languages: ["English", "Korean"],
-      schedule: "Mon-Fri 8AM-6PM",
-      salary: 42000,
-      performance: 4.7,
-      lastLogin: "2024-04-13 08:00 AM",
-      emergencyContact: "Susan Kim - +1-555-0132",
-    },
-  ];
-
   // Load staff data
   useEffect(() => {
     const loadStaff = async () => {
       setLoading(true);
       try {
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        setStaff(mockStaff);
+        const data = await apiRequest("/manager/staff");
+        setStaff(Array.isArray(data) ? data : data.staff || data.data || []);
       } catch (error) {
-        console.error('Failed to load staff:', error);
+        setStaff([]);
       } finally {
         setLoading(false);
       }

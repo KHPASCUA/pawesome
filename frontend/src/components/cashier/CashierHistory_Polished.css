@@ -323,6 +323,40 @@
   color: #16a34a !important;
 }
 
+/* Details Cell Styles */
+.details-cell {
+  white-space: normal !important;
+  max-width: 200px;
+}
+
+.service-details,
+.order-details,
+.pos-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.service-name,
+.order-type,
+.pos-type {
+  font-weight: 700;
+  color: var(--color-heading, #191919);
+  font-size: 0.85rem;
+}
+
+.pet-name {
+  font-size: 0.8rem;
+  color: var(--color-muted, #64748b);
+  font-weight: 500;
+}
+
+.receipt {
+  font-size: 0.75rem;
+  color: var(--color-muted, #64748b);
+  font-weight: 500;
+}
+
 /* Method Badge */
 
 .method-badge {
@@ -508,6 +542,17 @@
 
 .cashier-dashboard.dark .history-table tbody tr:hover {
   background: rgba(255, 141, 181, 0.1);
+}
+
+.cashier-dashboard.dark .service-name,
+.cashier-dashboard.dark .order-type,
+.cashier-dashboard.dark .pos-type {
+  color: #f8fafc;
+}
+
+.cashier-dashboard.dark .pet-name,
+.cashier-dashboard.dark .receipt {
+  color: #cbd5e1;
 }
 
 /* Responsive */

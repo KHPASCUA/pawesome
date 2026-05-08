@@ -76,16 +76,6 @@
   animation-delay: 0.4s;
 }
 
-.customer-dashboard.dark {
-  --color-bg-gradient: linear-gradient(135deg, #24101a, #3d1d2d, #1f2937);
-  --color-surface: rgba(35, 20, 31, 0.82);
-  --color-surface-strong: rgba(35, 20, 31, 0.96);
-  --color-border: rgba(255, 141, 181, 0.22);
-  --color-text: #f8fafc;
-  --color-heading: #ffffff;
-  --color-muted: #cbd5e1;
-  --shadow-card: 0 18px 45px rgba(0, 0, 0, 0.28);
-}
 
 .customer-main {
   flex: 1;

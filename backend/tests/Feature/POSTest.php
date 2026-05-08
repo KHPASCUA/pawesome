@@ -22,7 +22,6 @@ class POSTest extends TestCase
         parent::setUp();
         $this->cashier = User::factory()->create([
             'role' => 'cashier',
-            'api_token' => 'test-cashier-token',
         ]);
         $this->customer = Customer::create([
             'name' => 'Test Customer',
@@ -33,7 +32,7 @@ class POSTest extends TestCase
 
     protected function withCashierAuth(): array
     {
-        return ['Authorization' => 'Bearer ' . $this->cashier->api_token];
+        return ['Authorization' => 'Bearer ' . $this->cashier->createToken('test-token')->plainTextToken];
     }
 
     /**

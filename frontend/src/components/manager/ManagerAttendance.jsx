@@ -121,63 +121,6 @@ const ManagerAttendance = () => {
   // Debounced search term
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
 
-  // Demo data for fallback
-  const getDemoAttendance = useCallback(() => {
-    return [
-      {
-        id: 1,
-        employeeId: "EMP001",
-        name: "John Doe",
-        email: "john@pawesome.com",
-        department: "Reception",
-        role: "Staff",
-        date: selectedDate,
-        checkIn: "08:00 AM",
-        checkOut: "05:00 PM",
-        totalHours: "9:00",
-        status: "present",
-        overtime: "00:00",
-        late: false,
-        earlyLeave: false,
-        dailyEarnings: 150,
-      },
-      {
-        id: 2,
-        employeeId: "EMP002",
-        name: "Jane Smith",
-        email: "jane@pawesome.com",
-        department: "Veterinary",
-        role: "Vet",
-        date: selectedDate,
-        checkIn: "09:10 AM",
-        checkOut: "06:00 PM",
-        totalHours: "8:50",
-        status: "present",
-        overtime: "01:00",
-        late: true,
-        earlyLeave: false,
-        dailyEarnings: 200,
-      },
-      {
-        id: 3,
-        employeeId: "EMP003",
-        name: "Mike Johnson",
-        email: "mike@pawesome.com",
-        department: "Inventory",
-        role: "Staff",
-        date: selectedDate,
-        checkIn: null,
-        checkOut: null,
-        totalHours: "00:00",
-        status: "absent",
-        overtime: "00:00",
-        late: false,
-        earlyLeave: false,
-        dailyEarnings: 0,
-      },
-    ];
-  }, [selectedDate]);
-
   // Load attendance data from API
   useEffect(() => {
     const loadAttendance = async () => {
@@ -201,8 +144,7 @@ const ManagerAttendance = () => {
           const response = await attendanceApi.getAll(params);
           dataList = parseLaravelResponse(response);
         } catch (apiErr) {
-          console.warn("API failed, using demo data:", apiErr);
-          dataList = getDemoAttendance();
+          throw apiErr;
         }
         
         if (dataList.length > 0) {
@@ -239,25 +181,20 @@ const ManagerAttendance = () => {
           const uniqueDepts = [...new Set(transformedData.map(r => r.department))].filter(Boolean);
           setDepartments(uniqueDepts);
         } else {
-          // API returned empty, use demo data
-          console.warn("API returned empty data, using demo attendance");
-          const demoData = getDemoAttendance();
-          setAttendance(demoData);
-          const uniqueDepts = [...new Set(demoData.map(r => r.department))].filter(Boolean);
-          setDepartments(uniqueDepts);
+          setAttendance([]);
+          setDepartments([]);
         }
       } catch (error) {
-        console.error('Failed to load attendance:', error);
         setError(error.message || 'Failed to load attendance data');
-        // Use demo data on error
-        setAttendance(getDemoAttendance());
+        setAttendance([]);
+        setDepartments([]);
       } finally {
         setLoading(false);
       }
     };
 
     loadAttendance();
-  }, [selectedDate, selectedDepartment, selectedStatus, debouncedSearchTerm, getDemoAttendance]);
+  }, [selectedDate, selectedDepartment, selectedStatus, debouncedSearchTerm]);
 
   // Filter and sort attendance
   const filteredAndSortedAttendance = useMemo(() => {

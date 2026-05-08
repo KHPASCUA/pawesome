@@ -4,7 +4,7 @@ import ProtectedRoute from "../components/ProtectedRoute";
 import CashierDashboard from "../components/cashier/CashierDashboard";
 import CashierPOS from "../components/cashier/CashierPOS_New";
 import CashierTransactions from "../components/cashier/CashierTransactions";
-import CashierHistory from "../components/cashier/CashierHistory";
+import CashierHistory from "../components/cashier/CashierHistory_Fixed";
 import CashierReports from "../components/cashier/CashierReports";
 import ProfileSettings from "../components/shared/ProfileSettings";
 import CashierPaymentVerification from "../components/cashier/CashierPaymentVerification";

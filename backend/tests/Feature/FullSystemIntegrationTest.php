@@ -43,6 +43,13 @@ class FullSystemIntegrationTest extends TestCase
     protected $inventory;
     protected $customerUser;
     protected $customer;
+    
+    protected $adminToken;
+    protected $cashierToken;
+    protected $receptionistToken;
+    protected $veterinaryToken;
+    protected $inventoryToken;
+    protected $customerToken;
 
     protected function setUp(): void
     {
@@ -52,39 +59,39 @@ class FullSystemIntegrationTest extends TestCase
         $this->admin = User::factory()->create([
             'role' => 'admin',
             'name' => 'Admin User',
-            'api_token' => 'test-admin-token',
         ]);
+        $this->adminToken = $this->admin->createToken('test-token')->plainTextToken;
         
         $this->cashier = User::factory()->create([
             'role' => 'cashier',
             'name' => 'Cashier User',
-            'api_token' => 'test-cashier-token',
         ]);
+        $this->cashierToken = $this->cashier->createToken('test-token')->plainTextToken;
         
         $this->receptionist = User::factory()->create([
             'role' => 'receptionist',
             'name' => 'Receptionist User',
-            'api_token' => 'test-receptionist-token',
         ]);
+        $this->receptionistToken = $this->receptionist->createToken('test-token')->plainTextToken;
         
         $this->veterinary = User::factory()->create([
             'role' => 'veterinary',
             'name' => 'Veterinary User',
-            'api_token' => 'test-veterinary-token',
         ]);
+        $this->veterinaryToken = $this->veterinary->createToken('test-token')->plainTextToken;
         
         $this->inventory = User::factory()->create([
             'role' => 'inventory',
             'name' => 'Inventory Manager',
-            'api_token' => 'test-inventory-token',
         ]);
+        $this->inventoryToken = $this->inventory->createToken('test-token')->plainTextToken;
         
         $this->customerUser = User::factory()->create([
             'role' => 'customer',
             'name' => 'John Customer',
             'email' => 'john@example.com',
-            'api_token' => 'test-customer-token',
         ]);
+        $this->customerToken = $this->customerUser->createToken('test-token')->plainTextToken;
         
         $this->customer = Customer::factory()->create([
             'name' => 'John Customer',
@@ -116,9 +123,11 @@ class FullSystemIntegrationTest extends TestCase
         ]);
     }
 
-    protected function withAuth(User $user): array
+    protected function withAuth(User $user, ?string $token = null): array
     {
-        return ['Authorization' => 'Bearer ' . $user->api_token];
+        $token ??= $user->createToken('test-token')->plainTextToken;
+
+        return ['Authorization' => 'Bearer ' . $token];
     }
 
     /**
@@ -149,7 +158,7 @@ class FullSystemIntegrationTest extends TestCase
             'reorder_level' => 10,
             'expiry_date' => now()->addYear()->format('Y-m-d'),
             'status' => 'active',
-        ], $this->withAuth($this->admin));
+        ], $this->withAuth($this->admin, $this->adminToken));
         
         $dogFood->assertStatus(201);
         $dogFoodId = $dogFood->json('item.id');
@@ -164,7 +173,7 @@ class FullSystemIntegrationTest extends TestCase
             'reorder_level' => 5,
             'expiry_date' => now()->subMonth()->format('Y-m-d'), // Expired!
             'status' => 'active',
-        ], $this->withAuth($this->admin));
+        ], $this->withAuth($this->admin, $this->adminToken));
         
         $expiredItem->assertStatus(201);
         $expiredId = $expiredItem->json('item.id');
@@ -180,7 +189,7 @@ class FullSystemIntegrationTest extends TestCase
         $chatResponse = $this->postJson('/api/chatbot/message', [
             'message' => 'Do you have dog food?',
             'channel' => 'web',
-        ], $this->withAuth($this->customerUser));
+        ], $this->withAuth($this->customerUser, $this->customerToken));
         
         $chatResponse->assertStatus(200);
         $this->assertArrayHasKey('reply', $chatResponse->json());
@@ -195,16 +204,16 @@ class FullSystemIntegrationTest extends TestCase
         // STEP 3: Customer - Book Appointment
         // ============================================
         
-        $appointment = $this->postJson('/api/appointments', [
-            'customer_id' => $this->customer->id,
+        $appointment = $this->postJson('/api/customer/appointments', [
             'pet_id' => Pet::where('customer_id', $this->customer->id)->first()->id,
             'service_id' => Service::where('name', 'Pet Grooming')->first()->id,
             'scheduled_at' => now()->addDays(2)->format('Y-m-d H:i:s'),
             'notes' => 'First time grooming',
-        ], $this->withAuth($this->customerUser));
+        ], $this->withAuth($this->customerUser, $this->customerToken));
         
         $appointment->assertStatus(201);
-        $appointmentId = $appointment->json('appointment.id');
+        $appointmentId = $appointment->json('id');
+        $appointmentModel = Appointment::findOrFail($appointmentId);
         
         $this->assertDatabaseHas('appointments', [
             'id' => $appointmentId,
@@ -224,7 +233,7 @@ class FullSystemIntegrationTest extends TestCase
             'check_in' => now()->addDay()->format('Y-m-d'),
             'check_out' => now()->addDays(3)->format('Y-m-d'),
             'special_requests' => 'Needs medication twice daily',
-        ], $this->withAuth($this->receptionist));
+        ], $this->withAuth($this->receptionist, $this->receptionistToken));
         
         $boarding->assertStatus(201);
         $boardingId = $boarding->json('boarding.id');
@@ -307,15 +316,20 @@ class FullSystemIntegrationTest extends TestCase
         // ============================================
         
         $pet = Pet::where('customer_id', $this->customer->id)->first();
+
+        $appointmentModel->update([
+            'veterinarian_id' => $this->veterinary->id,
+            'status' => 'in_progress',
+        ]);
         
         $medicalRecord = $this->postJson('/api/veterinary/medical-records', [
             'pet_id' => $pet->id,
-            'veterinarian_id' => $this->veterinary->id,
+            'appointment_id' => $appointmentModel->id,
             'visit_date' => now()->toDateString(),
-            'diagnosis' => 'Healthy - routine checkup',
-            'treatment' => 'Annual vaccination completed',
+            'diagnosis' => 'Annual vaccination completed',
+            'treatment_plan' => 'Annual vaccination completed',
             'notes' => 'Patient cooperative, no issues',
-        ], $this->withAuth($this->veterinary));
+        ], $this->withAuth($this->veterinary, $this->veterinaryToken));
         
         $medicalRecord->assertStatus(201);
         
@@ -327,7 +341,7 @@ class FullSystemIntegrationTest extends TestCase
         $updateNormal = $this->putJson("/api/admin/inventory/items/{$dogFoodId}", [
             'stock' => 10,
             'add_stock' => true,
-        ], $this->withAuth($this->admin));
+        ], $this->withAuth($this->admin, $this->adminToken));
         
         $updateNormal->assertStatus(200);
         $this->assertEquals(58, $updateNormal->json('item.stock'));
@@ -336,7 +350,7 @@ class FullSystemIntegrationTest extends TestCase
         $updateExpired = $this->putJson("/api/admin/inventory/items/{$expiredId}", [
             'stock' => 50,
             'add_stock' => true, // This should be ignored for expired items
-        ], $this->withAuth($this->admin));
+        ], $this->withAuth($this->admin, $this->adminToken));
         
         $updateExpired->assertStatus(200);
         // Should replace instead of add because item is expired
@@ -362,7 +376,7 @@ class FullSystemIntegrationTest extends TestCase
         // STEP 9: Chatbot Logs Review
         // ============================================
         
-        $chatbotLogs = $this->getJson('/api/admin/chatbot/logs', $this->withAuth($this->admin));
+        $chatbotLogs = $this->getJson('/api/admin/chatbot/logs', $this->withAuth($this->admin, $this->adminToken));
         $chatbotLogs->assertStatus(200);
         
         // Should have at least the customer inquiry
@@ -443,7 +457,7 @@ class FullSystemIntegrationTest extends TestCase
         $this->putJson("/api/admin/inventory/items/{$item->id}", [
             'stock' => 20,
             'add_stock' => true,
-        ], $this->withAuth($this->inventory));
+        ], $this->withAuth($this->inventory, $this->inventoryToken));
         
         // Verify final stock after sales: 100 - 10 - 15 = 75
         // Note: Stock update via add_stock may require different endpoint
@@ -462,26 +476,26 @@ class FullSystemIntegrationTest extends TestCase
     public function test_role_based_access_control(): void
     {
         // Admin can access everything
-        $adminInventory = $this->getJson('/api/admin/inventory/items', $this->withAuth($this->admin));
+        $adminInventory = $this->getJson('/api/admin/inventory/items', $this->withAuth($this->admin, $this->adminToken));
         $adminInventory->assertStatus(200);
         
-        $adminReports = $this->getJson('/api/admin/reports/summary', $this->withAuth($this->admin));
+        $adminReports = $this->getJson('/api/admin/reports/summary', $this->withAuth($this->admin, $this->adminToken));
         $adminReports->assertStatus(200);
         
         // Cashier can access POS
-        $cashierPos = $this->getJson('/api/cashier/pos/products', $this->withAuth($this->cashier));
+        $cashierPos = $this->getJson('/api/cashier/pos/products', $this->withAuth($this->cashier, $this->cashierToken));
         $cashierPos->assertStatus(200);
         
         // Customer can access public APIs
-        $publicInventory = $this->getJson('/api/inventory/public/items', $this->withAuth($this->customerUser));
+        $publicInventory = $this->getJson('/api/inventory/public/items', $this->withAuth($this->customerUser, $this->customerToken));
         $publicInventory->assertStatus(200);
         
         // Customer CANNOT access admin APIs
-        $unauthorized = $this->getJson('/api/admin/inventory/items', $this->withAuth($this->customerUser));
+        $unauthorized = $this->getJson('/api/admin/inventory/items', $this->withAuth($this->customerUser, $this->customerToken));
         $unauthorized->assertStatus(403);
         
         // Receptionist can access hotel/boarding
-        $hotelRooms = $this->getJson('/api/hotel-rooms', $this->withAuth($this->receptionist));
+        $hotelRooms = $this->getJson('/api/hotel-rooms', $this->withAuth($this->receptionist, $this->receptionistToken));
         $hotelRooms->assertStatus(200);
     }
 
@@ -499,7 +513,7 @@ class FullSystemIntegrationTest extends TestCase
             'category' => 'NonExistentCategory',
             'price' => 100,
             'stock' => 10,
-        ], $this->withAuth($this->admin));
+        ], $this->withAuth($this->admin, $this->adminToken));
         
         // Should be rejected or auto-corrected
         $this->assertTrue(in_array($invalidCategory->getStatusCode(), [422, 201]));
@@ -511,7 +525,7 @@ class FullSystemIntegrationTest extends TestCase
             'category' => 'Food',
             'price' => 100,
             'stock' => 10,
-        ], $this->withAuth($this->admin));
+        ], $this->withAuth($this->admin, $this->adminToken));
         
         $duplicateSku = $this->postJson('/api/admin/inventory/items', [
             'sku' => 'UNIQUE-SKU-001', // Same SKU
@@ -519,7 +533,7 @@ class FullSystemIntegrationTest extends TestCase
             'category' => 'Toys',
             'price' => 200,
             'stock' => 5,
-        ], $this->withAuth($this->admin));
+        ], $this->withAuth($this->admin, $this->adminToken));
         
         // Should reject duplicate SKU
         $duplicateSku->assertStatus(422);
@@ -577,7 +591,7 @@ class FullSystemIntegrationTest extends TestCase
         $response1 = $this->postJson('/api/chatbot/message', [
             'message' => 'Hi there!',
             'channel' => 'web',
-        ], $this->withAuth($this->customerUser));
+        ], $this->withAuth($this->customerUser, $this->customerToken));
         
         $response1->assertStatus(200);
         $this->assertArrayHasKey('reply', $response1->json());
@@ -586,7 +600,7 @@ class FullSystemIntegrationTest extends TestCase
         $response2 = $this->postJson('/api/chatbot/message', [
             'message' => 'I want to book grooming',
             'channel' => 'web',
-        ], $this->withAuth($this->customerUser));
+        ], $this->withAuth($this->customerUser, $this->customerToken));
         
         $response2->assertStatus(200);
         $data2 = $response2->json();
@@ -596,7 +610,7 @@ class FullSystemIntegrationTest extends TestCase
         $response3 = $this->postJson('/api/chatbot/message', [
             'message' => 'What are your hours?',
             'channel' => 'web',
-        ], $this->withAuth($this->customerUser));
+        ], $this->withAuth($this->customerUser, $this->customerToken));
         
         $response3->assertStatus(200);
         $data3 = $response3->json();
@@ -626,7 +640,7 @@ class FullSystemIntegrationTest extends TestCase
         $update = $this->putJson("/api/admin/inventory/items/{$expiredItem->id}", [
             'stock' => 25,
             'add_stock' => true, // User wants to add
-        ], $this->withAuth($this->admin));
+        ], $this->withAuth($this->admin, $this->adminToken));
         
         $update->assertStatus(200);
         
@@ -657,7 +671,7 @@ class FullSystemIntegrationTest extends TestCase
             'stock' => 100,
             'reorder_level' => 10,
             'status' => 'active',
-        ], $this->withAuth($this->admin));
+        ], $this->withAuth($this->admin, $this->adminToken));
         
         $item->assertStatus(201);
         $itemId = $item->json('item.id');
@@ -670,7 +684,7 @@ class FullSystemIntegrationTest extends TestCase
         ]);
         
         // 3. Customer sees it in public API
-        $publicView = $this->getJson('/api/inventory/public/items', $this->withAuth($this->customerUser));
+        $publicView = $this->getJson('/api/inventory/public/items', $this->withAuth($this->customerUser, $this->customerToken));
         $publicView->assertStatus(200);
         
         $publicItems = collect($publicView->json('items'));
@@ -703,7 +717,7 @@ class FullSystemIntegrationTest extends TestCase
         ]);
         
         // 6. Admin sees updated stock
-        $adminView = $this->getJson("/api/admin/inventory/items/{$itemId}", $this->withAuth($this->admin));
+        $adminView = $this->getJson("/api/admin/inventory/items/{$itemId}", $this->withAuth($this->admin, $this->adminToken));
         $adminView->assertStatus(200);
         $this->assertEquals(95, $adminView->json('item.stock'));
         

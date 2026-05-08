@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { inventoryApi } from "../../api/inventory";
-import { inventoryHistory as demoHistory } from "./inventoryData";
 import StockLogsViewer from "./StockLogsViewer";
 import "./InventoryHistory_Polished.css";
 
 const InventoryHistory = () => {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [usingDemoData, setUsingDemoData] = useState(false);
+  const [historyError, setHistoryError] = useState("");
   const [search, setSearch] = useState("");
   const [filterAction, setFilterAction] = useState("all");
 
@@ -31,11 +30,10 @@ const InventoryHistory = () => {
         const apiHistory = response.history || response.data || [];
 
         setHistory(apiHistory);
-        setUsingDemoData(false);
+        setHistoryError("");
       } catch (err) {
-        console.error("History API failed, using demo:", err);
-        setHistory(demoHistory);
-        setUsingDemoData(true);
+        setHistory([]);
+        setHistoryError(err.message || "Failed to load live stock history.");
       } finally {
         setLoading(false);
       }
@@ -51,7 +49,7 @@ const InventoryHistory = () => {
         <div className="header-title">
           <h2>Stock Movement History</h2>
           <p>Track all inventory changes, restocks, and transactions</p>
-          {usingDemoData && <span className="demo-badge">Demo Mode</span>}
+          {historyError && <span className="demo-badge">No live records</span>}
         </div>
         <div className="header-actions">
           <button className="btn-export" onClick={() => alert("Export feature coming soon!")}>

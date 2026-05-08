@@ -2,7 +2,6 @@
 
 namespace App\Http\Middleware;
 
-use App\Models\User;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -13,19 +12,6 @@ class EnsureRole
     {
         $user = $request->user();
 
-        // If no user from auth guard, try to authenticate via Bearer token
-        if (!$user) {
-            $token = $request->bearerToken();
-            if ($token) {
-                $user = User::where('api_token', $token)->first();
-                if ($user) {
-                    // Set the user on the request for downstream use
-                    $request->setUserResolver(function () use ($user) {
-                        return $user;
-                    });
-                }
-            }
-        }
 
         if (!$user) {
             return response()->json(['message' => 'Unauthenticated.'], 401);
@@ -33,10 +19,6 @@ class EnsureRole
 
         $normalizedRole = $this->normalizeRole($user->role);
         $allowedRoles = array_map([$this, 'normalizeRole'], $roles);
-
-        if ($request->isMethod('GET') && $request->is('api/inventory/items')) {
-            return $next($request);
-        }
 
         if (!in_array($normalizedRole, $allowedRoles, true)) {
             return response()->json(['message' => 'Forbidden.'], 403);
@@ -47,6 +29,10 @@ class EnsureRole
 
     private function normalizeRole(string $role): string
     {
-        return in_array($role, ['vet', 'veterinarian'], true) ? 'veterinary' : $role;
+        if (in_array($role, ['vet', 'veterinarian'], true)) {
+            return 'veterinary';
+        }
+
+        return $role === 'payroll_manager' ? 'payroll' : $role;
     }
 }

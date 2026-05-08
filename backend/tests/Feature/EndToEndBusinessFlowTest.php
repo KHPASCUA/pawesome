@@ -34,13 +34,11 @@ class EndToEndBusinessFlowTest extends TestCase
         $this->admin = User::factory()->create([
             'role' => 'admin',
             'name' => 'Admin User',
-            'api_token' => 'test-admin-token',
         ]);
         
         $this->cashier = User::factory()->create([
             'role' => 'cashier',
             'name' => 'Cashier User',
-            'api_token' => 'test-cashier-token',
         ]);
         
         $this->customer = Customer::factory()->create([
@@ -52,12 +50,12 @@ class EndToEndBusinessFlowTest extends TestCase
 
     protected function withAdminAuth(): array
     {
-        return ['Authorization' => 'Bearer ' . $this->admin->api_token];
+        return ['Authorization' => 'Bearer ' . $this->admin->createToken('test-token')->plainTextToken];
     }
 
     protected function withCashierAuth(): array
     {
-        return ['Authorization' => 'Bearer ' . $this->cashier->api_token];
+        return ['Authorization' => 'Bearer ' . $this->cashier->createToken('test-token')->plainTextToken];
     }
 
     /**

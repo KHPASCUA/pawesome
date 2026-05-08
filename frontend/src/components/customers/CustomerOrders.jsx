@@ -11,7 +11,9 @@ import {
   faEye,
   faSpinner,
   faExclamationTriangle,
+  faBan,
 } from "@fortawesome/free-solid-svg-icons";
+import Swal from "sweetalert2";
 import "./CustomerOrders.css";
 import { apiRequest } from "../../api/client";
 
@@ -20,6 +22,7 @@ const CustomerOrders = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [error, setError] = useState("");
+  const [updatingId, setUpdatingId] = useState(null);
 
   useEffect(() => {
     fetchOrders();
@@ -28,8 +31,46 @@ const CustomerOrders = () => {
   const fetchOrders = async () => {
     try {
       setLoading(true);
-      const data = await apiRequest("/customer/store/orders");
-      setOrders(Array.isArray(data) ? data : (data.orders || []));
+      
+      // Fetch both store orders and boarding requests
+      const [storeOrdersResponse, boardingRequestsResponse] = await Promise.allSettled([
+        apiRequest("/customer/store/orders"),
+        apiRequest("/customer/boarding-requests")
+      ]);
+
+      let allOrders = [];
+
+      // Process store orders
+      if (storeOrdersResponse.status === 'fulfilled') {
+        const storeData = storeOrdersResponse.value;
+        const storeOrders = Array.isArray(storeData) ? storeData : (storeData.orders || storeData.data || []);
+        allOrders = allOrders.concat(storeOrders.map(order => ({
+          ...order,
+          order_type: 'store',
+          type: 'Store Order',
+          service_name: null
+        })));
+      }
+
+      // Process boarding requests
+      if (boardingRequestsResponse.status === 'fulfilled') {
+        const boardingData = boardingRequestsResponse.value;
+        const boardingRequests = Array.isArray(boardingData) ? boardingData : (boardingData.data || []);
+        allOrders = allOrders.concat(boardingRequests.map(request => ({
+          ...request,
+          order_type: 'boarding',
+          type: 'Boarding',
+          service_name: request.service_type || 'Boarding Service',
+          total_amount: request.total_amount || request.amount || 0,
+          payment_status: request.payment_status || 'unpaid',
+          status: request.status || 'pending'
+        })));
+      }
+
+      // Sort by creation date (most recent first)
+      allOrders.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      
+      setOrders(allOrders);
       setError("");
     } catch (err) {
       setError(err.message || "Failed to load orders");
@@ -47,6 +88,8 @@ const CustomerOrders = () => {
         return <FontAwesomeIcon icon={faCheckCircle} className="status-icon approved" />;
       case "rejected":
         return <FontAwesomeIcon icon={faTimesCircle} className="status-icon rejected" />;
+      case "cancelled":
+        return <FontAwesomeIcon icon={faBan} className="status-icon cancelled" />;
       case "completed":
         return <FontAwesomeIcon icon={faCheckCircle} className="status-icon completed" />;
       default:
@@ -69,6 +112,62 @@ const CustomerOrders = () => {
     }
   };
 
+  const cancelOrder = async (orderId) => {
+    const { value: reason } = await Swal.fire({
+      icon: "warning",
+      title: "Cancel Order",
+      input: "textarea",
+      inputLabel: "Cancellation Reason",
+      inputPlaceholder: "Please provide a reason for cancellation...",
+      inputValidator: (value) => {
+        if (!value) {
+          return "Cancellation reason is required";
+        }
+      },
+      showCancelButton: true,
+      confirmButtonText: "Cancel Order",
+      cancelButtonText: "Keep Order",
+      confirmButtonColor: "#ef4444",
+    });
+
+    if (!reason) return;
+
+    try {
+      setUpdatingId(orderId);
+
+      const result = await apiRequest(`/customer/store/orders/${orderId}/cancel`, "POST", {
+        cancellation_reason: reason
+      });
+
+      if (result.success) {
+        await Swal.fire({
+          icon: "success",
+          title: "Order Cancelled",
+          html: `
+            <div style="text-align: left;">
+              <p>Your order has been cancelled successfully.</p>
+              <p><strong>Reason:</strong> ${reason}</p>
+              <p>The receptionist has been notified.</p>
+            </div>
+          `,
+          timer: 3000,
+          showConfirmButton: false,
+        });
+
+        await fetchOrders();
+      }
+    } catch (err) {
+      Swal.fire({
+        icon: "error",
+        title: "Cancellation Failed",
+        text: err.message || "Failed to cancel order",
+        confirmButtonColor: "#ff5f93",
+      });
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
   const getActionButtons = (order) => {
     const buttons = [];
 
@@ -80,32 +179,217 @@ const CustomerOrders = () => {
       </button>
     );
 
-    // Upload Payment Proof button (only for approved + unpaid orders)
-    if (order.status === "approved" && order.payment_status === "unpaid") {
-      buttons.push(
-        <button key="payment" className="action-btn warning" onClick={() => uploadPaymentProof(order)}>
-          <FontAwesomeIcon icon={faCreditCard} />
-          Upload Payment
-        </button>
-      );
-    }
+    // Handle boarding requests differently
+    if (order.order_type === 'boarding') {
+      // Cancel boarding request (only for pending)
+      if (order.status === "pending") {
+        buttons.push(
+          <button 
+            key="cancel" 
+            className="action-btn danger" 
+            onClick={() => cancelBoardingRequest(order.id)}
+            disabled={updatingId === order.id}
+          >
+            <FontAwesomeIcon icon={faBan} />
+            {updatingId === order.id ? "Cancelling..." : "Cancel Request"}
+          </button>
+        );
+      }
 
-    // View Receipt button (only for paid orders)
-    if (order.payment_status === "paid") {
-      buttons.push(
-        <button key="receipt" className="action-btn success" onClick={() => viewReceipt(order)}>
-          <FontAwesomeIcon icon={faReceipt} />
-          View Receipt
-        </button>
-      );
+      // Upload payment proof for boarding (only for approved + unpaid/rejected)
+      if (order.status === "approved" && (order.payment_status === "unpaid" || order.payment_status === "rejected")) {
+        buttons.push(
+          <button key="payment" className="action-btn warning" onClick={() => uploadBoardingPayment(order)}>
+            <FontAwesomeIcon icon={faCreditCard} />
+            {order.payment_status === "rejected" ? "Re-upload Payment" : "Upload Payment"}
+          </button>
+        );
+      }
+
+      // View receipt for boarding (only for paid)
+      if (order.payment_status === "paid") {
+        buttons.push(
+          <button key="receipt" className="action-btn success" onClick={() => viewBoardingReceipt(order)}>
+            <FontAwesomeIcon icon={faReceipt} />
+            View Receipt
+          </button>
+        );
+      }
+    } else {
+      // Store order actions
+      // Cancel Order button (only for pending orders)
+      if (order.status === "pending") {
+        buttons.push(
+          <button 
+            key="cancel" 
+            className="action-btn danger" 
+            onClick={() => cancelOrder(order.id)}
+            disabled={updatingId === order.id}
+          >
+            <FontAwesomeIcon icon={faBan} />
+            {updatingId === order.id ? "Cancelling..." : "Cancel Order"}
+          </button>
+        );
+      }
+
+      // Upload Payment Proof button (only for approved + unpaid/rejected orders)
+      if (order.status === "approved" && (order.payment_status === "unpaid" || order.payment_status === "rejected")) {
+        buttons.push(
+          <button key="payment" className="action-btn warning" onClick={() => uploadPaymentProof(order)}>
+            <FontAwesomeIcon icon={faCreditCard} />
+            {order.payment_status === "rejected" ? "Re-upload Payment" : "Upload Payment"}
+          </button>
+        );
+      }
+
+      // View Receipt button (only for paid orders)
+      if (order.payment_status === "paid") {
+        buttons.push(
+          <button key="receipt" className="action-btn success" onClick={() => viewReceipt(order)}>
+            <FontAwesomeIcon icon={faReceipt} />
+            View Receipt
+          </button>
+        );
+      }
     }
 
     return buttons;
   };
 
-  const viewOrderDetails = (order) => {
-    // Could open a modal or navigate to detailed view
-    alert(`Order #${order.order_id}\nItems: ${order.items?.length || 0}\nTotal: ₱${order.total_amount || 0}`);
+  const viewOrderDetails = async (order) => {
+    try {
+      let orderDetails = order;
+      
+      // Fetch detailed order information based on type
+      if (order.order_type === 'boarding') {
+        try {
+          const result = await apiRequest(`/customer/boarding-requests/${order.id}`);
+          orderDetails = result.data || result || order;
+        } catch (err) {
+          // Use the order data we have if API call fails
+          orderDetails = order;
+        }
+      } else {
+        try {
+          const result = await apiRequest(`/customer/store/orders/${order.id}`);
+          orderDetails = Array.isArray(result) ? (result.find(o => o.id === order.id) || order) : (result.data || order);
+        } catch (err) {
+          // Use the order data we have if API call fails
+          orderDetails = order;
+        }
+      }
+      
+      const title = order.order_type === 'boarding' 
+        ? `Boarding Request #${orderDetails.id || orderDetails.request_number}`
+        : `Order #${orderDetails.order_number || orderDetails.id}`;
+      
+      Swal.fire({
+        title,
+        html: `
+          <div style="text-align: left;">
+            <div style="margin-bottom: 20px;">
+              <h4>${order.order_type === 'boarding' ? 'Boarding Request Information' : 'Order Information'}</h4>
+              <p><strong>${order.order_type === 'boarding' ? 'Request Number' : 'Order Number'}:</strong> ${orderDetails.order_number || orderDetails.request_number || orderDetails.id}</p>
+              <p><strong>Reference:</strong> ${orderDetails.reference_number || 'N/A'}</p>
+              <p><strong>Type:</strong> ${order.order_type === 'boarding' ? 'Boarding Service' : (orderDetails.order_type || 'Store Order')}</p>
+              ${order.order_type === 'boarding' ? `
+                <p><strong>Pet Name:</strong> ${orderDetails.pet_name || 'N/A'}</p>
+                <p><strong>Service Type:</strong> ${orderDetails.service_type || 'Boarding'}</p>
+                <p><strong>Start Date:</strong> ${orderDetails.start_date ? new Date(orderDetails.start_date).toLocaleDateString() : 'N/A'}</p>
+                <p><strong>End Date:</strong> ${orderDetails.end_date ? new Date(orderDetails.end_date).toLocaleDateString() : 'N/A'}</p>
+              ` : ''}
+              <p><strong>Total Amount:</strong> ₱${Number(orderDetails.total_amount || 0).toLocaleString()}</p>
+              <p><strong>Payment Method:</strong> ${orderDetails.payment_method || 'N/A'}</p>
+              <p><strong>Status:</strong> <span style="color: ${getStatusColor(orderDetails.status)}">${orderDetails.status?.toUpperCase() || 'PENDING'}</span></p>
+              <p><strong>Payment Status:</strong> <span style="color: ${getPaymentStatusColor(orderDetails.payment_status)}">${orderDetails.payment_status?.toUpperCase() || 'UNPAID'}</span></p>
+              <p><strong>Created:</strong> ${new Date(orderDetails.created_at).toLocaleDateString()}</p>
+              ${orderDetails.approved_at ? `<p><strong>Approved:</strong> ${new Date(orderDetails.approved_at).toLocaleDateString()}</p>` : ''}
+              ${orderDetails.paid_at ? `<p><strong>Paid:</strong> ${new Date(orderDetails.paid_at).toLocaleDateString()}</p>` : ''}
+              ${orderDetails.receipt_number ? `<p><strong>Receipt:</strong> #${orderDetails.receipt_number}</p>` : ''}
+            </div>
+            
+            <div>
+              <h4>${order.order_type === 'boarding' ? 'Service Details' : 'Order Items'}</h4>
+              ${order.order_type === 'boarding' ? `
+                <div style="border: 1px solid #e5e7eb; padding: 10px; margin-bottom: 8px; border-radius: 5px;">
+                  <p><strong>${orderDetails.service_type || 'Boarding Service'}</strong></p>
+                  <p>Duration: ${orderDetails.duration || 'N/A'} days</p>
+                  <p>Rate: ₱${Number(orderDetails.daily_rate || orderDetails.amount || 0).toLocaleString()} per day</p>
+                </div>
+              ` : (orderDetails.items?.length ? orderDetails.items.map(item => `
+                <div style="border: 1px solid #e5e7eb; padding: 10px; margin-bottom: 8px; border-radius: 5px;">
+                  <p><strong>${item.product_name || item.name}</strong></p>
+                  <p>Quantity: ${item.quantity} × ₱${Number(item.price).toLocaleString()} = ₱${Number(item.subtotal || item.price * item.quantity).toLocaleString()}</p>
+                </div>
+              `).join('') : '<p>No items found</p>')}
+            </div>
+            
+            ${orderDetails.rejection_reason ? `
+              <div style="margin-top: 20px; padding: 10px; background: #fef2f2; border-radius: 5px;">
+                <h4 style="color: #ef4444;">Rejection Reason</h4>
+                <p>${orderDetails.rejection_reason}</p>
+              </div>
+            ` : ''}
+            
+            ${orderDetails.cashier_remarks ? `
+              <div style="margin-top: 20px; padding: 10px; background: #f0f9ff; border-radius: 5px;">
+                <h4 style="color: #3b82f6;">Cashier Remarks</h4>
+                <p>${orderDetails.cashier_remarks}</p>
+              </div>
+            ` : ''}
+            
+            <div style="margin-top: 20px; padding: 10px; background: #f8f9fa; border-radius: 5px; font-size: 12px;">
+              <h4>Workflow Status</h4>
+              ${order.order_type === 'boarding' ? `
+                <p>• <strong>Pending:</strong> Waiting for receptionist approval</p>
+                <p>• <strong>Approved:</strong> Ready for payment upload</p>
+                <p>• <strong>Payment Pending:</strong> Waiting for cashier verification</p>
+                <p>• <strong>Paid:</strong> Payment verified, boarding confirmed</p>
+                <p>• <strong>Rejected/Cancelled:</strong> Request cancelled</p>
+              ` : `
+                <p>• <strong>Pending:</strong> Waiting for receptionist approval</p>
+                <p>• <strong>Approved:</strong> Ready for payment upload</p>
+                <p>• <strong>Payment Pending:</strong> Waiting for cashier verification</p>
+                <p>• <strong>Paid:</strong> Payment verified, order complete</p>
+                <p>• <strong>Rejected/Cancelled:</strong> Order cancelled</p>
+              `}
+            </div>
+          </div>
+        `,
+        width: "600px",
+        confirmButtonColor: "#ff5f93",
+      });
+    } catch (err) {
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Failed to load order details",
+        confirmButtonColor: "#ff5f93",
+      });
+    }
+  };
+
+  const getStatusColor = (status) => {
+    const colors = {
+      pending: "#f59e0b",
+      approved: "#3b82f6",
+      paid: "#10b981",
+      preparing: "#8b5cf6",
+      completed: "#22c55e",
+      rejected: "#ef4444",
+      cancelled: "#6b7280",
+    };
+    return colors[status] || "#6b7280";
+  };
+
+  const getPaymentStatusColor = (status) => {
+    const colors = {
+      unpaid: "#f59e0b",
+      pending: "#3b82f6",
+      paid: "#10b981",
+      rejected: "#ef4444",
+    };
+    return colors[status] || "#6b7280";
   };
 
   const uploadPaymentProof = (order) => {
@@ -118,13 +402,81 @@ const CustomerOrders = () => {
     window.location.href = `/customer/store/orders/${order.id}/receipt`;
   };
 
+  const cancelBoardingRequest = async (boardingId) => {
+    const { value: reason } = await Swal.fire({
+      icon: "warning",
+      title: "Cancel Boarding Request",
+      input: "textarea",
+      inputLabel: "Cancellation Reason",
+      inputPlaceholder: "Please provide a reason for cancellation...",
+      inputValidator: (value) => {
+        if (!value) {
+          return "Cancellation reason is required";
+        }
+      },
+      showCancelButton: true,
+      confirmButtonText: "Cancel Request",
+      cancelButtonText: "Keep Request",
+      confirmButtonColor: "#ef4444",
+    });
+
+    if (!reason) return;
+
+    try {
+      setUpdatingId(boardingId);
+
+      const result = await apiRequest(`/customer/boarding-requests/${boardingId}/cancel`, "POST", {
+        cancellation_reason: reason
+      });
+
+      if (result.success) {
+        await Swal.fire({
+          icon: "success",
+          title: "Boarding Request Cancelled",
+          html: `
+            <div style="text-align: left;">
+              <p>Your boarding request has been cancelled successfully.</p>
+              <p><strong>Reason:</strong> ${reason}</p>
+              <p>The receptionist has been notified.</p>
+            </div>
+          `,
+          timer: 3000,
+          showConfirmButton: false,
+        });
+
+        await fetchOrders();
+      }
+    } catch (err) {
+      Swal.fire({
+        icon: "error",
+        title: "Cancellation Failed",
+        text: err.message || "Failed to cancel boarding request",
+        confirmButtonColor: "#ff5f93",
+      });
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const uploadBoardingPayment = (boardingRequest) => {
+    // Navigate to payment upload page with boarding request pre-selected
+    window.location.href = `/customer/payments?boarding_id=${boardingRequest.id}`;
+  };
+
+  const viewBoardingReceipt = (boardingRequest) => {
+    // Navigate to receipt view for boarding
+    window.location.href = `/customer/boarding-requests/${boardingRequest.id}/receipt`;
+  };
+
   const filteredOrders = orders.filter((order) => {
     const keyword = searchTerm.toLowerCase();
     return (
       order.order_id?.toLowerCase().includes(keyword) ||
       order.reference_number?.toLowerCase().includes(keyword) ||
       order.customer_name?.toLowerCase().includes(keyword) ||
-      order.status?.toLowerCase().includes(keyword)
+      order.status?.toLowerCase().includes(keyword) ||
+      order.type?.toLowerCase().includes(keyword) ||
+      order.order_type?.toLowerCase().includes(keyword)
     );
   });
 

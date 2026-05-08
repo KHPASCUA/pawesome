@@ -11,7 +11,9 @@ class Appointment extends Model
 
     protected $fillable = [
         'customer_id', 'pet_id', 'service_id', 'veterinarian_id', 'status',
-        'scheduled_at', 'started_at', 'completed_at', 'price', 'notes', 'cancellation_reason'
+        'scheduled_at', 'started_at', 'completed_at', 'price', 'payment_status',
+        'consultation_fee', 'notes', 'diagnosis', 'treatment_notes', 'prescription',
+        'vet_remarks', 'cancellation_reason'
     ];
 
     protected $casts = [
@@ -26,6 +28,8 @@ class Appointment extends Model
     const STATUS_APPROVED = 'approved';
     const STATUS_SCHEDULED = 'scheduled';
     const STATUS_IN_PROGRESS = 'in_progress';
+    const STATUS_IN_CONSULTATION = 'in_consultation';
+    const STATUS_NEEDS_CONFINEMENT = 'needs_confinement';
     const STATUS_TREATED = 'treated';
     const STATUS_COMPLETED = 'completed';
     const STATUS_CANCELLED = 'cancelled';
@@ -40,6 +44,8 @@ class Appointment extends Model
         self::STATUS_APPROVED,
         self::STATUS_SCHEDULED,
         self::STATUS_IN_PROGRESS,
+        self::STATUS_IN_CONSULTATION,
+        self::STATUS_NEEDS_CONFINEMENT,
         self::STATUS_TREATED,
         self::STATUS_COMPLETED,
         self::STATUS_CANCELLED,
@@ -118,7 +124,13 @@ class Appointment extends Model
             self::STATUS_APPROVED,
             self::STATUS_SCHEDULED,
             self::STATUS_IN_PROGRESS,
+            self::STATUS_IN_CONSULTATION,
             self::STATUS_TREATED,
         ], true);
+    }
+
+    public function medicalConfinements()
+    {
+        return $this->hasMany(MedicalConfinement::class, 'consultation_id');
     }
 }

@@ -13,6 +13,7 @@ import {
   faShoppingCart,
   faCheckCircle,
   faCalendarCheck,
+  faHistory,
 } from "@fortawesome/free-solid-svg-icons";
 import "./ReceptionistSidebar.css";
 
@@ -125,6 +126,16 @@ const ReceptionistSidebar = () => {
             >
               <FontAwesomeIcon icon={faUser} />
               <span>Profile</span>
+            </NavLink>
+          </li>
+          <li className="nav-item">
+            <NavLink
+              to="/receptionist/history"
+              end
+              className={({ isActive }) => (isActive ? "active" : "")}
+            >
+              <FontAwesomeIcon icon={faHistory} />
+              <span>History</span>
             </NavLink>
           </li>
           <li className="nav-item">

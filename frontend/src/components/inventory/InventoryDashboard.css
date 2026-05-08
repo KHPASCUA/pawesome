@@ -8,10 +8,6 @@
   color: #000000;
 }
 
-.inventory-dashboard.dark {
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #2d3436 100%);
-  color: #ffffff;
-}
 
 .inventory-dashboard.collapsed .inventory-main {
   margin-left: 90px;

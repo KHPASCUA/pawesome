@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faArrowTrendUp,
+  faBox,
   faChartPie,
   faClipboardList,
   faClock,
@@ -16,6 +17,8 @@ import {
   faSpinner,
   faTimes,
   faTruck,
+  faUserTie,
+  faStethoscope,
 } from "@fortawesome/free-solid-svg-icons";
 import { apiRequest } from "../../api/client";
 import { formatCurrency } from "../../utils/currency";
@@ -36,6 +39,9 @@ const icons = {
   orders: faShoppingCart,
   services: faClipboardList,
   logistics: faTruck,
+  inventory: faBox,
+  manager: faUserTie,
+  veterinary: faStethoscope,
 };
 
 const safeArray = (value, dataKey) => {

@@ -1,6 +1,5 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { inventoryApi } from "../../api/inventory";
-import { demoItems } from "./inventoryData";
 import AddProductModal from "./AddProductModal";
 import PremiumToast from "../shared/PremiumToast";
 import DeleteConfirmModal from "../shared/DeleteConfirmModal";
@@ -11,7 +10,6 @@ const InventoryProducts = () => {
   const [search, setSearch] = useState("");
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [usingDemoData, setUsingDemoData] = useState(false);
   
   // Advanced features states
   const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
@@ -46,7 +44,7 @@ const InventoryProducts = () => {
     loading: false,
   });
 
-  // Fetch items from API - ONLY use demo on complete API failure
+  // Fetch items from API. Empty and error states stay live-data only.
   const fetchItems = async (showLoading = true) => {
     try {
       if (showLoading) setLoading(true);
@@ -54,14 +52,16 @@ const InventoryProducts = () => {
       const response = await inventoryApi.getItems();
       const apiItems = response.items || response.data || [];
       
-      // Use API data even if empty (that's real data state)
       setItems(apiItems);
-      setUsingDemoData(false);
       return true; // Success
     } catch (err) {
-      console.error("API fetch failed, using demo fallback:", err);
-      setItems(demoItems);
-      setUsingDemoData(true);
+      setItems([]);
+      setToast({
+        show: true,
+        type: "error",
+        title: "Inventory Unavailable",
+        message: err.message || "Unable to load live inventory records.",
+      });
       return false; // Failed
     } finally {
       if (showLoading) setLoading(false);
@@ -280,20 +280,6 @@ const InventoryProducts = () => {
     const { item } = deleteModal;
     
     if (item?.isBulk) {
-      // Bulk delete
-      if (usingDemoData) {
-        setItems(prev => prev.filter(i => !selectedItems.includes(i.id)));
-        setSelectedItems([]);
-        setToast({
-          show: true,
-          type: "success",
-          title: "Products Deleted",
-          message: `${selectedItems.length} products were removed from inventory.`,
-        });
-        setDeleteModal({ open: false, item: null, loading: false });
-        return;
-      }
-      
       try {
         await Promise.all(selectedItems.map(id => inventoryApi.deleteItem(id)));
         setSelectedItems([]);
@@ -317,19 +303,6 @@ const InventoryProducts = () => {
       return;
     }
     
-    // Single delete
-    if (usingDemoData) {
-      setItems(prev => prev.filter(i => i.id !== item.id));
-      setToast({
-        show: true,
-        type: "success",
-        title: "Product Deleted",
-        message: "The selected product was removed from inventory.",
-      });
-      setDeleteModal({ open: false, item: null, loading: false });
-      return;
-    }
-    
     try {
       await inventoryApi.deleteItem(item.id);
       await fetchItems(false);
@@ -341,16 +314,13 @@ const InventoryProducts = () => {
       });
       setDeleteModal({ open: false, item: null, loading: false });
     } catch (err) {
-      console.error("API delete failed, falling back to demo mode:", err);
-      setUsingDemoData(true);
-      setItems(prev => prev.filter(i => i.id !== item.id));
       setToast({
         show: true,
-        type: "success",
-        title: "Product Deleted",
-        message: "Item deleted in DEMO mode (API unavailable). Changes are local only.",
+        type: "error",
+        title: "Delete Failed",
+        message: err.message || "Unable to delete the live inventory record.",
       });
-      setDeleteModal({ open: false, item: null, loading: false });
+      setDeleteModal((prev) => ({ ...prev, loading: false }));
     }
   };
 
@@ -366,7 +336,6 @@ const InventoryProducts = () => {
         <div className="header-title">
           <h2>Inventory Details</h2>
           <p>Manage your products, stock levels, and suppliers</p>
-          {usingDemoData && <span className="demo-badge">Demo Mode</span>}
         </div>
         <div className="header-actions">
           <button className="btn-export" onClick={exportToCSV}>

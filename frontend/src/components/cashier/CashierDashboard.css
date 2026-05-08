@@ -190,20 +190,6 @@
   background: radial-gradient(circle, rgba(255, 255, 255, 0.8), transparent 65%);
 }
 
-.cashier-dashboard.dark {
-  --color-bg-gradient: linear-gradient(135deg, #15111d, #24182a, #341d2f);
-  --color-surface: rgba(33, 24, 38, 0.82);
-  --color-surface-strong: rgba(38, 29, 44, 0.96);
-  --color-text: #f8fafc;
-  --color-heading: #ffffff;
-  --color-muted: #cbd5e1;
-  --color-border: rgba(255, 141, 181, 0.22);
-  --shadow-card: 0 18px 45px rgba(0, 0, 0, 0.28);
-  --shadow-soft: 0 12px 28px rgba(0, 0, 0, 0.2);
-
-  background: var(--color-bg-gradient);
-  color: var(--color-text);
-}
 
 .cashier-main {
   flex: 1;

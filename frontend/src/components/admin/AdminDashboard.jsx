@@ -50,6 +50,7 @@ import "./AdminDashboard.css";
 import { apiRequest, uploadProfilePhoto } from "../../api/client";
 import { formatCurrency } from "../../utils/currency";
 import { normalizeList } from "../../utils/normalizeList";
+import { useTheme } from "../../utils/theme";
 
 const cardVariants = {
   hidden: { opacity: 0, y: 18 },
@@ -63,7 +64,7 @@ const AdminDashboard = () => {
   const role = localStorage.getItem("role") || "admin";
   const profilePhoto = localStorage.getItem("profile_photo") || "";
 
-  const [theme, setTheme] = useState(localStorage.getItem("theme") || "light");
+  const { theme, toggle } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [dashboardData, setDashboardData] = useState(null);
   const [systemHealth, setSystemHealth] = useState(null);
@@ -76,10 +77,6 @@ const AdminDashboard = () => {
   const normalizedPath = location.pathname.replace(/\/+$/, "");
   const showOverview = normalizedPath === "/admin";
 
-  useEffect(() => {
-    document.documentElement.setAttribute("data-theme", theme);
-    localStorage.setItem("theme", theme);
-  }, [theme]);
 
   const handleProfilePhotoUpload = async (file) => {
     try {
@@ -459,9 +456,7 @@ const AdminDashboard = () => {
             <button
               className="theme-toggle-btn"
               type="button"
-              onClick={() =>
-                setTheme((prev) => (prev === "light" ? "dark" : "light"))
-              }
+              onClick={toggle}
               title="Toggle theme"
             >
               <FontAwesomeIcon icon={theme === "light" ? faMoon : faSun} />

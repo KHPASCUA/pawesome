@@ -25,25 +25,21 @@ import CustomerDashboardChatbot from "../CustomerDashboardChatbot";
 import NotificationDropdown from "../shared/NotificationDropdown";
 import DashboardProfile from "../shared/DashboardProfile";
 import { apiRequest, clearAuthStorage, uploadProfilePhoto } from "../../api/client";
+import { useTheme } from "../../utils/theme";
 import "../../styles/dashboardGlobal.css";
 import "./CustomerDashboard.css";
 
 const CustomerDashboard = () => {
   const name = localStorage.getItem("name") || "Customer";
   const profilePhoto = localStorage.getItem("profile_photo") || "";
-  const [theme, setTheme] = useState(
-    localStorage.getItem("theme") || "light"
-  );
+
+  const { theme, toggle } = useTheme();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
 
-  useEffect(() => {
-    document.documentElement.setAttribute("data-theme", theme);
-    localStorage.setItem("theme", theme);
-  }, [theme]);
 
   const handleProfilePhotoUpload = async (file) => {
     try {
@@ -271,7 +267,7 @@ const CustomerDashboard = () => {
               className="theme-toggle-btn"
               type="button"
               title="Toggle theme"
-              onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+              onClick={toggle}
             >
               <FontAwesomeIcon icon={theme === "light" ? faMoon : faSun} />
             </button>

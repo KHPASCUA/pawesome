@@ -19,6 +19,8 @@ import GroomingForm from "../components/customers/GroomingForm";
 import VetForm from "../components/customers/VetForm";
 import CustomerBookingForm from "../components/customers/CustomerBookingForm";
 import CustomerRequestStatus from "../components/customers/CustomerRequestStatus";
+import CustomerMedicalConfinements from "../components/customers/CustomerMedicalConfinements";
+import CustomerHistory from "../components/customers/CustomerHistory";
 
 const CustomerRoutes = () => (
   <Routes>
@@ -42,11 +44,12 @@ const CustomerRoutes = () => (
       <Route path="hotel" element={<HotelForm />} />
       <Route path="grooming" element={<GroomingForm />} />
       <Route path="vet" element={<VetForm />} />
+      <Route path="medical-confinements" element={<CustomerMedicalConfinements />} />
       <Route path="store" element={<CustomerStore />} />
       <Route path="chatbot" element={<CustomerChatbot />} />
       <Route path="userinfo" element={<CustomerUserInfo />} />
       <Route path="profile" element={<ProfileSettings />} />
-      <Route path="history" element={<CustomerReports />} />
+      <Route path="history" element={<CustomerHistory />} />
       <Route path="notifications" element={<CustomerNotifications />} />
 
       {/* Direct payments route */}

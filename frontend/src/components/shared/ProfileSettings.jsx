@@ -752,32 +752,8 @@ const ProfileSettings = () => {
     return configs[role] || configs.customer;
   };
 
-  // Auto-login function for testing
-  const autoLoginUser = async (role = "customer") => {
-    try {
-      const credentials = {
-        admin: { email: "admin@example.com", password: "admin123" },
-        customer: { email: "customer@example.com", password: "customer123" },
-        cashier: { email: "cashier@example.com", password: "cashier123" },
-      };
-      
-      const response = await apiRequest("/auth/login", {
-        method: "POST",
-        body: JSON.stringify(credentials[role]),
-      });
-      
-      if (response.user && response.token) {
-        localStorage.setItem("token", response.token);
-        localStorage.setItem("role", response.user.role);
-        localStorage.setItem("name", response.user.name);
-        localStorage.setItem("username", response.user.username);
-        localStorage.setItem("email", response.user.email);
-        return response.token;
-      }
-    } catch {
-      return null;
-    }
-  };
+  // Auto-login function removed for production security
+  // Use proper login form with valid credentials instead
 
   // Fetch user profile
   const fetchUserProfile = async () => {
@@ -788,7 +764,8 @@ const ProfileSettings = () => {
       const storedRole = localStorage.getItem("role") || "customer";
       
       if (!token) {
-        token = await autoLoginUser(storedRole);
+        // Auto-login removed for production security
+        // User must login through proper login form
       }
       
       if (!token) {

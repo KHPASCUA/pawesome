@@ -55,6 +55,7 @@ const VetAppointments = () => {
       const transformedAppointments = vetOnly.map(item => ({
         id: `APT-${String(item.id).padStart(3, '0')}`,
         rawId: item.id,
+        appointmentId: item.appointment_id || item.appointment?.id || null,
         petName: item.pet,
         petType: "Pet",
         breed: "Unknown",
@@ -152,11 +153,16 @@ const VetAppointments = () => {
 
   // Reschedule appointment
   const handleReschedule = async (appointmentId, newDateTime) => {
+    if (!appointmentId || !newDateTime) {
+      setError("Choose an approved appointment and a new schedule before rescheduling.");
+      return;
+    }
+
     try {
       setActionLoading(true);
-      await apiRequest(`/receptionist/requests/${appointmentId}/status`, {
-        method: "PATCH",
-        body: JSON.stringify({ status: "rescheduled" }),
+      await apiRequest(`/receptionist/appointments/${appointmentId}/reschedule`, {
+        method: "POST",
+        body: JSON.stringify({ scheduled_at: newDateTime }),
       });
       
       await fetchAppointments();

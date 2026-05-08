@@ -48,6 +48,10 @@ import PaymentReports from "./PaymentReports";
 import ServiceRequestReports from "./ServiceRequestReports";
 import LogisticsReports from "./LogisticsReports";
 import CustomerReport from "./CustomerReport";
+import CashierAdminReports from "./CashierAdminReports";
+import InventoryAdminReports from "./InventoryAdminReports";
+import ManagerAdminReports from "./ManagerAdminReports";
+import VeterinaryAdminReports from "./VeterinaryAdminReports";
 import PayrollReports from "./PayrollReports";
 import "./AdminReports.css";
 
@@ -60,6 +64,30 @@ const REPORT_TABS = [
     label: "Overview",
     description: "Executive summary",
     icon: faChartLine,
+  },
+  {
+    key: "cashier",
+    label: "Cashier",
+    description: "Cashier activity",
+    icon: faMoneyBillWave,
+  },
+  {
+    key: "inventory",
+    label: "Inventory",
+    description: "Stock monitoring",
+    icon: faPaw,
+  },
+  {
+    key: "manager",
+    label: "Manager",
+    description: "Executive analytics",
+    icon: faPeopleGroup,
+  },
+  {
+    key: "veterinary",
+    label: "Veterinary",
+    description: "Medical services",
+    icon: faCalendarCheck,
   },
   {
     key: "orders",
@@ -598,6 +626,14 @@ const AdminReports = () => {
     switch (activeTab) {
       case "overview":
         return renderOverview();
+      case "cashier":
+        return <CashierAdminReports />;
+      case "inventory":
+        return <InventoryAdminReports />;
+      case "manager":
+        return <ManagerAdminReports />;
+      case "veterinary":
+        return <VeterinaryAdminReports />;
       case "orders":
         return <OrderReports />;
       case "payments":

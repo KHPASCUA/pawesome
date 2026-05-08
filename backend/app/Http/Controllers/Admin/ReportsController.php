@@ -143,21 +143,55 @@ class ReportsController extends Controller
 
     public function overview(Request $request)
     {
+        $payload = [
+            'summary' => $this->overviewMetrics($request),
+            'recent_actions' => $this->recentActions($request),
+            'transactions' => $this->overviewTransactions($request),
+            'appointments' => $this->overviewAppointments($request),
+            'users' => $this->overviewUsers($request),
+            'low_stock_alerts' => $this->lowStockAlerts($request),
+            'pending_operations' => $this->pendingOperations($request),
+        ];
+
         return response()->json([
             'success' => true,
-            'data' => [
-                'summary' => $this->overviewMetrics($request),
-                'recent_actions' => $this->recentActions($request),
-                'transactions' => $this->overviewTransactions($request),
-                'appointments' => $this->overviewAppointments($request),
-                'users' => $this->overviewUsers($request),
-            ],
+            'summary' => $payload['summary'],
+            'data' => $payload,
+            'charts' => [],
+            'filters' => $this->activeFilters($request),
+            'message' => null,
         ]);
     }
 
     public function cashier(Request $request)
     {
         $orders = $this->customerOrdersBase($request);
+        $boardingPayments = $this->paymentRowsFromTable($request, 'boardings', 'boarding', 'Boarding');
+        $confinementPayments = $this->paymentRowsFromTable($request, 'medical_confinements', 'medical_confinement', 'Medical Confinement');
+        $orderPayments = $this->customerOrdersBase($request)
+            ->select([
+                'customer_orders.id',
+                DB::raw('CONCAT("ORDER-", customer_orders.id) as payment_number'),
+                DB::raw('COALESCE(customer_orders.customer_name, customer_orders.customer_email, CONCAT("Customer #", customer_orders.customer_id)) as customer_name'),
+                DB::raw('"order" as source'),
+                'customer_orders.total_amount as amount',
+                'customer_orders.payment_status',
+                'customer_orders.payment_method',
+                'customer_orders.payment_reference',
+                'customer_orders.receipt_number',
+                'customer_orders.payment_proof',
+                'customer_orders.cashier_remarks',
+                'customer_orders.paid_at',
+                'customer_orders.created_at',
+            ])
+            ->latest('customer_orders.created_at')
+            ->limit(250)
+            ->get();
+        $paymentRows = $orderPayments
+            ->concat($boardingPayments)
+            ->concat($confinementPayments)
+            ->sortByDesc('created_at')
+            ->values();
         $rows = $this->customerOrdersBase($request)
             ->leftJoin('users as verifier', 'verifier.id', '=', 'customer_orders.verified_by')
             ->select([
@@ -183,23 +217,42 @@ class ReportsController extends Controller
 
         $posRevenue = $this->dateRange(DB::table('sales'), $request)->sum('amount');
         $paidOrderRevenue = (clone $orders)->where('payment_status', 'paid')->sum('total_amount');
+        $paidBoardingRevenue = $boardingPayments->where('payment_status', 'paid')->sum('amount');
+        $paidConfinementRevenue = $confinementPayments->where('payment_status', 'paid')->sum('amount');
 
         return response()->json([
             'success' => true,
+            'summary' => [
+                'total_revenue' => (float) $paidOrderRevenue + (float) $posRevenue + (float) $paidBoardingRevenue + (float) $paidConfinementRevenue,
+                'total_cashier_transactions' => $this->dateRange(DB::table('sales'), $request)->count(),
+                'pos_sales' => (float) $posRevenue,
+                'pending_payment_proofs' => $paymentRows->where('payment_status', 'pending')->count(),
+                'verified_payments' => $paymentRows->whereIn('payment_status', ['paid', 'completed', 'verified'])->count(),
+                'rejected_payments' => $paymentRows->where('payment_status', 'rejected')->count(),
+                'receipt_count' => $paymentRows->filter(fn ($row) => !empty($row->receipt_number))->count(),
+            ],
             'data' => [
                 'summary' => [
-                    'total_revenue' => (float) $paidOrderRevenue + (float) $posRevenue,
+                    'total_revenue' => (float) $paidOrderRevenue + (float) $posRevenue + (float) $paidBoardingRevenue + (float) $paidConfinementRevenue,
                     'paid_orders' => (clone $orders)->where('payment_status', 'paid')->count(),
-                    'pending_payment_proofs' => (clone $orders)->where('payment_status', 'pending')->count(),
-                    'rejected_payment_proofs' => (clone $orders)->where('payment_status', 'rejected')->count(),
+                    'pending_payment_proofs' => $paymentRows->where('payment_status', 'pending')->count(),
+                    'rejected_payment_proofs' => $paymentRows->where('payment_status', 'rejected')->count(),
                     'refunds' => $this->tableExists('payments')
                         ? $this->dateRange(DB::table('payments')->where('status', 'refunded'), $request)->count()
                         : 0,
                     'pos_revenue' => (float) $posRevenue,
                 ],
                 'orders' => $rows,
+                'payment_verifications' => $paymentRows,
                 'transactions' => $this->salesRows($request),
             ],
+            'charts' => [
+                'payment_methods' => $paymentRows->groupBy(fn ($row) => $row->payment_method ?: 'Unspecified')
+                    ->map(fn ($group, $method) => ['method' => $method, 'count' => $group->count(), 'amount' => (float) $group->sum('amount')])
+                    ->values(),
+            ],
+            'filters' => $this->activeFilters($request),
+            'message' => null,
         ]);
     }
 
@@ -269,6 +322,7 @@ class ReportsController extends Controller
         $completed = (clone $appointments)->where('status', 'completed')->count();
         $total = (clone $appointments)->count();
         $serviceBreakdown = $this->serviceBreakdown($request);
+        $confinements = $this->medicalConfinementsBase($request);
 
         return response()->json([
             'success' => true,
@@ -279,10 +333,15 @@ class ReportsController extends Controller
                     'cancelled_appointments' => (clone $appointments)->where('status', 'cancelled')->count(),
                     'no_show_appointments' => (clone $appointments)->where('status', 'no_show')->count(),
                     'services_tracked' => count($serviceBreakdown),
+                    'medical_confinements' => (clone $confinements)->count(),
+                    'pets_under_observation' => (clone $confinements)->whereIn('status', ['admitted', 'under_observation', 'under_treatment'])->count(),
+                    'ready_for_discharge' => (clone $confinements)->where('status', 'ready_for_discharge')->count(),
+                    'medical_progress_notes' => $this->tableExists('medical_progress_notes') ? $this->dateRange(DB::table('medical_progress_notes'), $request)->count() : 0,
                     'total_revenue' => (float) (clone $appointments)->where('status', 'completed')->sum('price'),
                     'completion_rate' => $total > 0 ? round(($completed / $total) * 100, 2) : 0,
                 ],
                 'appointments' => $this->appointmentRows($request),
+                'medical_confinements' => (clone $confinements)->latest('created_at')->limit(250)->get(),
                 'service_breakdown' => $serviceBreakdown,
                 'monthly_revenue' => (float) (clone $appointments)->where('status', 'completed')->sum('price'),
                 'monthly_completed' => $completed,
@@ -528,10 +587,21 @@ class ReportsController extends Controller
             $payments = $payments->concat($requests);
         }
 
+        $payments = $payments
+            ->concat($this->paymentRowsFromTable($request, 'boardings', 'boarding', 'Boarding'))
+            ->concat($this->paymentRowsFromTable($request, 'medical_confinements', 'medical_confinement', 'Medical Confinement'));
+
         $payments = $payments->sortByDesc('created_at')->values();
 
         return response()->json([
             'success' => true,
+            'summary' => [
+                'total_payments' => $payments->count(),
+                'total_amount' => (float) $payments->sum(fn ($payment) => (float) $payment->amount),
+                'paid' => $payments->whereIn('status', ['paid', 'completed', 'verified'])->count(),
+                'pending' => $payments->where('status', 'pending')->count(),
+                'rejected' => $payments->where('status', 'rejected')->count(),
+            ],
             'data' => [
                 'summary' => [
                     'total_payments' => $payments->count(),
@@ -543,6 +613,13 @@ class ReportsController extends Controller
                 'payments' => $payments,
                 'generated_at' => now()->toIso8601String(),
             ],
+            'charts' => [
+                'payment_methods' => $payments->groupBy(fn ($payment) => $payment->payment_method ?: 'Unspecified')
+                    ->map(fn ($group, $method) => ['method' => $method, 'count' => $group->count(), 'amount' => (float) $group->sum('amount')])
+                    ->values(),
+            ],
+            'filters' => $this->activeFilters($request),
+            'message' => null,
         ]);
     }
 
@@ -641,21 +718,55 @@ class ReportsController extends Controller
             $requests = $requests->concat($boardings);
         }
 
+        if ($this->tableExists('medical_confinements')) {
+            $confinements = $this->medicalConfinementsBase($request)
+                ->select([
+                    'medical_confinements.id',
+                    DB::raw('"medical_confinement" as service_type'),
+                    DB::raw('"Medical Confinement" as service_name'),
+                    'medical_confinements.customer_name',
+                    'medical_confinements.customer_email',
+                    'medical_confinements.pet_name',
+                    'medical_confinements.status',
+                    'medical_confinements.payment_status',
+                    'medical_confinements.created_at',
+                    DB::raw('"medical_confinement" as source'),
+                ])
+                ->latest('medical_confinements.created_at')
+                ->limit(500)
+                ->get();
+            $requests = $requests->concat($confinements);
+        }
+
         $requests = $requests->sortByDesc('created_at')->values();
 
         return response()->json([
             'success' => true,
+            'summary' => [
+                'total_requests' => $requests->count(),
+                'pending' => $requests->whereIn('status', ['pending', 'recommended'])->count(),
+                'completed' => $requests->whereIn('status', ['completed', 'checked_out', 'discharged'])->count(),
+                'cancelled' => $requests->whereIn('status', ['cancelled', 'rejected'])->count(),
+                'in_progress' => $requests->whereIn('status', ['approved', 'scheduled', 'confirmed', 'checked_in', 'in_care', 'admitted', 'under_observation', 'under_treatment'])->count(),
+            ],
             'data' => [
                 'summary' => [
                     'total_requests' => $requests->count(),
-                    'pending' => $requests->where('status', 'pending')->count(),
-                    'completed' => $requests->whereIn('status', ['completed', 'checked_out'])->count(),
+                    'pending' => $requests->whereIn('status', ['pending', 'recommended'])->count(),
+                    'completed' => $requests->whereIn('status', ['completed', 'checked_out', 'discharged'])->count(),
                     'cancelled' => $requests->whereIn('status', ['cancelled', 'rejected'])->count(),
-                    'in_progress' => $requests->whereIn('status', ['approved', 'scheduled', 'confirmed', 'checked_in'])->count(),
+                    'in_progress' => $requests->whereIn('status', ['approved', 'scheduled', 'confirmed', 'checked_in', 'in_care', 'admitted', 'under_observation', 'under_treatment'])->count(),
                 ],
                 'requests' => $requests,
                 'generated_at' => now()->toIso8601String(),
             ],
+            'charts' => [
+                'service_types' => $requests->groupBy('service_type')
+                    ->map(fn ($group, $type) => ['type' => $type ?: 'unknown', 'count' => $group->count()])
+                    ->values(),
+            ],
+            'filters' => $this->activeFilters($request),
+            'message' => null,
         ]);
     }
 
@@ -692,23 +803,199 @@ class ReportsController extends Controller
         $orders = $this->customerOrdersBase($request);
         $paidOrders = $this->customerOrdersBase($request)->where('payment_status', 'paid');
         $salesRevenue = $this->dateRange(DB::table('sales'), $request)->sum('amount');
+        $boardingPayments = $this->paymentRowsFromTable($request, 'boardings', 'boarding', 'Boarding');
+        $confinementPayments = $this->paymentRowsFromTable($request, 'medical_confinements', 'medical_confinement', 'Medical Confinement');
+        $serviceRequests = $this->serviceRequestsBase($request);
+        $appointments = $this->appointmentsBase($request);
+        $boardings = $this->boardingsBase($request);
+        $confinements = $this->medicalConfinementsBase($request);
+        $paidBoardingRevenue = $boardingPayments->whereIn('payment_status', ['paid', 'completed', 'verified'])->sum('amount');
+        $paidConfinementRevenue = $confinementPayments->whereIn('payment_status', ['paid', 'completed', 'verified'])->sum('amount');
 
         return [
+            'total_customers' => Customer::count(),
             'total_users' => User::count(),
             'active_customers' => $this->activeCustomerCount($request),
             'total_orders' => (clone $orders)->count(),
-            'total_revenue' => (float) $paidOrders->sum('total_amount') + (float) $salesRevenue,
+            'total_services' => (clone $serviceRequests)->count() + (clone $appointments)->count() + (clone $boardings)->count() + (clone $confinements)->count(),
+            'total_payments' => $this->paymentRows($request)->count(),
+            'total_revenue' => (float) $paidOrders->sum('total_amount') + (float) $salesRevenue + (float) $paidBoardingRevenue + (float) $paidConfinementRevenue,
             'pending_approvals' => $this->customerOrdersBase($request)->where('status', 'pending')->count()
-                + $this->serviceRequestsBase($request)->where('status', 'pending')->count(),
+                + $this->serviceRequestsBase($request)->where('status', 'pending')->count()
+                + $this->boardingsBase($request)->where('status', 'pending')->count()
+                + $this->medicalConfinementsBase($request)->where('status', 'recommended')->count(),
             'pending_payments' => $this->customerOrdersBase($request)->where('payment_status', 'pending')->count()
-                + ($this->tableExists('payments') ? $this->dateRange(DB::table('payments')->where('status', 'pending'), $request)->count() : 0),
+                + ($this->tableExists('payments') ? $this->dateRange(DB::table('payments')->where('status', 'pending'), $request)->count() : 0)
+                + $boardingPayments->where('payment_status', 'pending')->count()
+                + $confinementPayments->where('payment_status', 'pending')->count(),
             'low_stock_items' => $this->lowStockCount($request),
             'completed_services' => $this->appointmentsBase($request)->where('status', 'completed')->count()
-                + $this->serviceRequestsBase($request)->where('status', 'completed')->count(),
+                + $this->serviceRequestsBase($request)->where('status', 'completed')->count()
+                + $this->boardingsBase($request)->whereIn('status', ['completed', 'checked_out'])->count()
+                + $this->medicalConfinementsBase($request)->whereIn('status', ['completed', 'discharged'])->count(),
+            'active_appointments' => $this->appointmentsBase($request)->whereIn('status', ['approved', 'scheduled', 'in_consultation', 'in_progress'])->count(),
+            'active_boarding_stays' => $this->boardingsBase($request)->whereIn('status', ['checked_in', 'in_care'])->count(),
+            'active_medical_confinements' => $this->medicalConfinementsBase($request)->whereIn('status', ['admitted', 'under_observation', 'under_treatment'])->count(),
             'approved_orders' => $this->customerOrdersBase($request)->where('status', 'approved')->count(),
             'paid_orders' => $this->customerOrdersBase($request)->where('payment_status', 'paid')->count(),
             'rejected_orders' => $this->customerOrdersBase($request)->where('status', 'rejected')->count(),
         ];
+    }
+
+    private function activeFilters(Request $request): array
+    {
+        return [
+            'from' => $request->query('from') ?: $request->query('start_date'),
+            'to' => $request->query('to') ?: $request->query('end_date'),
+            'status' => $request->query('status', 'all'),
+            'payment_status' => $request->query('payment_status', 'all'),
+            'search' => $request->query('search'),
+        ];
+    }
+
+    private function paymentRows(Request $request)
+    {
+        return collect()
+            ->concat($this->paymentRowsFromTable($request, 'customer_orders', 'order', 'Order'))
+            ->concat($this->paymentRowsFromTable($request, 'service_requests', 'service_request', 'Service Request'))
+            ->concat($this->paymentRowsFromTable($request, 'boardings', 'boarding', 'Boarding'))
+            ->concat($this->paymentRowsFromTable($request, 'medical_confinements', 'medical_confinement', 'Medical Confinement'));
+    }
+
+    private function paymentRowsFromTable(Request $request, string $table, string $source, string $label)
+    {
+        if (!$this->tableExists($table)) {
+            return collect();
+        }
+
+        $query = $this->dateRange(DB::table($table), $request, "$table.created_at");
+
+        $paymentStatus = $request->query('payment_status') ?: $request->query('status');
+        if ($paymentStatus && $paymentStatus !== 'all' && Schema::hasColumn($table, 'payment_status')) {
+            $query->where("$table.payment_status", $paymentStatus);
+        }
+
+        $search = trim((string) $request->query('search', ''));
+        if ($search !== '') {
+            $query->where(function ($nested) use ($search, $table) {
+                foreach (['customer_name', 'customer_email', 'pet_name', 'receipt_number', 'payment_reference'] as $column) {
+                    if (Schema::hasColumn($table, $column)) {
+                        $nested->orWhere("$table.$column", 'like', "%$search%");
+                    }
+                }
+            });
+        }
+
+        $amountColumn = match ($table) {
+            'customer_orders' => Schema::hasColumn($table, 'total_amount') ? "$table.total_amount" : '0',
+            'service_requests' => $this->firstAvailableColumn($table, ['total_amount', 'price', 'service_price'], '0'),
+            'medical_confinements' => $this->firstAvailableColumn($table, ['final_amount', 'estimated_cost', 'total_amount'], '0'),
+            default => $this->firstAvailableColumn($table, ['total_amount', 'price', 'estimated_cost'], '0'),
+        };
+        $customerExpression = $this->firstAvailableColumn($table, ['customer_name', 'customer_email'], '"Customer"');
+
+        return $query
+            ->select([
+                "$table.id",
+                DB::raw('CONCAT("' . strtoupper($source) . '-", ' . $table . '.id) as payment_number'),
+                DB::raw($customerExpression . ' as customer_name'),
+                DB::raw('"' . $source . '" as source'),
+                DB::raw($amountColumn . ' as amount'),
+                DB::raw($this->columnSelect($table, 'payment_status', '"unpaid"', 'payment_status')),
+                DB::raw($this->columnSelect($table, 'payment_status', '"unpaid"', 'status')),
+                DB::raw($this->columnSelect($table, 'payment_method', 'NULL', 'payment_method')),
+                DB::raw($this->columnSelect($table, 'payment_reference', 'NULL', 'reference_number')),
+                DB::raw($this->columnSelect($table, 'receipt_number', 'NULL', 'receipt_number')),
+                DB::raw($this->columnSelect($table, 'payment_proof', 'NULL', 'payment_proof')),
+                DB::raw($this->columnSelect($table, 'cashier_remarks', 'NULL', 'cashier_remarks')),
+                DB::raw($this->columnSelect($table, 'paid_at', 'NULL', 'paid_at')),
+                "$table.created_at",
+                DB::raw('CONCAT("' . $label . ' #", ' . $table . '.id) as associated_record'),
+                DB::raw('"' . $source . '" as association_type'),
+            ])
+            ->latest("$table.created_at")
+            ->limit(500)
+            ->get();
+    }
+
+    private function boardingsBase(Request $request): Builder
+    {
+        if (!$this->tableExists('boardings')) {
+            return DB::query()->fromSub('select null as id where 1 = 0', 'boardings');
+        }
+
+        $query = DB::table('boardings');
+        $this->applyDateRange($query, $request, 'boardings.created_at');
+        $this->applyExactFilter($query, $request, 'status', 'boardings.status');
+
+        return $query;
+    }
+
+    private function medicalConfinementsBase(Request $request): Builder
+    {
+        if (!$this->tableExists('medical_confinements')) {
+            return DB::query()->fromSub('select null as id where 1 = 0', 'medical_confinements');
+        }
+
+        $query = DB::table('medical_confinements');
+        $this->applyDateRange($query, $request, 'medical_confinements.created_at');
+        $this->applyExactFilter($query, $request, 'status', 'medical_confinements.status');
+
+        return $query;
+    }
+
+    private function lowStockAlerts(Request $request)
+    {
+        if (!$this->tableExists('inventory_items')) {
+            return collect();
+        }
+
+        $query = $this->inventoryItemsBase($request);
+
+        if (Schema::hasColumn('inventory_items', 'reorder_level')) {
+            $query->whereColumn('stock', '<=', 'reorder_level');
+        } elseif (Schema::hasColumn('inventory_items', 'minimum_stock_level')) {
+            $query->whereColumn('stock', '<=', 'minimum_stock_level');
+        } else {
+            $query->where('stock', '<=', 10);
+        }
+
+        return $query->latest('updated_at')->limit(25)->get();
+    }
+
+    private function pendingOperations(Request $request)
+    {
+        return collect()
+            ->concat($this->customerOrdersBase($request)->where('status', 'pending')->select([
+                'customer_orders.id',
+                DB::raw('"order" as type'),
+                DB::raw('COALESCE(customer_orders.customer_name, customer_orders.customer_email, "Customer") as customer_name'),
+                'customer_orders.status',
+                'customer_orders.created_at',
+            ])->limit(50)->get())
+            ->concat($this->serviceRequestsBase($request)->where('status', 'pending')->select([
+                'service_requests.id',
+                DB::raw('"service_request" as type'),
+                DB::raw('COALESCE(service_requests.customer_name, service_requests.customer_email, "Customer") as customer_name'),
+                'service_requests.status',
+                'service_requests.created_at',
+            ])->limit(50)->get())
+            ->concat($this->boardingsBase($request)->where('status', 'pending')->select([
+                'boardings.id',
+                DB::raw('"boarding" as type'),
+                DB::raw($this->columnSelect('boardings', 'customer_name', '"Customer"', 'customer_name')),
+                'boardings.status',
+                'boardings.created_at',
+            ])->limit(50)->get())
+            ->concat($this->medicalConfinementsBase($request)->where('status', 'recommended')->select([
+                'medical_confinements.id',
+                DB::raw('"medical_confinement" as type'),
+                DB::raw($this->columnSelect('medical_confinements', 'customer_name', '"Customer"', 'customer_name')),
+                'medical_confinements.status',
+                'medical_confinements.created_at',
+            ])->limit(50)->get())
+            ->sortByDesc('created_at')
+            ->values();
     }
 
     private function customerOrdersBase(Request $request): Builder

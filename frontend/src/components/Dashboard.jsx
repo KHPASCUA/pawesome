@@ -4,6 +4,7 @@ import { Navigate } from "react-router-dom";
 const roleHomeMap = {
   admin: "/admin",
   payroll: "/payroll",
+  payroll_manager: "/payroll",
   customer: "/customer",
   receptionist: "/receptionist",
   veterinary: "/veterinary",

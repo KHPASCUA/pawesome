@@ -24,7 +24,7 @@
     var(--color-primary-light)
   ) !important;
 
-  color: #ffffff !important;
+  color: var(--color-text) !important;
   box-shadow: 14px 0 38px rgba(75, 34, 50, 0.2) !important;
   border-right: 1px solid rgba(255, 255, 255, 0.28) !important;
 }
@@ -55,7 +55,7 @@
   display: flex !important;
   align-items: center !important;
   gap: 0.75rem !important;
-  color: #ffffff !important;
+  color: var(--color-text) !important;
   font-weight: 950 !important;
   font-size: 1.05rem !important;
   background: transparent !important;
@@ -70,7 +70,7 @@
   padding: 0.7rem !important;
   border-radius: 16px !important;
   background: rgba(255, 255, 255, 0.18) !important;
-  color: #ffffff !important;
+  color: var(--color-text) !important;
 }
 
 /* NAV */
@@ -109,7 +109,7 @@
   padding: 0.75rem 0.9rem !important;
   border-radius: 18px !important;
 
-  color: #ffffff !important;
+  color: var(--color-text) !important;
   text-decoration: none !important;
   background: transparent !important;
   border: none !important;
@@ -194,14 +194,7 @@
 }
 
 /* DARK MODE */
-.dark .app-sidebar,
 [data-theme="dark"] .app-sidebar,
-.dark .admin-sidebar,
-.dark .cashier-sidebar,
-.dark .inventory-sidebar,
-.dark .manager-sidebar,
-.dark .receptionist-sidebar,
-.dark .veterinary-sidebar,
 [data-theme="dark"] .admin-sidebar,
 [data-theme="dark"] .cashier-sidebar,
 [data-theme="dark"] .inventory-sidebar,

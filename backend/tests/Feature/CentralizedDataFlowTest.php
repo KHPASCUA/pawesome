@@ -60,6 +60,7 @@ class CentralizedDataFlowTest extends TestCase
             'name' => 'Test Customer',
             'email' => 'customer@test.com',
             'phone' => '09123456789',
+            'user_id' => $this->customerUser->id,
         ]);
     }
 
@@ -265,7 +266,7 @@ class CentralizedDataFlowTest extends TestCase
             ->getJson('/api/admin/reports/sales');
 
         $transactionsResponse->assertStatus(200);
-        $transactions = collect($transactionsResponse->json('sales'))
+        $transactions = collect($transactionsResponse->json('data.sales'))
             ->where('id', $saleId);
         $this->assertCount(1, $transactions);
     }
@@ -310,7 +311,7 @@ class CentralizedDataFlowTest extends TestCase
 
         // Step 2: Verify inventory API (used by Customer Store)
         $inventoryResponse = $this->actingAs($this->customerUser)
-            ->getJson('/api/inventory/items');
+            ->getJson('/api/inventory/public/items');
 
         $inventoryResponse->assertStatus(200);
         $items = $inventoryResponse->json('items');
@@ -389,7 +390,7 @@ class CentralizedDataFlowTest extends TestCase
 
         // Step 4: Verify same stock in Customer Store API
         $customerStoreCheck = $this->actingAs($this->customerUser)
-            ->getJson('/api/inventory/items');
+            ->getJson('/api/inventory/public/items');
 
         $storeItem = collect($customerStoreCheck->json('items'))
             ->firstWhere('sku', 'FLOW-STOCK-001');
@@ -437,7 +438,7 @@ class CentralizedDataFlowTest extends TestCase
         // Check consistency across all APIs
         $endpoints = [
             '/api/admin/inventory/items',
-            '/api/inventory/items',
+            '/api/inventory/public/items',
             '/api/cashier/pos/items',
             '/api/inventory/dashboard/overview',
         ];
@@ -569,7 +570,7 @@ class CentralizedDataFlowTest extends TestCase
 
         // Step 4: Customer views updated inventory in store
         $customerResponse = $this->actingAs($this->customerUser)
-            ->getJson('/api/inventory/items');
+            ->getJson('/api/inventory/public/items');
 
         $customerResponse->assertStatus(200);
         $customerItem = collect($customerResponse->json('items'))

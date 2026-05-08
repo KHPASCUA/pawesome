@@ -8,7 +8,7 @@ const routeRoleMap = {
   cashier: ["cashier"],
   inventory: ["inventory"],
   manager: ["manager"],
-  payroll: ["payroll"],
+  payroll: ["payroll", "payroll_manager"],
   veterinary: ["veterinary", "vet", "veterinarian"],
   vet: ["veterinary", "vet", "veterinarian"],
 };
@@ -16,6 +16,7 @@ const routeRoleMap = {
 const roleHomeMap = {
   admin: "/admin",
   payroll: "/payroll",
+  payroll_manager: "/payroll",
   customer: "/customer",
   receptionist: "/receptionist",
   veterinary: "/veterinary",

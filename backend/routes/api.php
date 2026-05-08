@@ -22,8 +22,12 @@ use App\Http\Controllers\Cashier\POSController;
 use App\Http\Controllers\Inventory\DashboardController as InventoryDashboardController;
 use App\Http\Controllers\Manager\DashboardController as ManagerDashboardController;
 use App\Http\Controllers\Receptionist\DashboardController as ReceptionistDashboardController;
+use App\Http\Controllers\Receptionist\CustomerOrderController as ReceptionistCustomerOrderController;
 use App\Http\Controllers\Veterinary\DashboardController as VeterinaryDashboardController;
 use App\Http\Controllers\Veterinary\MedicalRecordController;
+use App\Http\Controllers\Veterinary\ConsultationWorkflowController;
+use App\Http\Controllers\MedicalConfinementController;
+use App\Http\Controllers\Manager\WorkflowReportController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\BoardingController;
 use App\Http\Controllers\HotelRoomController;
@@ -154,6 +158,7 @@ Route::middleware(['auth.api', 'throttle:api', 'role:admin'])->prefix('admin')->
     Route::get('reports/customers/{id}', [CustomerReportController::class, 'getCustomerDetail']);
     Route::get('reports/payments', [ReportsController::class, 'payments']);
     Route::get('reports/orders', [ReportsController::class, 'orders']);
+    Route::get('reports/services', [ReportsController::class, 'serviceRequests']);
     Route::get('reports/service-requests', [ReportsController::class, 'serviceRequests']);
     Route::get('reports/logistics', [ReportsController::class, 'logistics']);
     Route::get('reports/reception', [ReportsController::class, 'reception']);
@@ -222,6 +227,7 @@ Route::middleware(['auth.api', 'throttle:api', 'role:customer'])->prefix('custom
     // Customer Service Requests
     Route::post('requests', [ServiceRequestController::class, 'store']);
     Route::get('my-requests', [ServiceRequestController::class, 'customerRequests']);
+    Route::patch('requests/{id}/cancel', [ServiceRequestController::class, 'cancel']);
     Route::post('requests/{id}/payment-proof', [ServiceRequestController::class, 'uploadPaymentProof']);
     Route::get('requests/{id}/receipt', [ServiceRequestController::class, 'receipt']);
     
@@ -230,9 +236,34 @@ Route::middleware(['auth.api', 'throttle:api', 'role:customer'])->prefix('custom
     Route::get('store/orders', [CustomerStoreController::class, 'orders']);
     Route::post('store/orders/{id}/payment-proof', [CustomerStoreController::class, 'uploadPaymentProof']);
     Route::get('store/orders/{id}/receipt', [CustomerStoreController::class, 'receipt']);
+    Route::post('store/orders/{id}/cancel', [CustomerStoreController::class, 'cancel']);
+
+    Route::get('reports/orders', [CustomerStoreController::class, 'orders']);
+    Route::get('reports/payments', [PortalController::class, 'transactions']);
+    Route::get('reports/services', [ServiceRequestController::class, 'customerRequests']);
+    Route::get('reports/appointments', [PortalController::class, 'appointments']);
+    Route::get('reports/boarding', [BoardingController::class, 'index']);
+    Route::get('reports/confinements', [MedicalConfinementController::class, 'index']);
+    Route::get('reports/receipts', [PortalController::class, 'transactions']);
     
     // Customer Medical History (Read-only for own pets)
     Route::get('pets/{pet}/medical-history', [MedicalRecordController::class, 'indexByCustomer']);
+
+    Route::get('boarding-requests', [BoardingController::class, 'index']);
+    Route::post('boarding-requests', [BoardingController::class, 'store']);
+    Route::get('boarding-requests/{id}', [BoardingController::class, 'show']);
+    Route::post('boarding-requests/{id}/cancel', [BoardingController::class, 'cancel']);
+    Route::post('boarding-requests/{id}/payment-proof', [BoardingController::class, 'uploadPaymentProof']);
+    Route::get('boarding-requests/{id}/care-logs', [BoardingController::class, 'careLogs']);
+
+    Route::get('vet-consultations', [VetController::class, 'index']);
+    Route::post('vet-consultations', [VetController::class, 'store']);
+    Route::get('vet-consultations/{id}', [VetController::class, 'show']);
+    Route::get('medical-confinements', [MedicalConfinementController::class, 'index']);
+    Route::get('medical-confinements/{id}', [MedicalConfinementController::class, 'show']);
+    Route::post('medical-confinements/{id}/payment-proof', [MedicalConfinementController::class, 'uploadPaymentProof']);
+    Route::get('medical-confinements/{id}/care-logs', [MedicalConfinementController::class, 'careLogs']);
+    Route::get('medical-confinements/{id}/medical-notes', [MedicalConfinementController::class, 'progressNotes']);
 });
 
 Route::middleware(['auth.api', 'throttle:api', 'role:cashier'])->prefix('cashier')->group(function () {
@@ -272,6 +303,19 @@ Route::middleware(['auth.api', 'throttle:api', 'role:cashier'])->prefix('cashier
     Route::post('pos/transaction/{id}/void', [POSController::class, 'voidTransaction']);
     Route::get('pos/invoice/{id}', [POSController::class, 'downloadInvoice']);
     Route::get('reports/live', [ReportsController::class, 'cashier']);
+    Route::get('reports/overview', [ReportsController::class, 'cashier']);
+    Route::get('reports/pending-payments', [ReportsController::class, 'payments']);
+    Route::get('reports/paid-payments', [ReportsController::class, 'payments']);
+    Route::get('reports/rejected-payments', [ReportsController::class, 'payments']);
+    Route::get('reports/pos-sales', [ReportsController::class, 'sales']);
+    Route::get('reports/receipts', [ReportsController::class, 'payments']);
+    Route::get('reports/payment-methods', [ReportsController::class, 'cashier']);
+    Route::get('boarding-payments/pending', [CashierDashboardController::class, 'getPaymentRequests']);
+    Route::post('boarding-payments/{id}/verify', [CashierDashboardController::class, 'verifyPayment'])->defaults('type', 'boarding');
+    Route::post('boarding-payments/{id}/reject', [CashierDashboardController::class, 'rejectPayment'])->defaults('type', 'boarding');
+    Route::get('confinement-payments/pending', [CashierDashboardController::class, 'getPaymentRequests']);
+    Route::post('confinement-payments/{id}/verify', [CashierDashboardController::class, 'verifyPayment'])->defaults('type', 'medical_confinement');
+    Route::post('confinement-payments/{id}/reject', [CashierDashboardController::class, 'rejectPayment'])->defaults('type', 'medical_confinement');
 });
 
 Route::middleware(['auth.api', 'throttle:api', 'role:receptionist'])->prefix('receptionist')->group(function () {
@@ -284,6 +328,13 @@ Route::middleware(['auth.api', 'throttle:api', 'role:receptionist'])->prefix('re
     Route::put('orders/{id}/status', [ReceptionistDashboardController::class, 'updateOrderStatus']);
     Route::get('reports/transactions', [CashierDashboardController::class, 'transactions']);
     Route::get('reports/live', [ReportsController::class, 'reception']);
+    Route::get('reports/overview', [ReportsController::class, 'reception']);
+    Route::get('reports/customer-orders', [ReportsController::class, 'orders']);
+    Route::get('reports/service-requests', [ReportsController::class, 'serviceRequests']);
+    Route::get('reports/appointments', [ReportsController::class, 'veterinary']);
+    Route::get('reports/boarding', [ReportsController::class, 'serviceRequests']);
+    Route::get('reports/confinement-admissions', [ReportsController::class, 'serviceRequests']);
+    Route::get('reports/cancellations', [ReportsController::class, 'serviceRequests']);
 
     // Appointment management
     Route::get('appointment/list', [AppointmentController::class, 'index']);
@@ -301,6 +352,14 @@ Route::middleware(['auth.api', 'throttle:api', 'role:receptionist'])->prefix('re
     Route::get('customers', [ReceptionistCustomerController::class, 'index']);
     Route::post('customers', [ReceptionistCustomerController::class, 'store']);
 
+    // Customer Order Management
+    Route::get('customer-orders', [ReceptionistCustomerOrderController::class, 'index']);
+    Route::get('customer-orders/pending', [ReceptionistCustomerOrderController::class, 'pending']);
+    Route::get('customer-orders/{id}', [ReceptionistCustomerOrderController::class, 'show']);
+    Route::post('customer-orders/{id}/approve', [ReceptionistCustomerOrderController::class, 'approve']);
+    Route::post('customer-orders/{id}/reject', [ReceptionistCustomerOrderController::class, 'reject']);
+    Route::post('customer-orders/{id}/cancel', [ReceptionistCustomerOrderController::class, 'cancel']);
+
     // Pet Management
     Route::get('pets', [ReceptionistPetController::class, 'index']);
     Route::post('pets', [ReceptionistPetController::class, 'store']);
@@ -315,6 +374,26 @@ Route::middleware(['auth.api', 'throttle:api', 'role:receptionist'])->prefix('re
     
     // Veterinarian Management
     Route::get('veterinarians/available', [AppointmentController::class, 'availableVeterinarians']);
+
+    Route::get('boarding-requests', [BoardingController::class, 'index']);
+    Route::get('boarding-requests/pending', [BoardingController::class, 'pending']);
+    Route::post('boarding-requests/{id}/approve', [BoardingController::class, 'approve']);
+    Route::post('boarding-requests/{id}/reject', [BoardingController::class, 'reject']);
+    Route::post('boarding-requests/{id}/schedule', [BoardingController::class, 'schedule']);
+    Route::post('boarding-requests/{id}/check-in', [BoardingController::class, 'checkIn']);
+    Route::post('boarding-requests/{id}/care-logs', [BoardingController::class, 'addCareLog']);
+    Route::get('boarding-requests/{id}/care-logs', [BoardingController::class, 'careLogs']);
+    Route::post('boarding-requests/{id}/ready-for-pickup', [BoardingController::class, 'readyForPickup']);
+    Route::post('boarding-requests/{id}/check-out', [BoardingController::class, 'checkOut']);
+    Route::get('boarding-rooms', [HotelRoomController::class, 'index']);
+
+    Route::get('medical-confinements', [MedicalConfinementController::class, 'index']);
+    Route::get('medical-confinements/pending-admission', [MedicalConfinementController::class, 'pendingAdmission']);
+    Route::post('medical-confinements/{id}/assign-room', [MedicalConfinementController::class, 'assignRoom']);
+    Route::post('medical-confinements/{id}/admit', [MedicalConfinementController::class, 'admit']);
+    Route::post('medical-confinements/{id}/care-logs', [MedicalConfinementController::class, 'addCareLog']);
+    Route::get('medical-confinements/{id}/care-logs', [MedicalConfinementController::class, 'careLogs']);
+    Route::post('medical-confinements/{id}/release', [MedicalConfinementController::class, 'release']);
 });
 
 Route::middleware(['auth.api', 'throttle:api'])->get('inventory/items', [InventoryDashboardController::class, 'publicItems']);
@@ -332,8 +411,23 @@ Route::middleware(['auth.api', 'throttle:api', 'role:admin,inventory'])->prefix(
     Route::get('logs', [InventoryDashboardController::class, 'logs']);
     Route::get('reports', [InventoryDashboardController::class, 'reports']);
     Route::get('reports/live', [ReportsController::class, 'inventory']);
+    Route::get('reports/overview', [ReportsController::class, 'inventory']);
+    Route::get('reports/stock-levels', [ReportsController::class, 'inventory']);
+    Route::get('reports/low-stock', [ReportsController::class, 'inventory']);
+    Route::get('reports/movements', [ReportsController::class, 'inventory']);
+    Route::get('reports/adjustments', [ReportsController::class, 'inventory']);
+    Route::get('reports/pos-deductions', [ReportsController::class, 'inventory']);
+    Route::get('reports/order-deductions', [ReportsController::class, 'inventory']);
+    Route::get('reports/stock-restores', [ReportsController::class, 'inventory']);
+    Route::get('reports/valuation', [ReportsController::class, 'inventory']);
     Route::get('history', [InventoryDashboardController::class, 'history']);
     Route::get('low-stock', [InventoryDashboardController::class, 'lowStock']);
+    Route::get('expiry-alerts', [InventoryDashboardController::class, 'expiryAlerts']);
+    Route::get('monthly-audit', [InventoryDashboardController::class, 'monthlyAudit']);
+    Route::post('monthly-audit', [InventoryDashboardController::class, 'saveMonthlyAudit']);
+    Route::get('monthly-audit-report', [InventoryDashboardController::class, 'monthlyAuditReport']);
+    Route::get('audit-analytics', [InventoryDashboardController::class, 'auditAnalytics']);
+    Route::get('monthly-audit/discrepancy-reasons', [InventoryDashboardController::class, 'discrepancyReasons']);
     Route::post('reorder-requests', [InventoryDashboardController::class, 'reorderRequest']);
     Route::post('{id}/stock', [InventoryDashboardController::class, 'adjustStock']);
     Route::patch('{id}/stock', [InventoryDashboardController::class, 'adjustStock']);
@@ -344,8 +438,19 @@ Route::middleware(['auth.api', 'throttle:api', 'role:manager'])->prefix('manager
     Route::get('staff', [ManagerDashboardController::class, 'staff']);
     Route::get('executive-summary', [ManagerDashboardController::class, 'executiveSummary']);
     Route::get('reports/summary', [ReportsController::class, 'summary']);
+    Route::get('reports/overview', [ReportsController::class, 'manager']);
     Route::get('reports/sales', [ReportsController::class, 'sales']);
     Route::get('reports/live', [ReportsController::class, 'manager']);
+    Route::get('reports/payments', [ReportsController::class, 'payments']);
+    Route::get('reports/customers', [ReportsController::class, 'customers']);
+    Route::get('reports/services', [ReportsController::class, 'serviceRequests']);
+    Route::get('reports/inventory', [ReportsController::class, 'inventory']);
+    Route::get('reports/staff-performance', [ReportsController::class, 'manager']);
+    Route::get('reports/revenue-trends', [ReportsController::class, 'sales']);
+    Route::get('reports/boarding', [WorkflowReportController::class, 'boarding']);
+    Route::get('reports/medical-confinement', [WorkflowReportController::class, 'medicalConfinement']);
+    Route::get('reports/room-occupancy', [WorkflowReportController::class, 'roomOccupancy']);
+    Route::get('reports/veterinary-services', [WorkflowReportController::class, 'veterinaryServices']);
 });
 
 // Attendance Routes (Admin and Manager)
@@ -382,6 +487,10 @@ Route::middleware(['auth.api', 'throttle:api', 'role:admin,payroll'])->prefix('p
     // Legacy routes using main controller
     Route::post('/', [PayrollController::class, 'store']);
     Route::put('/{id}', [PayrollController::class, 'update']);
+    Route::get('/reports/overview', [ReportsController::class, 'payrollReports']);
+    Route::get('/reports/attendance', [ReportsController::class, 'payrollReports']);
+    Route::get('/reports/salaries', [ReportsController::class, 'payrollReports']);
+    Route::get('/reports/payroll-history', [ReportsController::class, 'payrollReports']);
 });
 
 // Admin Salaries Routes (for EmployeeSalaryManagement component)
@@ -416,6 +525,14 @@ Route::middleware(['auth.api', 'throttle:api', 'role:veterinary,vet'])->prefix('
     Route::get('history', [VeterinaryDashboardController::class, 'history']);
     Route::get('reports', [VeterinaryDashboardController::class, 'reports']);
     Route::get('reports/live', [ReportsController::class, 'veterinary']);
+    Route::get('reports/overview', [ReportsController::class, 'veterinary']);
+    Route::get('reports/appointments', [ReportsController::class, 'veterinary']);
+    Route::get('reports/consultations', [ReportsController::class, 'veterinary']);
+    Route::get('reports/treatments', [ReportsController::class, 'veterinary']);
+    Route::get('reports/medical-records', [ReportsController::class, 'veterinary']);
+    Route::get('reports/confinements', [ReportsController::class, 'veterinary']);
+    Route::get('reports/health-alerts', [ReportsController::class, 'veterinary']);
+    Route::get('reports/completed-services', [ReportsController::class, 'veterinary']);
     Route::get('receipt/{id}', [VeterinaryDashboardController::class, 'receipt']);
     
     // Veterinarian appointment actions
@@ -423,6 +540,18 @@ Route::middleware(['auth.api', 'throttle:api', 'role:veterinary,vet'])->prefix('
     Route::post('appointments/{id}/complete', [AppointmentController::class, 'complete']);
     Route::put('appointments/{id}/medical', [AppointmentController::class, 'updateMedical']);
     Route::match(['put', 'patch'], 'appointments/{id}/status', [AppointmentController::class, 'updateStatus']);
+
+    Route::get('consultations', [ConsultationWorkflowController::class, 'index']);
+    Route::get('consultations/scheduled', [ConsultationWorkflowController::class, 'scheduled']);
+    Route::post('consultations/{id}/start', [ConsultationWorkflowController::class, 'start']);
+    Route::post('consultations/{id}/complete', [ConsultationWorkflowController::class, 'complete']);
+    Route::post('consultations/{id}/recommend-confinement', [ConsultationWorkflowController::class, 'recommendConfinement']);
+    Route::get('medical-confinements', [MedicalConfinementController::class, 'index']);
+    Route::post('medical-confinements/{id}/progress-notes', [MedicalConfinementController::class, 'addProgressNote']);
+    Route::get('medical-confinements/{id}/progress-notes', [MedicalConfinementController::class, 'progressNotes']);
+    Route::post('medical-confinements/{id}/mark-under-observation', [MedicalConfinementController::class, 'markUnderObservation']);
+    Route::post('medical-confinements/{id}/mark-under-treatment', [MedicalConfinementController::class, 'markUnderTreatment']);
+    Route::post('medical-confinements/{id}/clear-for-discharge', [MedicalConfinementController::class, 'clearForDischarge']);
     
     // Medical Records Management
     Route::get('medical-records', [MedicalRecordController::class, 'index']);

@@ -268,16 +268,16 @@ class CustomerStoreController extends Controller
 
         $orders = DB::table('customer_orders')
             ->where(function ($query) use ($user) {
+                // Use AND logic to ensure we only get the current customer's orders
                 if (Schema::hasColumn('customer_orders', 'customer_id')) {
-                    $query->orWhere('customer_id', $user->id);
-                }
-
-                if (Schema::hasColumn('customer_orders', 'user_id')) {
-                    $query->orWhere('user_id', $user->id);
-                }
-
-                if (Schema::hasColumn('customer_orders', 'customer_email') && $user->email) {
-                    $query->orWhere('customer_email', $user->email);
+                    $query->where('customer_id', $user->id);
+                } elseif (Schema::hasColumn('customer_orders', 'user_id')) {
+                    $query->where('user_id', $user->id);
+                } elseif (Schema::hasColumn('customer_orders', 'customer_email') && $user->email) {
+                    $query->where('customer_email', $user->email);
+                } else {
+                    // Fallback: no orders if no proper customer identification field exists
+                    $query->whereRaw('1 = 0');
                 }
             })
             ->orderBy('created_at', 'desc')
@@ -446,6 +446,100 @@ class CustomerStoreController extends Controller
                 'cashier_remarks' => $order->cashier_remarks,
             ],
         ]);
+    }
+
+    public function cancel(Request $request, $id)
+    {
+        $user = Auth::user();
+
+        if (!$user) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
+        if (strtolower((string) $user->role) !== 'customer') {
+            return response()->json(['message' => 'Only customers can cancel their own orders'], 403);
+        }
+
+        $validated = $request->validate([
+            'cancellation_reason' => 'required|string|max:500',
+        ]);
+
+        $order = DB::table('customer_orders')
+            ->where('id', $id)
+            ->where('customer_id', $user->id)
+            ->first();
+
+        if (!$order) {
+            return response()->json(['message' => 'Order not found'], 404);
+        }
+
+        if (($order->status ?? 'pending') !== 'pending') {
+            return response()->json(['message' => 'Only pending orders can be cancelled'], 422);
+        }
+
+        try {
+            DB::beginTransaction();
+
+            // Update order status
+            $updateData = [
+                'status' => 'cancelled',
+                'updated_at' => now(),
+            ];
+
+            // Add cancellation fields if they exist
+            if (Schema::hasColumn('customer_orders', 'cancelled_by')) {
+                $updateData['cancelled_by'] = $user->id;
+            }
+            if (Schema::hasColumn('customer_orders', 'cancelled_at')) {
+                $updateData['cancelled_at'] = now();
+            }
+            if (Schema::hasColumn('customer_orders', 'cancellation_reason')) {
+                $updateData['cancellation_reason'] = $validated['cancellation_reason'];
+            }
+
+            DB::table('customer_orders')->where('id', $order->id)->update($updateData);
+
+            DB::commit();
+
+            // Notify receptionist
+            $orderNumber = $order->order_number ?? $order->id;
+            WorkflowNotifier::notifyRole(
+                'receptionist',
+                'Customer Cancelled Order',
+                "Customer {$user->name} cancelled order #{$orderNumber}. Reason: {$validated['cancellation_reason']}",
+                'warning',
+                'customer_order',
+                $order->id,
+                ['customer_email' => $user->email]
+            );
+
+            ActivityLog::log($user->id, 'customer_order_cancelled', "Customer cancelled order #{$order->id}", [
+                'category' => 'order',
+                'reference_type' => 'customer_order',
+                'reference_id' => $order->id,
+                'metadata' => ['cancellation_reason' => $validated['cancellation_reason']],
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Order cancelled successfully',
+                'order_id' => $order->id,
+                'order_number' => $order->order_number,
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Customer order cancellation error', [
+                'order_id' => $id,
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to cancel order. Please try again.',
+            ], 500);
+        }
     }
 
     private function setIfColumnExists(array &$data, string $table, string $column, $value): void

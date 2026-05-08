@@ -12,22 +12,51 @@ class Boarding extends Model
 
     protected $fillable = [
         'pet_id',
+        'pet_name',
+        'pet_type',
+        'pet_breed',
         'customer_id',
+        'customer_email',
+        'customer_name',
         'hotel_room_id',
+        'stay_type',
         'check_in',
+        'check_in_time',
         'check_out',
+        'check_out_time',
+        'boarding_type',
         'status',
         'total_amount',
         'amount_paid',
         'payment_status',
+        'payment_method',
+        'payment_reference',
+        'payment_proof',
+        'paid_at',
+        'verified_by',
+        'cashier_remarks',
+        'receipt_number',
         'notes',
         'special_requests',
+        'feeding_instructions',
+        'medication_notes',
         'reminder_sent_at',
         'emergency_contact',
         'emergency_phone',
+        'approved_by',
+        'approved_at',
+        'rejected_by',
+        'rejected_at',
+        'rejection_reason',
         'confirmed_at',
         'actual_check_in',
+        'checked_in_by',
+        'checked_in_at',
+        'ready_for_pickup_by',
+        'ready_for_pickup_at',
         'actual_check_out',
+        'checked_out_by',
+        'checked_out_at',
     ];
 
     protected $casts = [
@@ -35,7 +64,13 @@ class Boarding extends Model
         'check_out' => 'datetime',
         'actual_check_in' => 'datetime',
         'actual_check_out' => 'datetime',
+        'checked_in_at' => 'datetime',
+        'ready_for_pickup_at' => 'datetime',
+        'checked_out_at' => 'datetime',
         'confirmed_at' => 'datetime',
+        'approved_at' => 'datetime',
+        'rejected_at' => 'datetime',
+        'paid_at' => 'datetime',
         'reminder_sent_at' => 'datetime',
         'total_amount' => 'decimal:2',
     ];
@@ -43,12 +78,24 @@ class Boarding extends Model
     /**
      * Valid boarding statuses
      */
-    public const VALID_STATUSES = ['pending', 'confirmed', 'checked_in', 'checked_out', 'cancelled'];
+    public const VALID_STATUSES = [
+        'pending',
+        'approved',
+        'scheduled',
+        'confirmed',
+        'checked_in',
+        'in_care',
+        'ready_for_pickup',
+        'checked_out',
+        'completed',
+        'cancelled',
+        'rejected',
+    ];
 
     /**
      * Valid payment statuses
      */
-    public const VALID_PAYMENT_STATUSES = ['pending', 'partial', 'paid', 'refunded'];
+    public const VALID_PAYMENT_STATUSES = ['unpaid', 'pending', 'partial', 'paid', 'rejected', 'refunded'];
 
     /**
      * Boot method for model-level validation
@@ -102,6 +149,16 @@ class Boarding extends Model
         return $this->belongsTo(HotelRoom::class);
     }
 
+    public function room(): BelongsTo
+    {
+        return $this->belongsTo(HotelRoom::class, 'hotel_room_id');
+    }
+
+    public function careLogs()
+    {
+        return $this->hasMany(BoardingCareLog::class);
+    }
+
     public function payments()
     {
         return $this->hasMany(Payment::class);
@@ -109,7 +166,7 @@ class Boarding extends Model
 
     public function scopeCurrent($query)
     {
-        return $query->whereIn('status', ['checked_in', 'confirmed'])
+        return $query->whereIn('status', ['approved', 'scheduled', 'confirmed', 'checked_in', 'in_care'])
             ->where('check_out', '>=', now());
     }
 
@@ -144,19 +201,20 @@ class Boarding extends Model
     public function confirm()
     {
         $this->update([
-            'status' => 'confirmed',
+            'status' => 'approved',
             'confirmed_at' => now(),
+            'approved_at' => now(),
         ]);
 
-        // Update room status to reserved when booking is confirmed
         $this->hotelRoom?->update(['status' => 'reserved']);
     }
 
     public function checkIn()
     {
         $this->update([
-            'status' => 'checked_in',
+            'status' => 'in_care',
             'actual_check_in' => now(),
+            'checked_in_at' => now(),
         ]);
 
         $this->hotelRoom?->update(['status' => 'occupied']);
@@ -165,12 +223,12 @@ class Boarding extends Model
     public function checkOut()
     {
         $this->update([
-            'status' => 'checked_out',
+            'status' => 'completed',
             'actual_check_out' => now(),
+            'checked_out_at' => now(),
         ]);
 
-        // Set room to cleaning after checkout
-        $this->hotelRoom?->update(['status' => 'cleaning']);
+        $this->hotelRoom?->update(['status' => 'available']);
     }
 
     public function cancel()

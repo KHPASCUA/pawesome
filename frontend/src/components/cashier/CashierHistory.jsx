@@ -35,7 +35,11 @@ const normalizeTransaction = (transaction, index) => {
     transaction.payment_id ||
     index + 1;
 
-  const id = String(rawId).startsWith("TRX-")
+  // The new backend already provides properly formatted IDs (SALE-, ORDER-, SERVICE-)
+  const id = String(rawId).startsWith("TRX-") || 
+             String(rawId).startsWith("SALE-") || 
+             String(rawId).startsWith("ORDER-") || 
+             String(rawId).startsWith("SERVICE-")
     ? String(rawId)
     : `TRX-${String(rawId).padStart(3, "0")}`;
 
@@ -71,6 +75,14 @@ const normalizeTransaction = (transaction, index) => {
       transaction.payment_date ||
       transaction.updated_at ||
       null,
+
+    // Additional fields for better display
+    source: transaction.source || 'pos',
+    type: transaction.type || 'sale',
+    service_name: transaction.service_name,
+    pet_name: transaction.pet_name,
+    payment_reference: transaction.payment_reference,
+    receipt_number: transaction.receipt_number,
   };
 };
 
@@ -282,6 +294,7 @@ const CashierHistory = () => {
                   <tr>
                     <th>Transaction ID</th>
                     <th>Customer</th>
+                    <th>Details</th>
                     <th>Amount</th>
                     <th>Payment Method</th>
                     <th>Date / Time</th>
@@ -298,6 +311,30 @@ const CashierHistory = () => {
                       </td>
 
                       <td>{transaction.customer}</td>
+
+                      <td className="details-cell">
+                        {transaction.source === 'service_request' && (
+                          <div className="service-details">
+                            <div className="service-name">{transaction.service_name || 'Service'}</div>
+                            {transaction.pet_name && (
+                              <div className="pet-name">🐾 {transaction.pet_name}</div>
+                            )}
+                          </div>
+                        )}
+                        {transaction.source === 'customer_order' && (
+                          <div className="order-details">
+                            <div className="order-type">📦 Online Order</div>
+                            {transaction.receipt_number && (
+                              <div className="receipt">Receipt: {transaction.receipt_number}</div>
+                            )}
+                          </div>
+                        )}
+                        {transaction.source === 'pos' && (
+                          <div className="pos-details">
+                            <div className="pos-type">🏪 POS Sale</div>
+                          </div>
+                        )}
+                      </td>
 
                       <td className="amount-cell">
                         {formatCurrency(transaction.amount)}

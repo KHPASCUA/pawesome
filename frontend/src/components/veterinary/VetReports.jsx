@@ -45,6 +45,7 @@ import {
   exportToExcel,
   getDateRangePreset,
 } from "../../utils/reportExport";
+import { safeArray } from "../../utils/normalizeList";
 import "./VetReports.css";
 
 const CHART_COLORS = ["#ff5f93", "#ff8db5", "#ffc8dd", "#fb7185", "#f59e0b", "#10b981"];
@@ -244,7 +245,7 @@ const VetReports = () => {
         reportData.breakdown
     );
 
-    const normalizedServices = serviceSource.map((item, index) => {
+    const normalizedServices = safeArray(serviceSource).map((item, index) => {
       const serviceName = normalizeServiceName(item);
       const count = Number(item?.count || item?.appointments || item?.total || item?.completed || 0);
       const revenue = Number(item?.revenue || item?.amount || item?.total_revenue || item?.sales || 0);

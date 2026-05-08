@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
 import { inventoryApi } from '../api/inventory';
-import { sharedProducts, sharedServices } from '../components/shared/inventorySync';
 
 /**
  * UNIFIED INVENTORY HOOK
@@ -13,10 +12,9 @@ import { sharedProducts, sharedServices } from '../components/shared/inventorySy
  * 
  * Features:
  * - Auto-refresh every 30 seconds for live updates
- * - Fallback to unified demo data when API is unavailable
+ * - Empty/error states when live API data is unavailable
  * - Stock synchronization across all dashboards
  * 
- * TO ADD NEW ITEMS: Edit /src/components/shared/inventorySync.js
  */
 
 export const useInventory = (options = {}) => {
@@ -30,7 +28,7 @@ export const useInventory = (options = {}) => {
   const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [usingDemoData, setUsingDemoData] = useState(false);
+  const [usingDemoData] = useState(false);
 
   // Transform API items to unified format
   const transformApiItem = (item) => ({
@@ -81,21 +79,15 @@ export const useInventory = (options = {}) => {
         );
         
         setItems(products);
-        setServices(serviceItems.length > 0 ? serviceItems : sharedServices);
-        setUsingDemoData(false);
+        setServices(serviceItems);
       } else {
-        // Fallback to unified demo data
-        setItems(sharedProducts);
-        setServices(sharedServices);
-        setUsingDemoData(true);
+        setItems([]);
+        setServices([]);
       }
     } catch (err) {
-      console.error('Inventory fetch failed:', err);
       setError(err.message);
-      // Fallback to unified demo data
-      setItems(sharedProducts);
-      setServices(sharedServices);
-      setUsingDemoData(true);
+      setItems([]);
+      setServices([]);
     } finally {
       setLoading(false);
     }

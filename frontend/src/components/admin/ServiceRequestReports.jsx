@@ -3,9 +3,9 @@ import AdminLiveReport from "./AdminLiveReport";
 
 const ServiceRequestReports = () => (
   <AdminLiveReport
-    title="Service Request Reports"
+    title="Services Reports"
     subtitle="Unified grooming, veterinary, hotel, and other service request status tracking."
-    endpoint="/admin/reports/service-requests"
+    endpoint="/admin/reports/services"
     dataKey="requests"
     exportName="admin-service-request-reports"
     icon="services"

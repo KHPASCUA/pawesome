@@ -181,7 +181,7 @@ const AdminSidebar = ({ mobileOpen, onMobileMenuToggle }) => {
                 </NavLink>
               </li>
               <li className="nav-subitem">
-                <NavLink to="/admin/reports/service-requests">
+                <NavLink to="/admin/reports/services">
                   <FontAwesomeIcon icon={faClipboardList} />
                   <span>Services</span>
                 </NavLink>
@@ -190,12 +190,6 @@ const AdminSidebar = ({ mobileOpen, onMobileMenuToggle }) => {
                 <NavLink to="/admin/reports/logistics">
                   <FontAwesomeIcon icon={faTruck} />
                   <span>Logistics</span>
-                </NavLink>
-              </li>
-              <li className="nav-subitem">
-                <NavLink to="/admin/reports/reception">
-                  <FontAwesomeIcon icon={faCalendarCheck} />
-                  <span>Reception</span>
                 </NavLink>
               </li>
             </ul>

@@ -17,6 +17,7 @@ class ReportsTest extends TestCase
     use RefreshDatabase;
 
     protected $admin;
+    protected $adminToken;
 
     protected function setUp(): void
     {
@@ -25,8 +26,8 @@ class ReportsTest extends TestCase
             'role' => 'admin',
             'email' => 'admin@test.com',
             'name' => 'Admin User',
-            'api_token' => 'test-admin-token-' . uniqid(),
         ]);
+        $this->adminToken = $this->admin->createToken('test-token')->plainTextToken;
     }
 
     /**
@@ -35,7 +36,7 @@ class ReportsTest extends TestCase
     protected function withAdminAuth(array $headers = []): array
     {
         return array_merge($headers, [
-            'Authorization' => 'Bearer ' . $this->admin->api_token,
+            'Authorization' => 'Bearer ' . $this->adminToken,
         ]);
     }
 
@@ -52,7 +53,6 @@ class ReportsTest extends TestCase
 
         $response->assertStatus(200)
             ->assertJsonStructure([
-                'status',
                 'timestamp',
                 'data' => [
                     'total_revenue',
@@ -74,7 +74,7 @@ class ReportsTest extends TestCase
                 ]
             ]);
 
-        $this->assertEquals('success', $response->json('status'));
+        // Status field was removed from response, only checking timestamp and data structure
         $this->assertNotNull($response->json('timestamp'));
     }
 

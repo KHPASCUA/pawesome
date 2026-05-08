@@ -4,6 +4,7 @@ namespace App\Services;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Services\WorkflowNotifier;
 
 class PaymentVerificationService
 {
@@ -14,6 +15,14 @@ class PaymentVerificationService
     public function verify(string $type, int $id, $request)
     {
         try {
+            if ($type === 'boarding') {
+                return $this->verifyTablePayment('boardings', 'BD-REC-', $id, $request, 'Boarding payment verified successfully.');
+            }
+
+            if ($type === 'medical_confinement' || $type === 'confinement') {
+                return $this->verifyTablePayment('medical_confinements', 'MC-REC-', $id, $request, 'Medical confinement payment verified successfully.');
+            }
+
             if ($type === 'service_request' || $type === 'service') {
                 $sr = DB::table('service_requests')->where('id', $id)->first();
                 if (!$sr) return ['success' => false, 'message' => 'Service request not found', 'status' => 404];
@@ -63,6 +72,14 @@ class PaymentVerificationService
     public function reject(string $type, int $id, $request)
     {
         try {
+            if ($type === 'boarding') {
+                return $this->rejectTablePayment('boardings', $id, $request, 'Boarding payment rejected');
+            }
+
+            if ($type === 'medical_confinement' || $type === 'confinement') {
+                return $this->rejectTablePayment('medical_confinements', $id, $request, 'Medical confinement payment rejected');
+            }
+
             if ($type === 'service_request' || $type === 'service') {
                 $sr = DB::table('service_requests')->where('id', $id)->first();
                 if (!$sr) return ['success' => false, 'message' => 'Service request not found', 'status' => 404];
@@ -99,5 +116,57 @@ class PaymentVerificationService
             Log::error('PaymentVerificationService::reject error - ' . $e->getMessage());
             return ['success' => false, 'message' => $e->getMessage(), 'status' => 500];
         }
+    }
+
+    private function verifyTablePayment(string $table, string $prefix, int $id, $request, string $message): array
+    {
+        $record = DB::table($table)->where('id', $id)->first();
+        if (!$record) {
+            return ['success' => false, 'message' => 'Payment record not found', 'status' => 404];
+        }
+
+        if (($record->payment_status ?? 'unpaid') !== 'pending') {
+            return ['success' => false, 'message' => 'Only pending payment proofs can be verified', 'status' => 422, 'payment_status' => $record->payment_status ?? 'unpaid'];
+        }
+
+        $receiptNumber = $record->receipt_number ?? ($prefix . now()->format('YmdHis') . '-' . $id);
+
+        DB::table($table)->where('id', $id)->update([
+            'payment_status' => 'paid',
+            'paid_at' => now(),
+            'verified_by' => auth()->id(),
+            'cashier_remarks' => $request->input('cashier_remarks', 'Payment verified by cashier'),
+            'receipt_number' => $receiptNumber,
+            'updated_at' => now(),
+        ]);
+
+        WorkflowNotifier::notifyEmail($record->customer_email ?? null, 'Payment verified', 'Your payment proof was verified by cashier.', 'success', $table, $id);
+
+        return ['success' => true, 'message' => $message, 'payment_status' => 'paid', 'receipt_number' => $receiptNumber];
+    }
+
+    private function rejectTablePayment(string $table, int $id, $request, string $message): array
+    {
+        $record = DB::table($table)->where('id', $id)->first();
+        if (!$record) {
+            return ['success' => false, 'message' => 'Payment record not found', 'status' => 404];
+        }
+
+        if (($record->payment_status ?? 'unpaid') !== 'pending') {
+            return ['success' => false, 'message' => 'Only pending payment proofs can be rejected', 'status' => 422, 'payment_status' => $record->payment_status ?? 'unpaid'];
+        }
+
+        DB::table($table)->where('id', $id)->update([
+            'payment_status' => 'rejected',
+            'rejected_by' => auth()->id(),
+            'rejected_at' => now(),
+            'rejection_reason' => $request->input('rejection_reason'),
+            'cashier_remarks' => $request->input('cashier_remarks'),
+            'updated_at' => now(),
+        ]);
+
+        WorkflowNotifier::notifyEmail($record->customer_email ?? null, 'Payment rejected', 'Your payment proof was rejected. Please upload a corrected proof.', 'warning', $table, $id);
+
+        return ['success' => true, 'message' => $message, 'payment_status' => 'rejected'];
     }
 }

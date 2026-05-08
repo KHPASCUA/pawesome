@@ -21,7 +21,6 @@ class InventoryTest extends TestCase
             'role' => 'admin',
             'email' => 'admin@test.com',
             'name' => 'Admin User',
-            'api_token' => 'test-admin-token-' . uniqid(),
         ]);
     }
 
@@ -31,7 +30,7 @@ class InventoryTest extends TestCase
     protected function withAdminAuth(array $headers = []): array
     {
         return array_merge($headers, [
-            'Authorization' => 'Bearer ' . $this->admin->api_token,
+            'Authorization' => 'Bearer ' . $this->admin->createToken('test-token')->plainTextToken,
         ]);
     }
 

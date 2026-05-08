@@ -12,6 +12,7 @@ import {
   faSpinner,
   faStethoscope,
   faUser,
+  faHospital,
 } from "@fortawesome/free-solid-svg-icons";
 import toast from "react-hot-toast";
 import { apiRequest } from "../../api/client";
@@ -42,9 +43,18 @@ const VetConsultation = () => {
   const [form, setForm] = useState(emptyForm);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [confinementForm, setConfinementForm] = useState({
+    reason_for_confinement: "",
+    urgency_level: "normal",
+    expected_stay_days: "",
+    medication_plan: "",
+    observation_instructions: "",
+    special_care_instructions: "",
+    estimated_cost: "",
+  });
 
   const appointmentStatus = appointment?.status || "";
-  const isStarted = ["in_progress", "treated"].includes(appointmentStatus);
+  const isStarted = ["in_progress", "in_consultation", "treated"].includes(appointmentStatus);
   const isFinalized = record?.status === "finalized" || record?.status === "locked";
 
   const serviceLabel = useMemo(() => {
@@ -116,7 +126,7 @@ const VetConsultation = () => {
   const startAppointment = async () => {
     try {
       setSaving(true);
-      const response = await apiRequest(`/veterinary/appointments/${id}/start`, {
+      const response = await apiRequest(`/veterinary/consultations/${id}/start`, {
         method: "POST",
         body: JSON.stringify({ notes: "Consultation started by veterinarian" }),
       });
@@ -174,14 +184,55 @@ const VetConsultation = () => {
 
     try {
       setSaving(true);
-      await apiRequest(`/veterinary/appointments/${id}/complete`, {
+      await apiRequest(`/veterinary/consultations/${id}/complete`, {
         method: "POST",
-        body: JSON.stringify({ notes: "Consultation finalized and appointment completed" }),
+        body: JSON.stringify({
+          diagnosis: form.diagnosis,
+          treatment_notes: form.treatment_plan || form.procedure_notes,
+          prescription: form.follow_up_instructions,
+          vet_remarks: form.notes,
+        }),
       });
       toast.success("Appointment completed. Receipt is ready.");
       navigate(`/veterinary/receipt?id=${id}`);
     } catch (err) {
       toast.error(err.message || "Failed to complete appointment.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const recommendConfinement = async () => {
+    if (!isStarted) {
+      toast.error("Start the consultation before recommending confinement.");
+      return;
+    }
+
+    if (!form.diagnosis.trim() || !confinementForm.reason_for_confinement.trim()) {
+      toast.error("Diagnosis and confinement reason are required.");
+      return;
+    }
+
+    try {
+      setSaving(true);
+      await apiRequest(`/veterinary/consultations/${id}/recommend-confinement`, {
+        method: "POST",
+        body: JSON.stringify({
+          diagnosis: form.diagnosis,
+          reason_for_confinement: confinementForm.reason_for_confinement,
+          urgency_level: confinementForm.urgency_level,
+          expected_stay_days: confinementForm.expected_stay_days || undefined,
+          treatment_plan: form.treatment_plan || form.procedure_notes,
+          medication_plan: confinementForm.medication_plan,
+          observation_instructions: confinementForm.observation_instructions,
+          special_care_instructions: confinementForm.special_care_instructions,
+          estimated_cost: confinementForm.estimated_cost || undefined,
+        }),
+      });
+      toast.success("Medical confinement recommended. Receptionist can now admit and assign a room.");
+      await loadConsultation();
+    } catch (err) {
+      toast.error(err.message || "Failed to recommend confinement.");
     } finally {
       setSaving(false);
     }
@@ -318,6 +369,45 @@ const VetConsultation = () => {
         </div>
       </div>
 
+      <div className="consult-form">
+        <h3><FontAwesomeIcon icon={faHospital} /> Medical Confinement Recommendation</h3>
+        <label>
+          Reason for Confinement
+          <textarea value={confinementForm.reason_for_confinement} onChange={(e) => setConfinementForm((current) => ({ ...current, reason_for_confinement: e.target.value }))} />
+        </label>
+        <label>
+          Medication Plan
+          <textarea value={confinementForm.medication_plan} onChange={(e) => setConfinementForm((current) => ({ ...current, medication_plan: e.target.value }))} />
+        </label>
+        <label>
+          Observation Instructions
+          <textarea value={confinementForm.observation_instructions} onChange={(e) => setConfinementForm((current) => ({ ...current, observation_instructions: e.target.value }))} />
+        </label>
+        <label>
+          Special Care Instructions
+          <textarea value={confinementForm.special_care_instructions} onChange={(e) => setConfinementForm((current) => ({ ...current, special_care_instructions: e.target.value }))} />
+        </label>
+        <div className="consult-vitals">
+          <label>
+            Urgency
+            <select value={confinementForm.urgency_level} onChange={(e) => setConfinementForm((current) => ({ ...current, urgency_level: e.target.value }))}>
+              <option value="low">Low</option>
+              <option value="normal">Normal</option>
+              <option value="urgent">Urgent</option>
+              <option value="critical">Critical</option>
+            </select>
+          </label>
+          <label>
+            Expected Days
+            <input type="number" min="1" value={confinementForm.expected_stay_days} onChange={(e) => setConfinementForm((current) => ({ ...current, expected_stay_days: e.target.value }))} />
+          </label>
+          <label>
+            Estimated Cost
+            <input type="number" min="0" step="0.01" value={confinementForm.estimated_cost} onChange={(e) => setConfinementForm((current) => ({ ...current, estimated_cost: e.target.value }))} />
+          </label>
+        </div>
+      </div>
+
       <div className="consult-actions">
         <button type="button" className="secondary" onClick={() => saveRecord("draft")} disabled={!isStarted || saving || isFinalized}>
           <FontAwesomeIcon icon={faSave} />
@@ -326,6 +416,10 @@ const VetConsultation = () => {
         <button type="button" className="primary" onClick={finalizeAndComplete} disabled={!isStarted || saving}>
           <FontAwesomeIcon icon={faCircleCheck} />
           Finalize & Complete
+        </button>
+        <button type="button" className="secondary" onClick={recommendConfinement} disabled={!isStarted || saving || appointmentStatus === "needs_confinement"}>
+          <FontAwesomeIcon icon={faHospital} />
+          Needs Confinement
         </button>
       </div>
     </section>

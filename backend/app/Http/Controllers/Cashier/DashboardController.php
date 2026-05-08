@@ -133,9 +133,86 @@ class DashboardController extends Controller
 
     public function transactions()
     {
-        return response()->json(
-            Sale::latest()->limit(50)->get()
-        );
+        // Get traditional sales (POS transactions)
+        $sales = Sale::latest()->limit(50)->get()->map(function ($sale) {
+            return [
+                'id' => 'SALE-' . $sale->id,
+                'transaction_id' => $sale->id,
+                'customer' => $sale->customer ? $sale->customer->name : 'Walk-in Customer',
+                'customer_name' => $sale->customer ? $sale->customer->name : 'Walk-in Customer',
+                'amount' => $sale->amount,
+                'method' => $sale->payment_type ?? 'cash',
+                'payment_method' => $sale->payment_type ?? 'cash',
+                'type' => 'pos_sale',
+                'source' => 'pos',
+                'date' => $sale->created_at,
+                'created_at' => $sale->created_at,
+                'status' => $sale->status ?? 'completed',
+            ];
+        });
+
+        // Get online payments from customer orders
+        $customerOrders = DB::table('customer_orders')
+            ->where('payment_status', 'paid')
+            ->orderBy('paid_at', 'desc')
+            ->limit(50)
+            ->get()
+            ->map(function ($order) {
+                return [
+                    'id' => 'ORDER-' . $order->id,
+                    'transaction_id' => $order->id,
+                    'customer' => $order->customer_name ?? 'Customer #' . $order->customer_id,
+                    'customer_name' => $order->customer_name ?? 'Customer #' . $order->customer_id,
+                    'amount' => $order->total_amount,
+                    'method' => $order->payment_method ?? 'Online Payment',
+                    'payment_method' => $order->payment_method ?? 'Online Payment',
+                    'type' => 'online_order',
+                    'source' => 'customer_order',
+                    'date' => $order->paid_at ?? $order->updated_at,
+                    'created_at' => $order->paid_at ?? $order->updated_at,
+                    'status' => $order->status,
+                    'payment_reference' => $order->payment_reference,
+                    'receipt_number' => $order->receipt_number,
+                ];
+            });
+
+        // Get veterinary/service payments from service requests
+        $serviceRequests = DB::table('service_requests')
+            ->where('payment_status', 'paid')
+            ->orderBy('paid_at', 'desc')
+            ->limit(50)
+            ->get()
+            ->map(function ($request) {
+                return [
+                    'id' => 'SERVICE-' . $request->id,
+                    'transaction_id' => $request->id,
+                    'customer' => $request->customer_name ?? 'Customer',
+                    'customer_name' => $request->customer_name ?? 'Customer',
+                    'amount' => $request->total_amount ?? $request->price ?? $request->service_price ?? 500,
+                    'method' => $request->payment_method ?? 'Service Payment',
+                    'payment_method' => $request->payment_method ?? 'Service Payment',
+                    'type' => 'service_payment',
+                    'source' => 'service_request',
+                    'service_type' => $request->request_type ?? 'service',
+                    'service_name' => $request->service_name ?? 'Service',
+                    'pet_name' => $request->pet_name,
+                    'date' => $request->paid_at ?? $request->updated_at,
+                    'created_at' => $request->paid_at ?? $request->updated_at,
+                    'status' => $request->status,
+                    'payment_reference' => $request->payment_reference,
+                    'receipt_number' => $request->receipt_number,
+                ];
+            });
+
+        // Combine all transactions and sort by date (most recent first)
+        $allTransactions = $sales
+            ->concat($customerOrders)
+            ->concat($serviceRequests)
+            ->sortByDesc('date')
+            ->values()
+            ->take(100); // Limit to 100 total records
+
+        return response()->json($allTransactions);
     }
 
     public function history()
@@ -401,15 +478,71 @@ class DashboardController extends Controller
                 ];
             });
 
-        // Combine both types
-        $allPayments = $orders->concat($serviceRequests);
+        $boardings = DB::table('boardings')
+            ->whereIn('status', ['approved', 'scheduled', 'checked_in', 'in_care', 'ready_for_pickup'])
+            ->where('payment_status', 'pending')
+            ->whereNotNull('payment_proof')
+            ->orderBy('updated_at', 'desc')
+            ->get()
+            ->map(function ($boarding) {
+                return [
+                    'id' => $boarding->id,
+                    'payable_type' => 'boarding',
+                    'type' => 'boarding',
+                    'source' => 'boarding',
+                    'payment_source' => 'boarding',
+                    'customer_name' => $boarding->customer_name ?? 'Customer',
+                    'customer_email' => $boarding->customer_email,
+                    'pet_name' => $boarding->pet_name,
+                    'request_type' => 'Pet Boarding',
+                    'service_name' => 'Pet Hotel Boarding #' . $boarding->id,
+                    'amount' => $boarding->total_amount,
+                    'payment_method' => $boarding->payment_method,
+                    'payment_reference' => $boarding->payment_reference,
+                    'payment_proof' => $boarding->payment_proof,
+                    'proof_url' => $boarding->payment_proof ? asset('storage/' . $boarding->payment_proof) : null,
+                    'request_date' => $boarding->updated_at,
+                    'status' => $boarding->status,
+                    'payment_status' => $boarding->payment_status,
+                ];
+            });
+
+        $confinements = DB::table('medical_confinements')
+            ->where('payment_status', 'pending')
+            ->whereNotNull('payment_proof')
+            ->orderBy('updated_at', 'desc')
+            ->get()
+            ->map(function ($confinement) {
+                return [
+                    'id' => $confinement->id,
+                    'payable_type' => 'medical_confinement',
+                    'type' => 'medical_confinement',
+                    'source' => 'medical_confinement',
+                    'payment_source' => 'medical_confinement',
+                    'customer_name' => $confinement->customer_name ?? 'Customer',
+                    'customer_email' => $confinement->customer_email,
+                    'pet_name' => $confinement->pet_name,
+                    'request_type' => 'Medical Confinement',
+                    'service_name' => 'Medical Confinement #' . $confinement->id,
+                    'amount' => $confinement->final_amount ?? $confinement->estimated_cost ?? 0,
+                    'payment_method' => $confinement->payment_method,
+                    'payment_reference' => $confinement->payment_reference,
+                    'payment_proof' => $confinement->payment_proof,
+                    'proof_url' => $confinement->payment_proof ? asset('storage/' . $confinement->payment_proof) : null,
+                    'request_date' => $confinement->updated_at,
+                    'status' => $confinement->status,
+                    'payment_status' => $confinement->payment_status,
+                ];
+            });
+
+        $allPayments = $orders->concat($serviceRequests)->concat($boardings)->concat($confinements);
 
         return response()->json(['payments' => $allPayments]);
     }
 
     public function verifyPayment(Request $request, $id)
     {
-        $type = $request->input('type', 'customer_order');
+        $type = $request->input('type', $request->route('type', 'customer_order'));
         $svc = new PaymentVerificationService();
         $result = $svc->verify($type, (int) $id, $request);
         $status = $result['status'] ?? 200;
@@ -520,7 +653,7 @@ class DashboardController extends Controller
 
     public function rejectPayment(Request $request, $id)
     {
-        $type = $request->input('type', 'customer_order');
+        $type = $request->input('type', $request->route('type', 'customer_order'));
         $svc = new PaymentVerificationService();
         $result = $svc->reject($type, (int) $id, $request);
         $status = $result['status'] ?? 200;

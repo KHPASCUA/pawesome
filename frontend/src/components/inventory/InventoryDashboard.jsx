@@ -24,35 +24,21 @@ import NotificationDropdown from "../shared/NotificationDropdown";
 import DashboardProfile from "../shared/DashboardProfile";
 import { apiRequest, uploadProfilePhoto } from "../../api/client";
 import { formatCurrency } from "../../utils/currency";
+import { useTheme } from "../../utils/theme";
 import "./InventoryDashboard.css";
-
-// Demo data for fallback
-const demoDashboardData = {
-  total_items: 12,
-  low_stock_items: 2,
-  out_of_stock_items: 0,
-  total_stock_value: 12500.50,
-  recent_transactions: [
-    { action: "Stock Added", item_name: "Classic Crispy Burger", quantity: 24, created_at: new Date().toISOString(), status: "completed" },
-    { action: "Stock Removed", item_name: "Chocolate Milkshake", quantity: 5, created_at: new Date(Date.now() - 86400000).toISOString(), status: "completed" },
-    { action: "Stock Added", item_name: "Spicy Chicken Sandwich", quantity: 14, created_at: new Date(Date.now() - 172800000).toISOString(), status: "completed" },
-    { action: "Stock Adjusted", item_name: "Garden Salad", quantity: -3, created_at: new Date(Date.now() - 259200000).toISOString(), status: "completed" }
-  ]
-};
 
 const InventoryDashboard = () => {
   const name = localStorage.getItem("name") || "Inventory Manager";
   const profilePhoto = localStorage.getItem("profile_photo") || "";
-  const [theme, setTheme] = useState(
-    localStorage.getItem("theme") || "light"
-  );
+
+  const { theme, toggle } = useTheme();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [dashboardData, setDashboardData] = useState(null);
+  const [dashboardError, setDashboardError] = useState("");
   const location = useLocation();
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
-    localStorage.setItem("theme", theme);
   }, [theme]);
 
   const handleProfilePhotoUpload = async (file) => {
@@ -75,14 +61,14 @@ const InventoryDashboard = () => {
         const data = await apiRequest("/inventory/dashboard");
         if (data && data.total_items !== undefined) {
           setDashboardData(data);
+          setDashboardError("");
         } else {
-          // Fallback to demo data if API returns empty
-          setDashboardData(demoDashboardData);
+          setDashboardData(null);
+          setDashboardError("No live inventory dashboard data found.");
         }
       } catch (err) {
-        console.error("Inventory dashboard fetch error:", err);
-        // Fallback to demo data on error
-        setDashboardData(demoDashboardData);
+        setDashboardData(null);
+        setDashboardError(err.message || "Failed to load live inventory dashboard data.");
       }
     };
 
@@ -203,7 +189,7 @@ const InventoryDashboard = () => {
             <button
               className="theme-toggle-btn"
               type="button"
-              onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+              onClick={toggle}
             >
               <FontAwesomeIcon icon={theme === "light" ? faMoon : faSun} />
             </button>
@@ -213,6 +199,14 @@ const InventoryDashboard = () => {
         {showOverview ? (
           <>
             <section className="overview-cards">
+              {dashboardError && (
+                <div className="overview-card">
+                  <div>
+                    <h3>No records</h3>
+                    <p>{dashboardError}</p>
+                  </div>
+                </div>
+              )}
               {summaryCards.map((card) => (
                 <div key={card.title} className="overview-card">
                   <div>

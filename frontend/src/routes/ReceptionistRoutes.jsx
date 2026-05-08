@@ -6,6 +6,7 @@ import ReceptionistLayout from "../components/receptionist/ReceptionistLayout";
 const ReceptionistDashboard = lazy(() => import("../components/receptionist/ReceptionistDashboard"));
 const ReceptionistChatbot = lazy(() => import("../components/receptionist/ReceptionistChatbot"));
 const HotelBookings = lazy(() => import("../components/receptionist/ReceptionistHotelBookings"));
+const ReceptionistConfinements = lazy(() => import("../components/receptionist/ReceptionistConfinements"));
 const VetAppointments = lazy(() => import("../components/receptionist/ReceptionistVetAppointments"));
 const Grooming = lazy(() => import("../components/receptionist/ReceptionistGrooming"));
 const ReceptionistBookings = lazy(() => import("../components/receptionist/ReceptionistBookings"));
@@ -18,6 +19,7 @@ const CheckOutForm = lazy(() => import("../components/receptionist/ReceptionistC
 const Reports = lazy(() => import("../components/customers/CustomerReports"));
 const CustomerOrders = lazy(() => import("../components/receptionist/ReceptionistCustomerOrders"));
 const Approvals = lazy(() => import("../components/receptionist/ReceptionistApprovals"));
+const ReceptionistHistory = lazy(() => import("../components/receptionist/ReceptionistHistory"));
 
 const RouteLoading = () => (
   <div style={{ padding: "20px", textAlign: "center" }}>Loading...</div>
@@ -43,11 +45,13 @@ const ReceptionistRoutes = () => (
         {/* Booking sub-routes */}
         <Route path="bookings" element={<ReceptionistBookings />} />
         <Route path="bookings/hotel" element={<HotelBookings />} />
+        <Route path="medical-confinements" element={<ReceptionistConfinements />} />
         <Route path="bookings/vet" element={<VetAppointments />} />
         <Route path="bookings/grooming" element={<Grooming />} />
         <Route path="customers" element={<CustomerManagement />} />
         <Route path="orders" element={<CustomerOrders />} />
         <Route path="approvals" element={<Approvals />} />
+        <Route path="history" element={<ReceptionistHistory />} />
         <Route path="profile" element={<ProfileSettings />} />
         <Route path="reports" element={<Reports />} />
       </Route>

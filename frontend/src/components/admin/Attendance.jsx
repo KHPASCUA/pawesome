@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import "./Attendance.css";
 import { attendanceApi } from "../../api/attendance";
-import { API_URL } from "../../api/client";
+import { apiRequest } from "../../api/client";
 
 const Attendance = () => {
   const [search, setSearch] = useState("");
@@ -33,24 +33,14 @@ const Attendance = () => {
 
   const loadEmployees = async () => {
     try {
-      const token =
-        localStorage.getItem("token") ||
-        localStorage.getItem("adminToken") ||
-        localStorage.getItem("authToken");
-
-      const res = await fetch(`${API_URL}/hr/employees`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      const data = await res.json();
+      const data = await apiRequest("/admin/users");
 
       if (data.success) {
         setEmployees(data.data || []);
+      } else {
+        setEmployees(data.users || data.data || data || []);
       }
     } catch (err) {
-      console.error("Failed to load employees:", err);
       setEmployees([]);
     }
   };

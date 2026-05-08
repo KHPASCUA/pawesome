@@ -37,6 +37,7 @@ import DashboardProfile from "../shared/DashboardProfile";
 import "./CashierDashboard.css";
 import { apiRequest, uploadProfilePhoto } from "../../api/client";
 import { formatCurrency } from "../../utils/currency";
+import { useTheme } from "../../utils/theme";
 
 const toNumber = (value) => {
   const num = Number(value);
@@ -76,7 +77,8 @@ const getTypeIcon = (type) => {
 const CashierDashboard = () => {
   const name = localStorage.getItem("name") || "Cashier";
   const profilePhoto = localStorage.getItem("profile_photo") || "";
-  const savedTheme = localStorage.getItem("cashierTheme") || "light";
+
+  const { theme, toggle } = useTheme();
 
   const handleProfilePhotoUpload = async (file) => {
     try {
@@ -88,7 +90,6 @@ const CashierDashboard = () => {
     }
   };
 
-  const [theme, setTheme] = useState(savedTheme);
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -899,7 +900,7 @@ Thank you for choosing Pawesome!
             break;
           case 'd':
             event.preventDefault();
-            setTheme(theme === "light" ? "dark" : "light");
+            toggle();
             break;
           default:
             break;
@@ -951,11 +952,7 @@ Thank you for choosing Pawesome!
             <button
               className="btn-secondary"
               type="button"
-              onClick={() => {
-                const newTheme = theme === "light" ? "dark" : "light";
-                setTheme(newTheme);
-                document.body.setAttribute("data-theme", newTheme);
-              }}
+              onClick={toggle}
               title="Toggle Theme"
             >
               <FontAwesomeIcon icon={theme === "light" ? faMoon : faSun} />

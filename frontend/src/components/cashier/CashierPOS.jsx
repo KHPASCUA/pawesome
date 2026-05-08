@@ -9,27 +9,18 @@ import {
   faTrash,
   faBoxOpen,
   faShoppingCart,
-  faCreditCard,
-  faMoneyBillWave,
-  faMobileScreen,
-  faGlobe,
   faTag,
-  faReceipt,
   faTriangleExclamation,
   faPlus,
   faMinus,
   faXmark,
-  faPrint,
-  faClock,
   faBox,
-  faCheckCircle,
   faPause,
   faFolderOpen,
 } from "@fortawesome/free-solid-svg-icons";
 
 const PRODUCT_ENDPOINT = "/inventory/sellable";
 const CHECKOUT_ENDPOINT = "/cashier/pos/transaction";
-const VOUCHER_ENDPOINT = "/cashier/validate-voucher";
 
 const formatCurrency = (amount) => {
   const value = Number(amount) || 0;
@@ -129,16 +120,6 @@ const getStockStatus = (stock) => {
   };
 };
 
-const getPaymentIcon = (method = "") => {
-  const lowerMethod = String(method).toLowerCase();
-
-  if (lowerMethod.includes("card")) return faCreditCard;
-  if (lowerMethod.includes("gcash")) return faMobileScreen;
-  if (lowerMethod.includes("maya")) return faMobileScreen;
-  if (lowerMethod.includes("online")) return faGlobe;
-
-  return faMoneyBillWave;
-};
 
 const getCategoryIcon = (category = "") => {
   const value = String(category).toLowerCase();
@@ -162,7 +143,6 @@ const CashierPOS = () => {
   const [customerName, setCustomerName] = useState("");
   const [voucher, setVoucher] = useState("");
   const [validatedVoucher, setValidatedVoucher] = useState(null);
-  const [voucherLoading, setVoucherLoading] = useState(false);
   const [voucherMessage, setVoucherMessage] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("Cash");
   const [amountReceived, setAmountReceived] = useState("");
@@ -464,7 +444,11 @@ const CashierPOS = () => {
       setRecentCompletedSale(receiptData);
       setCheckoutMessage("Payment successful. Transaction has been saved.");
       clearOrder();
-      fetchProducts();
+      
+      // Refresh products after a short delay to ensure stock updates are reflected
+      setTimeout(() => {
+        fetchProducts();
+      }, 500);
     } catch (err) {
       setCheckoutMessage(err.message || "Checkout failed. Please try again.");
       console.error("Cashier POS checkout error:", err);
@@ -724,62 +708,8 @@ const CashierPOS = () => {
       return;
     }
 
-    try {
-      setVoucherLoading(true);
-      setVoucherMessage("");
-
-      /*
-        LIVE VOUCHER ENDPOINT
-
-        Expected backend response example:
-        {
-          valid: true,
-          code: "PAWESOME10",
-          type: "percentage",
-          value: 10,
-          message: "Voucher applied successfully."
-        }
-
-        Or:
-        {
-          valid: false,
-          message: "Invalid or expired voucher."
-        }
-      */
-
-      const response = await apiRequest(VOUCHER_ENDPOINT, {
-        method: "POST",
-        body: JSON.stringify({
-          code,
-          subtotal,
-          items: cart.map((item) => ({
-            product_id: item.id,
-            quantity: item.quantity,
-            price: item.price,
-          })),
-        }),
-      });
-
-      if (!response?.valid) {
-        setValidatedVoucher(null);
-        setVoucherMessage(response?.message || "Invalid or expired voucher.");
-        return;
-      }
-
-      setValidatedVoucher({
-        code: response.code || code,
-        type: response.type || "percentage",
-        value: Number(response.value) || 0,
-      });
-
-      setVoucherMessage(response.message || "Voucher applied successfully.");
-    } catch (err) {
-      setValidatedVoucher(null);
-      setVoucherMessage(err.message || "Unable to validate voucher.");
-      console.error("Voucher validation error:", err);
-    } finally {
-      setVoucherLoading(false);
-    }
+    setValidatedVoucher(null);
+    setVoucherMessage("Voucher validation is not available yet.");
   };
 
   const handleHoldOrder = () => {
@@ -1151,9 +1081,10 @@ const CashierPOS = () => {
                 <button
                   type="button"
                   onClick={handleValidateVoucher}
-                  disabled={voucherLoading || cart.length === 0}
+                  disabled={true}
+                  title="Voucher validation is not available yet."
                 >
-                  {voucherLoading ? "Checking..." : "Validate"}
+                  Validate
                 </button>
               </div>
 
@@ -1291,14 +1222,37 @@ const CashierPOS = () => {
                 Proceed to Payment
               </button>
             ) : (
-              <button
-                type="button"
-                className="checkout-button"
-                disabled={!canCheckout}
-                onClick={handleCheckout}
-              >
-                {checkoutLoading ? "Processing..." : "Complete Payment"}
-              </button>
+              <>
+                <div className="payment-cart-summary">
+                  <h4>Order Summary ({cart.length} items)</h4>
+                  {cart.slice(0, 3).map((item) => (
+                    <div key={item.id} className="payment-cart-item">
+                      <span>{item.quantity}x {item.name}</span>
+                      <span>{formatCurrency(getDiscountedPrice(item) * item.quantity)}</span>
+                    </div>
+                  ))}
+                  {cart.length > 3 && (
+                    <div className="payment-cart-more">
+                      +{cart.length - 3} more items
+                    </div>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  className="checkout-button"
+                  disabled={!canCheckout}
+                  onClick={handleCheckout}
+                >
+                  {checkoutLoading ? "Processing..." : "Complete Payment"}
+                </button>
+                <button
+                  type="button"
+                  className="cancel-payment-btn"
+                  onClick={() => setShowPaymentBox(false)}
+                >
+                  Cancel Payment
+                </button>
+              </>
             )}
           </div>
         </aside>

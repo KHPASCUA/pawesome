@@ -175,12 +175,14 @@ class ServiceRequestController extends Controller
         $query = ServiceRequest::query();
 
         $query->where(function ($scopedQuery) use ($user) {
+            // Use AND logic to ensure we only get the current customer's requests
             if (Schema::hasColumn('service_requests', 'customer_id')) {
                 $scopedQuery->where('customer_id', $user->id);
-            }
-
-            if (Schema::hasColumn('service_requests', 'customer_email') && $user->email) {
-                $scopedQuery->orWhere('customer_email', $user->email);
+            } elseif (Schema::hasColumn('service_requests', 'customer_email') && $user->email) {
+                $scopedQuery->where('customer_email', $user->email);
+            } else {
+                // Fallback: no requests if no proper customer identification field exists
+                $scopedQuery->whereRaw('1 = 0');
             }
         });
 
@@ -192,6 +194,57 @@ class ServiceRequestController extends Controller
         return response()->json([
             'success' => true,
             'requests' => $requests,
+        ]);
+    }
+
+    public function cancel(Request $request, $id)
+    {
+        $user = Auth::user();
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized.',
+            ], 401);
+        }
+
+        $serviceRequest = ServiceRequest::findOrFail($id);
+
+        if (!$this->customerOwnsRequest($serviceRequest, $user)) {
+            return response()->json(['message' => 'Request not found'], 404);
+        }
+
+        if ($serviceRequest->status !== 'pending') {
+            return response()->json([
+                'message' => 'Only pending requests can be cancelled.',
+            ], 422);
+        }
+
+        $serviceRequest->update([
+            'status' => 'cancelled',
+            'payment_status' => 'unpaid',
+        ]);
+
+        WorkflowNotifier::notifyRole(
+            'receptionist',
+            'Service Request Cancelled',
+            "{$serviceRequest->customer_name} cancelled a {$serviceRequest->service_name} request.",
+            'warning',
+            'service_request',
+            $serviceRequest->id,
+            ['customer_email' => $serviceRequest->customer_email]
+        );
+
+        ActivityLog::log($user->id, 'service_request_cancelled', "Customer cancelled service request #{$serviceRequest->id}", [
+            'category' => 'service_requests',
+            'reference_type' => 'service_request',
+            'reference_id' => $serviceRequest->id,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Request cancelled successfully.',
+            'request' => $this->formatRequest($serviceRequest),
         ]);
     }
 
@@ -257,15 +310,7 @@ class ServiceRequestController extends Controller
 
         $serviceRequest = ServiceRequest::findOrFail($id);
 
-        // Check if customer owns this request
-        $isOwner = false;
-        if (Schema::hasColumn('service_requests', 'customer_id') && $serviceRequest->customer_id) {
-            $isOwner = $serviceRequest->customer_id === $user->id;
-        } elseif (Schema::hasColumn('service_requests', 'customer_email') && $serviceRequest->customer_email) {
-            $isOwner = $serviceRequest->customer_email === $user->email;
-        }
-
-        if (!$isOwner) {
+        if (!$this->customerOwnsRequest($serviceRequest, $user)) {
             return response()->json(['message' => 'Forbidden: You can only upload proof for your own requests'], 403);
         }
 
@@ -386,5 +431,16 @@ class ServiceRequestController extends Controller
         } catch (\Throwable $e) {
             \Log::warning('notifyRole failed: ' . $e->getMessage());
         }
+    }
+
+    private function customerOwnsRequest(ServiceRequest $serviceRequest, $user): bool
+    {
+        if (Schema::hasColumn('service_requests', 'customer_id') && $serviceRequest->customer_id) {
+            return (int) $serviceRequest->customer_id === (int) $user->id;
+        }
+
+        return Schema::hasColumn('service_requests', 'customer_email')
+            && $serviceRequest->customer_email
+            && $serviceRequest->customer_email === $user->email;
     }
 }

@@ -7,17 +7,17 @@ const AdminDashboard = lazy(() => import("../components/admin/AdminDashboard"));
 const AdminReports = lazy(() => import("../components/admin/AdminReports"));
 const ManageUsers = lazy(() => import("../components/admin/ManageUsers"));
 const CreateUser = lazy(() => import("../components/admin/CreateUser"));
-const History = lazy(() => import("../components/admin/History"));
+const History = lazy(() => import("../components/admin/History_Fixed"));
 const Attendance = lazy(() => import("../components/admin/Attendance"));
 const ProfileSettings = lazy(() => import("../components/shared/ProfileSettings"));
 const ChatbotLogs = lazy(() => import("../components/admin/ChatbotLogs"));
 const AdminSettings = lazy(() => import("../components/admin/AdminSettings"));
 
-// Role-based reports - admin can access all
-const CashierReports = lazy(() => import("../components/cashier/CashierReports"));
-const InventoryReports = lazy(() => import("../components/inventory/InventoryReports"));
-const ManagerReports = lazy(() => import("../components/manager/ManagerReports"));
-const VetReports = lazy(() => import("../components/veterinary/VetReports"));
+// Admin monitoring reports - read-only system-wide views
+const CashierReports = lazy(() => import("../components/admin/CashierAdminReports"));
+const InventoryReports = lazy(() => import("../components/admin/InventoryAdminReports"));
+const ManagerReports = lazy(() => import("../components/admin/ManagerAdminReports"));
+const VetReports = lazy(() => import("../components/admin/VeterinaryAdminReports"));
 const CustomerReport = lazy(() => import("../components/admin/CustomerReport"));
 const PaymentReports = lazy(() => import("../components/admin/PaymentReports"));
 const OrderReports = lazy(() => import("../components/admin/OrderReports"));
@@ -61,6 +61,7 @@ const AdminRoutes = () => (
         <Route path="reports/customers" element={<CustomerReport />} />
         <Route path="reports/payments" element={<PaymentReports />} />
         <Route path="reports/orders" element={<OrderReports />} />
+        <Route path="reports/services" element={<ServiceRequestReports />} />
         <Route path="reports/service-requests" element={<ServiceRequestReports />} />
         <Route path="reports/logistics" element={<LogisticsReports />} />
         <Route path="reports/reception" element={<ReceptionistReports />} />

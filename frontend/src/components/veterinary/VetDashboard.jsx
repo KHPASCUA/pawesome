@@ -27,6 +27,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 
 import { apiRequest, uploadProfilePhoto } from "../../api/client";
+import { useTheme } from "../../utils/theme";
 import VeterinarySidebar from "./VeterinarySidebar";
 import RoleAwareChatbot from "../chatbot/RoleAwareChatbot";
 import NotificationDropdown from "../shared/NotificationDropdown";
@@ -55,6 +56,7 @@ const GlobalStyle = createGlobalStyle`
 const VetDashboard = () => {
   const name = localStorage.getItem("name") || "Veterinarian";
   const profilePhoto = localStorage.getItem("profile_photo") || "";
+  const { theme, toggle } = useTheme();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [dashboardData, setDashboardData] = useState(null);
   const [currentBoarders, setCurrentBoarders] = useState([]);
@@ -76,10 +78,6 @@ const VetDashboard = () => {
   const normalizedPath = location.pathname.replace(/\/+$/, "");
   const showOverview = normalizedPath === "/veterinary" || normalizedPath === "/vet";
 
-  useEffect(() => {
-    const saved = localStorage.getItem("theme") || "light";
-    document.documentElement.setAttribute("data-theme", saved);
-  }, []);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -250,13 +248,7 @@ const VetDashboard = () => {
     }
   };
 
-  const toggleTheme = () => {
-    const current = document.documentElement.getAttribute("data-theme");
-    const next = current === "dark" ? "light" : "dark";
-    document.documentElement.setAttribute("data-theme", next);
-    localStorage.setItem("theme", next);
-  };
-
+  
   return (
     <div className={`app-dashboard vet-dashboard ${sidebarCollapsed ? "collapsed" : ""}`}>
       <VeterinarySidebar
@@ -290,7 +282,7 @@ const VetDashboard = () => {
 
             <NotificationDropdown role="veterinary" />
 
-            <button className="theme-toggle-btn" type="button" onClick={toggleTheme}>
+            <button className="theme-toggle-btn" type="button" onClick={toggle}>
               <FontAwesomeIcon icon={faMoon} />
             </button>
           </div>

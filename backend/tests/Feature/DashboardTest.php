@@ -28,13 +28,12 @@ class DashboardTest extends TestCase
             'password' => bcrypt('password'),
             'role' => $role,
             'is_active' => true,
-            'api_token' => bcrypt(uniqid()),
         ]);
     }
 
     protected function authHeader(User $user): array
     {
-        return ['Authorization' => 'Bearer ' . $user->api_token];
+        return ['Authorization' => 'Bearer ' . $user->createToken('test-token')->plainTextToken];
     }
 
     #[Test]

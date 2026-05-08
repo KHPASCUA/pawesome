@@ -15,10 +15,9 @@ import {
   faDollarSign,
   faBoxes,
   faBell,
-  faSync
+  faSync,
 } from '@fortawesome/free-solid-svg-icons';
 import { inventoryApi } from '../../api/inventory';
-import { sharedProducts, sharedServices } from '../shared/inventorySync';
 import PremiumToast from '../shared/PremiumToast';
 import DeleteConfirmModal from '../shared/DeleteConfirmModal';
 import './InventoryManagement.css';
@@ -65,7 +64,6 @@ const InventoryManagement = () => {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [usingDemoData, setUsingDemoData] = useState(false);
   
   // Modal state
   const [showModal, setShowModal] = useState(false);
@@ -135,7 +133,6 @@ const InventoryManagement = () => {
       
       if (fetchedItems.length > 0) {
         setItems(fetchedItems);
-        setUsingDemoData(false);
         
         // Update stats from API
         if (dashboardResponse) {
@@ -147,39 +144,23 @@ const InventoryManagement = () => {
           });
         }
       } else {
-        // Fallback to demo data
-        const demoItems = [...sharedProducts, ...sharedServices].map(item => ({
-          ...item,
-          id: item.sku || item.id,
-          stock_quantity: item.stock,
-          reorder_level: item.minStock,
-          price: item.price,
-          category: item.category,
-          status: item.stock === 0 ? 'out_of_stock' : item.stock <= item.minStock ? 'low_stock' : 'in_stock'
-        }));
-        setItems(demoItems);
-        setUsingDemoData(true);
-        
-        // Calculate demo stats
-        const lowStock = demoItems.filter(i => i.stock_quantity > 0 && i.stock_quantity <= i.reorder_level).length;
-        const outOfStock = demoItems.filter(i => i.stock_quantity === 0).length;
-        const totalValue = demoItems.reduce((sum, i) => sum + (i.price * i.stock_quantity), 0);
-        
+        setItems([]);
         setStats({
-          totalItems: demoItems.length,
-          lowStock,
-          outOfStock,
-          totalValue
+          totalItems: 0,
+          lowStock: 0,
+          outOfStock: 0,
+          totalValue: 0
         });
       }
     } catch (err) {
-      console.error('Failed to fetch inventory:', err);
       setError(err.message);
-      
-      // Fallback to demo data on error
-      const demoItems = [...sharedProducts, ...sharedServices];
-      setItems(demoItems);
-      setUsingDemoData(true);
+      setItems([]);
+      setStats({
+        totalItems: 0,
+        lowStock: 0,
+        outOfStock: 0,
+        totalValue: 0
+      });
     } finally {
       setLoading(false);
     }
@@ -311,7 +292,6 @@ const InventoryManagement = () => {
         message: `Item ${editingItem ? "updated" : "created"} successfully!`,
       });
     } catch (err) {
-      console.error('Failed to save item:', err);
       setToast({
         show: true,
         type: "error",
@@ -351,7 +331,6 @@ const InventoryManagement = () => {
         message: 'Item deleted successfully!'
       });
     } catch (err) {
-      console.error('Failed to delete item:', err);
       setDeleteModal(prev => ({ ...prev, loading: false }));
       setToast({
         show: true,
@@ -407,11 +386,7 @@ const InventoryManagement = () => {
             </span>
           )}
 
-          {usingDemoData && (
-            <span className="demo-badge">
-              <FontAwesomeIcon icon={faSync} /> Demo Mode - API Unavailable
-            </span>
-          )}
+          {error && <span className="demo-badge">No live records</span>}
         </div>
         <button className="btn btn-primary" onClick={handleAddNew}>
           <FontAwesomeIcon icon={faPlus} /> Add New Item

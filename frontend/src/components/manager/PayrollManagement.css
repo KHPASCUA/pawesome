@@ -650,8 +650,7 @@
 }
 
 /* Dark mode support */
-[data-theme="dark"] .manager-payroll,
-.manager-dashboard.dark .manager-payroll {
+[data-theme="dark"] .manager-payroll {
   background: linear-gradient(135deg, #111827, #1f2937, #3b1224);
   color: #f8fafc;
 }
@@ -662,40 +661,25 @@
 [data-theme="dark"] .payroll-chart-card,
 [data-theme="dark"] .payroll-generate,
 [data-theme="dark"] .search-filters,
-[data-theme="dark"] .payroll-table-container,
-.manager-dashboard.dark .payroll-header,
-.manager-dashboard.dark .stat-card,
-.manager-dashboard.dark .payroll-summary-card,
-.manager-dashboard.dark .payroll-chart-card,
-.manager-dashboard.dark .payroll-generate,
-.manager-dashboard.dark .search-filters,
-.manager-dashboard.dark .payroll-table-container {
+[data-theme="dark"] .payroll-table-container {
   background: rgba(15, 23, 42, 0.9) !important;
   border-color: rgba(255, 141, 181, 0.26) !important;
 }
 
 [data-theme="dark"] .payroll-header p,
 [data-theme="dark"] .stat-info p,
-[data-theme="dark"] .payroll-summary-card p,
-.manager-dashboard.dark .payroll-header p,
-.manager-dashboard.dark .stat-info p,
-.manager-dashboard.dark .payroll-summary-card p {
+[data-theme="dark"] .payroll-summary-card p {
   color: #cbd5e1;
 }
 
 [data-theme="dark"] .payroll-chart-card h3,
-[data-theme="dark"] .payroll-table th,
-.manager-dashboard.dark .payroll-chart-card h3,
-.manager-dashboard.dark .payroll-table th {
+[data-theme="dark"] .payroll-table th {
   color: #ffffff;
 }
 
 [data-theme="dark"] .search-input,
 [data-theme="dark"] .period-select,
-[data-theme="dark"] .date-input,
-.manager-dashboard.dark .search-input,
-.manager-dashboard.dark .period-select,
-.manager-dashboard.dark .date-input {
+[data-theme="dark"] .date-input {
   background: rgba(15, 23, 42, 0.94);
   color: #f8fafc;
   border-color: rgba(255, 141, 181, 0.26);

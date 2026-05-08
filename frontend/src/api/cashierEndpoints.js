@@ -200,44 +200,17 @@ export const CASHIER_ENDPOINTS = {
   }
 };
 
-/**
- * Mock data for testing without backend
- * Set USE_MOCK_DATA = true in .env or localStorage to enable
- */
 export const MOCK_DATA = {
   dashboard: {
-    today_sales: 15000,
-    today_transactions: 45,
-    pending_payments: 3,
-    sales_by_type: [
-      { type: 'cash', total: 8000, count: 30 },
-      { type: 'card', total: 5000, count: 12 },
-      { type: 'gcash', total: 2000, count: 3 }
-    ],
-    low_stock_items: [
-      { id: 1, name: 'Dog Food Premium', sku: 'DOG001', stock: 5, threshold: 10 },
-      { id: 2, name: 'Cat Treats', sku: 'CAT002', stock: 3, threshold: 10 }
-    ],
-    top_selling_products: [
-      { id: 1, name: 'Dog Food Premium', units_sold: 25, revenue: 5000 },
-      { id: 2, name: 'Cat Food Standard', units_sold: 20, revenue: 4000 }
-    ],
-    pending_orders: [
-      { id: 'ORD001', customer: 'John Doe', total: 500, waiting_time: '5 min' },
-      { id: 'ORD002', customer: 'Jane Smith', total: 750, waiting_time: '10 min' }
-    ]
+    today_sales: 0,
+    today_transactions: 0,
+    pending_payments: 0,
+    sales_by_type: [],
+    low_stock_items: [],
+    top_selling_products: [],
+    pending_orders: []
   },
-  products: [
-    { id: 1, name: 'Dog Food Premium', sku: 'DOG001', price: 200, stock: 50 },
-    { id: 2, name: 'Cat Food Standard', sku: 'CAT001', price: 150, stock: 30 },
-    { id: 3, name: 'Pet Shampoo', sku: 'PET001', price: 100, stock: 20 }
-  ],
-  customers: [
-    { id: 1, name: 'John Doe', phone: '09123456789', email: 'john@email.com', pets_count: 2, loyalty_points: 500 },
-    { id: 2, name: 'Jane Smith', phone: '09876543210', email: 'jane@email.com', pets_count: 1, loyalty_points: 300 }
-  ],
-  transactions: [
-    { id: 'TRX001', customer: 'John Doe', payment_type: 'cash', amount: 500, date: '2024-01-15' },
-    { id: 'TRX002', customer: 'Jane Smith', payment_type: 'card', amount: 750, date: '2024-01-16' }
-  ]
+  products: [],
+  customers: [],
+  transactions: []
 };

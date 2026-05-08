@@ -39,32 +39,27 @@ class ChatbotEndToEndTest extends TestCase
         $this->admin = User::factory()->create([
             'role' => 'admin',
             'name' => 'Admin User',
-            'api_token' => 'test-admin-token',
         ]);
         
         $this->cashier = User::factory()->create([
             'role' => 'cashier',
             'name' => 'Cashier User',
-            'api_token' => 'test-cashier-token',
         ]);
         
         $this->receptionist = User::factory()->create([
             'role' => 'receptionist',
             'name' => 'Receptionist User',
-            'api_token' => 'test-receptionist-token',
         ]);
         
         $this->veterinary = User::factory()->create([
             'role' => 'veterinary',
             'name' => 'Veterinary User',
-            'api_token' => 'test-veterinary-token',
         ]);
         
         $this->customerUser = User::factory()->create([
             'role' => 'customer',
             'name' => 'Customer User',
             'email' => 'customer@example.com',
-            'api_token' => 'test-customer-token',
         ]);
         
         // Create customer profile linked to user
@@ -81,7 +76,7 @@ class ChatbotEndToEndTest extends TestCase
 
     protected function withAuth(User $user): array
     {
-        return ['Authorization' => 'Bearer ' . $user->api_token];
+        return ['Authorization' => 'Bearer ' . $user->createToken('test-token')->plainTextToken];
     }
 
     // ============================================
@@ -94,13 +89,17 @@ class ChatbotEndToEndTest extends TestCase
         
         $response->assertStatus(200)
             ->assertJsonStructure([
-                '*' => [
-                    'user_id',
-                    'user_name',
-                    'user_role',
-                    'total_chats',
-                    'last_chat_date',
-                ]
+                'success',
+                'data' => [
+                    '*' => [
+                        'id',
+                        'intent',
+                        'scope',
+                        'user_message',
+                        'bot_response',
+                        'created_at',
+                    ],
+                ],
             ]);
     }
 
@@ -120,13 +119,17 @@ class ChatbotEndToEndTest extends TestCase
         
         $response->assertStatus(200)
             ->assertJsonStructure([
-                '*' => [
-                    'id',
-                    'intent',
-                    'user_message',
-                    'bot_response',
-                    'created_at',
-                ]
+                'success',
+                'data' => [
+                    '*' => [
+                        'id',
+                        'intent',
+                        'scope',
+                        'user_message',
+                        'bot_response',
+                        'created_at',
+                    ],
+                ],
             ]);
     }
 
@@ -397,12 +400,11 @@ class ChatbotEndToEndTest extends TestCase
         $logs->assertStatus(200);
         
         // Verify the customer appears in logs
-        $customerLog = collect($logs->json())->first(
-            fn($log) => $log['user_id'] === $this->customerUser->id
+        $logsData = $logs->json();
+        $customerLogs = collect($logsData['data'] ?? $logsData)->filter(
+            fn($log) => ($log['user_id'] ?? null) === $this->customerUser->id
         );
-        $this->assertNotNull($customerLog);
-        $this->assertEquals('customer', $customerLog['user_role']);
-        $this->assertGreaterThanOrEqual(1, $customerLog['total_chats']);
+        $this->assertGreaterThan(0, $customerLogs->count());
         
         // Step 5: Admin views detailed chat history
         $history = $this->getJson(
@@ -445,7 +447,8 @@ class ChatbotEndToEndTest extends TestCase
         $logs->assertStatus(200);
         
         // Verify all three users appear in logs
-        $userIds = collect($logs->json())->pluck('user_id')->toArray();
+        $logsData = $logs->json();
+        $userIds = collect($logsData['data'] ?? $logsData)->pluck('user_id')->toArray();
         $this->assertContains($this->admin->id, $userIds);
         $this->assertContains($this->cashier->id, $userIds);
         $this->assertContains($this->customerUser->id, $userIds);

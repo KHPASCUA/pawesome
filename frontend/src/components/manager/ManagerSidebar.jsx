@@ -10,6 +10,7 @@ import {
   faFileAlt,
   faUserCircle,
   faSignOutAlt,
+  faHistory,
 } from "@fortawesome/free-solid-svg-icons";
 import "./ManagerSidebar.css";
 
@@ -62,6 +63,12 @@ const ManagerSidebar = () => {
             </NavLink>
           </li>
 
+          <li className="nav-item">
+            <NavLink to="/manager/history">
+              <FontAwesomeIcon icon={faHistory} />
+              <span>History</span>
+            </NavLink>
+          </li>
           <li className="nav-item">
             <NavLink to="/manager/reports">
               <FontAwesomeIcon icon={faFileAlt} />
