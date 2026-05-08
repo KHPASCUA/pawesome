@@ -65,13 +65,17 @@ const EmployeeSalaryManagement = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  const salaryBasePath = ["payroll", "payroll_manager"].includes(localStorage.getItem("role"))
+    ? "/payroll"
+    : "/admin/salaries";
+
   const normalizeEmployee = (emp) => ({
     id: emp.id,
     employeeId: emp.employeeId || emp.employee_id || `EMP-${emp.id}`,
-    name: emp.name || emp.full_name || "Unknown Employee",
-    department: emp.department || "Unassigned",
-    position: emp.position || "Staff",
-    baseSalary: Number(emp.baseSalary ?? emp.base_salary ?? 0),
+    name: emp.name || emp.full_name || emp.user?.name || emp.employee?.name || "Unknown Employee",
+    department: emp.department || emp.user?.department || emp.employee?.department || "Unassigned",
+    position: emp.position || emp.user?.position || emp.employee?.position || emp.role || "Staff",
+    baseSalary: Number(emp.baseSalary ?? emp.base_salary ?? emp.salary ?? emp.basic_pay ?? 0),
     housingAllowance: Number(emp.housingAllowance ?? emp.housing_allowance ?? 0),
     transportAllowance: Number(emp.transportAllowance ?? emp.transport_allowance ?? 0),
     medicalAllowance: Number(emp.medicalAllowance ?? emp.medical_allowance ?? 0),
@@ -90,7 +94,7 @@ const EmployeeSalaryManagement = () => {
     try {
       setLoading(true);
       setError("");
-      const data = await apiRequest("/admin/salaries");
+      const data = await apiRequest(salaryBasePath);
       setEmployees(
         normalizeList(data, ["data", "employees", "salaries", "payrolls", "records"]).map(normalizeEmployee)
       );
@@ -100,7 +104,7 @@ const EmployeeSalaryManagement = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [salaryBasePath]);
 
   useEffect(() => {
     loadEmployees();
@@ -192,7 +196,7 @@ const EmployeeSalaryManagement = () => {
     };
 
     try {
-      const saved = await apiRequest("/admin/salaries", {
+      const saved = await apiRequest(salaryBasePath, {
         method: "POST",
         body: JSON.stringify(payload),
       });
@@ -219,7 +223,7 @@ const EmployeeSalaryManagement = () => {
     };
 
     try {
-      const saved = await apiRequest(`/admin/salaries/${editingEmployee.id}`, {
+      const saved = await apiRequest(`${salaryBasePath}/${editingEmployee.id}`, {
         method: "PUT",
         body: JSON.stringify(payload),
       });
@@ -239,7 +243,7 @@ const EmployeeSalaryManagement = () => {
 
   const handleDeleteEmployee = async (id) => {
     try {
-      await apiRequest(`/admin/salaries/${id}`, { method: "DELETE" });
+      await apiRequest(`${salaryBasePath}/${id}`, { method: "DELETE" });
       setEmployees((prev) => normalizeList(prev, ["data", "employees", "salaries", "payrolls", "records"]).filter((emp) => emp.id !== id));
       setError("");
     } catch (err) {

@@ -76,9 +76,6 @@ const CustomerPayments = () => {
         "GET"
       );
 
-      console.log("SERVICE REQUESTS RESULT:", requestsResult);
-      console.log("STORE ORDERS RESULT:", ordersResult);
-
       const requests = normalizeList(requestsResult);
       const orders = normalizeList(ordersResult);
 
@@ -89,8 +86,6 @@ const CustomerPayments = () => {
           const paymentStatus = String(
             request.payment_status || request.payment || "unpaid"
           ).toLowerCase();
-
-          console.log(`FILTERING REQUEST ${request.id}: status=${status}, payment_status=${paymentStatus}`);
 
           return (
             status === "approved" &&
@@ -136,8 +131,6 @@ const CustomerPayments = () => {
           const status = String(order.status || order.order_status || "").toLowerCase();
           const paymentStatus = String(order.payment_status || "unpaid").toLowerCase();
 
-          console.log(`FILTERING ORDER ${order.id}: status=${status}, payment_status=${paymentStatus}`);
-
           return (
             status === "approved" &&
             ["unpaid", "pending", "rejected", "paid"].includes(paymentStatus)
@@ -156,8 +149,6 @@ const CustomerPayments = () => {
         }));
 
       const allPayments = [...payableRequests, ...payableOrders];
-      console.log("ALL PAYABLE ITEMS:", allPayments);
-
       setPayments(allPayments);
     } catch (err) {
       console.error("LOAD CUSTOMER PAYMENTS ERROR:", err);
@@ -178,7 +169,6 @@ const CustomerPayments = () => {
   };
 
   useEffect(() => {
-    console.log("CustomerPayments mounted");
     fetchPayments();
   }, []);
 
@@ -274,11 +264,6 @@ const CustomerPayments = () => {
     }
   };
 
-  console.log("RENDERING CUSTOMER PAYMENTS:");
-  console.log("Loading:", loading);
-  console.log("Error:", error);
-  console.log("Payments length:", payments.length);
-
   return (
     <section className="customer-payments-page">
       <header className="customer-payments-header">
@@ -301,14 +286,6 @@ const CustomerPayments = () => {
           <strong>Error:</strong> {error}
         </div>
       )}
-
-      <div style={{margin: '1rem 0', padding: '1rem', background: '#f0f0f0', borderRadius: '8px'}}>
-        <strong>DEBUG INFO:</strong><br/>
-        Loading: {loading ? 'Yes' : 'No'}<br/>
-        Error: {error || 'None'}<br/>
-        Payments Count: {payments.length}<br/>
-        Email: {localStorage.getItem('email') || 'Not found'}
-      </div>
 
       <div className="customer-payments-summary-grid">
         <article className="customer-payment-summary-card">

@@ -1,14 +1,20 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiRequest, clearAuthStorage } from "../../api/client";
 import "./Logout.css";
 
 const Logout = () => {
   const navigate = useNavigate();
+  const hasLoggedOut = useRef(false);
 
   useEffect(() => {
-    apiRequest("/auth/logout", { method: "POST" })
-      .catch(() => {})
+    if (hasLoggedOut.current) return;
+    hasLoggedOut.current = true;
+
+    const logoutRequest = apiRequest("/auth/logout", { method: "POST" }).catch(() => {});
+    clearAuthStorage();
+
+    logoutRequest
       .finally(() => {
         clearAuthStorage();
 

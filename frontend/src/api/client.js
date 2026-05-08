@@ -1,4 +1,4 @@
-export const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8000/api";
+export const API_URL = process.env.REACT_APP_API_URL || "/api";
 
 export const USE_MOCK_DATA = false;
 
@@ -89,6 +89,10 @@ export const apiRequest = async (endpoint, methodOrOptions = "GET", data = null,
 
     
     if (response.status === 401) {
+      clearAuthStorage();
+      if (typeof window !== "undefined" && window.location.pathname !== "/login") {
+        window.location.assign("/login");
+      }
       throw new Error("Your session expired or you are not logged in. Please log in again.");
     }
 

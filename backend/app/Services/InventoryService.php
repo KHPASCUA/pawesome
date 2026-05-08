@@ -446,36 +446,15 @@ class InventoryService
      */
     public function getPublicItems(array $filters = []): array
     {
-        $query = InventoryItem::where('status', self::STATUS_ACTIVE);
-
-        // Filter by category
-        if (!empty($filters['category'])) {
-            $query->where('category', $filters['category']);
-        }
-
-        // Filter by search term
-        if (!empty($filters['search'])) {
-            $search = $filters['search'];
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('sku', 'like', "%{$search}%");
-            });
-        }
-
-        // Filter for in-stock items only
-        if (!empty($filters['in_stock_only'])) {
-            $query->where('stock', '>', 0);
-        }
-
-        // Get items with nearest batch expiration
+        // Get items with nearest batch expiration without GROUP BY, so this
+        // remains compatible with MySQL ONLY_FULL_GROUP_BY.
         $items = DB::table('inventory_items')
-            ->leftJoin('inventory_batches', function ($join) {
-                $join->on('inventory_items.id', '=', 'inventory_batches.inventory_item_id')
-                     ->where('inventory_batches.status', 'active');
-            })
             ->select(
                 'inventory_items.*',
-                DB::raw('MIN(inventory_batches.expiration_date) as nearest_expiration')
+                DB::raw('(select MIN(inventory_batches.expiration_date)
+                    from inventory_batches
+                    where inventory_batches.inventory_item_id = inventory_items.id
+                    and inventory_batches.status = "active") as nearest_expiration')
             )
             ->where('inventory_items.status', self::STATUS_ACTIVE)
             ->when(!empty($filters['category']), function ($q) use ($filters) {
@@ -491,7 +470,6 @@ class InventoryService
             ->when(!empty($filters['in_stock_only']), function ($q) {
                 $q->where('inventory_items.stock', '>', 0);
             })
-            ->groupBy('inventory_items.id')
             ->orderBy('inventory_items.name')
             ->get();
 

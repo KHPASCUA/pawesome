@@ -104,7 +104,7 @@ class CashierTestDataSeeder extends Seeder
                     'customer_id' => $customer1?->id,
                     'cashier_id' => $cashier->id,
                     'product_id' => $product1->id,
-                    'transaction_number' => 'TRX-' . strtoupper(uniqid()),
+                    'transaction_number' => 'TRX-CASHIER-DEMO-001',
                     'type' => 'product',
                     'status' => 'completed',
                     'payment_type' => 'cash',
@@ -117,7 +117,7 @@ class CashierTestDataSeeder extends Seeder
                     'customer_id' => $customer2?->id,
                     'cashier_id' => $cashier->id,
                     'product_id' => $product2?->id,
-                    'transaction_number' => 'TRX-' . strtoupper(uniqid()),
+                    'transaction_number' => 'TRX-CASHIER-DEMO-002',
                     'type' => 'product',
                     'status' => 'completed',
                     'payment_type' => 'card',
@@ -130,7 +130,7 @@ class CashierTestDataSeeder extends Seeder
                     'customer_id' => null,
                     'cashier_id' => $cashier->id,
                     'product_id' => $product1->id,
-                    'transaction_number' => 'TRX-' . strtoupper(uniqid()),
+                    'transaction_number' => 'TRX-CASHIER-DEMO-003',
                     'type' => 'product',
                     'status' => 'completed',
                     'payment_type' => 'gcash',
@@ -142,7 +142,10 @@ class CashierTestDataSeeder extends Seeder
             ];
 
             foreach ($sales as $saleData) {
-                Sale::create($saleData);
+                Sale::updateOrCreate(
+                    ['transaction_number' => $saleData['transaction_number']],
+                    $saleData
+                );
             }
         }
 

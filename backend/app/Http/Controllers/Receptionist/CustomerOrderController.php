@@ -250,6 +250,8 @@ class CustomerOrderController extends Controller
                     'reason' => "Customer order #{$order->id} approved",
                     'reference_type' => 'customer_order',
                     'reference_id' => $order->id,
+                    'previous_stock' => $previousStock,
+                    'new_stock' => $newStock,
                     'stock_before' => $previousStock,
                     'stock_after' => $newStock,
                     'performed_by' => $user->name,
@@ -279,8 +281,9 @@ class CustomerOrderController extends Controller
             DB::commit();
 
             // Notify customer
+            $orderNumber = $order->order_number ?? $order->order_id ?? $order->reference_number ?? $order->id;
+
             if ($order->customer_email) {
-                $orderNumber = $order->order_number ?? $order->id;
                 WorkflowNotifier::notifyUser(
                     $order->customer_id ?? null,
                     'Order Approved',
@@ -303,7 +306,7 @@ class CustomerOrderController extends Controller
                 'success' => true,
                 'message' => 'Order approved successfully',
                 'order_id' => $order->id,
-                'order_number' => $order->order_number,
+                'order_number' => $orderNumber,
             ]);
 
         } catch (\Exception $e) {
@@ -383,6 +386,8 @@ class CustomerOrderController extends Controller
                             'reason' => "Customer order #{$order->id} rejected - stock restored",
                             'reference_type' => 'customer_order',
                             'reference_id' => $order->id,
+                            'previous_stock' => $previousStock,
+                            'new_stock' => $newStock,
                             'stock_before' => $previousStock,
                             'stock_after' => $newStock,
                             'performed_by' => $user->name,
@@ -417,8 +422,9 @@ class CustomerOrderController extends Controller
             DB::commit();
 
             // Notify customer
+            $orderNumber = $order->order_number ?? $order->order_id ?? $order->reference_number ?? $order->id;
+
             if ($order->customer_email) {
-                $orderNumber = $order->order_number ?? $order->id;
                 WorkflowNotifier::notifyUser(
                     $order->customer_id ?? null,
                     'Order Rejected',
@@ -442,7 +448,7 @@ class CustomerOrderController extends Controller
                 'success' => true,
                 'message' => 'Order rejected successfully',
                 'order_id' => $order->id,
-                'order_number' => $order->order_number,
+                'order_number' => $orderNumber,
             ]);
 
         } catch (\Exception $e) {
@@ -526,6 +532,8 @@ class CustomerOrderController extends Controller
                             'reason' => "Customer order #{$order->id} cancelled - stock restored",
                             'reference_type' => 'customer_order',
                             'reference_id' => $order->id,
+                            'previous_stock' => $previousStock,
+                            'new_stock' => $newStock,
                             'stock_before' => $previousStock,
                             'stock_after' => $newStock,
                             'performed_by' => $user->name,
@@ -558,8 +566,9 @@ class CustomerOrderController extends Controller
             DB::commit();
 
             // Notify customer
+            $orderNumber = $order->order_number ?? $order->order_id ?? $order->reference_number ?? $order->id;
+
             if ($order->customer_email) {
-                $orderNumber = $order->order_number ?? $order->id;
                 WorkflowNotifier::notifyUser(
                     $order->customer_id ?? null,
                     'Order Cancelled',
@@ -583,7 +592,7 @@ class CustomerOrderController extends Controller
                 'success' => true,
                 'message' => 'Order cancelled successfully',
                 'order_id' => $order->id,
-                'order_number' => $order->order_number,
+                'order_number' => $orderNumber,
             ]);
 
         } catch (\Exception $e) {

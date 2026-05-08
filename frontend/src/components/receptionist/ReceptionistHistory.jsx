@@ -94,7 +94,7 @@ const ReceptionistHistory = () => {
       if (!silent) setLoading(true);
       else setRefreshing(true);
 
-      const response = await apiRequest("/receptionist/orders/approval-history");
+      const response = await apiRequest("/receptionist/customer-orders?status=approved");
       const approvalsData = normalizeList(response, ["data", "approvals", "history"]);
       
       setOrderApprovals(approvalsData);
@@ -115,7 +115,7 @@ const ReceptionistHistory = () => {
       if (!silent) setLoading(true);
       else setRefreshing(true);
 
-      const response = await apiRequest("/receptionist/requests/approval-history");
+      const response = await apiRequest("/receptionist/requests?status=approved");
       const approvalsData = normalizeList(response, ["data", "approvals", "history"]);
       
       setServiceApprovals(approvalsData);
@@ -136,8 +136,8 @@ const ReceptionistHistory = () => {
       if (!silent) setLoading(true);
       else setRefreshing(true);
 
-      const response = await apiRequest("/receptionist/scheduling/history");
-      const schedulingData = normalizeList(response, ["data", "history", "schedules"]);
+      const response = await apiRequest("/receptionist/appointment/list");
+      const schedulingData = normalizeList(response, ["data", "history", "schedules", "appointments"]);
       
       setSchedulingHistory(schedulingData);
       setError("");
@@ -157,8 +157,17 @@ const ReceptionistHistory = () => {
       if (!silent) setLoading(true);
       else setRefreshing(true);
 
-      const response = await apiRequest("/receptionist/requests/rejected-history");
-      const rejectedData = normalizeList(response, ["data", "rejected", "history"]);
+      const [ordersResponse, requestsResponse] = await Promise.allSettled([
+        apiRequest("/receptionist/customer-orders?status=rejected"),
+        apiRequest("/receptionist/requests?status=rejected"),
+      ]);
+
+      const rejectedData = [
+        ...normalizeList(ordersResponse.status === "fulfilled" ? ordersResponse.value : null, ["data", "rejected", "history"])
+          .map((item) => ({ ...item, type: item.type || "Store Order" })),
+        ...normalizeList(requestsResponse.status === "fulfilled" ? requestsResponse.value : null, ["data", "rejected", "history", "requests"])
+          .map((item) => ({ ...item, type: item.type || item.service_type || "Service Request" })),
+      ];
       
       setRejectedRequests(rejectedData);
       setError("");

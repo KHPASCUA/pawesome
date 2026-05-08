@@ -29,14 +29,10 @@ $negativeStock = DB::table('inventory_items')
     ->count();
 $checks['no_negative_stock'] = $negativeStock === 0;
 
-// 3. No duplicate stock deductions exist
+// 3. No duplicate stock deductions exist (only check negative deltas)
 $duplicateDeductions = DB::table('inventory_logs')
     ->select('inventory_item_id', 'reference_id', DB::raw('COUNT(*) as deduction_count'))
-    ->where(function($query) {
-        $query->where('reason', 'like', '%order%')
-              ->orWhere('reason', 'like', '%deduction%')
-              ->orWhere('movement_type', 'deduction');
-    })
+    ->where('delta', '<', 0) // Only actual deductions (negative deltas)
     ->whereNotNull('reference_id')
     ->groupBy(['inventory_item_id', 'reference_id'])
     ->havingRaw('COUNT(*) > 1')

@@ -520,6 +520,13 @@ export default function ReceptionistCustomerOrders() {
                     >
                       {updatingId === order.id ? "Processing..." : "❌ Reject Order"}
                     </button>
+                    <button
+                      className="action-btn cancel"
+                      onClick={() => cancelOrder(order.id)}
+                      disabled={updatingId === order.id}
+                    >
+                      {updatingId === order.id ? "Processing..." : "🔄 Cancel Order"}
+                    </button>
                   </>
                 )}
 

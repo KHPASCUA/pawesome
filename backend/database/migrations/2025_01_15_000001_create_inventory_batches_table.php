@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('inventory_batches', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('inventory_item_id')->constrained()->onDelete('cascade');
+            $table->unsignedBigInteger('inventory_item_id');
             $table->string('batch_no')->nullable();
             $table->date('received_date');
             $table->date('expiration_date')->nullable();

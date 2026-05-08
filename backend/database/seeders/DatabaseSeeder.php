@@ -22,6 +22,7 @@ class DatabaseSeeder extends Seeder
             ChatbotFaqSeeder::class,
             CashierTestDataSeeder::class, // Test data for cashier features
             VeterinaryServicesSeeder::class,
+            PawesomeLiveDemoSeeder::class,
         ]);
     }
 }

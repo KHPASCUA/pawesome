@@ -19,7 +19,7 @@ $approvedOrdersMissingInfo = DB::table('customer_orders')
 
 echo "Count: " . $approvedOrdersMissingInfo->count() . "\n";
 foreach ($approvedOrdersMissingInfo as $order) {
-    echo "ID: {$order->id}, Order #: {$order->order_number}, Created: {$order->created_at}, Approved_by: " . ($order->approved_by ?? 'NULL') . ", Approved_at: " . ($order->approved_at ?? 'NULL') . "\n";
+    echo "ID: {$order->id}, Order #: " . ($order->order_number ?? 'N/A') . ", Created: {$order->created_at}, Approved_by: " . ($order->approved_by ?? 'NULL') . ", Approved_at: " . ($order->approved_at ?? 'NULL') . "\n";
 }
 echo "\n";
 
@@ -32,7 +32,7 @@ $rejectedOrdersMissingReason = DB::table('customer_orders')
 
 echo "Count: " . $rejectedOrdersMissingReason->count() . "\n";
 foreach ($rejectedOrdersMissingReason as $order) {
-    echo "ID: {$order->id}, Order #: {$order->order_number}, Created: {$order->created_at}, Rejected_by: {$order->rejected_by}, Rejection_reason: NULL\n";
+    echo "ID: {$order->id}, Order #: " . ($order->order_number ?? 'N/A') . ", Created: {$order->created_at}, Rejected_by: " . ($order->rejected_by ?? 'NULL') . ", Rejection_reason: NULL\n";
 }
 echo "\n";
 
@@ -79,7 +79,7 @@ foreach ($approvedOrders as $order) {
 
 echo "Count: " . count($ordersWithoutLogs) . "\n";
 foreach ($ordersWithoutLogs as $order) {
-    echo "Order ID: {$order->id}, Order #: {$order->order_number}, Created: {$order->created_at}\n";
+    echo "Order ID: {$order->id}, Order #: " . ($order->order_number ?? 'N/A') . ", Created: {$order->created_at}\n";
 }
 echo "\n";
 

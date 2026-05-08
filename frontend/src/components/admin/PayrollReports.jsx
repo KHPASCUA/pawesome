@@ -215,7 +215,27 @@ const PayrollReports = () => {
           params.append("search", searchTerm.trim());
         }
 
-        const result = await apiRequest(`/admin/payroll/reports?${params.toString()}`);
+        const role = localStorage.getItem("role");
+        const isPayrollRole = ["payroll", "payroll_manager"].includes(role);
+        let result;
+
+        if (isPayrollRole) {
+          try {
+            result = await apiRequest(`/payroll/reports/overview?${params.toString()}`);
+          } catch (reportError) {
+            const [summary, records] = await Promise.all([
+              apiRequest(`/payroll/summary?${params.toString()}`),
+              apiRequest(`/payroll?${params.toString()}`),
+            ]);
+
+            result = {
+              summary: summary?.data || summary?.summary || summary,
+              payrolls: normalizeList(records, ["data", "records", "items", "payrolls"]),
+            };
+          }
+        } else {
+          result = await apiRequest(`/admin/payroll/reports?${params.toString()}`);
+        }
         const normalized = normalizePayload(result);
 
         setPayrollData({
