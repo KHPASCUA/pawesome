@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import "./DeleteConfirmModal.css";
 
 const DeleteConfirmModal = ({
@@ -7,8 +7,19 @@ const DeleteConfirmModal = ({
   onConfirm,
   loading,
   itemName = "this item",
+  requireReason = false,
 }) => {
+  const [reason, setReason] = useState("");
+
   if (!isOpen) return null;
+
+  const handleConfirm = () => {
+    if (requireReason && !reason.trim()) {
+      alert("Please provide a reason for deletion.");
+      return;
+    }
+    onConfirm(reason);
+  };
 
   return (
     <div className="delete-modal-overlay" onClick={onClose}>
@@ -27,12 +38,27 @@ const DeleteConfirmModal = ({
             <strong>{itemName}</strong>?
           </p>
           <span>This action cannot be undone.</span>
+
+          {requireReason && (
+            <div className="delete-reason-input">
+              <label>Reason for deletion *</label>
+              <textarea
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                placeholder="Please explain why you need to delete this product..."
+                rows="3"
+              />
+            </div>
+          )}
         </div>
 
         <div className="delete-modal-footer">
           <button
             className="btn-cancel"
-            onClick={onClose}
+            onClick={() => {
+              setReason("");
+              onClose();
+            }}
             disabled={loading}
           >
             Cancel
@@ -40,8 +66,8 @@ const DeleteConfirmModal = ({
 
           <button
             className="btn-delete"
-            onClick={onConfirm}
-            disabled={loading}
+            onClick={handleConfirm}
+            disabled={loading || (requireReason && !reason.trim())}
           >
             {loading ? (
               <>

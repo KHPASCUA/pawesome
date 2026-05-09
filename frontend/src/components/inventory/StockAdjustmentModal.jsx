@@ -19,7 +19,7 @@ const StockAdjustmentModal = ({ isOpen, onClose, item, onSuccess }) => {
     const category = String(itm?.category || "").toLowerCase();
     return expiryRequiredCategories.some((key) => category.includes(key));
   };
-  const [adjustmentType, setAdjustmentType] = useState("add"); // 'add', 'remove', 'set'
+  const [adjustmentType, setAdjustmentType] = useState("add"); // 'add', 'remove'
   const [quantity, setQuantity] = useState("");
   const [reason, setReason] = useState("");
   const [customReason, setCustomReason] = useState("");
@@ -46,8 +46,6 @@ const StockAdjustmentModal = ({ isOpen, onClose, item, onSuccess }) => {
       setQuantity(Math.min(currentStock, 5).toString());
     } else if (adjustmentType === "add") {
       setQuantity("");
-    } else if (adjustmentType === "set") {
-      setQuantity(currentStock.toString());
     }
   }, [adjustmentType, item, currentStock]);
 
@@ -161,8 +159,6 @@ const StockAdjustmentModal = ({ isOpen, onClose, item, onSuccess }) => {
         return currentStock + qty;
       case "remove":
         return Math.max(0, currentStock - qty);
-      case "set":
-        return qty;
       default:
         return currentStock;
     }
@@ -180,19 +176,8 @@ const StockAdjustmentModal = ({ isOpen, onClose, item, onSuccess }) => {
         ];
       case "remove":
         return [
-          "Sold to customer",
           "Damaged/expired",
-          "Internal use",
-          "Lost/missing",
           "Returned to supplier",
-          "Other",
-        ];
-      case "set":
-        return [
-          "Inventory count correction",
-          "System reset",
-          "Stock take adjustment",
-          "Other",
         ];
       default:
         return ["Other"];
@@ -257,14 +242,6 @@ const StockAdjustmentModal = ({ isOpen, onClose, item, onSuccess }) => {
                   <span className="icon">➖</span>
                   <span>Remove Stock</span>
                 </button>
-                <button
-                  type="button"
-                  className={`type-btn ${adjustmentType === "set" ? "active" : ""}`}
-                  onClick={() => setAdjustmentType("set")}
-                >
-                  <span className="icon">📝</span>
-                  <span>Set Exact</span>
-                </button>
               </div>
             </div>
 
@@ -273,7 +250,6 @@ const StockAdjustmentModal = ({ isOpen, onClose, item, onSuccess }) => {
               <label>
                 {adjustmentType === "add" && "Quantity to Add"}
                 {adjustmentType === "remove" && "Quantity to Remove"}
-                {adjustmentType === "set" && "New Stock Level"}
               </label>
               <div className="quantity-input">
                 <button
@@ -400,13 +376,8 @@ const StockAdjustmentModal = ({ isOpen, onClose, item, onSuccess }) => {
                   <span>
                     {adjustmentType === "add" && "➕ Adding:"}
                     {adjustmentType === "remove" && "➖ Removing:"}
-                    {adjustmentType === "set" && "📝 Setting to:"}
                   </span>
-                  <strong>
-                    {adjustmentType === "set"
-                      ? `${getNewStockPreview()} units`
-                      : `${quantity} units`}
-                  </strong>
+                  <strong>{quantity} units</strong>
                 </div>
                 <div className="preview-row new-total">
                   <span>New Total:</span>

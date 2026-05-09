@@ -1,7 +1,20 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faUsers } from "@fortawesome/free-solid-svg-icons";
+import {
+  faCalendarCheck,
+  faCheckCircle,
+  faClock,
+  faEye,
+  faInfoCircle,
+  faMoneyBillWave,
+  faPaw,
+  faReceipt,
+  faSearch,
+  faShoppingBag,
+  faTimes,
+  faUsers,
+} from "@fortawesome/free-solid-svg-icons";
 import {
   ResponsiveContainer,
   PieChart,
@@ -13,13 +26,11 @@ import {
   XAxis,
   YAxis,
   Tooltip,
+  Legend,
 } from "recharts";
 import { apiRequest } from "../../api/client";
 import { formatCurrency } from "../../utils/currency";
 import StandardReportLayout from "../shared/StandardReportLayout";
-import StandardSummaryCards from "../shared/StandardSummaryCards";
-import StandardTable from "../shared/StandardTable";
-import ReportFilters from "../shared/ReportFilters";
 import {
   exportToCSV,
   exportToPDF,
@@ -30,66 +41,261 @@ import {
 } from "../../utils/reportExport";
 import "./CustomerReports.css";
 
-const CHART_COLORS = ["#ff5f93", "#ff8db5", "#ffc8dd", "#f59e0b", "#10b981", "#3b82f6"];
+const CHART_COLORS = [
+  "#ff5f93",
+  "#ff8db5",
+  "#ffc8dd",
+  "#f59e0b",
+  "#10b981",
+  "#3b82f6",
+];
+
+const getDefaultDateRange = () => {
+  try {
+    const preset = getDateRangePreset("month");
+
+    return {
+      startDate: preset?.startDate || "",
+      endDate: preset?.endDate || "",
+    };
+  } catch {
+    return {
+      startDate: "",
+      endDate: "",
+    };
+  }
+};
+
+const normalizeList = (payload, keys = []) => {
+  if (Array.isArray(payload)) return payload;
+
+  for (const key of keys) {
+    if (Array.isArray(payload?.[key])) return payload[key];
+    if (Array.isArray(payload?.data?.[key])) return payload.data[key];
+    if (Array.isArray(payload?.[key]?.data)) return payload[key].data;
+    if (Array.isArray(payload?.data?.[key]?.data)) return payload.data[key].data;
+  }
+
+  if (Array.isArray(payload?.data)) return payload.data;
+  if (Array.isArray(payload?.data?.data)) return payload.data.data;
+  if (Array.isArray(payload?.items)) return payload.items;
+  if (Array.isArray(payload?.records)) return payload.records;
+  if (Array.isArray(payload?.bookings)) return payload.bookings;
+  if (Array.isArray(payload?.appointments)) return payload.appointments;
+  if (Array.isArray(payload?.pets)) return payload.pets;
+  if (Array.isArray(payload?.transactions)) return payload.transactions;
+  if (Array.isArray(payload?.orders)) return payload.orders;
+  if (Array.isArray(payload?.purchases)) return payload.purchases;
+
+  return [];
+};
+
+const normalizeStatus = (value) =>
+  String(value || "pending").toLowerCase().replace(/\s+/g, "_");
+
+const formatLabel = (value) =>
+  String(value || "N/A")
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+
+const numberValue = (value) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const toDateKey = (value) => {
+  if (!value) return "";
+
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}/.test(value)) {
+    return value.slice(0, 10);
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+
+  return date.toISOString().slice(0, 10);
+};
+
+const formatDateDisplay = (value) => {
+  if (!value) return "N/A";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  return date.toLocaleDateString("en-PH", {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+  });
+};
+
+const formatTimeDisplay = (value) => {
+  if (!value) return "N/A";
+
+  if (String(value).includes("AM") || String(value).includes("PM")) {
+    return value;
+  }
+
+  if (String(value).includes(":") && !String(value).includes("T")) {
+    const [hour, minute] = String(value).split(":");
+    const date = new Date();
+
+    date.setHours(Number(hour || 0), Number(minute || 0), 0, 0);
+
+    return date.toLocaleTimeString("en-PH", {
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  return date.toLocaleTimeString("en-PH", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+};
+
+const getStatusClass = (status) => {
+  const value = normalizeStatus(status);
+
+  if (["completed", "approved", "confirmed", "paid", "verified"].includes(value)) {
+    return "success";
+  }
+
+  if (["pending", "scheduled", "for_approval"].includes(value)) {
+    return "warning";
+  }
+
+  if (["cancelled", "canceled", "rejected", "failed"].includes(value)) {
+    return "danger";
+  }
+
+  if (["in_progress", "processing", "ongoing"].includes(value)) {
+    return "info";
+  }
+
+  return "muted";
+};
+
+const getBookingId = (booking, index) =>
+  booking.id ||
+  booking.booking_id ||
+  booking.appointment_id ||
+  booking.request_id ||
+  `BK-${index + 1}`;
+
+const normalizeBooking = (booking, index) => {
+  const dateSource =
+    booking.date ||
+    booking.booking_date ||
+    booking.appointment_date ||
+    booking.request_date ||
+    booking.scheduled_date ||
+    booking.created_at;
+
+  const rawId = getBookingId(booking, index);
+
+  return {
+    id: rawId,
+    displayId: String(rawId).startsWith("BK-") ? String(rawId) : `BK-${rawId}`,
+    customer_name:
+      booking.customer_name ||
+      booking.customer?.name ||
+      booking.customer ||
+      booking.client_name ||
+      booking.owner_name ||
+      "Unknown Customer",
+    pet_name:
+      booking.pet_name ||
+      booking.pet?.name ||
+      booking.pet ||
+      booking.petName ||
+      "N/A",
+    service:
+      booking.service ||
+      booking.service_name ||
+      booking.service?.name ||
+      booking.type ||
+      booking.service_type ||
+      "General Service",
+    date: toDateKey(dateSource),
+    displayDate: formatDateDisplay(dateSource),
+    time:
+      booking.time ||
+      booking.booking_time ||
+      booking.appointment_time ||
+      booking.request_time ||
+      booking.scheduled_time ||
+      "",
+    status: normalizeStatus(booking.status),
+    amount: numberValue(booking.amount || booking.price || booking.total_amount),
+    notes: booking.notes || booking.remarks || booking.description || "",
+    raw: booking,
+  };
+};
 
 const CustomerReports = () => {
   const location = useLocation();
+  const defaultRange = useMemo(() => getDefaultDateRange(), []);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [startDate, setStartDate] = useState(defaultRange.startDate);
+  const [endDate, setEndDate] = useState(defaultRange.endDate);
   const [statusFilter, setStatusFilter] = useState("all");
 
-  // Data states
   const [bookings, setBookings] = useState([]);
   const [pets, setPets] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [purchases, setPurchases] = useState([]);
 
-  // Set default date range to current month
-  useEffect(() => {
-    const { startDate: defaultStart, endDate: defaultEnd } = getDateRangePreset("month");
-    setStartDate(defaultStart);
-    setEndDate(defaultEnd);
-  }, []);
+  const [selectedBooking, setSelectedBooking] = useState(null);
+  const [lastUpdated, setLastUpdated] = useState("");
 
-  useEffect(() => {
-    fetchReportData();
-  }, []);
-
-  const fetchReportData = async () => {
+  const fetchReportData = useCallback(async () => {
     try {
       setLoading(true);
+      setError("");
+
       const isAdminReport = location.pathname.startsWith("/admin/reports/customers");
 
       if (isAdminReport) {
         const result = await apiRequest("/admin/reports/customers");
         const data = result?.data || result || {};
 
-        setBookings(data.appointments || data.bookings || []);
-        setPets(data.pets || []);
-        setTransactions(data.transactions || []);
-        setPurchases(data.orders || []);
+        setBookings(
+          normalizeList(data.appointments || data.bookings || data.requests || [], [
+            "appointments",
+            "bookings",
+            "requests",
+          ])
+        );
+        setPets(normalizeList(data.pets || [], ["pets"]));
+        setTransactions(normalizeList(data.transactions || data.payments || [], ["transactions", "payments"]));
+        setPurchases(normalizeList(data.orders || data.purchases || [], ["orders", "purchases"]));
       } else {
-        const [bookingsData, petsData, transactionsData, purchasesData] = await Promise.all([
-          apiRequest("/customer/bookings").catch(() => []),
-          apiRequest("/customer/pets").catch(() => []),
-          apiRequest("/customer/transactions").catch(() => []),
-          apiRequest("/customer/purchases").catch(() => []),
-        ]);
+        const [bookingsData, petsData, transactionsData, purchasesData] =
+          await Promise.all([
+            apiRequest("/customer/bookings").catch(() => []),
+            apiRequest("/customer/pets").catch(() => []),
+            apiRequest("/customer/transactions").catch(() => []),
+            apiRequest("/customer/purchases").catch(() => []),
+          ]);
 
-        setBookings(Array.isArray(bookingsData) ? bookingsData : bookingsData?.bookings || []);
-        setPets(Array.isArray(petsData) ? petsData : petsData?.pets || []);
-        setTransactions(Array.isArray(transactionsData) ? transactionsData : transactionsData?.transactions || []);
-        setPurchases(Array.isArray(purchasesData) ? purchasesData : purchasesData?.purchases || []);
+        setBookings(normalizeList(bookingsData, ["bookings", "appointments", "requests"]));
+        setPets(normalizeList(petsData, ["pets"]));
+        setTransactions(normalizeList(transactionsData, ["transactions", "payments"]));
+        setPurchases(normalizeList(purchasesData, ["purchases", "orders"]));
       }
 
-      setError("");
+      setLastUpdated(new Date().toLocaleString("en-PH"));
     } catch (err) {
       console.error("Failed to fetch customer reports:", err);
-      setError("Failed to load live customer report data.");
+      setError(err.message || "Failed to load live customer report data.");
       setBookings([]);
       setPets([]);
       setTransactions([]);
@@ -97,11 +303,19 @@ const CustomerReports = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [location.pathname]);
 
-  // Apply filters to data
+  useEffect(() => {
+    fetchReportData();
+  }, [fetchReportData]);
+
+  const normalizedBookings = useMemo(
+    () => bookings.map((booking, index) => normalizeBooking(booking, index)),
+    [bookings]
+  );
+
   const filteredBookings = useMemo(() => {
-    let filtered = [...bookings];
+    let filtered = [...normalizedBookings];
 
     if (startDate || endDate) {
       filtered = filterByDateRange(filtered, "date", startDate, endDate);
@@ -111,18 +325,196 @@ const CustomerReports = () => {
       filtered = filterByStatus(filtered, "status", statusFilter);
     }
 
-    if (searchTerm) {
-      const search = searchTerm.toLowerCase();
-      filtered = filtered.filter(
-        (booking) =>
-          booking.id?.toLowerCase().includes(search) ||
-          booking.customer_name?.toLowerCase().includes(search) ||
-          booking.service?.toLowerCase().includes(search)
+    if (searchTerm.trim()) {
+      const search = searchTerm.trim().toLowerCase();
+
+      filtered = filtered.filter((booking) =>
+        [
+          booking.id,
+          booking.displayId,
+          booking.customer_name,
+          booking.pet_name,
+          booking.service,
+          booking.status,
+          booking.amount,
+          booking.notes,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase()
+          .includes(search)
       );
     }
 
     return filtered;
-  }, [bookings, startDate, endDate, statusFilter, searchTerm]);
+  }, [normalizedBookings, startDate, endDate, statusFilter, searchTerm]);
+
+  const summaryStats = useMemo(() => {
+    const completedBookings = filteredBookings.filter(
+      (booking) => normalizeStatus(booking.status) === "completed"
+    ).length;
+
+    const pendingBookings = filteredBookings.filter((booking) =>
+      ["pending", "scheduled", "for_approval"].includes(normalizeStatus(booking.status))
+    ).length;
+
+    const cancelledBookings = filteredBookings.filter((booking) =>
+      ["cancelled", "canceled", "rejected"].includes(normalizeStatus(booking.status))
+    ).length;
+
+    const totalBookingAmount = filteredBookings.reduce(
+      (sum, booking) => sum + numberValue(booking.amount),
+      0
+    );
+
+    const totalTransactionAmount = transactions.reduce(
+      (sum, transaction) =>
+        sum + numberValue(transaction.amount || transaction.total_amount || transaction.total),
+      0
+    );
+
+    const totalPurchaseAmount = purchases.reduce(
+      (sum, purchase) =>
+        sum + numberValue(purchase.amount || purchase.total_amount || purchase.total),
+      0
+    );
+
+    return {
+      totalBookings: filteredBookings.length,
+      completedBookings,
+      pendingBookings,
+      cancelledBookings,
+      totalPets: pets.length,
+      totalPurchases: purchases.length,
+      totalSpent: totalTransactionAmount + totalPurchaseAmount || totalBookingAmount,
+    };
+  }, [filteredBookings, pets.length, transactions, purchases]);
+
+  const summaryCards = [
+    {
+      id: "total-bookings",
+      label: "Filtered Bookings",
+      value: summaryStats.totalBookings,
+      icon: faCalendarCheck,
+      tone: "primary",
+    },
+    {
+      id: "completed-bookings",
+      label: "Completed",
+      value: summaryStats.completedBookings,
+      icon: faCheckCircle,
+      tone: "success",
+    },
+    {
+      id: "pending-bookings",
+      label: "Pending / Scheduled",
+      value: summaryStats.pendingBookings,
+      icon: faClock,
+      tone: "warning",
+    },
+    {
+      id: "total-pets",
+      label: "Registered Pets",
+      value: summaryStats.totalPets,
+      icon: faPaw,
+      tone: "secondary",
+    },
+    {
+      id: "total-purchases",
+      label: "Purchases",
+      value: summaryStats.totalPurchases,
+      icon: faShoppingBag,
+      tone: "info",
+    },
+    {
+      id: "total-spent",
+      label: "Customer Value",
+      value: formatCurrency(summaryStats.totalSpent),
+      icon: faMoneyBillWave,
+      tone: "money",
+    },
+  ];
+
+  const statusDistributionData = useMemo(() => {
+    const statusCounts = {};
+
+    filteredBookings.forEach((booking) => {
+      const status = formatLabel(booking.status);
+      statusCounts[status] = (statusCounts[status] || 0) + 1;
+    });
+
+    return Object.entries(statusCounts).map(([status, count]) => ({
+      status,
+      count,
+    }));
+  }, [filteredBookings]);
+
+  const monthlyBookingsData = useMemo(() => {
+    const monthlyCounts = {};
+
+    filteredBookings.forEach((booking) => {
+      if (!booking.date) return;
+
+      const date = new Date(booking.date);
+      if (Number.isNaN(date.getTime())) return;
+
+      const month = date.toLocaleDateString("en-US", {
+        month: "short",
+        year: "numeric",
+      });
+
+      if (!monthlyCounts[month]) {
+        monthlyCounts[month] = {
+          month,
+          count: 0,
+          revenue: 0,
+          sortDate: date,
+        };
+      }
+
+      monthlyCounts[month].count += 1;
+      monthlyCounts[month].revenue += numberValue(booking.amount);
+    });
+
+    return Object.values(monthlyCounts)
+      .sort((a, b) => a.sortDate - b.sortDate)
+      .slice(-6);
+  }, [filteredBookings]);
+
+  const serviceBreakdown = useMemo(() => {
+    const serviceCounts = {};
+
+    filteredBookings.forEach((booking) => {
+      const service = booking.service || "General Service";
+
+      if (!serviceCounts[service]) {
+        serviceCounts[service] = {
+          service,
+          count: 0,
+          amount: 0,
+        };
+      }
+
+      serviceCounts[service].count += 1;
+      serviceCounts[service].amount += numberValue(booking.amount);
+    });
+
+    return Object.values(serviceCounts)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+  }, [filteredBookings]);
+
+  const bookingExportColumns = [
+    { key: "displayId", label: "Booking ID" },
+    { key: "customer_name", label: "Customer" },
+    { key: "pet_name", label: "Pet" },
+    { key: "service", label: "Service" },
+    { key: "date", label: "Date", format: "date" },
+    { key: "time", label: "Time" },
+    { key: "status", label: "Status" },
+    { key: "amount", label: "Amount", format: "currency" },
+    { key: "notes", label: "Notes" },
+  ];
 
   const handleDateChange = (key, value) => {
     if (key === "startDate") setStartDate(value);
@@ -130,194 +522,30 @@ const CustomerReports = () => {
   };
 
   const handleClearFilters = () => {
+    const range = getDefaultDateRange();
+
     setSearchTerm("");
     setStatusFilter("all");
-
-    const { startDate: defaultStart, endDate: defaultEnd } = getDateRangePreset("month");
-    setStartDate(defaultStart);
-    setEndDate(defaultEnd);
+    setStartDate(range.startDate);
+    setEndDate(range.endDate);
   };
-
-  const bookingExportColumns = [
-    { key: "id", label: "Booking ID" },
-    { key: "customer_name", label: "Customer" },
-    { key: "service", label: "Service" },
-    { key: "date", label: "Date", format: "date" },
-    { key: "time", label: "Time" },
-    { key: "status", label: "Status" },
-    { key: "amount", label: "Amount", format: "currency" },
-  ];
 
   const handleExportCSV = () => {
     exportToCSV(filteredBookings, bookingExportColumns, "customer-bookings-report");
   };
 
   const handleExportPDF = () => {
-    exportToPDF(filteredBookings, bookingExportColumns, "Customer Bookings Report", "customer-bookings-report");
+    exportToPDF(
+      filteredBookings,
+      bookingExportColumns,
+      "Customer Bookings Report",
+      "customer-bookings-report"
+    );
   };
 
   const handleExportExcel = () => {
     exportToExcel(filteredBookings, bookingExportColumns, "customer-bookings-report");
   };
-
-  // Calculate summary statistics
-  const summaryStats = useMemo(() => {
-    const totalBookings = bookings.length;
-    const completedBookings = bookings.filter(b => b.status === 'completed').length;
-    const pendingBookings = bookings.filter(b => b.status === 'pending').length;
-    const totalPets = pets.length;
-    const totalSpent = transactions.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
-
-    return {
-      totalBookings,
-      completedBookings,
-      pendingBookings,
-      totalPets,
-      totalSpent,
-    };
-  }, [bookings, pets, transactions]);
-
-  // Prepare summary cards data
-  const summaryCards = [
-    {
-      id: "total-bookings",
-      label: "Total Bookings",
-      value: summaryStats.totalBookings,
-      icon: "faCalendarCheck",
-      color: "primary",
-      trend: "up",
-      change: "+12.5%"
-    },
-    {
-      id: "completed-bookings",
-      label: "Completed Bookings",
-      value: summaryStats.completedBookings,
-      icon: "faCheckCircle",
-      color: "success",
-      trend: "up",
-      change: "+8.2%"
-    },
-    {
-      id: "total-pets",
-      label: "Total Pets",
-      value: summaryStats.totalPets,
-      icon: "faPaw",
-      color: "secondary",
-      trend: "up",
-      change: "+15.3%"
-    },
-    {
-      id: "total-spent",
-      label: "Total Spent",
-      value: formatCurrency(summaryStats.totalSpent),
-      icon: "faMoneyBillWave",
-      color: "warning",
-      trend: "up",
-      change: "+5.1%"
-    },
-    {
-      id: "pending-bookings",
-      label: "Pending Bookings",
-      value: summaryStats.pendingBookings,
-      icon: "faClock",
-      color: "info",
-      trend: "neutral",
-      change: "0%"
-    }
-  ];
-
-  // Prepare table columns
-  const bookingTableColumns = [
-    { key: "id", label: "Booking ID", sortable: true },
-    { key: "customer_name", label: "Customer", sortable: true },
-    { key: "service", label: "Service", sortable: true },
-    { key: "date", label: "Date", format: "date", sortable: true },
-    { key: "time", label: "Time", sortable: true },
-    { key: "status", label: "Status", sortable: true },
-    { key: "amount", label: "Amount", format: "currency", sortable: true },
-  ];
-
-  // Chart data preparation
-  const statusDistributionData = useMemo(() => {
-    const statusCounts = {};
-    bookings.forEach(booking => {
-      const status = booking.status || 'Unknown';
-      statusCounts[status] = (statusCounts[status] || 0) + 1;
-    });
-    return Object.entries(statusCounts).map(([status, count]) => ({
-      status,
-      count,
-    }));
-  }, [bookings]);
-
-  const monthlyBookingsData = useMemo(() => {
-    const monthlyCounts = {};
-    bookings.forEach(booking => {
-      if (booking.date) {
-        const month = new Date(booking.date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-        monthlyCounts[month] = (monthlyCounts[month] || 0) + 1;
-      }
-    });
-    return Object.entries(monthlyCounts).map(([month, count]) => ({
-      month,
-      count,
-    })).slice(-6); // Last 6 months
-  }, [bookings]);
-
-  const renderCustomerContent = () => (
-    <div className="customer-reports-content">
-      <StandardSummaryCards cards={summaryCards} />
-      
-      <div className="charts-section">
-        <div className="chart-row">
-          <div className="chart-container">
-            <h3 className="section-title">Booking Status Distribution</h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={statusDistributionData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ status, percent }) => `${status}: ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="count"
-                >
-                  {statusDistributionData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-
-          <div className="chart-container">
-            <h3 className="section-title">Monthly Booking Trend</h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={monthlyBookingsData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis />
-                <Tooltip />
-                <Line type="monotone" dataKey="count" stroke="#ff5f93" strokeWidth={2} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      </div>
-
-      <div className="data-table-section">
-        <h3 className="section-title">Booking History</h3>
-        <StandardTable
-          columns={bookingTableColumns}
-          data={filteredBookings}
-          emptyMessage="No bookings found"
-        />
-      </div>
-    </div>
-  );
 
   const filterProps = {
     searchTerm,
@@ -330,8 +558,10 @@ const CustomerReports = () => {
     statusOptions: [
       { value: "completed", label: "Completed" },
       { value: "pending", label: "Pending" },
-      { value: "cancelled", label: "Cancelled" },
+      { value: "scheduled", label: "Scheduled" },
       { value: "confirmed", label: "Confirmed" },
+      { value: "cancelled", label: "Cancelled" },
+      { value: "rejected", label: "Rejected" },
     ],
     onExportCSV: handleExportCSV,
     onExportPDF: handleExportPDF,
@@ -339,25 +569,355 @@ const CustomerReports = () => {
     loading,
     onRefresh: fetchReportData,
     onClearFilters: handleClearFilters,
-    searchPlaceholder: "Search bookings, customers, or services...",
+    searchPlaceholder: "Search bookings, customers, pets, services, or status...",
   };
 
   return (
     <StandardReportLayout
       title="Customer Reports"
-      subtitle="Booking history, pet records, and customer activity analytics"
+      subtitle="Booking history, pet records, spending activity, and customer service analytics"
       icon={faUsers}
       loading={loading}
       error={error}
       onRefresh={fetchReportData}
-      lastUpdated={new Date().toLocaleTimeString()}
+      lastUpdated={lastUpdated || "Not refreshed yet"}
       filterProps={filterProps}
     >
-      <div className="reports-content">
-        {renderCustomerContent()}
+      <div className="customer-reports-content">
+        <section className="cr-insight-bar">
+          <div>
+            <span className="cr-eyebrow">
+              <FontAwesomeIcon icon={faReceipt} />
+              Live Customer Report
+            </span>
+
+            <h2>Customer Activity Overview</h2>
+
+            <p>
+              Review filtered booking activity, pet ownership records, customer value,
+              status breakdown, and service demand.
+            </p>
+          </div>
+
+          <div className="cr-insight-meta">
+            <span>
+              <FontAwesomeIcon icon={faUsers} />
+              {new Set(filteredBookings.map((item) => item.customer_name)).size} Customers
+            </span>
+
+            <span>
+              <FontAwesomeIcon icon={faPaw} />
+              {pets.length} Pets
+            </span>
+
+            <span>
+              <FontAwesomeIcon icon={faSearch} />
+              {filteredBookings.length} Visible Records
+            </span>
+          </div>
+        </section>
+
+        <section className="cr-summary-grid">
+          {summaryCards.map((card) => (
+            <article className={`cr-summary-card ${card.tone}`} key={card.id}>
+              <span>
+                <FontAwesomeIcon icon={card.icon} />
+              </span>
+
+              <div>
+                <strong>{card.value}</strong>
+                <p>{card.label}</p>
+              </div>
+            </article>
+          ))}
+        </section>
+
+        <section className="cr-charts-grid">
+          <article className="cr-chart-card">
+            <div className="cr-section-head">
+              <div>
+                <span className="cr-eyebrow">Breakdown</span>
+                <h3>Booking Status Distribution</h3>
+              </div>
+            </div>
+
+            {statusDistributionData.length === 0 ? (
+              <div className="cr-empty-chart">
+                <FontAwesomeIcon icon={faInfoCircle} />
+                <p>No status data available for the selected filters.</p>
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={320}>
+                <PieChart>
+                  <Pie
+                    data={statusDistributionData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ status, percent }) =>
+                      `${status}: ${(percent * 100).toFixed(0)}%`
+                    }
+                    outerRadius={95}
+                    dataKey="count"
+                  >
+                    {statusDistributionData.map((entry, index) => (
+                      <Cell
+                        key={`status-cell-${entry.status}`}
+                        fill={CHART_COLORS[index % CHART_COLORS.length]}
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
+          </article>
+
+          <article className="cr-chart-card">
+            <div className="cr-section-head">
+              <div>
+                <span className="cr-eyebrow">Trend</span>
+                <h3>Monthly Booking Trend</h3>
+              </div>
+            </div>
+
+            {monthlyBookingsData.length === 0 ? (
+              <div className="cr-empty-chart">
+                <FontAwesomeIcon icon={faInfoCircle} />
+                <p>No monthly trend data available for the selected filters.</p>
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={320}>
+                <LineChart data={monthlyBookingsData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="month" />
+                  <YAxis allowDecimals={false} />
+                  <Tooltip />
+                  <Legend />
+                  <Line
+                    type="monotone"
+                    dataKey="count"
+                    name="Bookings"
+                    stroke="#ff5f93"
+                    strokeWidth={3}
+                    dot={{ r: 4 }}
+                    activeDot={{ r: 6 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
+          </article>
+        </section>
+
+        <section className="cr-service-card">
+          <div className="cr-section-head">
+            <div>
+              <span className="cr-eyebrow">
+                <FontAwesomeIcon icon={faCalendarCheck} />
+                Service Demand
+              </span>
+              <h3>Top Requested Services</h3>
+              <p>Most requested services based on the current report filters.</p>
+            </div>
+          </div>
+
+          {serviceBreakdown.length === 0 ? (
+            <div className="cr-empty-service">
+              <FontAwesomeIcon icon={faInfoCircle} />
+              <p>No service data available.</p>
+            </div>
+          ) : (
+            <div className="cr-service-list">
+              {serviceBreakdown.map((item) => (
+                <div className="cr-service-item" key={item.service}>
+                  <div>
+                    <strong>{item.service}</strong>
+                    <small>{item.count} booking(s)</small>
+                  </div>
+
+                  <span>{formatCurrency(item.amount)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section className="cr-table-card">
+          <div className="cr-section-head">
+            <div>
+              <span className="cr-eyebrow">
+                <FontAwesomeIcon icon={faReceipt} />
+                Booking Records
+              </span>
+
+              <h3>Booking History</h3>
+
+              <p>
+                Showing <strong>{filteredBookings.length}</strong> of{" "}
+                <strong>{normalizedBookings.length}</strong> booking record(s).
+              </p>
+            </div>
+          </div>
+
+          <div className="cr-table-scroll">
+            <table className="cr-table">
+              <thead>
+                <tr>
+                  <th>Booking</th>
+                  <th>Customer</th>
+                  <th>Pet</th>
+                  <th>Service</th>
+                  <th>Schedule</th>
+                  <th>Amount</th>
+                  <th>Status</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {filteredBookings.length === 0 ? (
+                  <tr>
+                    <td colSpan="8">
+                      <div className="cr-empty-table">
+                        <FontAwesomeIcon icon={faSearch} />
+                        <h3>No bookings found</h3>
+                        <p>Try changing the date range, status, or search filter.</p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredBookings.map((booking) => (
+                    <tr key={`${booking.displayId}-${booking.date}-${booking.customer_name}`}>
+                      <td>
+                        <span className="cr-id-badge">{booking.displayId}</span>
+                      </td>
+
+                      <td>
+                        <strong className="cr-customer-name">
+                          {booking.customer_name}
+                        </strong>
+                      </td>
+
+                      <td>{booking.pet_name}</td>
+
+                      <td>{booking.service}</td>
+
+                      <td>
+                        <div className="cr-date-cell">
+                          <span>{booking.displayDate}</span>
+                          <small>{formatTimeDisplay(booking.time)}</small>
+                        </div>
+                      </td>
+
+                      <td>
+                        <strong className="cr-amount">
+                          {formatCurrency(booking.amount)}
+                        </strong>
+                      </td>
+
+                      <td>
+                        <span className={`cr-status-badge ${getStatusClass(booking.status)}`}>
+                          {formatLabel(booking.status)}
+                        </span>
+                      </td>
+
+                      <td>
+                        <button
+                          type="button"
+                          className="cr-view-btn"
+                          onClick={() => setSelectedBooking(booking)}
+                          title="View booking details"
+                        >
+                          <FontAwesomeIcon icon={faEye} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        {selectedBooking && (
+          <div
+            className="cr-modal-overlay"
+            onClick={() => setSelectedBooking(null)}
+          >
+            <div className="cr-modal" onClick={(event) => event.stopPropagation()}>
+              <div className="cr-modal-header">
+                <div>
+                  <span className="cr-eyebrow">
+                    <FontAwesomeIcon icon={faEye} />
+                    Booking Details
+                  </span>
+
+                  <h2>{selectedBooking.displayId}</h2>
+                </div>
+
+                <button
+                  type="button"
+                  className="cr-close-btn"
+                  onClick={() => setSelectedBooking(null)}
+                >
+                  <FontAwesomeIcon icon={faTimes} />
+                </button>
+              </div>
+
+              <div className="cr-modal-body">
+                <div className="cr-detail-grid">
+                  <DetailItem label="Customer" value={selectedBooking.customer_name} />
+                  <DetailItem label="Pet" value={selectedBooking.pet_name} />
+                  <DetailItem label="Service" value={selectedBooking.service} />
+                  <DetailItem label="Date" value={selectedBooking.displayDate} />
+                  <DetailItem
+                    label="Time"
+                    value={formatTimeDisplay(selectedBooking.time)}
+                  />
+                  <DetailItem
+                    label="Amount"
+                    value={formatCurrency(selectedBooking.amount)}
+                  />
+                  <DetailItem
+                    label="Status"
+                    value={formatLabel(selectedBooking.status)}
+                  />
+                  <DetailItem
+                    label="Notes"
+                    value={selectedBooking.notes || "No notes provided."}
+                    wide
+                  />
+                </div>
+
+                <details className="cr-raw-record">
+                  <summary>Show raw booking data</summary>
+                  <pre>{JSON.stringify(selectedBooking.raw, null, 2)}</pre>
+                </details>
+              </div>
+
+              <div className="cr-modal-actions">
+                <button
+                  type="button"
+                  className="cr-secondary-btn"
+                  onClick={() => setSelectedBooking(null)}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </StandardReportLayout>
   );
 };
+
+const DetailItem = ({ label, value, wide = false }) => (
+  <div className={`cr-detail-item ${wide ? "wide" : ""}`}>
+    <small>{label}</small>
+    <strong>{value || "N/A"}</strong>
+  </div>
+);
 
 export default CustomerReports;

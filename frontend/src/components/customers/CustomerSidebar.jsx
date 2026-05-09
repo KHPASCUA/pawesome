@@ -37,21 +37,21 @@ const CustomerSidebar = () => {
       label: "My Pets",
       icon: faPaw,
     },
-    {
-      to: "/customer/booking",
-      label: "Book Service",
-      icon: faCalendarCheck,
-    },
-    {
-      to: "/customer/store",
-      label: "Store",
-      icon: faShoppingCart,
-    },
-    {
-      to: "/customer/orders",
-      label: "My Orders",
-      icon: faBox,
-    },
+    // {
+    //   to: "/customer/booking",
+    //   label: "Book Service",
+    //   icon: faCalendarCheck,
+    // },
+    // {
+    //   to: "/customer/store",
+    //   label: "Store",
+    //   icon: faShoppingCart,
+    // },
+    // {
+    //   to: "/customer/orders",
+    //   label: "My Orders",
+    //   icon: faBox,
+    // },
     {
       to: "/customer/bookings",
       label: "My Requests",
@@ -84,6 +84,7 @@ const CustomerSidebar = () => {
             <li className="nav-item" key={item.to}>
               <NavLink
                 to={item.to}
+                end={item.to === "/customer"}
                 className={({ isActive }) =>
                   `sidebar-link ${isActive ? "active" : ""}`
                 }
