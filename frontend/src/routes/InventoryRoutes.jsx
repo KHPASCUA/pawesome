@@ -2,6 +2,7 @@ import React from "react";
 import { Routes, Route } from "react-router-dom";
 import ProtectedRoute from "../components/ProtectedRoute";
 import InventoryDashboard from "../components/inventory/InventoryDashboard";
+import InventorySimplified from "../components/inventory/InventorySimplified";
 import InventoryProducts from "../components/inventory/InventoryProducts";
 import InventoryStock from "../components/inventory/InventoryStock_Polished";
 import InventoryReports from "../components/inventory/InventoryReports";
@@ -22,10 +23,12 @@ const InventoryRoutes = () => (
         </ProtectedRoute>
       }
     >
-      <Route index element={<InventoryProducts />} />
-      <Route path="products" element={<InventoryProducts />} />
+      <Route index element={<InventorySimplified />} />
+      <Route path="products" element={<InventorySimplified />} />
+      <Route path="simplified" element={<InventorySimplified />} />
       <Route path="stock" element={<InventoryStock />} />
       <Route path="management" element={<InventoryManagement />} />
+      <Route path="legacy-products" element={<InventoryProducts />} />
       <Route path="history" element={<InventoryHistory />} />
       <Route path="analytics" element={<InventoryReports />} />
       <Route path="reports" element={<InventoryReports />} />

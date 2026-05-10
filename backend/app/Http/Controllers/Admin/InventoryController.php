@@ -114,16 +114,59 @@ class InventoryController extends Controller
     }
 
     /**
-     * Remove the specified inventory item
+     * Archive the specified inventory item (replaces delete)
      */
     public function destroy($id)
     {
         try {
-            $result = $this->inventoryService->deleteItem($id);
+            $reason = request('reason', 'Archived via inventory management');
+            $result = $this->inventoryService->archiveItem($id, $reason);
             return response()->json($result);
         } catch (\Exception $e) {
             return response()->json(['errors' => [$e->getMessage()]], 422);
         }
+    }
+
+    /**
+     * Archive an inventory item with explicit reason
+     */
+    public function archive(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'reason' => 'required|string|max:255',
+        ]);
+
+        try {
+            $result = $this->inventoryService->archiveItem($id, $validated['reason']);
+            return response()->json($result);
+        } catch (\Exception $e) {
+            return response()->json(['errors' => [$e->getMessage()]], 422);
+        }
+    }
+
+    /**
+     * Get archived inventory items
+     */
+    public function archived(Request $request)
+    {
+        $query = InventoryItem::where('status', 'archived')
+            ->with(['archivedBy'])
+            ->orderBy('archived_at', 'desc');
+
+        // Search functionality
+        if ($request->has('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('sku', 'like', "%{$search}%");
+            });
+        }
+
+        $items = $query->paginate($request->per_page ?? 20);
+
+        return response()->json(array_merge($items->toArray(), [
+            'items' => $items->items(),
+        ]));
     }
 
     /**

@@ -146,32 +146,94 @@ class InventoryService
     }
 
     /**
-     * Delete an inventory item
+     * Archive an inventory item (replaces delete)
      */
-    public function deleteItem(int $id): array
+    public function archiveItem(int $id, string $reason = ''): array
     {
         $item = InventoryItem::findOrFail($id);
 
-        // Check if item has been used in sales
+        // Check if item has stock - block archive if stock exists
+        if ($item->stock > 0) {
+            throw new \Exception("Cannot archive item with remaining stock. Current stock: {$item->stock}. Please adjust stock to 0 first.");
+        }
+
+        // Check if item has active batches
+        $activeBatchesCount = $item->batches()
+            ->where('status', 'active')
+            ->where('remaining_quantity', '>', 0)
+            ->count();
+
+        if ($activeBatchesCount > 0) {
+            throw new \Exception("Cannot archive item with active batches. Please dispose of or deplete all batches first.");
+        }
+
+        // Archive the item
+        $item->update([
+            'status' => 'archived',
+            'archived_at' => now(),
+            'archived_by' => auth()->id(),
+            'archive_reason' => $reason ?: 'Archived via inventory management',
+        ]);
+
+        // Log the archiving
+        InventoryLog::create([
+            'inventory_item_id' => $item->id,
+            'delta' => 0,
+            'quantity' => 0,
+            'type' => 'archive',
+            'movement_type' => 'archive',
+            'reason' => "Item archived: {$reason}",
+            'reference_type' => 'archive',
+            'stock_before' => $item->stock,
+            'stock_after' => $item->stock,
+            'previous_stock' => $item->stock,
+            'new_stock' => $item->stock,
+            'performed_by' => auth()->user()?->name,
+            'role' => auth()->user()?->role,
+            'user_id' => auth()->id(),
+            'details' => json_encode([
+                'archived_at' => now()->toIso8601String(),
+                'archive_reason' => $reason,
+                'previous_status' => 'active',
+            ]),
+        ]);
+
+        return [
+            'message' => 'Item archived successfully. It will no longer appear in POS or service dropdowns, but historical data remains available.',
+            'item' => $item->fresh(),
+            'archived_at' => $item->archived_at,
+            'archive_reason' => $reason,
+        ];
+    }
+
+    /**
+     * Delete an inventory item (admin only for items with no history)
+     */
+    public function deleteItem(int $id, bool $forceDelete = false): array
+    {
+        $item = InventoryItem::findOrFail($id);
+
+        // Only allow hard delete for items with no history
         $saleItemsCount = DB::table('sale_items')
             ->where('product_id', $id)
             ->count();
 
-        if ($saleItemsCount > 0) {
-            // Soft delete by marking as discontinued
-            $item->update(['status' => self::STATUS_DISCONTINUED]);
-            return [
-                'message' => 'Item marked as discontinued (has sales history)',
-                'item' => $item,
-            ];
+        $logsCount = DB::table('inventory_logs')
+            ->where('inventory_item_id', $id)
+            ->count();
+
+        $batchesCount = $item->batches()->count();
+
+        if (!$forceDelete && ($saleItemsCount > 0 || $logsCount > 0 || $batchesCount > 0)) {
+            throw new \Exception("Item has transaction history and cannot be permanently deleted. Use archive instead.");
         }
 
         // Log the deletion
-        $this->logStockChange($item->id, -$item->stock, 'Item deleted', 'deletion');
+        $this->logStockChange($item->id, -$item->stock, 'Item permanently deleted', 'permanent_deletion');
 
         $item->delete();
 
-        return ['message' => 'Item deleted successfully'];
+        return ['message' => 'Item permanently deleted successfully'];
     }
 
     /**

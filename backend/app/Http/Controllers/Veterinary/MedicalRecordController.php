@@ -8,12 +8,20 @@ use App\Models\Vaccination;
 use App\Models\Prescription;
 use App\Models\Pet;
 use App\Models\Appointment;
+use App\Services\VeterinaryInventoryService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 
 class MedicalRecordController extends Controller
 {
+    private $veterinaryInventoryService;
+
+    public function __construct(VeterinaryInventoryService $veterinaryInventoryService)
+    {
+        $this->veterinaryInventoryService = $veterinaryInventoryService;
+    }
+
     private function vetCanAccessPet(Request $request, int $petId): bool
     {
         return Appointment::where('pet_id', $petId)
@@ -625,6 +633,118 @@ class MedicalRecordController extends Controller
 
         $prescription->update($data);
         return $prescription;
+    }
+
+    /**
+     * Record inventory usage for veterinary appointment
+     */
+    public function recordInventoryUsage(Request $request, int $appointmentId)
+    {
+        // Validate appointment access
+        $appointment = Appointment::findOrFail($appointmentId);
+        if (!$this->vetCanUseAppointment($request, $appointment)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You do not have permission to access this appointment'
+            ], 403);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'items' => 'required|array',
+            'items.*.inventory_item_id' => 'required|integer|exists:inventory_items,id',
+            'items.*.quantity_used' => 'required|integer|min:1',
+            'items.*.notes' => 'nullable|string|max:500',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        try {
+            $result = $this->veterinaryInventoryService->recordInventoryUsage(
+                $request->input('items'),
+                $appointmentId,
+                $appointment->pet_id,
+                'Veterinary appointment: ' . ($request->input('general_notes') ?? 'Medical supplies usage')
+            );
+
+            if ($result['success']) {
+                return response()->json([
+                    'success' => true,
+                    'message' => $result['message'],
+                    'usages' => $result['usages'],
+                    'total_items' => $result['total_items'],
+                    'processed_items' => $result['processed_items']
+                ]);
+            } else {
+                return response()->json([
+                    'success' => false,
+                    'message' => $result['message'],
+                    'errors' => $result['errors']
+                ], 422);
+            }
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to record inventory usage: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get available service consumable items for veterinary
+     */
+    public function getAvailableItems(Request $request)
+    {
+        try {
+            $items = $this->veterinaryInventoryService->getAvailableServiceItems();
+            
+            return response()->json([
+                'success' => true,
+                'items' => $items
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch available items: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get inventory usage history for an appointment
+     */
+    public function getUsageHistory(int $appointmentId)
+    {
+        try {
+            $appointment = Appointment::findOrFail($appointmentId);
+            
+            // Check access
+            if (!$this->vetCanUseAppointment(request(), $appointment)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You do not have permission to access this appointment'
+                ], 403);
+            }
+
+            $history = $this->veterinaryInventoryService->getAppointmentUsageHistory($appointmentId);
+            
+            return response()->json([
+                'success' => true,
+                'history' => $history,
+                'appointment_id' => $appointmentId,
+                'pet_id' => $appointment->pet_id
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch usage history: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     /**

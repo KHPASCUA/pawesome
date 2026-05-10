@@ -207,6 +207,8 @@ class POSController extends Controller
     public function getProducts()
     {
         $products = InventoryItem::where('stock', '>', 0)
+            ->where('status', 'active')  // Exclude archived items
+            ->where('is_sellable', true)  // Only sellable items
             ->select('id', 'sku', 'name', 'price', 'stock', 'description')
             ->orderBy('name')
             ->get()

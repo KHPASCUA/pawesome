@@ -212,7 +212,47 @@ export const inventoryApi = {
   },
 
   /**
-   * Deletes an inventory item.
+   * Archives an inventory item (replaces delete).
+   * @async
+   * @param {string|number} id - Inventory item ID
+   * @param {string} [reason] - Archive reason
+   * @returns {Promise<Object>} Archive confirmation
+   * @throws {Error} When item not found or request fails
+   */
+  archiveItem: async (id, reason = "Archived via inventory management") => {
+    validateId(id, "Item ID");
+    try {
+      return await apiRequest(`/inventory/items/${id}`, {
+        method: "DELETE",
+        body: JSON.stringify({ reason }),
+      });
+    } catch (error) {
+      console.error(`[InventoryAPI] Failed to archive item ${id}:`, error.message);
+      throw error;
+    }
+  },
+
+  /**
+   * Retrieves archived inventory items.
+   * @async
+   * @param {Object} [params={}] - Query parameters
+   * @param {string} [params.search] - Search query
+   * @param {number} [params.per_page] - Items per page
+   * @returns {Promise<Object>} Archived items with pagination
+   * @throws {Error} When request fails
+   */
+  getArchived: async (params = {}) => {
+    try {
+      const queryString = buildQueryString(params);
+      return await apiRequest(`/inventory/archived${queryString}`);
+    } catch (error) {
+      console.error("[InventoryAPI] Failed to fetch archived items:", error.message);
+      throw error;
+    }
+  },
+
+  /**
+   * Deletes an inventory item (admin only for items with no history).
    * @async
    * @param {string|number} id - Inventory item ID
    * @returns {Promise<Object>} Deletion confirmation
@@ -221,7 +261,7 @@ export const inventoryApi = {
   deleteItem: async (id) => {
     validateId(id, "Item ID");
     try {
-      return await apiRequest(`/inventory/items/${id}`, {
+      return await apiRequest(`/inventory/items/${id}/force-delete`, {
         method: "DELETE",
       });
     } catch (error) {

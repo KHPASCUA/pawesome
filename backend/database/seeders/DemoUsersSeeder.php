@@ -11,14 +11,14 @@ class DemoUsersSeeder extends Seeder
     public function run(): void
     {
         $accounts = [
-            ['username' => 'admin', 'name' => 'Administrator', 'role' => 'admin', 'password' => 'Password123!'],
-            ['username' => 'payroll', 'name' => 'Payroll Manager', 'role' => 'payroll', 'password' => 'Password123!'],
-            ['username' => 'customer', 'name' => 'Customer', 'role' => 'customer', 'password' => 'Password123!'],
-            ['username' => 'receptionist', 'name' => 'Receptionist', 'role' => 'receptionist', 'password' => 'Password123!'],
-            ['username' => 'vet', 'name' => 'Veterinarian', 'role' => 'veterinary', 'password' => 'Password123!'],
-            ['username' => 'inventory', 'name' => 'Inventory Manager', 'role' => 'inventory', 'password' => 'Password123!'],
-            ['username' => 'cashier', 'name' => 'Cashier', 'role' => 'cashier', 'password' => 'Password123!'],
-            ['username' => 'manager', 'name' => 'Manager', 'role' => 'manager', 'password' => 'Password123!'],
+            ['username' => 'admin', 'name' => 'Administrator', 'role' => 'admin', 'password' => 'password'],
+            ['username' => 'payroll', 'name' => 'Payroll Manager', 'role' => 'payroll', 'password' => 'password'],
+            ['username' => 'customer', 'name' => 'Customer', 'role' => 'customer', 'password' => 'password'],
+            ['username' => 'receptionist', 'name' => 'Receptionist', 'role' => 'receptionist', 'password' => 'password'],
+            ['username' => 'vet', 'name' => 'Veterinarian', 'role' => 'veterinary', 'password' => 'password'],
+            ['username' => 'inventory', 'name' => 'Inventory Manager', 'role' => 'inventory', 'password' => 'password'],
+            ['username' => 'cashier', 'name' => 'Cashier', 'role' => 'cashier', 'password' => 'password'],
+            ['username' => 'manager', 'name' => 'Manager', 'role' => 'manager', 'password' => 'password'],
         ];
 
         foreach ($accounts as $account) {

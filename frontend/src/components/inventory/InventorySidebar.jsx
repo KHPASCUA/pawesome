@@ -46,7 +46,7 @@ const InventorySidebar = () => {
           <li className="nav-item">
             <NavLink to="/inventory/products" className={({ isActive }) => isActive ? "active" : ""} end>
               <FontAwesomeIcon icon={faBoxes} />
-              <span>Products</span>
+              <span>Inventory Items</span>
             </NavLink>
           </li>
 

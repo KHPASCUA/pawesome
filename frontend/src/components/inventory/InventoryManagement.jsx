@@ -303,18 +303,18 @@ const InventoryManagement = () => {
     }
   };
 
-  // Delete item
-  const handleDelete = (id) => {
+  // Archive item
+  const handleArchive = (id) => {
     const item = items.find(i => i.id === id);
     const stock = item?.stock_quantity || item?.stock || item?.quantity || 0;
 
-    // Rule: Cannot delete if product has stock
+    // Rule: Cannot archive if product has stock
     if (stock > 0) {
       setToast({
         show: true,
         type: 'error',
-        title: 'Cannot Delete Product',
-        message: `Cannot delete "${item?.name}" because it has ${stock} units in stock. Only out-of-stock products can be deleted.`
+        title: 'Cannot Archive Product',
+        message: `Cannot archive "${item?.name}" because it has ${stock} units in stock. Please adjust stock to 0 first.`
       });
       return;
     }
@@ -322,34 +322,35 @@ const InventoryManagement = () => {
     setDeleteModal({
       open: true,
       item: item || { name: 'this item' },
+      isArchive: true,
       loading: false
     });
   };
 
-  const confirmDelete = async (reason) => {
+  const confirmArchive = async (reason) => {
     setDeleteModal(prev => ({ ...prev, loading: true }));
     const { item } = deleteModal;
 
     try {
-      await inventoryApi.deleteItem(item.id, { reason });
+      await inventoryApi.archiveItem(item.id, reason);
       await fetchInventory();
 
-      addActivityLog('delete', `Deleted "${item.name}" - Reason: ${reason}`);
+      addActivityLog('archive', `Archived "${item.name}" - Reason: ${reason}`);
 
       setDeleteModal({ open: false, item: null, loading: false });
       setToast({
         show: true,
         type: 'success',
-        title: 'Item Deleted',
-        message: 'Item deleted successfully!'
+        title: 'Item Archived',
+        message: 'Item archived successfully! It will no longer appear in POS or service dropdowns.'
       });
     } catch (err) {
       setDeleteModal(prev => ({ ...prev, loading: false }));
       setToast({
         show: true,
         type: 'error',
-        title: 'Delete Failed',
-        message: `Failed to delete item: ${err.message}`
+        title: 'Archive Failed',
+        message: `Failed to archive item: ${err.message}`
       });
     }
   };
@@ -548,7 +549,7 @@ const InventoryManagement = () => {
                     <button className="btn-icon edit" onClick={() => handleEdit(item)} title="Edit">
                       <FontAwesomeIcon icon={faEdit} />
                     </button>
-                    <button className="btn-icon delete" onClick={() => handleDelete(item.id)} title="Delete">
+                    <button className="btn-icon delete" onClick={() => handleArchive(item.id)} title="Archive">
                       <FontAwesomeIcon icon={faTrash} />
                     </button>
                   </td>
@@ -755,14 +756,20 @@ const InventoryManagement = () => {
         onClose={() => setToast(prev => ({ ...prev, show: false }))}
       />
 
-      {/* Delete Confirmation Modal */}
+      {/* Archive Confirmation Modal */}
       <DeleteConfirmModal
         isOpen={deleteModal.open}
         itemName={deleteModal.item?.name || 'this item'}
         loading={deleteModal.loading}
         requireReason={true}
         onClose={() => setDeleteModal({ open: false, item: null, loading: false })}
-        onConfirm={confirmDelete}
+        onConfirm={confirmArchive}
+        title={deleteModal.isArchive ? "Archive Item" : "Delete Item"}
+        message={deleteModal.isArchive 
+          ? "This item will be hidden from POS and service usage, but previous records will remain available."
+          : "This will permanently delete the item and all its data."
+        }
+        confirmText={deleteModal.isArchive ? "Archive" : "Delete"}
       />
     </div>
   );

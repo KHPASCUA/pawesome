@@ -36,6 +36,7 @@ use App\Http\Controllers\AppointmentController;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\AttendanceRecordController;
 use App\Http\Controllers\PayrollController;
+use App\Http\Controllers\Api\PayrollController as ApiPayrollController;
 use App\Http\Controllers\GiftCardController;
 use App\Http\Controllers\GroomingController;
 use App\Http\Controllers\Api\AvailabilityController;
@@ -106,6 +107,8 @@ Route::middleware(['auth.api', 'throttle:api', 'role:admin'])->prefix('admin')->
     Route::put('inventory/items/{id}', [InventoryController::class, 'update']); // Frontend compatibility
     Route::delete('inventory/{id}', [InventoryController::class, 'destroy']);
     Route::delete('inventory/items/{id}', [InventoryController::class, 'destroy']); // Frontend compatibility
+    Route::post('inventory/{id}/archive', [InventoryController::class, 'archive']); // Archive with reason
+    Route::get('inventory/archived', [InventoryController::class, 'archived']); // Get archived items
     Route::post('inventory/{id}/adjust-stock', [InventoryController::class, 'adjustStock']);
     Route::post('inventory/items/{id}/adjust', [InventoryController::class, 'adjustStock']); // Frontend compatibility
     Route::patch('inventory/{id}/stock', [InventoryController::class, 'updateStock']); // Simple stock update
@@ -597,6 +600,11 @@ Route::middleware(['auth.api', 'throttle:api', 'role:veterinary,vet'])->prefix('
     Route::put('medical-records/{id}', [MedicalRecordController::class, 'update']);
     Route::delete('medical-records/{id}', [MedicalRecordController::class, 'destroy']);
     Route::post('medical-records/{id}/lock', [MedicalRecordController::class, 'lock']);
+    
+    // Veterinary Inventory Usage Routes
+    Route::post('appointments/{id}/inventory-usage', [MedicalRecordController::class, 'recordInventoryUsage']);
+    Route::get('appointments/{id}/inventory-usage-history', [MedicalRecordController::class, 'getUsageHistory']);
+    Route::get('inventory-items', [MedicalRecordController::class, 'getAvailableItems']);
     
     // Pet-specific medical data
     Route::get('pets/{petId}/medical-records', [MedicalRecordController::class, 'forPet']);
