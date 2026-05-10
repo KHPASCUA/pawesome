@@ -1,6 +1,251 @@
 /* CustomerBookings.css */
 /* Premium Pawesome Customer Booking Hub */
 
+/* AVAILABILITY COMPONENTS */
+.availability-section {
+  background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 1.25rem;
+  margin-top: 1rem;
+  position: relative;
+}
+
+.availability-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.availability-title {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--color-heading);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.availability-loading {
+  font-size: 0.85rem;
+  color: var(--color-muted);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.availability-loading::after {
+  content: "";
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--color-border);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.availability-content {
+  margin-top: 1rem;
+}
+
+/* TIME SLOTS */
+.time-slots-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.75rem;
+}
+
+.time-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem 0.75rem;
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.time-slot:hover:not(.unavailable) {
+  border-color: var(--color-primary);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-soft);
+}
+
+.time-slot.selected {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.time-slot.unavailable {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: #f8f9fa;
+}
+
+.slot-time {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--color-heading);
+}
+
+.slot-status {
+  font-size: 0.75rem;
+  color: var(--color-muted);
+}
+
+.time-slot.unavailable .slot-status {
+  color: #ef4444;
+}
+
+/* ROOMS GRID */
+.rooms-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.room-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+}
+
+.room-card:hover:not(.unavailable) {
+  border-color: var(--color-primary);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-soft);
+}
+
+.room-card.selected {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+
+.room-card.unavailable {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: #f8f9fa;
+}
+
+.room-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.room-name {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--color-heading);
+}
+
+.room-type {
+  font-size: 0.75rem;
+  color: var(--color-muted);
+  background: #f1f5f9;
+  padding: 0.2rem 0.5rem;
+  border-radius: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.room-details {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.room-capacity,
+.room-rate {
+  font-size: 0.8rem;
+  color: var(--color-muted);
+}
+
+.room-status {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--color-muted);
+}
+
+.room-card.unavailable .room-status {
+  color: #ef4444;
+}
+
+/* AVAILABILITY MESSAGES */
+.availability-success {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: #dcfce7;
+  border: 2px solid #bbf7d0;
+  border-radius: var(--radius-md);
+  color: #166534;
+  font-weight: 500;
+}
+
+.availability-icon {
+  font-size: 1.25rem;
+  color: #16a34a;
+}
+
+.no-availability {
+  padding: 1rem;
+  background: #fef2f2;
+  border: 2px solid #fecaca;
+  border-radius: var(--radius-md);
+  color: #dc2626;
+}
+
+.no-availability p {
+  margin: 0;
+  font-weight: 500;
+}
+
+.existing-booking {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid #fecaca;
+}
+
+.existing-booking small {
+  color: #991b1b;
+  font-size: 0.8rem;
+}
+
+.availability-prompt {
+  padding: 1rem;
+  background: #f8fafc;
+  border: 2px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  text-align: center;
+  color: var(--color-muted);
+  font-style: italic;
+}
+
 .customer-bookings {
   --color-primary: #ff5f93;
   --color-primary-light: #ff8db5;

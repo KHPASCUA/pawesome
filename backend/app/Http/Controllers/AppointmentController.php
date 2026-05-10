@@ -12,6 +12,7 @@ use App\Models\Service;
 use App\Models\MedicalRecord;
 use App\Services\NotificationService;
 use App\Services\WorkflowNotifier;
+use App\Services\BookingAvailabilityService;
 use App\Models\ActivityLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -158,6 +159,20 @@ class AppointmentController extends Controller
 
         if (!Pet::where('id', $request->pet_id)->where('customer_id', $request->customer_id)->exists()) {
             return response()->json(['message' => 'Pet not found for this customer'], 422);
+        }
+
+        // Check availability before creating appointment
+        $scheduledAt = Carbon::parse($request->scheduled_at);
+        $date = $scheduledAt->format('Y-m-d');
+        $time = $scheduledAt->format('H:i');
+
+        // Check if the time slot is still available
+        if (!BookingAvailabilityService::isVeterinarySlotAvailable($date, $time, $request->veterinarian_id)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This schedule is no longer available. Please choose another slot.',
+                'errors' => ['scheduled_at' => ['Time slot already booked']]
+            ], 422);
         }
 
         $service = Service::find($request->service_id);

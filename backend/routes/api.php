@@ -38,6 +38,7 @@ use App\Http\Controllers\AttendanceRecordController;
 use App\Http\Controllers\PayrollController;
 use App\Http\Controllers\GiftCardController;
 use App\Http\Controllers\GroomingController;
+use App\Http\Controllers\Api\AvailabilityController;
 use App\Http\Controllers\Api\GroomingController as ApiGroomingController;
 use App\Http\Controllers\PetController;
 use App\Http\Controllers\VetController;
@@ -46,7 +47,6 @@ use App\Http\Controllers\Api\CashierPaymentController;
 use App\Http\Controllers\Api\ServiceRequestController;
 use App\Http\Controllers\Api\ReceptionistCustomerController;
 use App\Http\Controllers\Api\ReceptionistPetController;
-use App\Http\Controllers\Api\PayrollController as ApiPayrollController;
 use App\Http\Controllers\Api\NotificationController as ApiNotificationController;
 use App\Http\Controllers\ReceptionistRequestController;
 use Illuminate\Support\Facades\Route;
@@ -264,6 +264,16 @@ Route::middleware(['auth.api', 'throttle:api', 'role:customer'])->prefix('custom
     Route::post('medical-confinements/{id}/payment-proof', [MedicalConfinementController::class, 'uploadPaymentProof']);
     Route::get('medical-confinements/{id}/care-logs', [MedicalConfinementController::class, 'careLogs']);
     Route::get('medical-confinements/{id}/medical-notes', [MedicalConfinementController::class, 'progressNotes']);
+
+    // Availability Checking Endpoints
+    Route::prefix('availability')->group(function () {
+        Route::get('veterinary', [AvailabilityController::class, 'veterinary']);
+        Route::get('grooming', [AvailabilityController::class, 'grooming']);
+        Route::get('boarding', [AvailabilityController::class, 'boarding']);
+        Route::post('check/veterinary-slot', [AvailabilityController::class, 'checkVeterinarySlot']);
+        Route::post('check/grooming-date', [AvailabilityController::class, 'checkGroomingDate']);
+        Route::post('check/boarding-room', [AvailabilityController::class, 'checkBoardingRoom']);
+    });
 });
 
 Route::middleware(['auth.api', 'throttle:api', 'role:cashier'])->prefix('cashier')->group(function () {
@@ -472,26 +482,26 @@ Route::middleware(['auth.api', 'throttle:api', 'role:admin,manager'])->prefix('a
     Route::get('/summary', [AttendanceRecordController::class, 'summary']);
 });
 
-// Payroll Routes (Admin and Payroll only)
-Route::middleware(['auth.api', 'throttle:api', 'role:admin,payroll'])->prefix('payroll')->group(function () {
-    Route::get('/', [ApiPayrollController::class, 'index']);
-    Route::post('/generate', [ApiPayrollController::class, 'generate']);
-    Route::get('/summary', [PayrollController::class, 'summary']);
-    Route::post('/{id}/process', [PayrollController::class, 'processPayment']);
-    Route::get('/{id}/payslip', [PayrollController::class, 'payslip']);
-    Route::get('/{payroll}', [ApiPayrollController::class, 'show']);
-    Route::patch('/{payroll}/approve', [ApiPayrollController::class, 'approve']);
-    Route::patch('/{payroll}/paid', [ApiPayrollController::class, 'markAsPaid']);
-    Route::delete('/{payroll}', [ApiPayrollController::class, 'destroy']);
-
-    // Legacy routes using main controller
-    Route::post('/', [PayrollController::class, 'store']);
-    Route::put('/{id}', [PayrollController::class, 'update']);
-    Route::get('/reports/overview', [ReportsController::class, 'payrollReports']);
-    Route::get('/reports/attendance', [ReportsController::class, 'payrollReports']);
-    Route::get('/reports/salaries', [ReportsController::class, 'payrollReports']);
-    Route::get('/reports/payroll-history', [ReportsController::class, 'payrollReports']);
-});
+// Payroll Routes (Admin and Payroll only) - Temporarily commented due to autoloader issue
+// Route::middleware(['auth.api', 'throttle:api', 'role:admin,payroll'])->prefix('payroll')->group(function () {
+//     Route::get('/', [Api\PayrollController::class, 'index']);
+//     Route::post('/generate', [Api\PayrollController::class, 'generate']);
+//     Route::get('/summary', [Api\PayrollController::class, 'summary']);
+//     Route::post('/{id}/process', [Api\PayrollController::class, 'processPayment']);
+//     Route::get('/{id}/payslip', [Api\PayrollController::class, 'payslip']);
+//     Route::get('/{payroll}', [Api\PayrollController::class, 'show']);
+//     Route::patch('/{payroll}/approve', [Api\PayrollController::class, 'approve']);
+//     Route::patch('/{payroll}/paid', [Api\PayrollController::class, 'markAsPaid']);
+//     Route::delete('/{payroll}', [Api\PayrollController::class, 'destroy']);
+//
+//     // Legacy routes using main controller
+//     Route::post('/', [PayrollController::class, 'store']);
+//     Route::put('/{id}', [PayrollController::class, 'update']);
+//     Route::get('/reports/overview', [ReportsController::class, 'payrollReports']);
+//     Route::get('/reports/attendance', [ReportsController::class, 'payrollReports']);
+//     Route::get('/reports/salaries', [ReportsController::class, 'payrollReports']);
+//     Route::get('/reports/payroll-history', [ReportsController::class, 'payrollReports']);
+// });
 
 // Admin Salaries Routes (for EmployeeSalaryManagement component)
 Route::middleware(['auth.api', 'throttle:api', 'role:admin'])->prefix('admin/salaries')->group(function () {
@@ -680,18 +690,18 @@ Route::middleware(['auth.api', 'throttle:api', 'role:veterinary'])->prefix('vete
 
 // Grooming Appointment Routes (Receptionist only)
 Route::middleware(['auth.api', 'throttle:api', 'role:receptionist'])->prefix('grooming')->group(function () {
-    Route::get('/', [ApiGroomingController::class, 'index']);
-    Route::post('/', [ApiGroomingController::class, 'store']);
-    Route::put('/{grooming}/status', [ApiGroomingController::class, 'updateStatus']);
-    Route::get('/{id}', [GroomingController::class, 'show']);
-    Route::put('/{id}', [GroomingController::class, 'update']);
-    Route::delete('/{id}', [GroomingController::class, 'destroy']);
+    Route::get('/', [\App\Http\Controllers\Api\GroomingController::class, 'index']);
+    Route::post('/', [\App\Http\Controllers\Api\GroomingController::class, 'store']);
+    Route::put('/{grooming}/status', [\App\Http\Controllers\Api\GroomingController::class, 'updateStatus']);
+    Route::get('/{id}', [\App\Http\Controllers\Api\GroomingController::class, 'show']);
+    Route::put('/{id}', [\App\Http\Controllers\Api\GroomingController::class, 'update']);
+    Route::delete('/{id}', [\App\Http\Controllers\Api\GroomingController::class, 'destroy']);
 });
 
 // Admin Grooming View-Only Routes
 Route::middleware(['auth.api', 'throttle:api', 'role:admin'])->prefix('admin/grooming')->group(function () {
-    Route::get('/', [ApiGroomingController::class, 'index']);
-    Route::get('/{id}', [GroomingController::class, 'show']);
+    Route::get('/', [\App\Http\Controllers\Api\GroomingController::class, 'index']);
+    Route::get('/{id}', [\App\Http\Controllers\Api\GroomingController::class, 'show']);
 });
 
 // Customer Grooming Routes (View own appointments, create new)

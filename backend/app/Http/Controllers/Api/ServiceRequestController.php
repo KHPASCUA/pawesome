@@ -7,6 +7,7 @@ use App\Models\ServiceRequest;
 use App\Models\ActivityLog;
 use App\Models\Pet;
 use App\Services\WorkflowNotifier;
+use App\Services\BookingAvailabilityService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Auth;
@@ -91,6 +92,17 @@ class ServiceRequestController extends Controller
             return response()->json([
                 'message' => 'Selected time is outside shop opening hours. Please choose between 9:00 AM and 6:00 PM.',
             ], 422);
+        }
+
+        // Check availability for grooming requests
+        if ($validated['request_type'] === 'grooming') {
+            if (!BookingAvailabilityService::isGroomingDateAvailable($validated['requested_date'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'This grooming date is already reserved. Please choose another date.',
+                    'errors' => ['requested_date' => ['Date already booked']]
+                ], 422);
+            }
         }
 
         $createData = [

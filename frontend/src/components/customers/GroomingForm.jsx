@@ -6,6 +6,9 @@ const GroomingForm = () => {
   const [activeTab, setActiveTab] = useState("book");
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [availabilityLoading, setAvailabilityLoading] = useState(false);
+  const [groomingAvailability, setGroomingAvailability] = useState(null);
+  const [dateAvailable, setDateAvailable] = useState(true);
 
   const customerEmail = localStorage.getItem("email");
   const customerName = localStorage.getItem("name") || "Customer";
@@ -43,13 +46,48 @@ const GroomingForm = () => {
     fetchAppointments();
   }, [fetchAppointments]);
 
+  const fetchGroomingAvailability = async (date) => {
+    try {
+      setAvailabilityLoading(true);
+      
+      const data = await apiRequest(`/customer/availability/grooming?date=${date}`);
+      
+      if (data.success) {
+        setGroomingAvailability(data);
+        setDateAvailable(data.available);
+      } else {
+        setGroomingAvailability(null);
+        setDateAvailable(false);
+        alert(data.message || "This grooming date is already reserved. Please choose another date.");
+      }
+    } catch (error) {
+      console.error("Error fetching grooming availability:", error);
+      setGroomingAvailability(null);
+      setDateAvailable(false);
+      alert("Failed to check availability. Please try again.");
+    } finally {
+      setAvailabilityLoading(false);
+    }
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+
+    // Check availability when date changes
+    if (name === "request_date" && value) {
+      fetchGroomingAvailability(value);
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Check availability before submitting
+    if (!dateAvailable) {
+      alert("This grooming date is already reserved. Please choose another date.");
+      return;
+    }
 
     try {
       setLoading(true);
@@ -72,6 +110,9 @@ const GroomingForm = () => {
           request_time: "",
           notes: "",
         });
+
+        setGroomingAvailability(null);
+        setDateAvailable(true);
 
         await fetchAppointments();
         setActiveTab("my");
@@ -153,6 +194,34 @@ const GroomingForm = () => {
               onChange={handleChange}
               required
             />
+
+            {/* Availability Display */}
+            {groomingAvailability && (
+              <div className="grooming-availability">
+                {dateAvailable ? (
+                  <div className="availability-success">
+                    <span>✓</span>
+                    <span>This grooming date is available for booking.</span>
+                  </div>
+                ) : (
+                  <div className="no-availability">
+                    <span>⚠</span>
+                    <span>This grooming date is already reserved. Please choose another date.</span>
+                    {groomingAvailability.existing_appointment && (
+                      <div className="existing-booking">
+                        <small>Existing booking: {groomingAvailability.existing_appointment.pet_name} - {groomingAvailability.existing_appointment.service}</small>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {availabilityLoading && (
+              <div className="availability-loading">
+                <span>Checking availability...</span>
+              </div>
+            )}
 
             <input
               type="time"

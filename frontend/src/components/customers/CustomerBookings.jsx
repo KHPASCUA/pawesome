@@ -92,6 +92,13 @@ const CustomerBookings = () => {
   const [submitting, setSubmitting] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
+  const [availabilityLoading, setAvailabilityLoading] = useState(false);
+  const [veterinaryAvailability, setVeterinaryAvailability] = useState(null);
+  const [groomingAvailability, setGroomingAvailability] = useState(null);
+  const [boardingAvailability, setBoardingAvailability] = useState(null);
+  const [selectedTimeSlot, setSelectedTimeSlot] = useState("");
+  const [selectedRoom, setSelectedRoom] = useState(null);
+
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
@@ -106,6 +113,7 @@ const CustomerBookings = () => {
     service_name: "",
     request_date: "",
     request_time: "",
+    check_out_date: "",
     notes: "",
   });
 
@@ -394,6 +402,13 @@ const CustomerBookings = () => {
     setPreviewUrl(null);
     setErrorMessage("");
 
+    // Reset availability states
+    setVeterinaryAvailability(null);
+    setGroomingAvailability(null);
+    setBoardingAvailability(null);
+    setSelectedTimeSlot("");
+    setSelectedRoom(null);
+
     setFormData({
       customer_name: customerName,
       customer_email: customerEmail,
@@ -403,6 +418,7 @@ const CustomerBookings = () => {
       service_name: meta.defaultService,
       request_date: "",
       request_time: "",
+      check_out_date: "",
       notes: "",
     });
   };
@@ -427,6 +443,29 @@ const CustomerBookings = () => {
     }));
 
     if (errorMessage) setErrorMessage("");
+
+    // Trigger availability checking when date or service changes for vet bookings
+    if (selectedBooking === "Vet" && (name === "request_date" || name === "service_name")) {
+      const updatedFormData = { ...formData, [name]: value };
+      if (updatedFormData.request_date) {
+        fetchVeterinaryAvailability(updatedFormData.request_date, updatedFormData.service_name);
+      }
+    }
+
+    // Trigger availability checking when date changes for grooming bookings
+    if (selectedBooking === "Groom" && name === "request_date") {
+      if (value) {
+        fetchGroomingAvailability(value);
+      }
+    }
+
+    // Trigger availability checking when dates change for hotel bookings
+    if (selectedBooking === "Hotel" && (name === "request_date" || name === "check_out_date")) {
+      const updatedFormData = { ...formData, [name]: value };
+      if (updatedFormData.request_date && updatedFormData.check_out_date) {
+        fetchBoardingAvailability(updatedFormData.request_date, updatedFormData.check_out_date);
+      }
+    }
   };
 
   const handlePetSelect = (event) => {
@@ -478,6 +517,85 @@ const CustomerBookings = () => {
     setPreviewUrl(null);
   };
 
+  const fetchVeterinaryAvailability = async (date, serviceName) => {
+    try {
+      setAvailabilityLoading(true);
+
+      // Find service ID from vet services
+      const service = vetServices.find((s) => s.name === serviceName);
+      const serviceId = service?.id;
+
+      const url = `/customer/availability/veterinary?date=${date}${serviceId ? `&service_id=${serviceId}` : ""}`;
+      const data = await apiRequest(url);
+
+      if (data.success) {
+        setVeterinaryAvailability(data);
+      } else {
+        setVeterinaryAvailability(null);
+        showToast(data.message || "Failed to check veterinary availability", "error");
+      }
+    } catch (error) {
+      console.error("Error fetching veterinary availability:", error);
+      setVeterinaryAvailability(null);
+      showToast("Failed to check availability. Please try again.", "error");
+    } finally {
+      setAvailabilityLoading(false);
+    }
+  };
+
+  const fetchGroomingAvailability = async (date) => {
+    try {
+      setAvailabilityLoading(true);
+
+      const data = await apiRequest(`/customer/availability/grooming?date=${date}`);
+
+      if (data.success) {
+        setGroomingAvailability(data);
+      } else {
+        setGroomingAvailability(null);
+        showToast(data.message || "Failed to check grooming availability", "error");
+      }
+    } catch (error) {
+      console.error("Error fetching grooming availability:", error);
+      setGroomingAvailability(null);
+      showToast("Failed to check availability. Please try again.", "error");
+    } finally {
+      setAvailabilityLoading(false);
+    }
+  };
+
+  const fetchBoardingAvailability = async (checkIn, checkOut) => {
+    try {
+      setAvailabilityLoading(true);
+
+      const data = await apiRequest(`/customer/availability/boarding?check_in=${checkIn}&check_out=${checkOut}`);
+
+      if (data.success) {
+        setBoardingAvailability(data);
+      } else {
+        setBoardingAvailability(null);
+        showToast(data.message || "Failed to check boarding availability", "error");
+      }
+    } catch (error) {
+      console.error("Error fetching boarding availability:", error);
+      setBoardingAvailability(null);
+      showToast("Failed to check availability. Please try again.", "error");
+    } finally {
+      setAvailabilityLoading(false);
+    }
+  };
+
+  const handleTimeSlotSelect = (slot) => {
+    setSelectedTimeSlot(slot.time);
+    setFormData((prev) => ({ ...prev, request_time: slot.time }));
+  };
+
+  const handleRoomSelect = (room) => {
+    setSelectedRoom(room);
+    // For hotel bookings, we'll store the room info in form data
+    setFormData((prev) => ({ ...prev, hotel_room_id: room.id }));
+  };
+
   const validateForm = () => {
     if (!formData.customer_name.trim()) return "Customer name is required.";
     if (!formData.customer_email.trim()) return "Customer email is required.";
@@ -485,10 +603,32 @@ const CustomerBookings = () => {
     if (!formData.service_type) return "Please select a booking type.";
     if (!formData.service_name) return "Please select a service.";
     if (!formData.request_date) return "Please select a preferred date.";
-    if (!formData.request_time) return "Please select a preferred time.";
+
+    // For veterinary bookings, ensure time slot is selected and available
+    if (selectedBooking === "Vet") {
+      if (!selectedTimeSlot) return "Please select an available time slot.";
+      if (veterinaryAvailability && !veterinaryAvailability.slots?.find((slot) => slot.time === selectedTimeSlot && slot.available)) {
+        return "Selected time slot is not available. Please choose another slot.";
+      }
+    }
+
+    // For grooming bookings, check availability
+    if (selectedBooking === "Groom") {
+      if (groomingAvailability && !groomingAvailability.available) {
+        return "This grooming date is already reserved. Please choose another date.";
+      }
+    }
+
+    // For hotel bookings, ensure room is selected and available
+    if (selectedBooking === "Hotel") {
+      if (!selectedRoom) return "Please select an available room.";
+      if (boardingAvailability && !boardingAvailability.rooms?.find((room) => room.id === selectedRoom.id && room.available)) {
+        return "Selected room is not available. Please choose another room.";
+      }
+    }
 
     const selectedDateTime = new Date(
-      `${formData.request_date}T${formData.request_time}:00`
+      `${formData.request_date}T${formData.request_time || "12:00"}:00`
     );
 
     if (Number.isNaN(selectedDateTime.getTime())) {
@@ -896,28 +1036,163 @@ const CustomerBookings = () => {
                     )}
                   </label>
 
-                  <label className="form-group">
-                    Preferred Date
-                    <input
-                      type="date"
-                      name="request_date"
-                      value={formData.request_date}
-                      onChange={handleInputChange}
-                      min={new Date().toISOString().split("T")[0]}
-                      required
-                    />
-                  </label>
+                  {selectedBooking === "Hotel" ? (
+                    <>
+                      <label className="form-group">
+                        Check-in Date
+                        <input
+                          type="date"
+                          name="request_date"
+                          value={formData.request_date}
+                          onChange={handleInputChange}
+                          min={new Date().toISOString().split("T")[0]}
+                          required
+                        />
+                      </label>
 
-                  <label className="form-group">
-                    Preferred Time
-                    <input
-                      type="time"
-                      name="request_time"
-                      value={formData.request_time}
-                      onChange={handleInputChange}
-                      required
-                    />
-                  </label>
+                      <label className="form-group">
+                        Check-out Date
+                        <input
+                          type="date"
+                          name="check_out_date"
+                          value={formData.check_out_date || ""}
+                          onChange={handleInputChange}
+                          min={formData.request_date || new Date().toISOString().split("T")[0]}
+                          required
+                        />
+                      </label>
+                    </>
+                  ) : (
+                    <>
+                      <label className="form-group">
+                        Preferred Date
+                        <input
+                          type="date"
+                          name="request_date"
+                          value={formData.request_date}
+                          onChange={handleInputChange}
+                          min={new Date().toISOString().split("T")[0]}
+                          required
+                        />
+                      </label>
+
+                      <label className="form-group">
+                        Preferred Time
+                        <input
+                          type="time"
+                          name="request_time"
+                          value={formData.request_time}
+                          onChange={handleInputChange}
+                          required={selectedBooking !== "Hotel"}
+                        />
+                      </label>
+                    </>
+                  )}
+
+                  {/* Availability Display Section */}
+                  {(selectedBooking === "Vet" || selectedBooking === "Groom" || selectedBooking === "Hotel") && (
+                    <div className="form-group full-width availability-section">
+                      <div className="availability-header">
+                        <span className="availability-title">
+                          {selectedBooking === "Vet" && "Available Time Slots"}
+                          {selectedBooking === "Groom" && "Date Availability"}
+                          {selectedBooking === "Hotel" && "Available Rooms"}
+                        </span>
+                        {availabilityLoading && <span className="availability-loading">Checking...</span>}
+                      </div>
+
+                      {/* Veterinary Availability */}
+                      {selectedBooking === "Vet" && veterinaryAvailability && (
+                        <div className="availability-content">
+                          {veterinaryAvailability.slots && veterinaryAvailability.slots.length > 0 ? (
+                            <div className="time-slots-grid">
+                              {veterinaryAvailability.slots.map((slot) => (
+                                <button
+                                  key={slot.time}
+                                  type="button"
+                                  className={`time-slot ${!slot.available ? 'unavailable' : ''} ${selectedTimeSlot === slot.time ? 'selected' : ''}`}
+                                  onClick={() => slot.available && handleTimeSlotSelect(slot)}
+                                  disabled={!slot.available}
+                                >
+                                  <span className="slot-time">{slot.label}</span>
+                                  <span className="slot-status">
+                                    {slot.available ? 'Available' : slot.reason || 'Booked'}
+                                  </span>
+                                </button>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="no-availability">
+                              <p>No available veterinary slots for this date. Please choose another date.</p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Grooming Availability */}
+                      {selectedBooking === "Groom" && groomingAvailability && (
+                        <div className="availability-content">
+                          {groomingAvailability.available ? (
+                            <div className="availability-success">
+                              <span className="availability-icon">✓</span>
+                              <span>This grooming date is available for booking.</span>
+                            </div>
+                          ) : (
+                            <div className="no-availability">
+                              <p>This grooming date is already reserved. Please choose another date.</p>
+                              {groomingAvailability.existing_appointment && (
+                                <div className="existing-booking">
+                                  <small>Existing booking: {groomingAvailability.existing_appointment.pet_name} - {groomingAvailability.existing_appointment.service}</small>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Boarding Availability */}
+                      {selectedBooking === "Hotel" && boardingAvailability && (
+                        <div className="availability-content">
+                          {boardingAvailability.rooms && boardingAvailability.rooms.length > 0 ? (
+                            <div className="rooms-grid">
+                              {boardingAvailability.rooms.map((room) => (
+                                <button
+                                  key={room.id}
+                                  type="button"
+                                  className={`room-card ${!room.available ? 'unavailable' : ''} ${selectedRoom?.id === room.id ? 'selected' : ''}`}
+                                  onClick={() => room.available && handleRoomSelect(room)}
+                                  disabled={!room.available}
+                                >
+                                  <div className="room-header">
+                                    <span className="room-name">{room.name}</span>
+                                    <span className="room-type">{room.type}</span>
+                                  </div>
+                                  <div className="room-details">
+                                    <span className="room-capacity">Capacity: {room.capacity}</span>
+                                    <span className="room-rate">{formatCurrency(room.daily_rate)}/day</span>
+                                  </div>
+                                  <span className="room-status">
+                                    {room.available ? 'Available' : room.reason || 'Not Available'}
+                                  </span>
+                                </button>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="no-availability">
+                              <p>No rooms or kennels are available for the selected date range.</p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Show message when no availability data yet */}
+                      {!veterinaryAvailability && !groomingAvailability && !boardingAvailability && !availabilityLoading && (
+                        <div className="availability-prompt">
+                          <p>Select a date to check availability.</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   <label className="form-group full-width">
                     {selectedBooking === "Vet"

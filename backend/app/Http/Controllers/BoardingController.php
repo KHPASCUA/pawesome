@@ -9,6 +9,7 @@ use App\Models\Pet;
 use App\Models\Customer;
 use App\Services\NotificationService;
 use App\Services\WorkflowNotifier;
+use App\Services\BookingAvailabilityService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -151,8 +152,12 @@ class BoardingController extends Controller
         $customer = Customer::find($request->customer_id);
         $room = $request->hotel_room_id ? HotelRoom::find($request->hotel_room_id) : null;
 
-        if ($room && !$room->isAvailableForDates($request->check_in, $request->check_out)) {
-            return response()->json(['error' => 'Room is not available for selected dates'], 422);
+        if ($room && !BookingAvailabilityService::isBoardingRoomAvailable($room->id, $request->check_in, $request->check_out)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This room is already booked for the selected dates. Please choose another room or dates.',
+                'errors' => ['hotel_room_id' => ['Room not available for selected dates']]
+            ], 422);
         }
 
         $totalAmount = 0;

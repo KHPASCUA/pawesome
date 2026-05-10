@@ -41,6 +41,9 @@ const HotelForm = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const [availabilityLoading, setAvailabilityLoading] = useState(false);
+  const [boardingAvailability, setBoardingAvailability] = useState(null);
+  const [selectedRoom, setSelectedRoom] = useState(null);
 
   const [bookingForm, setBookingForm] = useState({
     pet_id: "",
@@ -89,8 +92,25 @@ const HotelForm = () => {
 
   const selectedPet = pets.find((pet) => String(pet.id) === String(bookingForm.pet_id));
 
+  const handleRoomSelect = (room) => {
+    setSelectedRoom(room);
+    setBookingForm(prev => ({ ...prev, hotel_room_id: room.id }));
+  };
+
   const handleCreateBooking = async (e) => {
     e.preventDefault();
+
+    // Check if a room is selected
+    if (!selectedRoom) {
+      setError("Please select an available room for your stay.");
+      return;
+    }
+
+    // Check if selected room is still available
+    if (boardingAvailability && !boardingAvailability.rooms?.find(room => room.id === selectedRoom.id && room.available)) {
+      setError("Selected room is no longer available. Please choose another room.");
+      return;
+    }
 
     try {
       setLoading(true);
@@ -106,6 +126,7 @@ const HotelForm = () => {
         check_in_time: bookingForm.check_in_time,
         check_out_time: bookingForm.check_out_time,
         boarding_type: bookingForm.boarding_type,
+        hotel_room_id: selectedRoom.id,
         special_instructions: bookingForm.special_instructions,
         feeding_instructions: bookingForm.feeding_instructions,
         medication_notes: bookingForm.medication_notes,
@@ -214,9 +235,39 @@ const HotelForm = () => {
     ["approved", "scheduled"].includes(booking.status) &&
     ["unpaid", "rejected"].includes(booking.payment_status || "unpaid");
 
+  const fetchBoardingAvailability = async (checkIn, checkOut) => {
+    try {
+      setAvailabilityLoading(true);
+      setError("");
+      
+      const data = await apiRequest(`/customer/availability/boarding?check_in=${checkIn}&check_out=${checkOut}`);
+      
+      if (data.success) {
+        setBoardingAvailability(data);
+      } else {
+        setBoardingAvailability(null);
+        setError(data.message || "No rooms available for the selected dates.");
+      }
+    } catch (err) {
+      console.error("Error fetching boarding availability:", err);
+      setBoardingAvailability(null);
+      setError("Failed to check availability. Please try again.");
+    } finally {
+      setAvailabilityLoading(false);
+    }
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setBookingForm((prev) => ({ ...prev, [name]: value }));
+
+    // Check availability when both dates are selected
+    if ((name === "check_in_date" || name === "check_out_date") && value) {
+      const updatedForm = { ...bookingForm, [name]: value };
+      if (updatedForm.check_in_date && updatedForm.check_out_date) {
+        fetchBoardingAvailability(updatedForm.check_in_date, updatedForm.check_out_date);
+      }
+    }
   };
 
   return (
@@ -304,6 +355,54 @@ const HotelForm = () => {
                   <input type="date" name="check_out_date" value={bookingForm.check_out_date} onChange={handleChange} required min={bookingForm.check_in_date || new Date().toISOString().split("T")[0]} />
                 </div>
               </div>
+
+              {/* Availability Display */}
+              {boardingAvailability && (
+                <div className="hotel-availability">
+                  <h4>Available Rooms for Your Stay</h4>
+                  {boardingAvailability.rooms && boardingAvailability.rooms.length > 0 ? (
+                    <div className="rooms-grid">
+                      {boardingAvailability.rooms.map((room) => (
+                        <button
+                          key={room.id}
+                          type="button"
+                          className={`room-card ${!room.available ? 'unavailable' : ''} ${selectedRoom?.id === room.id ? 'selected' : ''}`}
+                          onClick={() => room.available && handleRoomSelect(room)}
+                          disabled={!room.available}
+                        >
+                          <div className="room-header">
+                            <span className="room-name">{room.name}</span>
+                            <span className="room-type">{room.type}</span>
+                          </div>
+                          <div className="room-details">
+                            <span className="room-capacity">Capacity: {room.capacity}</span>
+                            <span className="room-rate">{room.daily_rate ? `₱${room.daily_rate}/day` : 'Standard Rate'}</span>
+                          </div>
+                          <span className="room-status">
+                            {room.available ? 'Available' : room.reason || 'Not Available'}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="no-availability">
+                      <p>No rooms or kennels are available for the selected date range.</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {availabilityLoading && (
+                <div className="availability-loading">
+                  <span>Checking room availability...</span>
+                </div>
+              )}
+
+              {bookingForm.check_in_date && bookingForm.check_out_date && !boardingAvailability && !availabilityLoading && (
+                <div className="availability-prompt">
+                  <p>Please select both dates to check available rooms.</p>
+                </div>
+              )}
 
               <div className="form-row">
                 <div className="form-group">
