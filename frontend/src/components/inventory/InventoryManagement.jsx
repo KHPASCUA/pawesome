@@ -306,6 +306,19 @@ const InventoryManagement = () => {
   // Delete item
   const handleDelete = (id) => {
     const item = items.find(i => i.id === id);
+    const stock = item?.stock_quantity || item?.stock || item?.quantity || 0;
+
+    // Rule: Cannot delete if product has stock
+    if (stock > 0) {
+      setToast({
+        show: true,
+        type: 'error',
+        title: 'Cannot Delete Product',
+        message: `Cannot delete "${item?.name}" because it has ${stock} units in stock. Only out-of-stock products can be deleted.`
+      });
+      return;
+    }
+
     setDeleteModal({
       open: true,
       item: item || { name: 'this item' },
@@ -313,16 +326,16 @@ const InventoryManagement = () => {
     });
   };
 
-  const confirmDelete = async () => {
+  const confirmDelete = async (reason) => {
     setDeleteModal(prev => ({ ...prev, loading: true }));
     const { item } = deleteModal;
-    
+
     try {
-      await inventoryApi.deleteItem(item.id);
+      await inventoryApi.deleteItem(item.id, { reason });
       await fetchInventory();
-      
-      addActivityLog('delete', 'An inventory item was deleted.');
-      
+
+      addActivityLog('delete', `Deleted "${item.name}" - Reason: ${reason}`);
+
       setDeleteModal({ open: false, item: null, loading: false });
       setToast({
         show: true,
@@ -747,6 +760,7 @@ const InventoryManagement = () => {
         isOpen={deleteModal.open}
         itemName={deleteModal.item?.name || 'this item'}
         loading={deleteModal.loading}
+        requireReason={true}
         onClose={() => setDeleteModal({ open: false, item: null, loading: false })}
         onConfirm={confirmDelete}
       />

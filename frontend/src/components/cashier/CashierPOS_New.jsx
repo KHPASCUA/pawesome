@@ -20,9 +20,7 @@ const TAX_RATE = 0.12;
 
 const PAYMENT_METHODS = [
   { value: "Cash",   label: "Cash",   icon: faMoneyBillWave, color: "#10B981" },
-  { value: "Card",   label: "Card",   icon: faCreditCard,    color: "#3B82F6" },
   { value: "GCash",  label: "GCash",  icon: faMobileScreen,  color: "#4F46E5" },
-  { value: "Maya",   label: "Maya",   icon: faMobileScreen,  color: "#059669" },
   { value: "Online", label: "Online", icon: faGlobe,         color: "#8B5CF6" },
 ];
 
@@ -1198,6 +1196,7 @@ const CashierPOS = () => {
   const [voucherMessage, setVoucherMessage] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("Cash");
   const [amountReceived, setAmountReceived] = useState("");
+  const [referenceNumber, setReferenceNumber] = useState("");
   const [showPaymentSection, setShowPaymentSection] = useState(false);
   const [loading, setLoading]             = useState(true);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
@@ -1496,6 +1495,7 @@ const CashierPOS = () => {
     setVoucherMessage("");
     setPaymentMethod("Cash");
     setAmountReceived("");
+    setReferenceNumber("");
     setShowPaymentSection(false);
     setOrderType("walk-in");
   }, []);
@@ -1599,6 +1599,7 @@ const CashierPOS = () => {
         cash_received: Number(amountReceived) || total,
         subtotal, tax, discount: discountAmt, total,
         voucher: validatedVoucher?.code || null,
+        reference_number: (paymentMethod === "GCash" || paymentMethod === "Online") ? referenceNumber : null,
         items: cart.map(i => ({
           item_type: "product",
           item_id: i.id,
@@ -1616,15 +1617,14 @@ const CashierPOS = () => {
       const receipt = {
         transaction_id: String(txId).startsWith("TRX-") ? String(txId) : `TRX-${String(txId).padStart(4, "0")}`,
         customer_name: payload.customer_name,
-        order_type: orderType,
         payment_method: paymentMethod,
         amount_received: Number(amountReceived) || total,
         subtotal, tax, discount: discountAmt, total,
         change: Math.max((Number(amountReceived) || total) - total, 0),
         items: payload.items,
+        reference_number: (paymentMethod === "GCash" || paymentMethod === "Online") ? referenceNumber : null,
         date: new Date().toLocaleString("en-PH", { month: "short", day: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }),
       };
-      setCompletedReceipt(receipt);
       setRecentSale(receipt);
       addToast("Payment successful!", "success");
       clearOrder();
@@ -1664,7 +1664,6 @@ const CashierPOS = () => {
       <table class="meta">
         <tr><td>Transaction</td><td style="text-align:right">${completedReceipt.transaction_id}</td></tr>
         <tr><td>Customer</td><td style="text-align:right">${completedReceipt.customer_name}</td></tr>
-        <tr><td>Type</td><td style="text-align:right">${completedReceipt.order_type}</td></tr>
         <tr><td>Payment</td><td style="text-align:right">${completedReceipt.payment_method}</td></tr>
       </table>
       <hr>
@@ -1870,17 +1869,6 @@ const CashierPOS = () => {
             <OrderHeader>
               <PaneLabel>Current</PaneLabel>
               <PaneTitle>Order Details</PaneTitle>
-              <OrderMeta>
-                <MetaBtn $active={orderType === "walk-in"} onClick={() => setOrderType("walk-in")}>
-                  Walk-in
-                </MetaBtn>
-                <MetaBtn $active={orderType === "pickup"} onClick={() => setOrderType("pickup")}>
-                  Pick-up
-                </MetaBtn>
-                <MetaBtn $active={orderType === "delivery"} onClick={() => setOrderType("delivery")}>
-                  Delivery
-                </MetaBtn>
-              </OrderMeta>
             </OrderHeader>
 
             <CustomerField>
@@ -1890,7 +1878,7 @@ const CashierPOS = () => {
               </FieldLabel>
               <FieldInput
                 type="text"
-                placeholder="Walk-in Customer"
+                placeholder="Customer Name"
                 value={customerName}
                 onChange={e => setCustomerName(e.target.value)}
               />
@@ -2054,6 +2042,23 @@ const CashierPOS = () => {
                     )}
                   </>
                 )}
+
+                {(paymentMethod === "GCash" || paymentMethod === "Online") && (
+                  <>
+                    <FieldLabel style={{ marginBottom: 6 }}>
+                      <FontAwesomeIcon icon={faMobileScreen} />
+                      Reference Number
+                    </FieldLabel>
+                    <AmountRow>
+                      <AmountInput
+                        type="text"
+                        placeholder="Enter reference number"
+                        value={referenceNumber}
+                        onChange={e => setReferenceNumber(e.target.value)}
+                      />
+                    </AmountRow>
+                  </>
+                )}
               </PaymentSection>
             )}
 
@@ -2146,8 +2151,10 @@ const CashierPOS = () => {
 
                 <ReceiptRow><span>Transaction</span><span>{completedReceipt.transaction_id}</span></ReceiptRow>
                 <ReceiptRow><span>Customer</span><span>{completedReceipt.customer_name}</span></ReceiptRow>
-                <ReceiptRow><span>Type</span><span style={{ textTransform: "capitalize" }}>{completedReceipt.order_type}</span></ReceiptRow>
                 <ReceiptRow><span>Payment</span><span>{completedReceipt.payment_method}</span></ReceiptRow>
+                {completedReceipt.reference_number && (
+                  <ReceiptRow><span>Reference</span><span>{completedReceipt.reference_number}</span></ReceiptRow>
+                )}
 
                 <ReceiptDivider />
 

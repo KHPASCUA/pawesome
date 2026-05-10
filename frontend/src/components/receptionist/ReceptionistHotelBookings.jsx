@@ -1,300 +1,1070 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  faHotel,
   faCalendarAlt,
-  faSearch,
-  faFilter,
   faCheckCircle,
-  faTimesCircle,
-  faClock,
-  faPaw,
-  faDoorOpen,
   faClipboardList,
+  faClock,
+  faDoorOpen,
+  faDownload,
+  faEye,
+  faFilter,
+  faHotel,
+  faInfoCircle,
+  faMoneyBillWave,
+  faPaw,
+  faRefresh,
+  faSearch,
+  faSpinner,
+  faTimes,
+  faTimesCircle,
 } from "@fortawesome/free-solid-svg-icons";
 import "./ReceptionistHotelBookings.css";
 import { apiRequest } from "../../api/client";
 
+const STATUS_OPTIONS = [
+  { value: "all", label: "All Status" },
+  { value: "pending", label: "Pending" },
+  { value: "approved", label: "Approved" },
+  { value: "scheduled", label: "Scheduled" },
+  { value: "checked_in", label: "Checked In" },
+  { value: "in_care", label: "In Care" },
+  { value: "ready_for_pickup", label: "Ready for Pickup" },
+  { value: "completed", label: "Completed" },
+  { value: "rejected", label: "Rejected" },
+  { value: "cancelled", label: "Cancelled" },
+];
+
+const PAYMENT_OPTIONS = [
+  { value: "all", label: "All Payments" },
+  { value: "unpaid", label: "Unpaid" },
+  { value: "pending", label: "Pending" },
+  { value: "paid", label: "Paid" },
+  { value: "partial", label: "Partial" },
+  { value: "rejected", label: "Rejected" },
+];
+
+const CARE_LOG_TYPES = [
+  { value: "feeding", label: "Feeding" },
+  { value: "water", label: "Water" },
+  { value: "walk", label: "Walk" },
+  { value: "playtime", label: "Playtime" },
+  { value: "medication", label: "Medication" },
+  { value: "cleaning", label: "Cleaning" },
+  { value: "behavior", label: "Behavior" },
+  { value: "health_observation", label: "Health Observation" },
+  { value: "general_update", label: "General Update" },
+];
+
 const normalizeList = (result, keys = []) => {
   if (Array.isArray(result)) return result;
+
   for (const key of keys) {
     if (Array.isArray(result?.[key])) return result[key];
     if (Array.isArray(result?.[key]?.data)) return result[key].data;
+    if (Array.isArray(result?.data?.[key])) return result.data[key];
+    if (Array.isArray(result?.data?.[key]?.data)) return result.data[key].data;
   }
+
   if (Array.isArray(result?.data)) return result.data;
+  if (Array.isArray(result?.data?.data)) return result.data.data;
   if (Array.isArray(result?.boarding_requests)) return result.boarding_requests;
+  if (Array.isArray(result?.boardings)) return result.boardings;
   if (Array.isArray(result?.boardings?.data)) return result.boardings.data;
   if (Array.isArray(result?.available_rooms)) return result.available_rooms;
   if (Array.isArray(result?.rooms)) return result.rooms;
+  if (Array.isArray(result?.hotel_rooms)) return result.hotel_rooms;
+  if (Array.isArray(result?.records)) return result.records;
+  if (Array.isArray(result?.items)) return result.items;
+
   return [];
 };
+
+const normalizeStatus = (value) =>
+  String(value || "pending").toLowerCase().replace(/\s+/g, "_");
+
+const normalizePaymentStatus = (value) => {
+  const status = String(value || "unpaid").toLowerCase().replace(/\s+/g, "_");
+
+  if (status === "verified" || status === "completed") return "paid";
+  if (status === "for_payment") return "pending";
+
+  return status;
+};
+
+const formatStatus = (value) =>
+  String(value || "pending")
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+
+const formatDate = (value) => {
+  if (!value) return "N/A";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value).slice(0, 10);
+
+  return date.toLocaleDateString("en-PH", {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+  });
+};
+
+const formatDateTime = (value) => {
+  if (!value) return "N/A";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  return date.toLocaleString("en-PH", {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+};
+
+const formatCurrency = (value) => {
+  const amount = Number(value || 0);
+
+  return new Intl.NumberFormat("en-PH", {
+    style: "currency",
+    currency: "PHP",
+    minimumFractionDigits: 2,
+  }).format(amount);
+};
+
+const getDateValue = (value) => {
+  if (!value) return "";
+  return String(value).includes("T") ? String(value).split("T")[0] : String(value).slice(0, 10);
+};
+
+const getPetName = (booking) =>
+  booking.pet?.name || booking.pet_name || booking.petName || "Unknown Pet";
+
+const getCustomerName = (booking) =>
+  booking.customer?.name ||
+  booking.customer_name ||
+  booking.owner_name ||
+  booking.customer_email ||
+  "Unknown Customer";
+
+const getCustomerPhone = (booking) =>
+  booking.customer?.phone ||
+  booking.customer_phone ||
+  booking.owner_phone ||
+  booking.phone ||
+  "N/A";
+
+const getRoomName = (booking) =>
+  booking.hotel_room?.name ||
+  booking.hotel_room?.room_number ||
+  booking.room?.name ||
+  booking.room_number ||
+  booking.room_type ||
+  "Unassigned";
+
+const getRoomOptionName = (room) =>
+  room.name || room.room_number || room.room_name || `Room #${room.id}`;
 
 const ReceptionistHotelBookings = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
+  const [filterPayment, setFilterPayment] = useState("all");
+
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [bookings, setBookings] = useState([]);
   const [rooms, setRooms] = useState([]);
+
   const [processingId, setProcessingId] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
-  const [scheduleDraft, setScheduleDraft] = useState({});
-  const [careDraft, setCareDraft] = useState({ log_type: "general_update", notes: "" });
+  const [lastUpdated, setLastUpdated] = useState("");
 
-  const fetchBookings = async () => {
-    try {
-      const data = await apiRequest("/receptionist/boarding-requests");
-      setBookings(normalizeList(data, ["boarding_requests", "boardings"]));
-    } catch (err) {
-      setError(err.message || "Failed to load boarding requests.");
+  const [scheduleDraft, setScheduleDraft] = useState({});
+  const [careDraft, setCareDraft] = useState({
+    log_type: "general_update",
+    notes: "",
+  });
+
+  const showMessage = (type, message) => {
+    if (type === "success") {
+      setSuccessMessage(message);
+      window.clearTimeout(window.hotelSuccessTimer);
+      window.hotelSuccessTimer = window.setTimeout(() => setSuccessMessage(""), 3000);
+      return;
     }
+
+    setError(message);
+    window.clearTimeout(window.hotelErrorTimer);
+    window.hotelErrorTimer = window.setTimeout(() => setError(""), 5000);
   };
 
-  const fetchRooms = async () => {
+  const fetchBookings = useCallback(async ({ silent = false } = {}) => {
+    try {
+      if (silent) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+
+      setError("");
+
+      const data = await apiRequest("/receptionist/boarding-requests");
+      const list = normalizeList(data, ["boarding_requests", "boardings", "requests"]);
+
+      setBookings(
+        list.map((item) => ({
+          ...item,
+          status: normalizeStatus(item.status),
+          payment_status: normalizePaymentStatus(item.payment_status),
+        }))
+      );
+
+      setLastUpdated(new Date().toLocaleString("en-PH"));
+    } catch (err) {
+      console.error("Failed to load boarding requests:", err);
+      showMessage("error", err.message || "Failed to load boarding requests.");
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  const fetchRooms = useCallback(async () => {
     try {
       const data = await apiRequest("/receptionist/boarding-rooms");
       setRooms(normalizeList(data, ["rooms", "hotel_rooms", "available_rooms"]));
-    } catch {
+    } catch (err) {
+      console.warn("Failed to load boarding rooms:", err);
       setRooms([]);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchBookings();
     fetchRooms();
-  }, []);
 
-  const stats = useMemo(() => ({
-    total: bookings.length,
-    pending: bookings.filter((b) => b.status === "pending").length,
-    active: bookings.filter((b) => ["checked_in", "in_care"].includes(b.status)).length,
-  }), [bookings]);
+    const intervalId = setInterval(() => {
+      fetchBookings({ silent: true });
+      fetchRooms();
+    }, 30000);
 
-  const runAction = async (booking, endpoint, message, body = null) => {
+    return () => clearInterval(intervalId);
+  }, [fetchBookings, fetchRooms]);
+
+  const stats = useMemo(
+    () => ({
+      total: bookings.length,
+      pending: bookings.filter((item) => normalizeStatus(item.status) === "pending").length,
+      scheduled: bookings.filter((item) =>
+        ["approved", "scheduled"].includes(normalizeStatus(item.status))
+      ).length,
+      active: bookings.filter((item) =>
+        ["checked_in", "in_care"].includes(normalizeStatus(item.status))
+      ).length,
+      ready: bookings.filter((item) => normalizeStatus(item.status) === "ready_for_pickup")
+        .length,
+      completed: bookings.filter((item) => normalizeStatus(item.status) === "completed")
+        .length,
+    }),
+    [bookings]
+  );
+
+  const filteredBookings = useMemo(() => {
+    const keyword = searchTerm.trim().toLowerCase();
+
+    return bookings.filter((booking) => {
+      const status = normalizeStatus(booking.status);
+      const paymentStatus = normalizePaymentStatus(booking.payment_status);
+
+      const haystack = [
+        booking.id,
+        getPetName(booking),
+        getCustomerName(booking),
+        getCustomerPhone(booking),
+        booking.customer_email,
+        getRoomName(booking),
+        booking.special_requests,
+        booking.feeding_instructions,
+        booking.notes,
+        status,
+        paymentStatus,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      const matchesSearch = !keyword || haystack.includes(keyword);
+      const matchesStatus = filterStatus === "all" || status === filterStatus;
+      const matchesPayment = filterPayment === "all" || paymentStatus === filterPayment;
+
+      return matchesSearch && matchesStatus && matchesPayment;
+    });
+  }, [bookings, searchTerm, filterStatus, filterPayment]);
+
+  const runAction = async (booking, endpoint, message, body = null, method = "POST") => {
     try {
       setProcessingId(booking.id);
       setError("");
+
       await apiRequest(endpoint, {
-        method: "POST",
+        method,
         ...(body ? { body: JSON.stringify(body) } : {}),
       });
-      setSuccessMessage(message);
-      await fetchBookings();
+
+      showMessage("success", message);
+      await fetchBookings({ silent: true });
       await fetchRooms();
     } catch (err) {
-      setError(err.message || "Action failed.");
+      console.error("Hotel action failed:", err);
+      showMessage("error", err.message || "Action failed.");
     } finally {
       setProcessingId(null);
     }
   };
 
+  const updateScheduleDraft = (bookingId, field, value) => {
+    setScheduleDraft((prev) => ({
+      ...prev,
+      [bookingId]: {
+        ...(prev[bookingId] || {}),
+        [field]: value,
+      },
+    }));
+  };
+
   const scheduleBooking = async (booking) => {
     const draft = scheduleDraft[booking.id] || {};
+
     if (!draft.hotel_room_id) {
-      setError("Select a room before scheduling.");
+      showMessage("error", "Select a room before scheduling.");
       return;
     }
 
     await runAction(
       booking,
       `/receptionist/boarding-requests/${booking.id}/schedule`,
-      "Boarding scheduled.",
+      "Boarding scheduled successfully.",
       {
         hotel_room_id: draft.hotel_room_id,
-        check_in: draft.check_in || booking.check_in?.slice(0, 10),
-        check_out: draft.check_out || booking.check_out?.slice(0, 10),
-        check_in_time: draft.check_in_time || booking.check_in_time,
-        check_out_time: draft.check_out_time || booking.check_out_time,
-        total_amount: draft.total_amount,
+        check_in: draft.check_in || getDateValue(booking.check_in),
+        check_out: draft.check_out || getDateValue(booking.check_out),
+        check_in_time: draft.check_in_time || booking.check_in_time || "09:00",
+        check_out_time: draft.check_out_time || booking.check_out_time || "17:00",
+        total_amount: draft.total_amount || booking.total_amount || booking.amount || 0,
       }
     );
   };
 
   const addCareLog = async (booking) => {
     if (!careDraft.notes.trim()) {
-      setError("Care log notes are required.");
+      showMessage("error", "Care log notes are required.");
       return;
     }
 
     await runAction(
       booking,
       `/receptionist/boarding-requests/${booking.id}/care-logs`,
-      "Care log added.",
+      "Care log added successfully.",
       careDraft
     );
+
     setCareDraft({ log_type: "general_update", notes: "" });
   };
 
-  const filteredBookings = bookings.filter((booking) => {
-    const haystack = `${booking.pet?.name || booking.pet_name || ""} ${booking.customer?.name || booking.customer_name || ""}`.toLowerCase();
-    const matchesSearch = haystack.includes(searchTerm.toLowerCase());
-    const matchesStatus = filterStatus === "all" || booking.status === filterStatus;
-    return matchesSearch && matchesStatus;
-  });
+  const clearFilters = () => {
+    setSearchTerm("");
+    setFilterStatus("all");
+    setFilterPayment("all");
+  };
 
-  const getStatusColor = (status) => {
-    if (["approved", "scheduled", "completed"].includes(status)) return "success";
-    if (["pending", "checked_in", "in_care", "ready_for_pickup"].includes(status)) return "warning";
-    if (["rejected", "cancelled"].includes(status)) return "danger";
+  const exportCSV = () => {
+    if (filteredBookings.length === 0) {
+      showMessage("error", "No hotel boarding records to export.");
+      return;
+    }
+
+    const headers = [
+      "ID",
+      "Pet",
+      "Customer",
+      "Phone",
+      "Check In",
+      "Check Out",
+      "Room",
+      "Payment",
+      "Status",
+      "Amount",
+    ];
+
+    const rows = filteredBookings.map((booking) => [
+      booking.id,
+      getPetName(booking),
+      getCustomerName(booking),
+      getCustomerPhone(booking),
+      getDateValue(booking.check_in),
+      getDateValue(booking.check_out),
+      getRoomName(booking),
+      normalizePaymentStatus(booking.payment_status),
+      normalizeStatus(booking.status),
+      booking.total_amount || booking.amount || 0,
+    ]);
+
+    const csv = [headers, ...rows]
+      .map((row) =>
+        row.map((value) => `"${String(value ?? "").replace(/"/g, '""')}"`).join(",")
+      )
+      .join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+
+    anchor.href = url;
+    anchor.download = `hotel-boarding-${new Date().toISOString().slice(0, 10)}.csv`;
+    anchor.click();
+
+    URL.revokeObjectURL(url);
+    showMessage("success", "Hotel boarding records exported.");
+  };
+
+  const getStatusClass = (status) => {
+    const value = normalizeStatus(status);
+
+    if (["approved", "scheduled", "completed"].includes(value)) return "success";
+    if (["pending", "checked_in", "in_care", "ready_for_pickup"].includes(value)) {
+      return "warning";
+    }
+    if (["rejected", "cancelled"].includes(value)) return "danger";
+
     return "secondary";
   };
 
   const getStatusIcon = (status) => {
-    if (["approved", "scheduled", "completed"].includes(status)) return faCheckCircle;
-    if (["rejected", "cancelled"].includes(status)) return faTimesCircle;
+    const value = normalizeStatus(status);
+
+    if (["approved", "scheduled", "completed"].includes(value)) return faCheckCircle;
+    if (["rejected", "cancelled"].includes(value)) return faTimesCircle;
+
     return faClock;
   };
 
+  const getPaymentClass = (status) => {
+    const value = normalizePaymentStatus(status);
+
+    if (value === "paid") return "paid";
+    if (value === "partial") return "partial";
+    if (value === "pending") return "pending";
+    if (value === "rejected") return "rejected";
+
+    return "unpaid";
+  };
+
+  const isProcessing = (booking) => processingId === booking.id;
+
   return (
     <div className="hotel-bookings">
-      {error && <div className="alert alert-error" style={{ margin: 20, padding: 10, background: "#fee2e2", color: "#dc2626", borderRadius: 4 }}>{error}</div>}
-      {successMessage && <div className="alert alert-success" style={{ margin: 20, padding: 10, background: "#dcfce7", color: "#16a34a", borderRadius: 4 }}>{successMessage}</div>}
-
-      <div className="bookings-header">
-        <div className="header-left">
-          <h1>Hotel Boarding</h1>
-          <p>Approve, schedule, check in, care for, and release pet hotel stays</p>
+      {error && (
+        <div className="hotel-toast error">
+          <FontAwesomeIcon icon={faTimesCircle} />
+          <span>{error}</span>
         </div>
-      </div>
+      )}
 
-      <div className="summary-cards">
-        <div className="summary-card"><div className="card-icon"><FontAwesomeIcon icon={faHotel} /></div><div className="card-content"><h3>{stats.total}</h3><p>Total</p></div></div>
-        <div className="summary-card"><div className="card-icon"><FontAwesomeIcon icon={faClock} /></div><div className="card-content"><h3>{stats.pending}</h3><p>Pending</p></div></div>
-        <div className="summary-card"><div className="card-icon"><FontAwesomeIcon icon={faDoorOpen} /></div><div className="card-content"><h3>{stats.active}</h3><p>In Care</p></div></div>
-      </div>
-
-      <div className="bookings-controls">
-        <div className="search-filter-group">
-          <div className="search-box">
-            <FontAwesomeIcon icon={faSearch} />
-            <input type="text" placeholder="Search by pet or customer..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-          </div>
-          <div className="filter-dropdown">
-            <FontAwesomeIcon icon={faFilter} />
-            <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
-              <option value="all">All Status</option>
-              <option value="pending">Pending</option>
-              <option value="approved">Approved</option>
-              <option value="scheduled">Scheduled</option>
-              <option value="in_care">In Care</option>
-              <option value="ready_for_pickup">Ready</option>
-              <option value="completed">Completed</option>
-              <option value="rejected">Rejected</option>
-            </select>
-          </div>
+      {successMessage && (
+        <div className="hotel-toast success">
+          <FontAwesomeIcon icon={faCheckCircle} />
+          <span>{successMessage}</span>
         </div>
-      </div>
+      )}
 
-      <div className="bookings-table-container">
-        <table className="bookings-table">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Pet</th>
-              <th>Customer</th>
-              <th>Stay</th>
-              <th>Room</th>
-              <th>Payment</th>
-              <th>Status</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredBookings.map((booking) => (
-              <tr key={booking.id} className="booking-row">
-                <td className="booking-id"><span className="id-badge">{booking.id}</span></td>
-                <td className="pet-info"><div className="pet-details"><div className="pet-avatar"><FontAwesomeIcon icon={faPaw} /></div><span className="pet-name">{booking.pet?.name || booking.pet_name}</span></div></td>
-                <td className="customer"><span>{booking.customer?.name || booking.customer_name || booking.customer_email}</span></td>
-                <td className="date"><FontAwesomeIcon icon={faCalendarAlt} /> {booking.check_in?.slice(0, 10)} to {booking.check_out?.slice(0, 10)}</td>
-                <td className="room"><span>{booking.hotel_room?.name || booking.hotel_room?.room_number || "Unassigned"}</span></td>
-                <td className="time"><span>{booking.payment_status || "unpaid"}</span></td>
-                <td className="status"><span className={`status-badge ${getStatusColor(booking.status)}`}><FontAwesomeIcon icon={getStatusIcon(booking.status)} /> {booking.status}</span></td>
-                <td className="actions">
-                  {booking.status === "pending" && (
-                    <>
-                      <button className="action-btn approve-btn" onClick={() => runAction(booking, `/receptionist/boarding-requests/${booking.id}/approve`, "Boarding approved.")} disabled={processingId === booking.id} title="Approve"><FontAwesomeIcon icon={faCheckCircle} /></button>
-                      <button className="action-btn reject-btn" onClick={() => runAction(booking, `/receptionist/boarding-requests/${booking.id}/reject`, "Boarding rejected.")} disabled={processingId === booking.id} title="Reject"><FontAwesomeIcon icon={faTimesCircle} /></button>
-                    </>
-                  )}
-                  {["approved", "pending"].includes(booking.status) && <button className="action-btn view-btn" onClick={() => setSelectedBooking(booking)} title="Schedule"><FontAwesomeIcon icon={faCalendarAlt} /></button>}
-                  {["approved", "scheduled"].includes(booking.status) && <button className="action-btn approve-btn" onClick={() => runAction(booking, `/receptionist/boarding-requests/${booking.id}/check-in`, "Pet checked in.")} disabled={processingId === booking.id} title="Check in"><FontAwesomeIcon icon={faDoorOpen} /></button>}
-                  {["checked_in", "in_care"].includes(booking.status) && <button className="action-btn view-btn" onClick={() => setSelectedBooking(booking)} title="Care log"><FontAwesomeIcon icon={faClipboardList} /></button>}
-                  {["checked_in", "in_care"].includes(booking.status) && <button className="action-btn approve-btn" onClick={() => runAction(booking, `/receptionist/boarding-requests/${booking.id}/ready-for-pickup`, "Pet marked ready for pickup.")} disabled={processingId === booking.id} title="Ready"><FontAwesomeIcon icon={faCheckCircle} /></button>}
-                  {booking.status === "ready_for_pickup" && <button className="action-btn approve-btn" onClick={() => runAction(booking, `/receptionist/boarding-requests/${booking.id}/check-out`, "Pet checked out.")} disabled={processingId === booking.id} title="Check out"><FontAwesomeIcon icon={faDoorOpen} /></button>}
-                </td>
-              </tr>
+      <section className="hotel-hero">
+        <div>
+          <span className="hotel-eyebrow">
+            <FontAwesomeIcon icon={faHotel} />
+            Receptionist Hotel Operations
+          </span>
+
+          <h1>Hotel Boarding Management</h1>
+
+          <p>
+            Approve boarding requests, assign rooms, check pets in, add care logs,
+            prepare pickup, and complete hotel stay workflows.
+          </p>
+
+          <small>Last updated: {lastUpdated || "Not refreshed yet"}</small>
+        </div>
+
+        <div className="hotel-hero-actions">
+          <button
+            type="button"
+            className={`secondary-btn ${refreshing ? "loading" : ""}`}
+            onClick={() => {
+              fetchBookings({ silent: true });
+              fetchRooms();
+            }}
+            disabled={refreshing}
+          >
+            <FontAwesomeIcon icon={refreshing ? faSpinner : faRefresh} />
+            {refreshing ? "Refreshing..." : "Refresh"}
+          </button>
+
+          <button type="button" className="secondary-btn" onClick={exportCSV}>
+            <FontAwesomeIcon icon={faDownload} />
+            Export CSV
+          </button>
+        </div>
+      </section>
+
+      <section className="hotel-summary-grid">
+        <button type="button" className="hotel-summary-card" onClick={() => setFilterStatus("all")}>
+          <span>
+            <FontAwesomeIcon icon={faHotel} />
+          </span>
+          <div>
+            <strong>{stats.total}</strong>
+            <p>Total Requests</p>
+          </div>
+        </button>
+
+        <button type="button" className="hotel-summary-card warning" onClick={() => setFilterStatus("pending")}>
+          <span>
+            <FontAwesomeIcon icon={faClock} />
+          </span>
+          <div>
+            <strong>{stats.pending}</strong>
+            <p>Pending</p>
+          </div>
+        </button>
+
+        <button type="button" className="hotel-summary-card info" onClick={() => setFilterStatus("scheduled")}>
+          <span>
+            <FontAwesomeIcon icon={faCalendarAlt} />
+          </span>
+          <div>
+            <strong>{stats.scheduled}</strong>
+            <p>Approved / Scheduled</p>
+          </div>
+        </button>
+
+        <button type="button" className="hotel-summary-card active" onClick={() => setFilterStatus("in_care")}>
+          <span>
+            <FontAwesomeIcon icon={faDoorOpen} />
+          </span>
+          <div>
+            <strong>{stats.active}</strong>
+            <p>In Care</p>
+          </div>
+        </button>
+
+        <button type="button" className="hotel-summary-card success" onClick={() => setFilterStatus("completed")}>
+          <span>
+            <FontAwesomeIcon icon={faCheckCircle} />
+          </span>
+          <div>
+            <strong>{stats.completed}</strong>
+            <p>Completed</p>
+          </div>
+        </button>
+      </section>
+
+      <section className="hotel-controls">
+        <div className="hotel-search-box">
+          <FontAwesomeIcon icon={faSearch} />
+          <input
+            type="text"
+            placeholder="Search pet, customer, room, phone, notes..."
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
+          />
+
+          {searchTerm && (
+            <button type="button" onClick={() => setSearchTerm("")}>
+              <FontAwesomeIcon icon={faTimes} />
+            </button>
+          )}
+        </div>
+
+        <label className="hotel-filter-box">
+          <FontAwesomeIcon icon={faFilter} />
+          <select
+            value={filterStatus}
+            onChange={(event) => setFilterStatus(event.target.value)}
+          >
+            {STATUS_OPTIONS.map((option) => (
+              <option value={option.value} key={option.value}>
+                {option.label}
+              </option>
             ))}
-          </tbody>
-        </table>
-      </div>
+          </select>
+        </label>
+
+        <label className="hotel-filter-box">
+          <FontAwesomeIcon icon={faMoneyBillWave} />
+          <select
+            value={filterPayment}
+            onChange={(event) => setFilterPayment(event.target.value)}
+          >
+            {PAYMENT_OPTIONS.map((option) => (
+              <option value={option.value} key={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <button type="button" className="clear-btn" onClick={clearFilters}>
+          <FontAwesomeIcon icon={faTimes} />
+          Clear
+        </button>
+      </section>
+
+      <section className="hotel-table-card">
+        <div className="hotel-table-header">
+          <div>
+            <span className="hotel-eyebrow">
+              <FontAwesomeIcon icon={faClipboardList} />
+              Live Boarding Queue
+            </span>
+            <h2>Hotel Boarding Requests</h2>
+            <p>
+              Showing <strong>{filteredBookings.length}</strong> of{" "}
+              <strong>{bookings.length}</strong> record(s).
+            </p>
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="hotel-state">
+            <FontAwesomeIcon icon={faSpinner} spin />
+            <h3>Loading hotel boarding requests...</h3>
+            <p>Please wait while the system loads live boarding data.</p>
+          </div>
+        ) : (
+          <div className="hotel-table-scroll">
+            <table className="bookings-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Pet</th>
+                  <th>Customer</th>
+                  <th>Stay</th>
+                  <th>Room</th>
+                  <th>Payment</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {filteredBookings.length === 0 && (
+                  <tr>
+                    <td colSpan="8">
+                      <div className="hotel-empty-state">
+                        <FontAwesomeIcon icon={faSearch} />
+                        <h3>No hotel boarding records found</h3>
+                        <p>Try adjusting the search keyword, status, or payment filter.</p>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+
+                {filteredBookings.map((booking) => {
+                  const status = normalizeStatus(booking.status);
+                  const paymentStatus = normalizePaymentStatus(booking.payment_status);
+
+                  return (
+                    <tr key={booking.id} className="booking-row">
+                      <td className="booking-id">
+                        <span className="id-badge">#{booking.id}</span>
+                      </td>
+
+                      <td className="pet-info">
+                        <div className="pet-details">
+                          <div className="pet-avatar">
+                            <FontAwesomeIcon icon={faPaw} />
+                          </div>
+                          <div>
+                            <span className="pet-name">{getPetName(booking)}</span>
+                            <small>
+                              {booking.pet?.species ||
+                                booking.pet_species ||
+                                booking.pet_type ||
+                                "Pet"}
+                            </small>
+                          </div>
+                        </div>
+                      </td>
+
+                      <td className="customer">
+                        <strong>{getCustomerName(booking)}</strong>
+                        <small>{getCustomerPhone(booking)}</small>
+                      </td>
+
+                      <td className="date">
+                        <FontAwesomeIcon icon={faCalendarAlt} />
+                        <span>
+                          {formatDate(booking.check_in)} to {formatDate(booking.check_out)}
+                        </span>
+                      </td>
+
+                      <td className="room">
+                        <span>{getRoomName(booking)}</span>
+                      </td>
+
+                      <td className="payment">
+                        <span className={`payment-badge ${getPaymentClass(paymentStatus)}`}>
+                          {formatStatus(paymentStatus)}
+                        </span>
+                      </td>
+
+                      <td className="status">
+                        <span className={`status-badge ${getStatusClass(status)}`}>
+                          <FontAwesomeIcon icon={getStatusIcon(status)} />
+                          {formatStatus(status)}
+                        </span>
+                      </td>
+
+                      <td className="actions">
+                        <button
+                          type="button"
+                          className="action-btn view-btn"
+                          onClick={() => setSelectedBooking(booking)}
+                          title="View / Manage"
+                        >
+                          <FontAwesomeIcon icon={faEye} />
+                        </button>
+
+                        {status === "pending" && (
+                          <>
+                            <button
+                              type="button"
+                              className="action-btn approve-btn"
+                              onClick={() =>
+                                runAction(
+                                  booking,
+                                  `/receptionist/boarding-requests/${booking.id}/approve`,
+                                  "Boarding approved."
+                                )
+                              }
+                              disabled={isProcessing(booking)}
+                              title="Approve"
+                            >
+                              <FontAwesomeIcon
+                                icon={isProcessing(booking) ? faSpinner : faCheckCircle}
+                                spin={isProcessing(booking)}
+                              />
+                            </button>
+
+                            <button
+                              type="button"
+                              className="action-btn reject-btn"
+                              onClick={() =>
+                                runAction(
+                                  booking,
+                                  `/receptionist/boarding-requests/${booking.id}/reject`,
+                                  "Boarding rejected."
+                                )
+                              }
+                              disabled={isProcessing(booking)}
+                              title="Reject"
+                            >
+                              <FontAwesomeIcon icon={faTimesCircle} />
+                            </button>
+                          </>
+                        )}
+
+                        {["approved", "scheduled"].includes(status) && (
+                          <button
+                            type="button"
+                            className="action-btn check-btn"
+                            onClick={() =>
+                              runAction(
+                                booking,
+                                `/receptionist/boarding-requests/${booking.id}/check-in`,
+                                "Pet checked in."
+                              )
+                            }
+                            disabled={isProcessing(booking)}
+                            title="Check In"
+                          >
+                            <FontAwesomeIcon icon={faDoorOpen} />
+                          </button>
+                        )}
+
+                        {["checked_in", "in_care"].includes(status) && (
+                          <button
+                            type="button"
+                            className="action-btn approve-btn"
+                            onClick={() =>
+                              runAction(
+                                booking,
+                                `/receptionist/boarding-requests/${booking.id}/ready-for-pickup`,
+                                "Pet marked ready for pickup."
+                              )
+                            }
+                            disabled={isProcessing(booking)}
+                            title="Ready for Pickup"
+                          >
+                            <FontAwesomeIcon icon={faCheckCircle} />
+                          </button>
+                        )}
+
+                        {status === "ready_for_pickup" && (
+                          <button
+                            type="button"
+                            className="action-btn check-btn"
+                            onClick={() =>
+                              runAction(
+                                booking,
+                                `/receptionist/boarding-requests/${booking.id}/check-out`,
+                                "Pet checked out."
+                              )
+                            }
+                            disabled={isProcessing(booking)}
+                            title="Check Out"
+                          >
+                            <FontAwesomeIcon icon={faDoorOpen} />
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
 
       {selectedBooking && (
         <div className="booking-modal-overlay" onClick={() => setSelectedBooking(null)}>
-          <div className="booking-modal" onClick={(e) => e.stopPropagation()}>
+          <div className="booking-modal" onClick={(event) => event.stopPropagation()}>
             <div className="modal-header">
-              <h2>Boarding #{selectedBooking.id}</h2>
-              <button className="close-btn" onClick={() => setSelectedBooking(null)}>x</button>
-            </div>
-            <div className="modal-content">
-              <div className="info-grid">
-                <div className="info-item"><label>Pet:</label><span>{selectedBooking.pet?.name || selectedBooking.pet_name}</span></div>
-                <div className="info-item"><label>Customer:</label><span>{selectedBooking.customer?.name || selectedBooking.customer_name}</span></div>
-                <div className="info-item"><label>Status:</label><span className={`status-badge ${getStatusColor(selectedBooking.status)}`}>{selectedBooking.status}</span></div>
-                <div className="info-item"><label>Instructions:</label><span>{selectedBooking.special_requests || selectedBooking.feeding_instructions || "None"}</span></div>
+              <div>
+                <span className="hotel-eyebrow">
+                  <FontAwesomeIcon icon={faInfoCircle} />
+                  Boarding Details
+                </span>
+                <h2>Boarding #{selectedBooking.id}</h2>
               </div>
 
-              {["pending", "approved"].includes(selectedBooking.status) && (
+              <button
+                type="button"
+                className="close-btn"
+                onClick={() => setSelectedBooking(null)}
+              >
+                <FontAwesomeIcon icon={faTimes} />
+              </button>
+            </div>
+
+            <div className="modal-content">
+              <div className="info-grid">
+                <InfoItem label="Pet" value={getPetName(selectedBooking)} />
+                <InfoItem label="Customer" value={getCustomerName(selectedBooking)} />
+                <InfoItem label="Phone" value={getCustomerPhone(selectedBooking)} />
+                <InfoItem label="Room" value={getRoomName(selectedBooking)} />
+                <InfoItem label="Check In" value={formatDate(selectedBooking.check_in)} />
+                <InfoItem label="Check Out" value={formatDate(selectedBooking.check_out)} />
+                <InfoItem
+                  label="Payment"
+                  value={formatStatus(normalizePaymentStatus(selectedBooking.payment_status))}
+                />
+                <InfoItem
+                  label="Status"
+                  value={formatStatus(normalizeStatus(selectedBooking.status))}
+                />
+                <InfoItem
+                  label="Amount"
+                  value={formatCurrency(
+                    selectedBooking.total_amount || selectedBooking.amount || 0
+                  )}
+                />
+                <InfoItem
+                  label="Instructions"
+                  value={
+                    selectedBooking.special_requests ||
+                    selectedBooking.feeding_instructions ||
+                    selectedBooking.notes ||
+                    "None"
+                  }
+                  wide
+                />
+              </div>
+
+              {["pending", "approved"].includes(normalizeStatus(selectedBooking.status)) && (
                 <div className="booking-form">
+                  <div className="form-title">
+                    <h3>Schedule / Assign Room</h3>
+                    <p>Select an available room and finalize the stay details.</p>
+                  </div>
+
                   <div className="form-row">
                     <div className="form-group">
                       <label>Room / Kennel</label>
-                      <select value={scheduleDraft[selectedBooking.id]?.hotel_room_id || ""} onChange={(e) => setScheduleDraft((prev) => ({ ...prev, [selectedBooking.id]: { ...(prev[selectedBooking.id] || {}), hotel_room_id: e.target.value } }))}>
+                      <select
+                        value={scheduleDraft[selectedBooking.id]?.hotel_room_id || ""}
+                        onChange={(event) =>
+                          updateScheduleDraft(
+                            selectedBooking.id,
+                            "hotel_room_id",
+                            event.target.value
+                          )
+                        }
+                      >
                         <option value="">Select room</option>
                         {rooms.map((room) => (
-                          <option key={room.id} value={room.id}>{room.name || room.room_number} ({room.status})</option>
+                          <option key={room.id} value={room.id}>
+                            {getRoomOptionName(room)} ({room.status || "available"})
+                          </option>
                         ))}
                       </select>
                     </div>
+
                     <div className="form-group">
                       <label>Total Amount</label>
-                      <input type="number" min="0" step="0.01" value={scheduleDraft[selectedBooking.id]?.total_amount || ""} onChange={(e) => setScheduleDraft((prev) => ({ ...prev, [selectedBooking.id]: { ...(prev[selectedBooking.id] || {}), total_amount: e.target.value } }))} />
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={scheduleDraft[selectedBooking.id]?.total_amount || ""}
+                        onChange={(event) =>
+                          updateScheduleDraft(
+                            selectedBooking.id,
+                            "total_amount",
+                            event.target.value
+                          )
+                        }
+                        placeholder="0.00"
+                      />
                     </div>
                   </div>
+
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>Check In Date</label>
+                      <input
+                        type="date"
+                        value={
+                          scheduleDraft[selectedBooking.id]?.check_in ||
+                          getDateValue(selectedBooking.check_in)
+                        }
+                        onChange={(event) =>
+                          updateScheduleDraft(selectedBooking.id, "check_in", event.target.value)
+                        }
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label>Check Out Date</label>
+                      <input
+                        type="date"
+                        value={
+                          scheduleDraft[selectedBooking.id]?.check_out ||
+                          getDateValue(selectedBooking.check_out)
+                        }
+                        onChange={(event) =>
+                          updateScheduleDraft(
+                            selectedBooking.id,
+                            "check_out",
+                            event.target.value
+                          )
+                        }
+                      />
+                    </div>
+                  </div>
+
                   <div className="form-actions">
-                    <button className="submit-btn" onClick={() => scheduleBooking(selectedBooking)} disabled={processingId === selectedBooking.id}>Schedule</button>
+                    <button
+                      type="button"
+                      className="submit-btn"
+                      onClick={() => scheduleBooking(selectedBooking)}
+                      disabled={isProcessing(selectedBooking)}
+                    >
+                      {isProcessing(selectedBooking) && (
+                        <FontAwesomeIcon icon={faSpinner} spin />
+                      )}
+                      Schedule Boarding
+                    </button>
                   </div>
                 </div>
               )}
 
-              {["checked_in", "in_care"].includes(selectedBooking.status) && (
+              {["checked_in", "in_care"].includes(normalizeStatus(selectedBooking.status)) && (
                 <div className="booking-form">
+                  <div className="form-title">
+                    <h3>Add Care Log</h3>
+                    <p>Record feeding, cleaning, walking, medication, or care updates.</p>
+                  </div>
+
                   <div className="form-row">
                     <div className="form-group">
                       <label>Care Log Type</label>
-                      <select value={careDraft.log_type} onChange={(e) => setCareDraft((prev) => ({ ...prev, log_type: e.target.value }))}>
-                        <option value="feeding">Feeding</option>
-                        <option value="water">Water</option>
-                        <option value="walk">Walk</option>
-                        <option value="playtime">Playtime</option>
-                        <option value="medication">Medication</option>
-                        <option value="cleaning">Cleaning</option>
-                        <option value="behavior">Behavior</option>
-                        <option value="health_observation">Health Observation</option>
-                        <option value="general_update">General Update</option>
+                      <select
+                        value={careDraft.log_type}
+                        onChange={(event) =>
+                          setCareDraft((prev) => ({
+                            ...prev,
+                            log_type: event.target.value,
+                          }))
+                        }
+                      >
+                        {CARE_LOG_TYPES.map((type) => (
+                          <option key={type.value} value={type.value}>
+                            {type.label}
+                          </option>
+                        ))}
                       </select>
                     </div>
                   </div>
+
                   <div className="form-row">
                     <div className="form-group full-width">
                       <label>Notes</label>
-                      <textarea rows="3" value={careDraft.notes} onChange={(e) => setCareDraft((prev) => ({ ...prev, notes: e.target.value }))} />
+                      <textarea
+                        rows="4"
+                        value={careDraft.notes}
+                        onChange={(event) =>
+                          setCareDraft((prev) => ({
+                            ...prev,
+                            notes: event.target.value,
+                          }))
+                        }
+                        placeholder="Write care notes here..."
+                      />
                     </div>
                   </div>
+
                   <div className="form-actions">
-                    <button className="submit-btn" onClick={() => addCareLog(selectedBooking)} disabled={processingId === selectedBooking.id}>Add Care Log</button>
+                    <button
+                      type="button"
+                      className="submit-btn"
+                      onClick={() => addCareLog(selectedBooking)}
+                      disabled={isProcessing(selectedBooking)}
+                    >
+                      {isProcessing(selectedBooking) && (
+                        <FontAwesomeIcon icon={faSpinner} spin />
+                      )}
+                      Add Care Log
+                    </button>
                   </div>
                 </div>
               )}
+            </div>
+
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="secondary-btn"
+                onClick={() => setSelectedBooking(null)}
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>
@@ -302,5 +1072,12 @@ const ReceptionistHotelBookings = () => {
     </div>
   );
 };
+
+const InfoItem = ({ label, value, wide = false }) => (
+  <div className={`info-item ${wide ? "full-width" : ""}`}>
+    <label>{label}</label>
+    <span>{value || "N/A"}</span>
+  </div>
+);
 
 export default ReceptionistHotelBookings;

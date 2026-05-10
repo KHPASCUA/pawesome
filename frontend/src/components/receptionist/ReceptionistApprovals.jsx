@@ -1,194 +1,724 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  FaCalendarAlt,
   FaCheckCircle,
-  FaTimesCircle,
   FaClock,
-  FaSearch,
+  FaCut,
+  FaDownload,
+  FaEye,
+  FaFilter,
+  FaHotel,
+  FaInfoCircle,
   FaPaw,
+  FaSearch,
+  FaSpinner,
+  FaSyncAlt,
+  FaTimes,
+  FaTimesCircle,
+  FaUser,
   FaUserMd,
 } from "react-icons/fa";
 import { apiRequest } from "../../api/client";
 import "./ReceptionistApprovals.css";
 
-const ReceptionistApprovals = () => {
-  const [requests, setRequests] = useState([]);
-  const [veterinarians, setVeterinarians] = useState([]);
-  const [vetAssignments, setVetAssignments] = useState({});
-  const [vetError, setVetError] = useState("");
-  const [searchTerm, setSearchTerm] = useState("");
-  const [loading, setLoading] = useState(true);
+const TYPE_FILTERS = [
+  { value: "all", label: "All Types" },
+  { value: "vet", label: "Veterinary" },
+  { value: "grooming", label: "Grooming" },
+  { value: "hotel", label: "Hotel / Boarding" },
+  { value: "order", label: "Orders" },
+  { value: "other", label: "Other" },
+];
 
-  const isVetRequest = (item) => {
-    const values = [
-      item.request_type,
-      item.service_type,
-      item.type,
-      item.category,
-      item.service_name,
-      item.service,
-    ]
-      .filter(Boolean)
-      .map((value) => String(value).toLowerCase());
+const VET_FILTERS = [
+  { value: "all", label: "All Vet Assignment" },
+  { value: "needs_assignment", label: "Needs Vet Assignment" },
+  { value: "assigned", label: "Assigned Vet" },
+];
 
-    return values.some(
+const normalizeList = (result, keys = []) => {
+  if (Array.isArray(result)) return result;
+
+  for (const key of keys) {
+    if (Array.isArray(result?.[key])) return result[key];
+    if (Array.isArray(result?.data?.[key])) return result.data[key];
+    if (Array.isArray(result?.[key]?.data)) return result[key].data;
+    if (Array.isArray(result?.data?.[key]?.data)) return result.data[key].data;
+  }
+
+  if (Array.isArray(result?.data)) return result.data;
+  if (Array.isArray(result?.data?.data)) return result.data.data;
+  if (Array.isArray(result?.requests)) return result.requests;
+  if (Array.isArray(result?.service_requests)) return result.service_requests;
+  if (Array.isArray(result?.pending_requests)) return result.pending_requests;
+
+  return [];
+};
+
+const safeText = (value) => String(value || "").trim();
+
+const normalizeStatus = (value) =>
+  safeText(value || "pending").toLowerCase().replace(/\s+/g, "_");
+
+const formatLabel = (value) =>
+  safeText(value || "N/A")
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+
+const formatDate = (value) => {
+  if (!value) return "No date";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  return date.toLocaleDateString("en-PH", {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+  });
+};
+
+const formatTime = (value) => {
+  if (!value) return "";
+
+  if (String(value).includes("AM") || String(value).includes("PM")) {
+    return value;
+  }
+
+  const [hour, minute] = String(value).split(":");
+  if (!hour || !minute) return value;
+
+  const date = new Date();
+  date.setHours(Number(hour), Number(minute), 0, 0);
+
+  return date.toLocaleTimeString("en-PH", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+};
+
+const getRequestId = (item) =>
+  item.id || item.request_id || item.service_request_id || item.booking_id;
+
+const getCustomerName = (item) =>
+  item.customer_name ||
+  item.customer?.name ||
+  item.customer ||
+  item.client_name ||
+  "Unknown Customer";
+
+const getPetName = (item) =>
+  item.pet_name || item.pet?.name || item.pet || item.petName || "N/A";
+
+const getServiceName = (item) =>
+  item.service_name ||
+  item.service?.name ||
+  item.service ||
+  item.name ||
+  "Service Request";
+
+const getRequestDate = (item) =>
+  item.request_date ||
+  item.booking_date ||
+  item.appointment_date ||
+  item.scheduled_date ||
+  item.date ||
+  item.created_at ||
+  "";
+
+const getRequestTime = (item) =>
+  item.request_time ||
+  item.booking_time ||
+  item.appointment_time ||
+  item.scheduled_time ||
+  item.time ||
+  "";
+
+const getRawType = (item) =>
+  safeText(
+    item.request_type ||
+      item.service_type ||
+      item.type ||
+      item.category ||
+      item.source ||
+      getServiceName(item)
+  );
+
+const getRequestType = (item) => {
+  const values = [
+    item.request_type,
+    item.service_type,
+    item.type,
+    item.category,
+    item.source,
+    item.service_name,
+    item.service?.name,
+    item.service,
+    item.name,
+  ]
+    .filter(Boolean)
+    .map((value) => String(value).toLowerCase());
+
+  if (
+    values.some(
       (value) =>
         value === "vet" ||
         value === "veterinary" ||
         value.includes("veterinary") ||
         value.includes("consult") ||
-        value.includes("vaccination")
-    );
+        value.includes("vaccination") ||
+        value.includes("medical")
+    )
+  ) {
+    return "vet";
+  }
+
+  if (values.some((value) => value.includes("groom"))) {
+    return "grooming";
+  }
+
+  if (
+    values.some(
+      (value) =>
+        value.includes("hotel") ||
+        value.includes("boarding") ||
+        value.includes("board")
+    )
+  ) {
+    return "hotel";
+  }
+
+  if (values.some((value) => value.includes("order") || value.includes("store"))) {
+    return "order";
+  }
+
+  return "other";
+};
+
+const getTypeLabel = (type) => {
+  if (type === "vet") return "Veterinary";
+  if (type === "grooming") return "Grooming";
+  if (type === "hotel") return "Hotel";
+  if (type === "order") return "Order";
+  return "Other";
+};
+
+const getTypeIcon = (type) => {
+  if (type === "vet") return <FaUserMd />;
+  if (type === "grooming") return <FaCut />;
+  if (type === "hotel") return <FaHotel />;
+  if (type === "order") return <FaClock />;
+  return <FaPaw />;
+};
+
+const ReceptionistApprovals = () => {
+  const [requests, setRequests] = useState([]);
+  const [veterinarians, setVeterinarians] = useState([]);
+  const [vetAssignments, setVetAssignments] = useState({});
+
+  const [searchTerm, setSearchTerm] = useState("");
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [vetFilter, setVetFilter] = useState("all");
+
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [processingId, setProcessingId] = useState(null);
+
+  const [success, setSuccess] = useState("");
+  const [error, setError] = useState("");
+  const [vetError, setVetError] = useState("");
+  const [lastUpdated, setLastUpdated] = useState("");
+
+  const [selectedRequest, setSelectedRequest] = useState(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [actionOpen, setActionOpen] = useState(false);
+  const [actionType, setActionType] = useState("");
+  const [actionForm, setActionForm] = useState({
+    veterinarianId: "",
+    remarks: "",
+    rejectionReason: "",
+  });
+
+  const showMessage = (type, message) => {
+    if (type === "success") {
+      setSuccess(message);
+      window.clearTimeout(window.approvalsSuccessTimer);
+      window.approvalsSuccessTimer = window.setTimeout(() => setSuccess(""), 3000);
+      return;
+    }
+
+    setError(message);
+    window.clearTimeout(window.approvalsErrorTimer);
+    window.approvalsErrorTimer = window.setTimeout(() => setError(""), 5000);
   };
 
-  const fetchRequests = async () => {
+  const isVetRequest = (item) => getRequestType(item) === "vet";
+
+  const fetchRequests = useCallback(async ({ silent = false } = {}) => {
     try {
-      setLoading(true);
+      if (silent) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
 
-      const result = await apiRequest("/receptionist/requests/pending", "GET");
+      const result = await apiRequest("/receptionist/requests/pending", {
+        method: "GET",
+      });
 
-      console.log("RECEPTIONIST PENDING REQUESTS RESULT:", result);
+      const list = normalizeList(result, [
+        "requests",
+        "service_requests",
+        "pending_requests",
+        "data",
+      ]);
 
-      const list = Array.isArray(result)
-        ? result
-        : result.requests ||
-          result.service_requests ||
-          result.data ||
-          result.pending_requests ||
-          [];
-
-      console.log("NORMALIZED APPROVAL REQUESTS:", list);
-
-      setRequests(list);
-    } catch (error) {
-      console.error("Failed to load approvals:", error);
+      setRequests(Array.isArray(list) ? list : []);
+      setLastUpdated(new Date().toLocaleString("en-PH"));
+    } catch (err) {
+      console.error("Failed to load approvals:", err);
       setRequests([]);
+      showMessage("error", err.message || "Failed to load pending requests.");
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
-  };
+  }, []);
 
-  const fetchVeterinarians = async () => {
+  const fetchVeterinarians = useCallback(async () => {
     try {
-      const result = await apiRequest("/receptionist/veterinarians/available", "GET");
-      const list = Array.isArray(result)
-        ? result
-        : result.veterinarians || result.data || [];
+      const result = await apiRequest("/receptionist/veterinarians/available", {
+        method: "GET",
+      });
+
+      const list = normalizeList(result, ["veterinarians", "data"]);
 
       setVeterinarians(Array.isArray(list) ? list : []);
       setVetError(
         Array.isArray(list) && list.length === 0
-          ? "No active veterinarian accounts found. Create or activate a veterinarian before approving vet requests."
+          ? "No active veterinarian accounts found. Create or activate a veterinarian before approving veterinary requests."
           : ""
       );
-    } catch (error) {
-      console.error("Failed to load veterinarians:", error);
+    } catch (err) {
+      console.error("Failed to load veterinarians:", err);
       setVeterinarians([]);
-      setVetError("Could not load veterinarians. Refresh the page before approving vet requests.");
+      setVetError("Could not load veterinarians. Refresh before approving veterinary requests.");
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchRequests();
     fetchVeterinarians();
-  }, []);
+  }, [fetchRequests, fetchVeterinarians]);
 
-  const handleApprove = async (item) => {
-    const requestId = item.id;
-    const veterinarianId = vetAssignments[requestId];
-    const vetRequest = isVetRequest(item);
+  const stats = useMemo(() => {
+    const vet = requests.filter((item) => getRequestType(item) === "vet").length;
+    const grooming = requests.filter((item) => getRequestType(item) === "grooming").length;
+    const hotel = requests.filter((item) => getRequestType(item) === "hotel").length;
+    const needsVet = requests.filter(
+      (item) => isVetRequest(item) && !vetAssignments[getRequestId(item)]
+    ).length;
+
+    return {
+      total: requests.length,
+      vet,
+      grooming,
+      hotel,
+      needsVet,
+    };
+  }, [requests, vetAssignments]);
+
+  const filteredRequests = useMemo(() => {
+    const keyword = searchTerm.trim().toLowerCase();
+
+    return requests.filter((item) => {
+      const requestId = getRequestId(item);
+      const requestType = getRequestType(item);
+      const vetRequest = isVetRequest(item);
+      const hasVetAssignment = Boolean(vetAssignments[requestId]);
+
+      const searchableText = [
+        requestId,
+        getRawType(item),
+        getCustomerName(item),
+        getPetName(item),
+        getServiceName(item),
+        getRequestDate(item),
+        getRequestTime(item),
+        item.notes,
+        item.remarks,
+        item.description,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      const matchesSearch = !keyword || searchableText.includes(keyword);
+      const matchesType = typeFilter === "all" || requestType === typeFilter;
+
+      const matchesVetFilter =
+        vetFilter === "all" ||
+        (vetFilter === "needs_assignment" && vetRequest && !hasVetAssignment) ||
+        (vetFilter === "assigned" && vetRequest && hasVetAssignment);
+
+      return matchesSearch && matchesType && matchesVetFilter;
+    });
+  }, [requests, searchTerm, typeFilter, vetFilter, vetAssignments]);
+
+  const openDetails = (item) => {
+    setSelectedRequest(item);
+    setDetailsOpen(true);
+  };
+
+  const closeDetails = () => {
+    setSelectedRequest(null);
+    setDetailsOpen(false);
+  };
+
+  const openActionModal = (item, type) => {
+    const requestId = getRequestId(item);
+
+    setSelectedRequest(item);
+    setActionType(type);
+    setActionForm({
+      veterinarianId: vetAssignments[requestId] || "",
+      remarks: "",
+      rejectionReason: "",
+    });
+    setActionOpen(true);
+  };
+
+  const closeActionModal = () => {
+    setActionOpen(false);
+    setActionType("");
+    setSelectedRequest(null);
+    setActionForm({
+      veterinarianId: "",
+      remarks: "",
+      rejectionReason: "",
+    });
+  };
+
+  const approveRequest = async () => {
+    if (!selectedRequest) return;
+
+    const requestId = getRequestId(selectedRequest);
+    const vetRequest = isVetRequest(selectedRequest);
+    const veterinarianId = actionForm.veterinarianId || vetAssignments[requestId];
 
     if (vetRequest && !veterinarianId) {
-      alert("Please choose a veterinarian before approving this vet request.");
+      showMessage("error", "Please choose a veterinarian before approving this request.");
       return;
     }
 
     try {
+      setProcessingId(requestId);
+
       const payload = {
-        receptionist_remarks: "Approved by receptionist",
+        receptionist_remarks:
+          actionForm.remarks.trim() || "Approved by receptionist",
       };
 
       if (vetRequest) {
         payload.veterinarian_id = Number(veterinarianId);
       }
 
-      await apiRequest(`/receptionist/requests/${requestId}/approve`, "POST", payload);
+      await apiRequest(`/receptionist/requests/${requestId}/approve`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
 
-      alert("Request approved successfully.");
       setVetAssignments((current) => {
         const next = { ...current };
         delete next[requestId];
         return next;
       });
-      await fetchRequests();
-    } catch (error) {
-      console.error("APPROVE REQUEST ERROR:", error);
-      alert(error.message || "Failed to approve request.");
+
+      showMessage("success", "Request approved successfully.");
+      closeActionModal();
+      await fetchRequests({ silent: true });
+    } catch (err) {
+      console.error("Approve request error:", err);
+      showMessage("error", err.message || "Failed to approve request.");
+    } finally {
+      setProcessingId(null);
     }
   };
 
-  const handleReject = async (requestId) => {
-    const reason = window.prompt("Enter rejection reason:");
+  const rejectRequest = async () => {
+    if (!selectedRequest) return;
 
-    if (!reason) return;
+    const requestId = getRequestId(selectedRequest);
+    const reason = actionForm.rejectionReason.trim();
+
+    if (!reason) {
+      showMessage("error", "Rejection reason is required.");
+      return;
+    }
 
     try {
-      await apiRequest(`/receptionist/requests/${requestId}/reject`, "POST", {
-        rejection_reason: reason,
-        receptionist_remarks: reason,
+      setProcessingId(requestId);
+
+      await apiRequest(`/receptionist/requests/${requestId}/reject`, {
+        method: "POST",
+        body: JSON.stringify({
+          rejection_reason: reason,
+          receptionist_remarks: actionForm.remarks.trim() || reason,
+        }),
       });
 
-      alert("Request rejected successfully.");
-      await fetchRequests();
-    } catch (error) {
-      console.error("REJECT REQUEST ERROR:", error);
-      alert(error.message || "Failed to reject request.");
+      showMessage("success", "Request rejected successfully.");
+      closeActionModal();
+      await fetchRequests({ silent: true });
+    } catch (err) {
+      console.error("Reject request error:", err);
+      showMessage("error", err.message || "Failed to reject request.");
+    } finally {
+      setProcessingId(null);
     }
   };
 
-  const filteredRequests = requests.filter((item) => {
-    const keyword = searchTerm.toLowerCase();
-    const requestType = item.request_type || item.service_type || item.type || "";
-    const customerName = item.customer_name || item.customer || "";
-    const petName = item.pet_name || item.pet || "";
-    const serviceName = item.service_name || item.service || "";
+  const handleActionSubmit = (event) => {
+    event.preventDefault();
 
-    return (
-      customerName.toLowerCase().includes(keyword) ||
-      petName.toLowerCase().includes(keyword) ||
-      serviceName.toLowerCase().includes(keyword) ||
-      requestType.toLowerCase().includes(keyword)
-    );
-  });
+    if (actionType === "approve") {
+      approveRequest();
+      return;
+    }
+
+    rejectRequest();
+  };
+
+  const exportCSV = () => {
+    if (filteredRequests.length === 0) {
+      showMessage("error", "No pending requests to export.");
+      return;
+    }
+
+    const headers = [
+      "Request ID",
+      "Type",
+      "Service",
+      "Customer",
+      "Pet",
+      "Schedule Date",
+      "Schedule Time",
+      "Status",
+      "Notes",
+    ];
+
+    const rows = filteredRequests.map((item) => [
+      getRequestId(item),
+      getTypeLabel(getRequestType(item)),
+      getServiceName(item),
+      getCustomerName(item),
+      getPetName(item),
+      getRequestDate(item),
+      getRequestTime(item),
+      item.status || "pending",
+      item.notes || item.remarks || item.description || "",
+    ]);
+
+    const csv = [headers, ...rows]
+      .map((row) =>
+        row.map((value) => `"${String(value ?? "").replace(/"/g, '""')}"`).join(",")
+      )
+      .join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+
+    anchor.href = url;
+    anchor.download = `receptionist-approvals-${new Date().toISOString().slice(0, 10)}.csv`;
+    anchor.click();
+
+    URL.revokeObjectURL(url);
+  };
+
+  const clearFilters = () => {
+    setSearchTerm("");
+    setTypeFilter("all");
+    setVetFilter("all");
+  };
+
+  const isProcessing = (item) => processingId === getRequestId(item);
 
   return (
     <div className="approvals-page">
-      <section className="approvals-header">
+      {success && (
+        <div className="approval-toast success">
+          <FaCheckCircle />
+          <span>{success}</span>
+        </div>
+      )}
+
+      {error && (
+        <div className="approval-toast error">
+          <FaTimesCircle />
+          <span>{error}</span>
+        </div>
+      )}
+
+      <section className="approvals-hero">
         <div>
-          <span className="approval-badge">Receptionist Approval</span>
-          <h1>Booking & Order Approvals</h1>
+          <span className="approval-eyebrow">
+            <FaCheckCircle />
+            Receptionist Approval Center
+          </span>
+
+          <h1>Booking & Service Approvals</h1>
+
           <p>
-            Review customer requests before payment and service processing.
+            Review pending customer requests, assign veterinarians when required,
+            and approve or reject requests before service processing.
           </p>
+
+          <small>Last updated: {lastUpdated || "Not refreshed yet"}</small>
+        </div>
+
+        <div className="approval-hero-actions">
+          <button
+            type="button"
+            className={`secondary-btn ${refreshing ? "loading" : ""}`}
+            onClick={() => {
+              fetchRequests({ silent: true });
+              fetchVeterinarians();
+            }}
+            disabled={refreshing || loading}
+          >
+            {refreshing ? <FaSpinner /> : <FaSyncAlt />}
+            {refreshing ? "Refreshing..." : "Refresh"}
+          </button>
+
+          <button type="button" className="secondary-btn" onClick={exportCSV}>
+            <FaDownload />
+            Export CSV
+          </button>
         </div>
       </section>
 
-      <section className="approvals-tools">
-        <div className="approvals-search">
+      <section className="approval-summary-grid">
+        <button type="button" className="approval-summary-card" onClick={() => setTypeFilter("all")}>
+          <span>
+            <FaClock />
+          </span>
+          <div>
+            <strong>{stats.total}</strong>
+            <p>Total Pending</p>
+          </div>
+        </button>
+
+        <button type="button" className="approval-summary-card vet" onClick={() => setTypeFilter("vet")}>
+          <span>
+            <FaUserMd />
+          </span>
+          <div>
+            <strong>{stats.vet}</strong>
+            <p>Veterinary</p>
+          </div>
+        </button>
+
+        <button type="button" className="approval-summary-card grooming" onClick={() => setTypeFilter("grooming")}>
+          <span>
+            <FaCut />
+          </span>
+          <div>
+            <strong>{stats.grooming}</strong>
+            <p>Grooming</p>
+          </div>
+        </button>
+
+        <button type="button" className="approval-summary-card hotel" onClick={() => setTypeFilter("hotel")}>
+          <span>
+            <FaHotel />
+          </span>
+          <div>
+            <strong>{stats.hotel}</strong>
+            <p>Hotel</p>
+          </div>
+        </button>
+
+        <button
+          type="button"
+          className="approval-summary-card warning"
+          onClick={() => setVetFilter("needs_assignment")}
+        >
+          <span>
+            <FaUserMd />
+          </span>
+          <div>
+            <strong>{stats.needsVet}</strong>
+            <p>Needs Vet</p>
+          </div>
+        </button>
+      </section>
+
+      <section className="approvals-controls">
+        <div className="approvals-search-box">
           <FaSearch />
           <input
             type="text"
-            placeholder="Search customer, pet, service, or request type..."
+            placeholder="Search customer, pet, service, type, notes, or request ID..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(event) => setSearchTerm(event.target.value)}
           />
+
+          {searchTerm && (
+            <button type="button" onClick={() => setSearchTerm("")}>
+              <FaTimes />
+            </button>
+          )}
         </div>
+
+        <label className="approvals-filter-box">
+          <FaFilter />
+          <select
+            value={typeFilter}
+            onChange={(event) => setTypeFilter(event.target.value)}
+          >
+            {TYPE_FILTERS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="approvals-filter-box">
+          <FaUserMd />
+          <select
+            value={vetFilter}
+            onChange={(event) => setVetFilter(event.target.value)}
+          >
+            {VET_FILTERS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <button type="button" className="clear-btn" onClick={clearFilters}>
+          <FaTimes />
+          Clear
+        </button>
       </section>
 
       <section className="approval-card">
         <div className="approval-card-header">
           <div>
+            <span className="approval-eyebrow">
+              <FaClock />
+              Live Pending Queue
+            </span>
+
             <h2>Pending Requests</h2>
-            <p>{filteredRequests.length} request(s) waiting for approval</p>
+
+            <p>
+              Showing <strong>{filteredRequests.length}</strong> of{" "}
+              <strong>{requests.length}</strong> request(s).
+            </p>
           </div>
 
           <div className="approval-counter">
@@ -198,105 +728,329 @@ const ReceptionistApprovals = () => {
         </div>
 
         {loading ? (
-          <div className="approval-empty">
-            <FaClock />
-            <h3>Loading requests...</h3>
+          <div className="approval-state">
+            <FaSpinner className="spin" />
+            <h3>Loading pending requests...</h3>
+            <p>Please wait while receptionist approvals are loaded.</p>
           </div>
         ) : filteredRequests.length === 0 ? (
-          <div className="approval-empty">
+          <div className="approval-state">
             <FaPaw />
             <h3>No pending requests found</h3>
-            <p>New customer bookings and orders will appear here.</p>
+            <p>New customer bookings and service requests will appear here.</p>
           </div>
         ) : (
           <div className="approval-list">
             {filteredRequests.map((item) => {
+              const requestId = getRequestId(item);
+              const requestType = getRequestType(item);
               const vetRequest = isVetRequest(item);
 
               return (
-              <div className="approval-item" key={item.id}>
-                <div className="approval-main">
-                  <span className={`type-pill ${item.request_type || item.service_type || item.type}`}>
-                    {item.request_type || item.service_type || item.type}
-                  </span>
-
-                  <h3>{item.service_name || item.service}</h3>
-
-                  <p>
-                    <strong>Customer:</strong> {item.customer_name || item.customer}
-                  </p>
-
-                  <p>
-                    <strong>Pet:</strong> {item.pet_name || item.pet || "N/A"}
-                  </p>
-
-                  <p>
-                    <strong>Schedule:</strong>{" "}
-                    {item.request_date || item.date || "No date"}{" "}
-                    {item.request_time || item.time ? `at ${item.request_time || item.time}` : ""}
-                  </p>
-
-                  {item.notes && (
-                    <p>
-                      <strong>Notes:</strong> {item.notes}
-                    </p>
-                  )}
-
-                  {vetRequest && (
-                    <label className="vet-assignment-field">
-                      <span>
-                        <FaUserMd />
-                        Veterinarian
+                <article className="approval-item" key={requestId}>
+                  <div className="approval-main">
+                    <div className="approval-item-top">
+                      <span className={`type-pill ${requestType}`}>
+                        {getTypeIcon(requestType)}
+                        {getTypeLabel(requestType)}
                       </span>
-                      <select
-                        value={vetAssignments[item.id] || ""}
-                        onChange={(event) =>
-                          setVetAssignments((current) => ({
-                            ...current,
-                            [item.id]: event.target.value,
-                          }))
-                        }
-                      >
-                        <option value="">
-                          {veterinarians.length ? "Choose veterinarian" : "No active vets"}
-                        </option>
-                        {veterinarians.map((vet) => (
-                          <option key={vet.id} value={vet.id}>
-                            {vet.name}
+
+                      <span className="request-id">#{requestId}</span>
+                    </div>
+
+                    <h3>{getServiceName(item)}</h3>
+
+                    <div className="approval-info-grid">
+                      <InfoLine icon={<FaUser />} label="Customer" value={getCustomerName(item)} />
+                      <InfoLine icon={<FaPaw />} label="Pet" value={getPetName(item)} />
+                      <InfoLine
+                        icon={<FaCalendarAlt />}
+                        label="Schedule"
+                        value={`${formatDate(getRequestDate(item))}${
+                          getRequestTime(item) ? ` at ${formatTime(getRequestTime(item))}` : ""
+                        }`}
+                      />
+                      <InfoLine
+                        icon={<FaInfoCircle />}
+                        label="Status"
+                        value={formatLabel(normalizeStatus(item.status || "pending"))}
+                      />
+                    </div>
+
+                    {(item.notes || item.remarks || item.description) && (
+                      <div className="approval-note">
+                        <strong>Notes</strong>
+                        <p>{item.notes || item.remarks || item.description}</p>
+                      </div>
+                    )}
+
+                    {vetRequest && (
+                      <label className="vet-assignment-field">
+                        <span>
+                          <FaUserMd />
+                          Veterinarian Assignment
+                        </span>
+
+                        <select
+                          value={vetAssignments[requestId] || ""}
+                          onChange={(event) =>
+                            setVetAssignments((current) => ({
+                              ...current,
+                              [requestId]: event.target.value,
+                            }))
+                          }
+                        >
+                          <option value="">
+                            {veterinarians.length ? "Choose veterinarian" : "No active veterinarians"}
                           </option>
-                        ))}
-                      </select>
-                      {vetError && <small>{vetError}</small>}
-                    </label>
-                  )}
-                </div>
 
-                <div className="approval-actions">
-                  <button
-                    className="approve-btn"
-                    onClick={() => handleApprove(item)}
-                    disabled={vetRequest && veterinarians.length === 0}
-                  >
-                    <FaCheckCircle />
-                    Approve
-                  </button>
+                          {veterinarians.map((vet) => (
+                            <option key={vet.id} value={vet.id}>
+                              {vet.name || vet.full_name || `Veterinarian #${vet.id}`}
+                            </option>
+                          ))}
+                        </select>
 
-                  <button
-                    className="reject-btn"
-                    onClick={() => handleReject(item.id)}
-                  >
-                    <FaTimesCircle />
-                    Reject
-                  </button>
-                </div>
-              </div>
+                        {vetError && <small>{vetError}</small>}
+                      </label>
+                    )}
+                  </div>
+
+                  <div className="approval-actions">
+                    <button
+                      type="button"
+                      className="view-btn"
+                      onClick={() => openDetails(item)}
+                      disabled={isProcessing(item)}
+                    >
+                      <FaEye />
+                      View
+                    </button>
+
+                    <button
+                      type="button"
+                      className="approve-btn"
+                      onClick={() => openActionModal(item, "approve")}
+                      disabled={isProcessing(item) || (vetRequest && veterinarians.length === 0)}
+                    >
+                      {isProcessing(item) ? <FaSpinner className="spin" /> : <FaCheckCircle />}
+                      Approve
+                    </button>
+
+                    <button
+                      type="button"
+                      className="reject-btn"
+                      onClick={() => openActionModal(item, "reject")}
+                      disabled={isProcessing(item)}
+                    >
+                      <FaTimesCircle />
+                      Reject
+                    </button>
+                  </div>
+                </article>
               );
             })}
           </div>
         )}
       </section>
+
+      {detailsOpen && selectedRequest && (
+        <div className="approval-modal-overlay" onClick={closeDetails}>
+          <div className="approval-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="approval-modal-header">
+              <div>
+                <span className="approval-eyebrow">
+                  <FaEye />
+                  Request Details
+                </span>
+                <h2>Request #{getRequestId(selectedRequest)}</h2>
+              </div>
+
+              <button type="button" className="close-modal-btn" onClick={closeDetails}>
+                <FaTimes />
+              </button>
+            </div>
+
+            <div className="approval-modal-body">
+              <div className="approval-detail-grid">
+                <DetailItem label="Request Type" value={getTypeLabel(getRequestType(selectedRequest))} />
+                <DetailItem label="Service" value={getServiceName(selectedRequest)} />
+                <DetailItem label="Customer" value={getCustomerName(selectedRequest)} />
+                <DetailItem label="Pet" value={getPetName(selectedRequest)} />
+                <DetailItem label="Date" value={formatDate(getRequestDate(selectedRequest))} />
+                <DetailItem label="Time" value={formatTime(getRequestTime(selectedRequest)) || "No time"} />
+                <DetailItem label="Raw Type" value={getRawType(selectedRequest) || "N/A"} />
+                <DetailItem label="Status" value={formatLabel(selectedRequest.status || "pending")} />
+                <DetailItem
+                  label="Notes"
+                  value={
+                    selectedRequest.notes ||
+                    selectedRequest.remarks ||
+                    selectedRequest.description ||
+                    "No notes provided."
+                  }
+                  wide
+                />
+              </div>
+            </div>
+
+            <div className="approval-modal-actions">
+              <button type="button" className="secondary-btn" onClick={closeDetails}>
+                Close
+              </button>
+
+              <button
+                type="button"
+                className="primary-btn"
+                onClick={() => {
+                  setDetailsOpen(false);
+                  openActionModal(selectedRequest, "approve");
+                }}
+              >
+                <FaCheckCircle />
+                Approve
+              </button>
+
+              <button
+                type="button"
+                className="danger-btn"
+                onClick={() => {
+                  setDetailsOpen(false);
+                  openActionModal(selectedRequest, "reject");
+                }}
+              >
+                <FaTimesCircle />
+                Reject
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {actionOpen && selectedRequest && (
+        <div className="approval-modal-overlay" onClick={closeActionModal}>
+          <div className="approval-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="approval-modal-header">
+              <div>
+                <span className="approval-eyebrow">
+                  {actionType === "approve" ? <FaCheckCircle /> : <FaTimesCircle />}
+                  {actionType === "approve" ? "Approve Request" : "Reject Request"}
+                </span>
+
+                <h2>Request #{getRequestId(selectedRequest)}</h2>
+              </div>
+
+              <button type="button" className="close-modal-btn" onClick={closeActionModal}>
+                <FaTimes />
+              </button>
+            </div>
+
+            <form className="approval-modal-body" onSubmit={handleActionSubmit}>
+              <div className="approval-action-summary">
+                <strong>{getServiceName(selectedRequest)}</strong>
+                <span>{getCustomerName(selectedRequest)} | {getPetName(selectedRequest)}</span>
+              </div>
+
+              {actionType === "approve" && isVetRequest(selectedRequest) && (
+                <div className="form-group">
+                  <label>Assign Veterinarian *</label>
+                  <select
+                    value={actionForm.veterinarianId}
+                    onChange={(event) =>
+                      setActionForm((current) => ({
+                        ...current,
+                        veterinarianId: event.target.value,
+                      }))
+                    }
+                    required
+                  >
+                    <option value="">Choose veterinarian</option>
+
+                    {veterinarians.map((vet) => (
+                      <option key={vet.id} value={vet.id}>
+                        {vet.name || vet.full_name || `Veterinarian #${vet.id}`}
+                      </option>
+                    ))}
+                  </select>
+
+                  {vetError && <small className="form-error">{vetError}</small>}
+                </div>
+              )}
+
+              {actionType === "reject" && (
+                <div className="form-group">
+                  <label>Rejection Reason *</label>
+                  <textarea
+                    value={actionForm.rejectionReason}
+                    onChange={(event) =>
+                      setActionForm((current) => ({
+                        ...current,
+                        rejectionReason: event.target.value,
+                      }))
+                    }
+                    placeholder="Enter a clear reason for rejection."
+                    required
+                  />
+                </div>
+              )}
+
+              <div className="form-group">
+                <label>Receptionist Remarks</label>
+                <textarea
+                  value={actionForm.remarks}
+                  onChange={(event) =>
+                    setActionForm((current) => ({
+                      ...current,
+                      remarks: event.target.value,
+                    }))
+                  }
+                  placeholder="Optional remarks for this action."
+                />
+              </div>
+
+              <div className="approval-modal-actions">
+                <button type="button" className="secondary-btn" onClick={closeActionModal}>
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  className={actionType === "approve" ? "primary-btn" : "danger-btn"}
+                  disabled={processingId === getRequestId(selectedRequest)}
+                >
+                  {processingId === getRequestId(selectedRequest) ? (
+                    <FaSpinner className="spin" />
+                  ) : actionType === "approve" ? (
+                    <FaCheckCircle />
+                  ) : (
+                    <FaTimesCircle />
+                  )}
+                  {actionType === "approve" ? "Approve Request" : "Reject Request"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
+
+const InfoLine = ({ icon, label, value }) => (
+  <div className="info-line">
+    <span>{icon}</span>
+    <div>
+      <small>{label}</small>
+      <strong>{value || "N/A"}</strong>
+    </div>
+  </div>
+);
+
+const DetailItem = ({ label, value, wide = false }) => (
+  <div className={`approval-detail-item ${wide ? "wide" : ""}`}>
+    <small>{label}</small>
+    <strong>{value || "N/A"}</strong>
+  </div>
+);
 
 export default ReceptionistApprovals;
