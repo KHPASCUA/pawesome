@@ -18,6 +18,8 @@ import {
   FaExclamationTriangle,
   FaSyncAlt,
   FaClipboardList,
+  FaHeartbeat,
+  FaPlus,
 } from "react-icons/fa";
 
 const groomingServices = [
@@ -74,6 +76,61 @@ const hotelServices = [
   },
 ];
 
+const defaultVetServices = [
+  {
+    name: "General Consultation",
+    category: "Veterinary",
+    price: 500,
+    description: "General health checkup and consultation.",
+  },
+  {
+    name: "Vaccination",
+    category: "Veterinary",
+    price: 750,
+    description: "Pet vaccination service.",
+  },
+  {
+    name: "Deworming",
+    category: "Veterinary",
+    price: 350,
+    description: "Deworming and parasite prevention.",
+  },
+  {
+    name: "Laboratory Test",
+    category: "Veterinary",
+    price: 1200,
+    description: "Basic laboratory test request.",
+  },
+];
+
+const initialVetInfo = {
+  has_flu_symptoms: "no",
+  symptoms: [],
+  other_symptoms: "",
+  symptom_duration: "",
+  appetite: "",
+  energy_level: "",
+  temperature_concern: "",
+  medication_taken: "",
+  recent_exposure: "",
+  emergency_level: "normal",
+};
+
+const symptomOptions = [
+  "Coughing",
+  "Sneezing",
+  "Runny nose",
+  "Fever",
+  "Vomiting",
+  "Diarrhea",
+  "Loss of appetite",
+  "Low energy",
+  "Eye discharge",
+  "Skin irritation",
+  "Limping",
+  "Breathing difficulty",
+];
+
 const CustomerBookings = () => {
   const customerEmail = localStorage.getItem("email") || "";
   const customerName = localStorage.getItem("name") || "Customer";
@@ -103,6 +160,7 @@ const CustomerBookings = () => {
   const [errorMessage, setErrorMessage] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [showVetHealthInfo, setShowVetHealthInfo] = useState(false);
 
   const [formData, setFormData] = useState({
     customer_name: customerName,
@@ -115,6 +173,7 @@ const CustomerBookings = () => {
     request_time: "",
     check_out_date: "",
     notes: "",
+    vet_info: initialVetInfo,
   });
 
   const safeArray = (value) => {
@@ -131,8 +190,15 @@ const CustomerBookings = () => {
   };
 
   const getPetName = (pet) => pet?.name || pet?.pet_name || "Unnamed Pet";
-  const getPetSpecies = (pet) => pet?.species || pet?.type || "Pet";
+  const getPetSpecies = (pet) => pet?.species || pet?.type || pet?.pet_type || "Pet";
   const getPetBreed = (pet) => pet?.breed || "Unknown breed";
+  const getPetAge = (pet) => pet?.age || pet?.pet_age || "N/A";
+  const getPetGender = (pet) => pet?.gender || pet?.sex || "N/A";
+  const getPetWeight = (pet) => pet?.weight || pet?.pet_weight || "N/A";
+
+  const selectedPet = useMemo(() => {
+    return pets.find((pet) => String(pet.id) === String(formData.pet_id));
+  }, [pets, formData.pet_id]);
 
   const formatCurrency = (value) => {
     const number = Number(value || 0);
@@ -168,7 +234,6 @@ const CustomerBookings = () => {
         id: "Hotel",
         type: "hotel",
         icon: <FaHotel />,
-        emoji: "🏨",
         title: "Pet Hotel",
         shortTitle: "Hotel",
         description: "Reserve a comfortable stay for your pet.",
@@ -182,10 +247,9 @@ const CustomerBookings = () => {
         id: "Vet",
         type: "vet",
         icon: <FaStethoscope />,
-        emoji: "🏥",
         title: "Veterinary",
         shortTitle: "Vet",
-        description: "Book checkups, vaccines, and pet care services.",
+        description: "Book checkups, vaccines, and pet medical care services.",
         defaultService: "General Consultation",
         accent: "vet",
       };
@@ -195,7 +259,6 @@ const CustomerBookings = () => {
       id: "Groom",
       type: "grooming",
       icon: <FaCut />,
-      emoji: "✂️",
       title: "Grooming",
       shortTitle: "Groom",
       description: "Schedule grooming and hygiene services.",
@@ -215,7 +278,7 @@ const CustomerBookings = () => {
 
   const serviceOptions = useMemo(() => {
     if (selectedBooking === "Hotel") return hotelServices;
-    if (selectedBooking === "Vet") return vetServices;
+    if (selectedBooking === "Vet") return vetServices.length > 0 ? vetServices : defaultVetServices;
     if (selectedBooking === "Groom") return groomingServices;
     return [];
   }, [selectedBooking, vetServices]);
@@ -239,8 +302,7 @@ const CustomerBookings = () => {
         petsData = await apiRequest("/pets");
       }
 
-      const petList = safeArray(petsData);
-      setPets(petList);
+      setPets(safeArray(petsData));
     } catch (error) {
       console.error("Failed to load customer pets:", error);
       setPets([]);
@@ -256,9 +318,37 @@ const CustomerBookings = () => {
       const data = await apiRequest("/services");
       const services = safeArray(data);
 
-      setVetServices(services);
+      const normalizedServices = services
+        .map((service) => ({
+          name: service.name || service.service_name || service.title || "",
+          category: service.category || service.service_type || "Veterinary",
+          price: Number(service.price || service.amount || service.fee || 0),
+          description: service.description || service.notes || "",
+        }))
+        .filter((service) => service.name);
+
+      const veterinaryKeywords = [
+        "vet",
+        "veterinary",
+        "clinic",
+        "consultation",
+        "vaccination",
+        "vaccine",
+        "laboratory",
+        "laboratories",
+        "deworm",
+        "checkup",
+        "medical",
+      ];
+
+      const veterinaryServices = normalizedServices.filter((service) => {
+        const text = `${service.name} ${service.category}`.toLowerCase();
+        return veterinaryKeywords.some((keyword) => text.includes(keyword));
+      });
+
+      setVetServices(veterinaryServices.length > 0 ? veterinaryServices : defaultVetServices);
     } catch (error) {
-      setVetServices([]);
+      setVetServices(defaultVetServices);
     } finally {
       setServicesLoading(false);
     }
@@ -292,8 +382,9 @@ const CustomerBookings = () => {
             raw: item,
             type: meta.shortTitle,
             serviceType: meta.type,
-            icon: meta.emoji,
             title: meta.title,
+            accent: meta.accent,
+            icon: meta.icon,
             pet: item.pet || item.pet_name || "Unknown Pet",
             service: item.service || item.service_name || "Service Request",
             details: `${item.pet || item.pet_name || "Unknown Pet"} • ${
@@ -325,6 +416,14 @@ const CustomerBookings = () => {
     fetchVetServices();
     fetchCustomerPets();
   }, [fetchBookings, fetchVetServices, fetchCustomerPets]);
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
 
   const stats = useMemo(() => {
     return bookings.reduce(
@@ -391,9 +490,18 @@ const CustomerBookings = () => {
 
   const handleSelect = (type) => {
     const meta = getBookingTypeMeta(type);
+    const options =
+      meta.type === "hotel"
+        ? hotelServices
+        : meta.type === "vet"
+        ? vetServices.length > 0
+          ? vetServices
+          : defaultVetServices
+        : groomingServices;
 
     setSelectedBooking(type);
     setReceipt(null);
+    setShowVetHealthInfo(false);
 
     if (previewUrl) {
       URL.revokeObjectURL(previewUrl);
@@ -415,23 +523,41 @@ const CustomerBookings = () => {
       pet_id: "",
       pet_name: "",
       service_type: meta.type,
-      service_name: meta.defaultService,
+      service_name: options[0]?.name || meta.defaultService,
       request_date: "",
       request_time: "",
       check_out_date: "",
       notes: "",
+      vet_info: initialVetInfo,
     });
   };
 
   const handleClose = () => {
     setSelectedBooking(null);
     setReceipt(null);
+    setShowVetHealthInfo(false);
 
     if (previewUrl) {
       URL.revokeObjectURL(previewUrl);
     }
 
     setPreviewUrl(null);
+  };
+
+  const handleAddVetHealthInfo = () => {
+    setShowVetHealthInfo(true);
+    setErrorMessage("");
+  };
+
+  const handleCancelVetHealthInfo = () => {
+    setShowVetHealthInfo(false);
+
+    setFormData((prev) => ({
+      ...prev,
+      vet_info: initialVetInfo,
+    }));
+
+    if (errorMessage) setErrorMessage("");
   };
 
   const handleInputChange = (event) => {
@@ -468,14 +594,47 @@ const CustomerBookings = () => {
     }
   };
 
+  const handleVetInfoChange = (event) => {
+    const { name, value } = event.target;
+
+    setFormData((prev) => ({
+      ...prev,
+      vet_info: {
+        ...prev.vet_info,
+        [name]: value,
+      },
+    }));
+
+    if (errorMessage) setErrorMessage("");
+  };
+
+  const handleSymptomToggle = (symptom) => {
+    setFormData((prev) => {
+      const currentSymptoms = prev.vet_info.symptoms || [];
+      const nextSymptoms = currentSymptoms.includes(symptom)
+        ? currentSymptoms.filter((item) => item !== symptom)
+        : [...currentSymptoms, symptom];
+
+      return {
+        ...prev,
+        vet_info: {
+          ...prev.vet_info,
+          symptoms: nextSymptoms,
+        },
+      };
+    });
+
+    if (errorMessage) setErrorMessage("");
+  };
+
   const handlePetSelect = (event) => {
     const petId = event.target.value;
-    const selectedPet = pets.find((pet) => String(pet.id) === String(petId));
+    const selectedPetRecord = pets.find((pet) => String(pet.id) === String(petId));
 
     setFormData((prev) => ({
       ...prev,
       pet_id: petId,
-      pet_name: selectedPet ? getPetName(selectedPet) : "",
+      pet_name: selectedPetRecord ? getPetName(selectedPetRecord) : "",
     }));
 
     if (errorMessage) setErrorMessage("");
@@ -517,7 +676,7 @@ const CustomerBookings = () => {
     setPreviewUrl(null);
   };
 
-  const fetchVeterinaryAvailability = async (date, serviceName) => {
+const fetchVeterinaryAvailability = async (date, serviceName) => {
     try {
       setAvailabilityLoading(true);
 
@@ -596,6 +755,36 @@ const CustomerBookings = () => {
     setFormData((prev) => ({ ...prev, hotel_room_id: room.id }));
   };
 
+  const buildVetHealthSummary = () => {
+    const info = formData.vet_info;
+
+    return [
+      "Additional Veterinary Health Information:",
+      `Flu-like symptoms: ${info.has_flu_symptoms || "Not answered"}`,
+      `Symptoms selected: ${
+        info.symptoms?.length ? info.symptoms.join(", ") : "None selected"
+      }`,
+      `Other symptoms or concerns: ${info.other_symptoms || "None"}`,
+      `Symptom duration: ${info.symptom_duration || "Not specified"}`,
+      `Appetite: ${info.appetite || "Not specified"}`,
+      `Energy level: ${info.energy_level || "Not specified"}`,
+      `Temperature concern: ${info.temperature_concern || "Not specified"}`,
+      `Medication taken: ${info.medication_taken || "None specified"}`,
+      `Recent exposure: ${info.recent_exposure || "None specified"}`,
+      `Urgency level: ${info.emergency_level || "normal"}`,
+    ].join("\n");
+  };
+
+  const buildFinalNotes = () => {
+    const baseNotes = formData.notes.trim();
+
+    if (formData.service_type !== "vet" || !showVetHealthInfo) {
+      return baseNotes;
+    }
+
+    return [`Reason for visit: ${baseNotes}`, buildVetHealthSummary()].join("\n\n");
+  };
+
   const validateForm = () => {
     if (!formData.customer_name.trim()) return "Customer name is required.";
     if (!formData.customer_email.trim()) return "Customer email is required.";
@@ -643,6 +832,28 @@ const CustomerBookings = () => {
       return "Please describe the reason for the veterinary visit.";
     }
 
+    if (formData.service_type === "vet" && showVetHealthInfo) {
+      if (
+        formData.vet_info.has_flu_symptoms === "yes" &&
+        formData.vet_info.symptoms.length === 0 &&
+        !formData.vet_info.other_symptoms.trim()
+      ) {
+        return "Please select at least one symptom or describe the concern.";
+      }
+
+      if (!formData.vet_info.symptom_duration) {
+        return "Please select how long the symptoms or concern has been observed.";
+      }
+
+      if (!formData.vet_info.appetite) {
+        return "Please select your pet's appetite condition.";
+      }
+
+      if (!formData.vet_info.energy_level) {
+        return "Please select your pet's energy level.";
+      }
+    }
+
     return "";
   };
 
@@ -668,18 +879,18 @@ const CustomerBookings = () => {
         service_name: formData.service_name,
         request_date: formData.request_date,
         request_time: formData.request_time,
-        notes: formData.notes,
-        request_type: formData.service_type, // Backend expects request_type
+        notes: buildFinalNotes(),
+        request_type: formData.service_type,
+        veterinary_health_info:
+          formData.service_type === "vet" && showVetHealthInfo
+            ? formData.vet_info
+            : undefined,
       };
-
-      console.log("Submitting booking request:", payload);
 
       const data = await apiRequest("/customer/requests", {
         method: "POST",
         body: JSON.stringify(payload),
       });
-
-      console.log("Booking response:", data);
 
       if (data.success) {
         showToast(
@@ -696,8 +907,7 @@ const CustomerBookings = () => {
       }
     } catch (error) {
       console.error("Error submitting booking:", error);
-      const errorMessage = error?.message || "Failed to submit booking. Please try again.";
-      showToast(errorMessage, "error");
+      showToast(error?.message || "Failed to submit booking. Please try again.", "error");
     } finally {
       setSubmitting(false);
     }
@@ -710,6 +920,7 @@ const CustomerBookings = () => {
   };
 
   const selectedMeta = selectedBooking ? getBookingTypeMeta(selectedBooking) : null;
+  const isVetBooking = selectedMeta?.type === "vet";
 
   return (
     <div className="customer-bookings">
@@ -738,7 +949,7 @@ const CustomerBookings = () => {
 
           <p>
             Request pet hotel reservations, grooming appointments, and veterinary
-            services in one professional booking center.
+            care through one organized customer booking center.
           </p>
         </div>
 
@@ -798,8 +1009,9 @@ const CustomerBookings = () => {
       <section className="booking-type-section">
         <div className="section-heading">
           <div>
+            <span className="bookings-eyebrow">Service Request</span>
             <h2>Choose Booking Type</h2>
-            <p>Select the type of service you want to request for your pet.</p>
+            <p>Select the service category you want to request for your pet.</p>
           </div>
         </div>
 
@@ -828,8 +1040,9 @@ const CustomerBookings = () => {
       <section className="recent-bookings">
         <div className="recent-bookings-header">
           <div>
+            <span className="bookings-eyebrow">Booking History</span>
             <h2>My Booking Requests</h2>
-            <p>Track all your submitted hotel, grooming, and veterinary requests.</p>
+            <p>Track all submitted hotel, grooming, and veterinary requests.</p>
           </div>
         </div>
 
@@ -838,7 +1051,7 @@ const CustomerBookings = () => {
             <FaSearch />
             <input
               type="text"
-              placeholder="Search by pet, service, date, status..."
+              placeholder="Search by pet, service, date, or status..."
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
             />
@@ -867,7 +1080,7 @@ const CustomerBookings = () => {
         {loading ? (
           <div className="booking-empty-state">
             <FaSyncAlt className="spin" />
-            <h3>Loading bookings...</h3>
+            <h3>Loading bookings</h3>
             <p>Please wait while we fetch your booking records.</p>
           </div>
         ) : filteredBookings.length === 0 ? (
@@ -976,9 +1189,7 @@ const CustomerBookings = () => {
                     Select Pet
 
                     {petsLoading ? (
-                      <div className="pet-select-helper">
-                        Loading your pets...
-                      </div>
+                      <div className="pet-select-helper">Loading your pets...</div>
                     ) : pets.length > 0 ? (
                       <select
                         name="pet_id"
@@ -988,8 +1199,8 @@ const CustomerBookings = () => {
                       >
                         <option value="">Choose your pet...</option>
 
-                        {pets.map((pet) => (
-                          <option key={pet.id} value={pet.id}>
+                        {pets.map((pet, index) => (
+                          <option key={pet.id || index} value={pet.id}>
                             {getPetName(pet)} • {getPetSpecies(pet)} • {getPetBreed(pet)}
                           </option>
                         ))}
@@ -1001,6 +1212,35 @@ const CustomerBookings = () => {
                       </div>
                     )}
                   </label>
+
+                  {selectedPet && (
+                    <div className="selected-pet-card full-width">
+                      <div>
+                        <small>Selected Pet</small>
+                        <strong>{getPetName(selectedPet)}</strong>
+                      </div>
+                      <div>
+                        <small>Species</small>
+                        <strong>{getPetSpecies(selectedPet)}</strong>
+                      </div>
+                      <div>
+                        <small>Breed</small>
+                        <strong>{getPetBreed(selectedPet)}</strong>
+                      </div>
+                      <div>
+                        <small>Age</small>
+                        <strong>{getPetAge(selectedPet)}</strong>
+                      </div>
+                      <div>
+                        <small>Gender</small>
+                        <strong>{getPetGender(selectedPet)}</strong>
+                      </div>
+                      <div>
+                        <small>Weight</small>
+                        <strong>{getPetWeight(selectedPet)}</strong>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -1022,8 +1262,8 @@ const CustomerBookings = () => {
                       onChange={handleInputChange}
                       required
                     >
-                      {serviceOptions.map((service) => (
-                        <option key={`${service.name}-${service.price}`} value={service.name}>
+                      {serviceOptions.map((service, index) => (
+                        <option key={`${service.name}-${index}`} value={service.name}>
                           {service.name}
                           {service.category ? ` • ${service.category}` : ""} -{" "}
                           {formatCurrency(service.price || 0)}
@@ -1031,7 +1271,7 @@ const CustomerBookings = () => {
                       ))}
                     </select>
 
-                    {selectedBooking === "Vet" && servicesLoading && (
+                    {isVetBooking && servicesLoading && (
                       <small>Loading veterinary services...</small>
                     )}
                   </label>
@@ -1195,8 +1435,8 @@ const CustomerBookings = () => {
                   )}
 
                   <label className="form-group full-width">
-                    {selectedBooking === "Vet"
-                      ? "Reason for Visit"
+                    {isVetBooking
+                      ? "Main Reason for Veterinary Visit"
                       : selectedBooking === "Hotel"
                       ? "Special Requests"
                       : "Special Instructions"}
@@ -1205,18 +1445,216 @@ const CustomerBookings = () => {
                       value={formData.notes}
                       onChange={handleInputChange}
                       placeholder={
-                        selectedBooking === "Vet"
-                          ? "Describe symptoms, concerns, or reason for visit..."
+                        isVetBooking
+                          ? "Briefly describe why your pet needs veterinary care..."
                           : selectedBooking === "Hotel"
                           ? "Diet, medication, exercise, or care instructions..."
                           : "Preferred haircut, coat concerns, or grooming instructions..."
                       }
                       rows="4"
-                      required={selectedBooking === "Vet"}
+                      required={isVetBooking}
                     />
                   </label>
                 </div>
+
+                {isVetBooking && !showVetHealthInfo && (
+                  <div className="additional-health-card">
+                    <div>
+                      <span>
+                        <FaHeartbeat />
+                      </span>
+                      <div>
+                        <strong>Add more health details</strong>
+                        <p>
+                          Optional: provide symptoms, appetite, energy level, medication,
+                          and exposure details for the veterinarian.
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      className="add-health-info-btn"
+                      onClick={handleAddVetHealthInfo}
+                    >
+                      <FaPlus />
+                      Add Additional Health Information
+                    </button>
+                  </div>
+                )}
               </div>
+
+              {isVetBooking && showVetHealthInfo && (
+                <div className="booking-form-section vet-health-section">
+                  <div className="vet-health-header">
+                    <div className="form-section-title">
+                      <FaHeartbeat />
+                      <div>
+                        <h3>Veterinary Health Information</h3>
+                        <p>
+                          These optional details help the veterinarian understand your pet's condition before the appointment.
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      className="cancel-health-info-btn"
+                      onClick={handleCancelVetHealthInfo}
+                    >
+                      <FaTimes />
+                      Cancel Additional Health Info
+                    </button>
+                  </div>
+
+                  <div className="booking-form-grid">
+                    <label className="form-group">
+                      Does your pet have flu-like symptoms?
+                      <select
+                        name="has_flu_symptoms"
+                        value={formData.vet_info.has_flu_symptoms}
+                        onChange={handleVetInfoChange}
+                        required
+                      >
+                        <option value="no">No</option>
+                        <option value="yes">Yes</option>
+                        <option value="not_sure">Not sure</option>
+                      </select>
+                    </label>
+
+                    <label className="form-group">
+                      How long has this been observed?
+                      <select
+                        name="symptom_duration"
+                        value={formData.vet_info.symptom_duration}
+                        onChange={handleVetInfoChange}
+                        required
+                      >
+                        <option value="">Select duration...</option>
+                        <option value="today">Today only</option>
+                        <option value="1_to_2_days">1 to 2 days</option>
+                        <option value="3_to_7_days">3 to 7 days</option>
+                        <option value="more_than_1_week">More than 1 week</option>
+                        <option value="not_applicable">Not applicable</option>
+                      </select>
+                    </label>
+
+                    <label className="form-group">
+                      Appetite
+                      <select
+                        name="appetite"
+                        value={formData.vet_info.appetite}
+                        onChange={handleVetInfoChange}
+                        required
+                      >
+                        <option value="">Select appetite condition...</option>
+                        <option value="normal">Normal</option>
+                        <option value="reduced">Reduced appetite</option>
+                        <option value="not_eating">Not eating</option>
+                        <option value="excessive">Eating more than usual</option>
+                      </select>
+                    </label>
+
+                    <label className="form-group">
+                      Energy Level
+                      <select
+                        name="energy_level"
+                        value={formData.vet_info.energy_level}
+                        onChange={handleVetInfoChange}
+                        required
+                      >
+                        <option value="">Select energy level...</option>
+                        <option value="normal">Normal</option>
+                        <option value="low">Low energy</option>
+                        <option value="very_weak">Very weak</option>
+                        <option value="restless">Restless</option>
+                      </select>
+                    </label>
+
+                    <div className="form-group full-width">
+                      Symptoms or Observed Issues
+                      <div className="symptom-grid">
+                        {symptomOptions.map((symptom) => (
+                          <label
+                            key={symptom}
+                            className={`symptom-chip ${
+                              formData.vet_info.symptoms.includes(symptom) ? "selected" : ""
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={formData.vet_info.symptoms.includes(symptom)}
+                              onChange={() => handleSymptomToggle(symptom)}
+                            />
+                            <span>{symptom}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
+                    <label className="form-group full-width">
+                      Other symptoms, injury, behavior changes, or concerns
+                      <textarea
+                        name="other_symptoms"
+                        value={formData.vet_info.other_symptoms}
+                        onChange={handleVetInfoChange}
+                        placeholder="Example: scratching ears, shaking head, wound, limping, unusual behavior..."
+                        rows="3"
+                      />
+                    </label>
+
+                    <label className="form-group">
+                      Temperature concern
+                      <select
+                        name="temperature_concern"
+                        value={formData.vet_info.temperature_concern}
+                        onChange={handleVetInfoChange}
+                      >
+                        <option value="">Select if applicable...</option>
+                        <option value="normal">No temperature concern</option>
+                        <option value="warm_body">Body feels warm</option>
+                        <option value="shivering">Shivering</option>
+                        <option value="not_checked">Not checked</option>
+                      </select>
+                    </label>
+
+                    <label className="form-group">
+                      Urgency Level
+                      <select
+                        name="emergency_level"
+                        value={formData.vet_info.emergency_level}
+                        onChange={handleVetInfoChange}
+                      >
+                        <option value="normal">Normal appointment</option>
+                        <option value="urgent">Urgent concern</option>
+                        <option value="emergency">Emergency concern</option>
+                      </select>
+                    </label>
+
+                    <label className="form-group full-width">
+                      Medication, vitamins, or recent vaccine
+                      <textarea
+                        name="medication_taken"
+                        value={formData.vet_info.medication_taken}
+                        onChange={handleVetInfoChange}
+                        placeholder="List any medicine, vitamins, supplements, or recent vaccine if any..."
+                        rows="3"
+                      />
+                    </label>
+
+                    <label className="form-group full-width">
+                      Recent exposure or possible cause
+                      <textarea
+                        name="recent_exposure"
+                        value={formData.vet_info.recent_exposure}
+                        onChange={handleVetInfoChange}
+                        placeholder="Example: contact with sick pets, new food, travel, accident, outdoor exposure..."
+                        rows="3"
+                      />
+                    </label>
+                  </div>
+                </div>
+              )}
 
               <div className="booking-form-section payment-section">
                 <div className="form-section-title">
@@ -1224,8 +1662,7 @@ const CustomerBookings = () => {
                   <div>
                     <h3>Payment Information</h3>
                     <p>
-                      Uploading receipt is optional here. Cashier verification can be
-                      handled after approval.
+                      Receipt upload is optional during request creation. Cashier verification can be handled after approval.
                     </p>
                   </div>
                 </div>

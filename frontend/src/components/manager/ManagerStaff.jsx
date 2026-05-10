@@ -1,85 +1,266 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  faUsers,
-  faUserPlus,
-  faUserEdit,
-  faUserTimes,
-  faSearch,
-  faFilter,
-  faSort,
-  faDownload,
-  faFileExcel,
-  faFilePdf,
-  faEye,
-  faTrash,
-  faEdit,
-  faPhone,
-  faEnvelope,
-  faMapMarkerAlt,
-  faCalendarAlt,
-  faClock,
   faBriefcase,
-  faGraduationCap,
-  faAward,
-  faStar,
-  faHeart,
-  faStethoscope,
-  faCut,
-  faBox,
-  faCashRegister,
-  faPhoneAlt,
-  faUserCheck,
-  faUserShield,
-  faChartBar,
-  faSpinner,
-  faExclamationTriangle,
+  faCalendarAlt,
   faCheckCircle,
-  faTimesCircle,
-  faInfoCircle,
-  faBell,
-  faCamera,
-  faImage,
-  faUpload,
-  faSave,
-  faCancel,
-  faPlus,
-  faMinus,
   faChevronDown,
-  faChevronUp,
-  faAngleDown,
-  faAngleUp,
-  faEllipsisV,
-  faCog,
-  faKey,
-  faLock,
-  faUnlock,
-  faBan,
-  faCheck,
-  faTimes,
-  faList,
-  faUser,
-  faDollarSign,
-  faHospital,
-  faIdCard,
-  faNotesMedical,
-  faUserMd,
-  faUserNurse,
-  faVenusMars,
-  faBirthdayCake,
-  faLanguage,
-  faFlag,
-  faGlobe,
   faChevronLeft,
   faChevronRight,
+  faChevronUp,
+  faClock,
+  faDownload,
+  faEnvelope,
+  faEye,
+  faFileInvoiceDollar,
+  faFilter,
+  faIdCard,
+  faMapMarkerAlt,
+  faMoneyBillWave,
+  faPhone,
+  faRefresh,
+  faSearch,
+  faSpinner,
+  faTable,
+  faTriangleExclamation,
+  faUserCheck,
+  faUsers,
+  faXmark,
 } from "@fortawesome/free-solid-svg-icons";
-import { formatCurrency } from "../../utils/currency";
 import { apiRequest } from "../../api/client";
+import { formatCurrency } from "../../utils/currency";
+import "./ManagerStaff.css";
+
+const normalizeList = (payload, keys = []) => {
+  if (Array.isArray(payload)) return payload;
+
+  for (const key of keys) {
+    if (Array.isArray(payload?.[key])) return payload[key];
+    if (Array.isArray(payload?.data?.[key])) return payload.data[key];
+    if (Array.isArray(payload?.[key]?.data)) return payload[key].data;
+    if (Array.isArray(payload?.data?.[key]?.data)) return payload.data[key].data;
+  }
+
+  if (Array.isArray(payload?.data)) return payload.data;
+  if (Array.isArray(payload?.data?.data)) return payload.data.data;
+  if (Array.isArray(payload?.records)) return payload.records;
+  if (Array.isArray(payload?.items)) return payload.items;
+  if (Array.isArray(payload?.results)) return payload.results;
+
+  return [];
+};
+
+const safeNumber = (value) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const normalizeStatus = (value) =>
+  String(value || "active")
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, "_")
+    .replace(/-/g, "_");
+
+const formatLabel = (value) =>
+  String(value || "N/A")
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+
+const formatDate = (value) => {
+  if (!value) return "N/A";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+
+  return date.toLocaleDateString("en-PH", {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+  });
+};
+
+const formatDateTime = (value) => {
+  if (!value) return "N/A";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+
+  return date.toLocaleString("en-PH", {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+};
+
+const getEmployeeName = (record) =>
+  record.name ||
+  record.employee_name ||
+  record.staff_name ||
+  record.user?.name ||
+  record.employee?.name ||
+  "Unknown Employee";
+
+const getDepartment = (record) =>
+  record.department ||
+  record.employee?.department ||
+  record.user?.department ||
+  "Unassigned";
+
+const getRole = (record) =>
+  record.role ||
+  record.position ||
+  record.job_title ||
+  record.employee?.position ||
+  record.user?.role ||
+  "Staff";
+
+const getEmail = (record) =>
+  record.email || record.user?.email || record.employee?.email || "N/A";
+
+const getPhone = (record) =>
+  record.phone ||
+  record.contact_number ||
+  record.mobile_number ||
+  record.user?.phone ||
+  record.employee?.phone ||
+  "N/A";
+
+const normalizeStaff = (record, index) => {
+  const id = record.id || record.user_id || record.employee_id || record.staff_id || index + 1;
+  const status = normalizeStatus(record.status || record.employment_status || "active");
+
+  return {
+    id,
+    rawId: id,
+    employeeCode:
+      record.employee_code ||
+      record.employee_no ||
+      record.staff_code ||
+      `EMP${String(id).padStart(3, "0")}`,
+    name: getEmployeeName(record),
+    email: getEmail(record),
+    phone: getPhone(record),
+    department: getDepartment(record),
+    role: getRole(record),
+    status,
+    address: record.address || record.employee?.address || "N/A",
+    hireDate: record.hire_date || record.date_hired || record.created_at || "",
+    schedule: record.schedule || record.shift || "N/A",
+    attendanceRecords: safeNumber(
+      record.attendance_records ||
+        record.attendance_count ||
+        record.total_attendance ||
+        record.attendance_summary?.total ||
+        0
+    ),
+    presentDays: safeNumber(
+      record.present_days ||
+        record.attendance_summary?.present ||
+        record.present_count ||
+        0
+    ),
+    lateDays: safeNumber(
+      record.late_days ||
+        record.attendance_summary?.late ||
+        record.late_count ||
+        0
+    ),
+    absentDays: safeNumber(
+      record.absent_days ||
+        record.attendance_summary?.absent ||
+        record.absent_count ||
+        0
+    ),
+    attendanceIssues: safeNumber(
+      record.attendance_issues ||
+        record.pending_attendance_issues ||
+        record.late_count ||
+        record.absent_count ||
+        0
+    ),
+    payrollRecords: safeNumber(
+      record.payroll_records ||
+        record.payroll_count ||
+        record.total_payroll_records ||
+        0
+    ),
+    latestPayroll: safeNumber(
+      record.latest_payroll ||
+        record.last_net_pay ||
+        record.net_pay ||
+        record.salary ||
+        record.basic_salary ||
+        0
+    ),
+    totalPayroll: safeNumber(
+      record.total_payroll ||
+        record.payroll_total ||
+        record.total_net_pay ||
+        0
+    ),
+    avatar:
+      record.avatar ||
+      record.profile_photo ||
+      record.photo ||
+      record.image ||
+      record.user?.profile_photo ||
+      "",
+    raw: record,
+  };
+};
+
+const normalizeAttendance = (record, index) => ({
+  id: record.id || record.attendance_id || index + 1,
+  date: record.date || record.attendance_date || record.created_at,
+  status: normalizeStatus(record.status || record.attendance_status),
+  timeIn: record.time_in || record.check_in || record.checkIn || "",
+  timeOut: record.time_out || record.check_out || record.checkOut || "",
+  overtime: record.overtime_hours || record.overtime || 0,
+  undertime: record.undertime_hours || record.undertime || 0,
+  remarks: record.remarks || record.notes || record.manager_remarks || "",
+  reviewStatus: normalizeStatus(
+    record.review_status ||
+      record.manager_review_status ||
+      (record.reviewed || record.is_reviewed ? "reviewed" : "pending")
+  ),
+});
+
+const normalizePayroll = (record, index) => {
+  const grossPay = safeNumber(record.gross_pay || record.total_gross_pay || record.amount || 0);
+  const deductions = safeNumber(record.deductions || record.total_deductions || 0);
+  const netPay = safeNumber(record.net_pay || record.total_net_pay || grossPay - deductions);
+
+  return {
+    id: record.id || record.payroll_id || index + 1,
+    period: record.payroll_period || record.period || record.month || record.cutoff || "N/A",
+    date: record.created_at || record.updated_at || record.payroll_date,
+    grossPay,
+    deductions,
+    netPay,
+    status: normalizeStatus(record.status || record.payroll_status),
+  };
+};
+
+const escapeCSV = (value) => {
+  const text = String(value ?? "");
+  if (text.includes(",") || text.includes('"') || text.includes("\n")) {
+    return `"${text.replace(/"/g, '""')}"`;
+  }
+
+  return text;
+};
 
 const ManagerStaff = () => {
-  // State management
   const [staff, setStaff] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const [error, setError] = useState("");
+  const [toast, setToast] = useState(null);
+
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedDepartment, setSelectedDepartment] = useState("all");
   const [selectedRole, setSelectedRole] = useState("all");
@@ -87,636 +268,973 @@ const ManagerStaff = () => {
   const [sortBy, setSortBy] = useState("name");
   const [sortOrder, setSortOrder] = useState("asc");
   const [showFilters, setShowFilters] = useState(false);
-  const [selectedStaff, setSelectedStaff] = useState(null);
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
+
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  // Load staff data
-  useEffect(() => {
-    const loadStaff = async () => {
-      setLoading(true);
+  const [selectedStaff, setSelectedStaff] = useState(null);
+  const [activeModal, setActiveModal] = useState(null);
+  const [modalRecords, setModalRecords] = useState([]);
+  const [modalLoading, setModalLoading] = useState(false);
+  const [modalError, setModalError] = useState("");
+
+  const showToast = useCallback((message, type = "info") => {
+    setToast({ message, type });
+    window.clearTimeout(window.managerStaffToastTimer);
+    window.managerStaffToastTimer = window.setTimeout(() => setToast(null), 3500);
+  }, []);
+
+  const loadStaff = useCallback(
+    async ({ silent = false } = {}) => {
       try {
-        const data = await apiRequest("/manager/staff");
-        setStaff(Array.isArray(data) ? data : data.staff || data.data || []);
-      } catch (error) {
+        if (silent) {
+          setRefreshing(true);
+        } else {
+          setLoading(true);
+        }
+
+        setError("");
+
+        const response = await apiRequest("/manager/staff");
+        const list = normalizeList(response, ["staff", "users", "employees", "data"]);
+        setStaff(list.map(normalizeStaff));
+      } catch (err) {
+        console.error("Manager staff load error:", err);
+        setError(
+          err.message ||
+            "Failed to load staff records. Please verify the /manager/staff endpoint."
+        );
         setStaff([]);
       } finally {
         setLoading(false);
+        setRefreshing(false);
       }
-    };
-
-    loadStaff();
-  }, []);
-
-  // Filter and sort staff
-  const filteredAndSortedStaff = useMemo(() => {
-    let filtered = staff;
-
-    // Apply search filter
-    if (searchTerm) {
-      filtered = filtered.filter(person =>
-        person.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        person.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        person.phone.includes(searchTerm) ||
-        person.role.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    // Apply department filter
-    if (selectedDepartment !== "all") {
-      filtered = filtered.filter(person => person.department === selectedDepartment);
-    }
-
-    // Apply role filter
-    if (selectedRole !== "all") {
-      filtered = filtered.filter(person => person.role === selectedRole);
-    }
-
-    // Apply status filter
-    if (selectedStatus !== "all") {
-      filtered = filtered.filter(person => person.status === selectedStatus);
-    }
-
-    // Apply sorting
-    filtered.sort((a, b) => {
-      let aValue = a[sortBy];
-      let bValue = b[sortBy];
-
-      if (sortBy === "joinDate" || sortBy === "lastLogin") {
-        aValue = new Date(aValue);
-        bValue = new Date(bValue);
-      }
-
-      if (aValue < bValue) return sortOrder === "asc" ? -1 : 1;
-      if (aValue > bValue) return sortOrder === "asc" ? 1 : -1;
-      return 0;
-    });
-
-    return filtered;
-  }, [staff, searchTerm, selectedDepartment, selectedRole, selectedStatus, sortBy, sortOrder]);
-
-  // Pagination
-  const totalPages = Math.ceil(filteredAndSortedStaff.length / itemsPerPage);
-  const paginatedStaff = filteredAndSortedStaff.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
+    },
+    []
   );
 
-  // Get unique departments, roles, and statuses for filters
+  useEffect(() => {
+    loadStaff();
+  }, [loadStaff]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, selectedDepartment, selectedRole, selectedStatus, sortBy, sortOrder]);
+
   const departments = useMemo(() => {
-    const depts = [...new Set(staff.map(person => person.department))];
-    return depts.sort();
+    return [...new Set(staff.map((person) => person.department))]
+      .filter(Boolean)
+      .sort();
   }, [staff]);
 
   const roles = useMemo(() => {
-    const roleList = [...new Set(staff.map(person => person.role))];
-    return roleList.sort();
+    return [...new Set(staff.map((person) => person.role))]
+      .filter(Boolean)
+      .sort();
   }, [staff]);
 
   const statuses = useMemo(() => {
-    const statusList = [...new Set(staff.map(person => person.status))];
-    return statusList.sort();
+    return [...new Set(staff.map((person) => person.status))]
+      .filter(Boolean)
+      .sort();
   }, [staff]);
 
-  // Event handlers
-  const handleSort = useCallback((field) => {
-    if (sortBy === field) {
-      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
-    } else {
-      setSortBy(field);
-      setSortOrder("asc");
-    }
-  }, [sortBy, sortOrder]);
+  const filteredStaff = useMemo(() => {
+    const search = searchTerm.trim().toLowerCase();
 
-  const handleViewDetails = useCallback((staffMember) => {
-    setSelectedStaff(staffMember);
-    setShowDetailsModal(true);
-  }, []);
+    return staff
+      .filter((person) => {
+        const matchesSearch =
+          !search ||
+          [
+            person.name,
+            person.email,
+            person.phone,
+            person.employeeCode,
+            person.department,
+            person.role,
+            person.status,
+          ]
+            .join(" ")
+            .toLowerCase()
+            .includes(search);
 
-  const handleEdit = useCallback((staffMember) => {
-    setSelectedStaff(staffMember);
-    setShowEditModal(true);
-  }, []);
+        const matchesDepartment =
+          selectedDepartment === "all" || person.department === selectedDepartment;
 
-  const handleDelete = useCallback((staffMember) => {
-    setSelectedStaff(staffMember);
-    setShowDeleteModal(true);
-  }, []);
+        const matchesRole = selectedRole === "all" || person.role === selectedRole;
 
-  const handleAddNew = useCallback(() => {
-    setShowAddModal(true);
-  }, []);
+        const matchesStatus =
+          selectedStatus === "all" || person.status === selectedStatus;
 
-  const confirmDelete = useCallback(() => {
-    if (selectedStaff) {
-      setStaff(prev => prev.filter(person => person.id !== selectedStaff.id));
-      setShowDeleteModal(false);
-      setSelectedStaff(null);
-    }
-  }, [selectedStaff]);
+        return matchesSearch && matchesDepartment && matchesRole && matchesStatus;
+      })
+      .sort((a, b) => {
+        const first = a[sortBy];
+        const second = b[sortBy];
 
-  const exportToExcel = useCallback(() => {
-    // Implementation for Excel export
-    console.log('Exporting to Excel...');
-  }, []);
+        if (typeof first === "number" && typeof second === "number") {
+          return sortOrder === "asc" ? first - second : second - first;
+        }
 
-  const exportToPDF = useCallback(() => {
-    // Implementation for PDF export
-    console.log('Exporting to PDF...');
-  }, []);
+        const firstText = String(first || "").toLowerCase();
+        const secondText = String(second || "").toLowerCase();
 
-  // Statistics
+        if (firstText < secondText) return sortOrder === "asc" ? -1 : 1;
+        if (firstText > secondText) return sortOrder === "asc" ? 1 : -1;
+        return 0;
+      });
+  }, [
+    searchTerm,
+    selectedDepartment,
+    selectedRole,
+    selectedStatus,
+    sortBy,
+    sortOrder,
+    staff,
+  ]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredStaff.length / itemsPerPage));
+
+  const paginatedStaff = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredStaff.slice(start, start + itemsPerPage);
+  }, [currentPage, filteredStaff, itemsPerPage]);
+
   const statistics = useMemo(() => {
-    const total = staff.length;
-    const active = staff.filter(person => person.status === 'active').length;
-    const onLeave = staff.filter(person => person.status === 'on_leave').length;
-    const avgPerformance = staff.reduce((sum, person) => sum + person.performance, 0) / total || 0;
+    const totalStaff = staff.length;
+    const activeStaff = staff.filter((person) => person.status === "active").length;
+    const onDutyToday = staff.filter((person) =>
+      ["on_duty", "present", "active"].includes(person.status)
+    ).length;
+    const withAttendanceIssues = staff.filter(
+      (person) => person.attendanceIssues > 0 || person.lateDays > 0 || person.absentDays > 0
+    ).length;
+    const withPayrollRecords = staff.filter((person) => person.payrollRecords > 0).length;
+    const estimatedPayroll = staff.reduce(
+      (sum, person) => sum + (person.latestPayroll || person.totalPayroll || 0),
+      0
+    );
 
-    return { total, active, onLeave, avgPerformance };
+    return {
+      totalStaff,
+      activeStaff,
+      onDutyToday,
+      withAttendanceIssues,
+      withPayrollRecords,
+      estimatedPayroll,
+    };
   }, [staff]);
+
+  const clearFilters = () => {
+    setSearchTerm("");
+    setSelectedDepartment("all");
+    setSelectedRole("all");
+    setSelectedStatus("all");
+    setSortBy("name");
+    setSortOrder("asc");
+  };
+
+  const handleSort = (field) => {
+    if (sortBy === field) {
+      setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+      return;
+    }
+
+    setSortBy(field);
+    setSortOrder("asc");
+  };
+
+  const exportCSV = () => {
+    if (filteredStaff.length === 0) {
+      showToast("There is no staff data to export.", "warning");
+      return;
+    }
+
+    const headers = [
+      "Employee Code",
+      "Name",
+      "Email",
+      "Phone",
+      "Department",
+      "Role",
+      "Status",
+      "Hire Date",
+      "Attendance Records",
+      "Attendance Issues",
+      "Payroll Records",
+      "Latest Payroll",
+    ];
+
+    const rows = filteredStaff.map((person) => [
+      person.employeeCode,
+      person.name,
+      person.email,
+      person.phone,
+      person.department,
+      person.role,
+      formatLabel(person.status),
+      formatDate(person.hireDate),
+      person.attendanceRecords,
+      person.attendanceIssues,
+      person.payrollRecords,
+      formatCurrency(person.latestPayroll),
+    ]);
+
+    const csvContent = [headers, ...rows]
+      .map((row) => row.map(escapeCSV).join(","))
+      .join("\n");
+
+    const blob = new Blob([csvContent], {
+      type: "text/csv;charset=utf-8;",
+    });
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = `manager-staff-${new Date().toISOString().split("T")[0]}.csv`;
+    link.click();
+
+    URL.revokeObjectURL(url);
+    showToast("Staff CSV exported successfully.", "success");
+  };
+
+  const openProfile = (person) => {
+    setSelectedStaff(person);
+    setActiveModal("profile");
+    setModalRecords([]);
+    setModalError("");
+  };
+
+  const openAttendance = async (person) => {
+    setSelectedStaff(person);
+    setActiveModal("attendance");
+    setModalRecords([]);
+    setModalError("");
+    setModalLoading(true);
+
+    try {
+      const response = await apiRequest(`/manager/staff/${person.rawId}/attendance`);
+      const records = normalizeList(response, ["attendance", "records", "items"]);
+      setModalRecords(records.map(normalizeAttendance));
+    } catch (primaryError) {
+      try {
+        const fallback = await apiRequest("/manager/attendance");
+        const fallbackRecords = normalizeList(fallback, ["attendance", "records", "items"]);
+        const filtered = fallbackRecords.filter((record) => {
+          const recordEmployeeId =
+            record.employee_id || record.staff_id || record.user_id || record.employee?.id;
+          const recordName = getEmployeeName(record).toLowerCase();
+
+          return (
+            String(recordEmployeeId) === String(person.rawId) ||
+            recordName === person.name.toLowerCase()
+          );
+        });
+
+        setModalRecords(filtered.map(normalizeAttendance));
+
+        if (filtered.length === 0) {
+          setModalError(
+            "No attendance records were found for this employee. The staff attendance endpoint may still need backend verification."
+          );
+        }
+      } catch (fallbackError) {
+        console.error("Staff attendance load error:", primaryError, fallbackError);
+        setModalError(
+          "Unable to load attendance records. Please verify /manager/staff/{id}/attendance or /manager/attendance."
+        );
+      }
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  const openPayroll = async (person) => {
+    setSelectedStaff(person);
+    setActiveModal("payroll");
+    setModalRecords([]);
+    setModalError("");
+    setModalLoading(true);
+
+    try {
+      const response = await apiRequest(`/manager/staff/${person.rawId}/payroll`);
+      const records = normalizeList(response, ["payroll", "records", "items"]);
+      setModalRecords(records.map(normalizePayroll));
+    } catch (primaryError) {
+      try {
+        const fallback = await apiRequest("/manager/payroll");
+        const fallbackRecords = normalizeList(fallback, ["payroll", "records", "items"]);
+        const filtered = fallbackRecords.filter((record) => {
+          const recordEmployeeId =
+            record.employee_id || record.staff_id || record.user_id || record.employee?.id;
+          const recordName = getEmployeeName(record).toLowerCase();
+
+          return (
+            String(recordEmployeeId) === String(person.rawId) ||
+            recordName === person.name.toLowerCase()
+          );
+        });
+
+        setModalRecords(filtered.map(normalizePayroll));
+
+        if (filtered.length === 0) {
+          setModalError(
+            "No payroll records were found for this employee. The staff payroll endpoint may still need backend verification."
+          );
+        }
+      } catch (fallbackError) {
+        console.error("Staff payroll load error:", primaryError, fallbackError);
+        setModalError(
+          "Unable to load payroll records. Please verify /manager/staff/{id}/payroll or /manager/payroll."
+        );
+      }
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  const closeModal = () => {
+    setSelectedStaff(null);
+    setActiveModal(null);
+    setModalRecords([]);
+    setModalError("");
+    setModalLoading(false);
+  };
+
+  const pageStart = filteredStaff.length ? (currentPage - 1) * itemsPerPage + 1 : 0;
+  const pageEnd = Math.min(currentPage * itemsPerPage, filteredStaff.length);
 
   return (
     <div className="manager-staff">
-      {/* Header */}
-      <div className="staff-header">
-        <div className="header-left">
-          <h1>
-            <FontAwesomeIcon icon={faUsers} />
-            Staff Management
-          </h1>
-          <p>Manage your team members and their information</p>
+      <section className="manager-staff-hero">
+        <div>
+          <span className="staff-eyebrow">Manager Staff Overview</span>
+          <h1>Staff Directory</h1>
+          <p>
+            View employee profiles, attendance summaries, payroll references, and
+            workforce status. Manager access is limited to monitoring and review.
+          </p>
         </div>
-        <div className="header-actions">
-          <button className="btn btn-primary" onClick={handleAddNew}>
-            <FontAwesomeIcon icon={faUserPlus} />
-            Add Staff
+
+        <div className="staff-hero-actions">
+          <button
+            type="button"
+            className="staff-btn secondary"
+            onClick={() => loadStaff({ silent: true })}
+            disabled={loading || refreshing}
+          >
+            <FontAwesomeIcon icon={refreshing ? faSpinner : faRefresh} spin={refreshing} />
+            {refreshing ? "Refreshing..." : "Refresh"}
           </button>
-          <div className="export-dropdown">
-            <button className="btn btn-secondary">
-              <FontAwesomeIcon icon={faDownload} />
-              Export
-              <FontAwesomeIcon icon={faChevronDown} />
-            </button>
-            <div className="export-menu">
-              <button onClick={exportToExcel}>
-                <FontAwesomeIcon icon={faFileExcel} />
-                Export to Excel
-              </button>
-              <button onClick={exportToPDF}>
-                <FontAwesomeIcon icon={faFilePdf} />
-                Export to PDF
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
 
-      {loading ? (
-        <div className="loading-state">
-          <div className="loading-spinner">
-            <FontAwesomeIcon icon={faSpinner} className="spinning" />
-          </div>
-          <p>Loading staff data...</p>
+          <button type="button" className="staff-btn primary" onClick={exportCSV}>
+            <FontAwesomeIcon icon={faDownload} />
+            Export CSV
+          </button>
         </div>
-      ) : (
-        <>
-          {/* Statistics Cards */}
-          <div className="stats-grid">
-            <div className="stat-card">
-              <div className="stat-icon">
-                <FontAwesomeIcon icon={faUsers} />
-              </div>
-              <div className="stat-info">
-                <h3>{statistics.total}</h3>
-                <p>Total Staff</p>
-              </div>
-            </div>
-            <div className="stat-card active">
-              <div className="stat-icon">
-                <FontAwesomeIcon icon={faUserCheck} />
-              </div>
-              <div className="stat-info">
-                <h3>{statistics.active}</h3>
-                <p>Active</p>
-              </div>
-            </div>
-            <div className="stat-card leave">
-              <div className="stat-icon">
-                <FontAwesomeIcon icon={faCalendarAlt} />
-              </div>
-              <div className="stat-info">
-                <h3>{statistics.onLeave}</h3>
-                <p>On Leave</p>
-              </div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-icon">
-                <FontAwesomeIcon icon={faStar} />
-              </div>
-              <div className="stat-info">
-                <h3>{statistics.avgPerformance.toFixed(1)}</h3>
-                <p>Avg Performance</p>
-              </div>
-            </div>
-          </div>
+      </section>
 
-      {/* Search and Filters */}
-      <div className="search-filters">
-        <div className="search-bar">
-          <div className="search-input">
+      {error && (
+        <div className="staff-alert error">
+          <FontAwesomeIcon icon={faTriangleExclamation} />
+          <span>{error}</span>
+          <button type="button" onClick={() => loadStaff()}>
+            Retry
+          </button>
+        </div>
+      )}
+
+      <section className="staff-summary-grid">
+        <SummaryCard label="Total Staff" value={statistics.totalStaff} icon={faUsers} tone="primary" />
+        <SummaryCard label="Active Staff" value={statistics.activeStaff} icon={faUserCheck} tone="success" />
+        <SummaryCard label="On Duty Today" value={statistics.onDutyToday} icon={faClock} tone="info" />
+        <SummaryCard
+          label="Attendance Issues"
+          value={statistics.withAttendanceIssues}
+          icon={faTriangleExclamation}
+          tone="warning"
+        />
+        <SummaryCard
+          label="With Payroll Records"
+          value={statistics.withPayrollRecords}
+          icon={faFileInvoiceDollar}
+          tone="money"
+        />
+        <SummaryCard
+          label="Payroll Reference"
+          value={formatCurrency(statistics.estimatedPayroll)}
+          icon={faMoneyBillWave}
+          tone="money"
+        />
+      </section>
+
+      <section className="staff-controls-card">
+        <div className="staff-search-row">
+          <div className="staff-search-box">
             <FontAwesomeIcon icon={faSearch} />
             <input
               type="text"
-              placeholder="Search staff by name, email, phone, or role..."
+              placeholder="Search employee name, email, phone, ID, role, department, or status..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(event) => setSearchTerm(event.target.value)}
             />
+
             {searchTerm && (
-              <button onClick={() => setSearchTerm("")}>
-                <FontAwesomeIcon icon={faTimes} />
+              <button type="button" onClick={() => setSearchTerm("")}>
+                <FontAwesomeIcon icon={faXmark} />
               </button>
             )}
           </div>
+
           <button
-            className={`filter-toggle ${showFilters ? 'active' : ''}`}
-            onClick={() => setShowFilters(!showFilters)}
+            type="button"
+            className={`staff-filter-toggle ${showFilters ? "active" : ""}`}
+            onClick={() => setShowFilters((prev) => !prev)}
           >
             <FontAwesomeIcon icon={faFilter} />
             Filters
-            {showFilters && <FontAwesomeIcon icon={faChevronUp} />}
-            {!showFilters && <FontAwesomeIcon icon={faChevronDown} />}
+            <FontAwesomeIcon icon={showFilters ? faChevronUp : faChevronDown} />
           </button>
         </div>
 
         {showFilters && (
-          <div className="filters-panel">
-            <div className="filter-group">
-              <label>Department</label>
+          <div className="staff-filter-grid">
+            <FilterField label="Department">
               <select
                 value={selectedDepartment}
-                onChange={(e) => setSelectedDepartment(e.target.value)}
+                onChange={(event) => setSelectedDepartment(event.target.value)}
               >
                 <option value="all">All Departments</option>
-                {departments.map(dept => (
-                  <option key={dept} value={dept}>{dept}</option>
-                ))}
-              </select>
-            </div>
-            <div className="filter-group">
-              <label>Role</label>
-              <select
-                value={selectedRole}
-                onChange={(e) => setSelectedRole(e.target.value)}
-              >
-                <option value="all">All Roles</option>
-                {roles.map(role => (
-                  <option key={role} value={role}>{role}</option>
-                ))}
-              </select>
-            </div>
-            <div className="filter-group">
-              <label>Status</label>
-              <select
-                value={selectedStatus}
-                onChange={(e) => setSelectedStatus(e.target.value)}
-              >
-                <option value="all">All Status</option>
-                {statuses.map(status => (
-                  <option key={status} value={status}>
-                    {status === 'active' ? 'Active' : status === 'on_leave' ? 'On Leave' : status}
+                {departments.map((department) => (
+                  <option value={department} key={department}>
+                    {department}
                   </option>
                 ))}
               </select>
-            </div>
-            <div className="filter-group">
-              <label>Sort By</label>
+            </FilterField>
+
+            <FilterField label="Role">
               <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
+                value={selectedRole}
+                onChange={(event) => setSelectedRole(event.target.value)}
               >
+                <option value="all">All Roles</option>
+                {roles.map((role) => (
+                  <option value={role} key={role}>
+                    {role}
+                  </option>
+                ))}
+              </select>
+            </FilterField>
+
+            <FilterField label="Status">
+              <select
+                value={selectedStatus}
+                onChange={(event) => setSelectedStatus(event.target.value)}
+              >
+                <option value="all">All Status</option>
+                {statuses.map((status) => (
+                  <option value={status} key={status}>
+                    {formatLabel(status)}
+                  </option>
+                ))}
+              </select>
+            </FilterField>
+
+            <FilterField label="Sort By">
+              <select value={sortBy} onChange={(event) => setSortBy(event.target.value)}>
                 <option value="name">Name</option>
                 <option value="department">Department</option>
                 <option value="role">Role</option>
                 <option value="status">Status</option>
-                <option value="joinDate">Join Date</option>
-                <option value="performance">Performance</option>
+                <option value="attendanceIssues">Attendance Issues</option>
+                <option value="payrollRecords">Payroll Records</option>
+                <option value="latestPayroll">Latest Payroll</option>
               </select>
-            </div>
+            </FilterField>
+
             <button
-              className="sort-order-btn"
-              onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
+              type="button"
+              className="staff-sort-btn"
+              onClick={() => setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"))}
             >
-              <FontAwesomeIcon icon={faSort} />
-              {sortOrder === "asc" ? "A-Z" : "Z-A"}
+              {sortOrder === "asc" ? "Ascending" : "Descending"}
+            </button>
+
+            <button type="button" className="staff-clear-btn" onClick={clearFilters}>
+              Clear Filters
             </button>
           </div>
         )}
-      </div>
+      </section>
 
-      {/* Staff Table */}
-      <div className="staff-table-container">
-        <table className="staff-table">
-          <thead>
-            <tr>
-              <th onClick={() => handleSort("name")}>
-                Staff Member
-                {sortBy === "name" && (
-                  <FontAwesomeIcon icon={sortOrder === "asc" ? faChevronUp : faChevronDown} />
-                )}
-              </th>
-              <th onClick={() => handleSort("department")}>
-                Department
-                {sortBy === "department" && (
-                  <FontAwesomeIcon icon={sortOrder === "asc" ? faChevronUp : faChevronDown} />
-                )}
-              </th>
-              <th onClick={() => handleSort("role")}>
-                Role
-                {sortBy === "role" && (
-                  <FontAwesomeIcon icon={sortOrder === "asc" ? faChevronUp : faChevronDown} />
-                )}
-              </th>
-              <th>Contact</th>
-              <th onClick={() => handleSort("status")}>
-                Status
-                {sortBy === "status" && (
-                  <FontAwesomeIcon icon={sortOrder === "asc" ? faChevronUp : faChevronDown} />
-                )}
-              </th>
-              <th onClick={() => handleSort("performance")}>
-                Performance
-                {sortBy === "performance" && (
-                  <FontAwesomeIcon icon={sortOrder === "asc" ? faChevronUp : faChevronDown} />
-                )}
-              </th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {paginatedStaff.map((staffMember) => (
-              <tr key={staffMember.id}>
-                <td className="staff-info">
-                  <div className="staff-avatar">
-                    {staffMember.avatar ? (
-                      <img src={staffMember.avatar} alt={staffMember.name} />
-                    ) : (
-                      <div className="avatar-placeholder">
-                        <FontAwesomeIcon icon={faUser} />
-                      </div>
-                    )}
-                  </div>
-                  <div className="staff-details">
-                    <div className="staff-name">{staffMember.name}</div>
-                    <div className="staff-email">{staffMember.email}</div>
-                  </div>
-                </td>
-                <td>
-                  <span className="department-badge">{staffMember.department}</span>
-                </td>
-                <td>{staffMember.role}</td>
-                <td className="contact-info">
-                  <div className="contact-item">
-                    <FontAwesomeIcon icon={faPhone} />
-                    {staffMember.phone}
-                  </div>
-                </td>
-                <td>
-                  <span className={`status-badge ${staffMember.status}`}>
-                    {staffMember.status === 'active' ? 'Active' : 'On Leave'}
-                  </span>
-                </td>
-                <td>
-                  <div className="performance-rating">
-                    <div className="stars">
-                      {[...Array(5)].map((_, i) => (
-                        <FontAwesomeIcon
-                          key={i}
-                          icon={faStar}
-                          className={i < Math.floor(staffMember.performance) ? 'filled' : 'empty'}
-                        />
-                      ))}
-                    </div>
-                    <span>{staffMember.performance}</span>
-                  </div>
-                </td>
-                <td>
-                  <div className="action-buttons">
-                    <button
-                      className="action-btn view"
-                      onClick={() => handleViewDetails(staffMember)}
-                      title="View Details"
-                    >
-                      <FontAwesomeIcon icon={faEye} />
-                    </button>
-                    <button
-                      className="action-btn edit"
-                      onClick={() => handleEdit(staffMember)}
-                      title="Edit"
-                    >
-                      <FontAwesomeIcon icon={faEdit} />
-                    </button>
-                    <button
-                      className="action-btn delete"
-                      onClick={() => handleDelete(staffMember)}
-                      title="Delete"
-                    >
-                      <FontAwesomeIcon icon={faTrash} />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <section className="staff-table-card">
+        <div className="staff-table-header">
+          <div>
+            <span className="staff-eyebrow">Staff Records</span>
+            <h2>Employee List</h2>
+          </div>
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="pagination">
-          <div className="pagination-info">
-            Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredAndSortedStaff.length)} of {filteredAndSortedStaff.length} staff
-          </div>
-          <div className="pagination-controls">
-            <button
-              disabled={currentPage === 1}
-              onClick={() => setCurrentPage(currentPage - 1)}
+          <label className="staff-page-size">
+            <span>Rows</span>
+            <select
+              value={itemsPerPage}
+              onChange={(event) => {
+                setItemsPerPage(Number(event.target.value));
+                setCurrentPage(1);
+              }}
             >
-              <FontAwesomeIcon icon={faChevronLeft} />
-              Previous
-            </button>
-            {[...Array(totalPages)].map((_, i) => (
-              <button
-                key={i + 1}
-                className={currentPage === i + 1 ? 'active' : ''}
-                onClick={() => setCurrentPage(i + 1)}
-              >
-                {i + 1}
-              </button>
-            ))}
-            <button
-              disabled={currentPage === totalPages}
-              onClick={() => setCurrentPage(currentPage + 1)}
-            >
-              Next
-              <FontAwesomeIcon icon={faChevronRight} />
-            </button>
-          </div>
+              <option value={5}>5</option>
+              <option value={10}>10</option>
+              <option value={20}>20</option>
+              <option value={50}>50</option>
+            </select>
+          </label>
         </div>
-      )}
 
-      {/* Details Modal */}
-      {showDetailsModal && selectedStaff && (
-        <div className="modal-overlay">
-          <div className="modal staff-details-modal">
-            <div className="modal-header">
-              <h2>Staff Details</h2>
-              <button onClick={() => setShowDetailsModal(false)}>
-                <FontAwesomeIcon icon={faTimes} />
-              </button>
+        {loading ? (
+          <div className="staff-loading-state">
+            <FontAwesomeIcon icon={faSpinner} spin />
+            <h3>Loading staff records</h3>
+            <p>Please wait while employee records are being loaded.</p>
+          </div>
+        ) : (
+          <>
+            <div className="staff-table-scroll">
+              <table className="staff-table">
+                <thead>
+                  <tr>
+                    <SortableHeader
+                      label="Employee"
+                      field="name"
+                      sortBy={sortBy}
+                      sortOrder={sortOrder}
+                      onSort={handleSort}
+                    />
+                    <SortableHeader
+                      label="Department"
+                      field="department"
+                      sortBy={sortBy}
+                      sortOrder={sortOrder}
+                      onSort={handleSort}
+                    />
+                    <SortableHeader
+                      label="Role"
+                      field="role"
+                      sortBy={sortBy}
+                      sortOrder={sortOrder}
+                      onSort={handleSort}
+                    />
+                    <th>Contact</th>
+                    <SortableHeader
+                      label="Status"
+                      field="status"
+                      sortBy={sortBy}
+                      sortOrder={sortOrder}
+                      onSort={handleSort}
+                    />
+                    <SortableHeader
+                      label="Attendance Issues"
+                      field="attendanceIssues"
+                      sortBy={sortBy}
+                      sortOrder={sortOrder}
+                      onSort={handleSort}
+                    />
+                    <SortableHeader
+                      label="Payroll Records"
+                      field="payrollRecords"
+                      sortBy={sortBy}
+                      sortOrder={sortOrder}
+                      onSort={handleSort}
+                    />
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {paginatedStaff.map((person) => (
+                    <tr key={person.id}>
+                      <td>
+                        <div className="staff-member-cell">
+                          <span className="staff-avatar">
+                            {person.avatar ? (
+                              <img src={person.avatar} alt={person.name} />
+                            ) : (
+                              person.name.charAt(0).toUpperCase()
+                            )}
+                          </span>
+
+                          <div>
+                            <strong>{person.name}</strong>
+                            <small>{person.employeeCode}</small>
+                          </div>
+                        </div>
+                      </td>
+
+                      <td>
+                        <span className="staff-department-badge">{person.department}</span>
+                      </td>
+
+                      <td>{person.role}</td>
+
+                      <td>
+                        <div className="staff-contact-cell">
+                          <span>
+                            <FontAwesomeIcon icon={faEnvelope} />
+                            {person.email}
+                          </span>
+                          <span>
+                            <FontAwesomeIcon icon={faPhone} />
+                            {person.phone}
+                          </span>
+                        </div>
+                      </td>
+
+                      <td>
+                        <StatusBadge status={person.status} />
+                      </td>
+
+                      <td>
+                        <span
+                          className={`staff-issue-count ${
+                            person.attendanceIssues > 0 ? "warning" : "clear"
+                          }`}
+                        >
+                          {person.attendanceIssues}
+                        </span>
+                      </td>
+
+                      <td>
+                        <span className="staff-payroll-count">{person.payrollRecords}</span>
+                      </td>
+
+                      <td>
+                        <div className="staff-actions">
+                          <button type="button" onClick={() => openProfile(person)}>
+                            <FontAwesomeIcon icon={faEye} />
+                            Profile
+                          </button>
+
+                          <button type="button" onClick={() => openAttendance(person)}>
+                            <FontAwesomeIcon icon={faCalendarAlt} />
+                            Attendance
+                          </button>
+
+                          <button type="button" onClick={() => openPayroll(person)}>
+                            <FontAwesomeIcon icon={faMoneyBillWave} />
+                            Payroll
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-            <div className="modal-content">
-              <div className="staff-profile">
-                <div className="profile-header">
-                  <div className="profile-avatar">
-                    {selectedStaff.avatar ? (
-                      <img src={selectedStaff.avatar} alt={selectedStaff.name} />
-                    ) : (
-                      <div className="avatar-placeholder large">
-                        <FontAwesomeIcon icon={faUser} />
-                      </div>
-                    )}
-                  </div>
-                  <div className="profile-info">
-                    <h3>{selectedStaff.name}</h3>
-                    <p className="role">{selectedStaff.role}</p>
-                    <span className={`status-badge ${selectedStaff.status}`}>
-                      {selectedStaff.status === 'active' ? 'Active' : 'On Leave'}
-                    </span>
-                  </div>
-                </div>
-                
-                <div className="profile-sections">
-                  <div className="section">
-                    <h4>Contact Information</h4>
-                    <div className="info-grid">
-                      <div className="info-item">
-                        <FontAwesomeIcon icon={faEnvelope} />
-                        <span>{selectedStaff.email}</span>
-                      </div>
-                      <div className="info-item">
-                        <FontAwesomeIcon icon={faPhone} />
-                        <span>{selectedStaff.phone}</span>
-                      </div>
-                      <div className="info-item">
-                        <FontAwesomeIcon icon={faMapMarkerAlt} />
-                        <span>123 Main St, City, State</span>
-                      </div>
-                    </div>
-                  </div>
 
-                  <div className="section">
-                    <h4>Professional Information</h4>
-                    <div className="info-grid">
-                      <div className="info-item">
-                        <FontAwesomeIcon icon={faBriefcase} />
-                        <span>{selectedStaff.department}</span>
-                      </div>
-                      <div className="info-item">
-                        <FontAwesomeIcon icon={faGraduationCap} />
-                        <span>{selectedStaff.education}</span>
-                      </div>
-                      <div className="info-item">
-                        <FontAwesomeIcon icon={faClock} />
-                        <span>{selectedStaff.experience}</span>
-                      </div>
-                      <div className="info-item">
-                        <FontAwesomeIcon icon={faCalendarAlt} />
-                        <span>Joined: {selectedStaff.joinDate}</span>
-                      </div>
-                    </div>
-                  </div>
+            {paginatedStaff.length === 0 && (
+              <div className="staff-empty-state">
+                <FontAwesomeIcon icon={faTable} />
+                <h3>No staff records found</h3>
+                <p>Try adjusting your search, filters, or selected sorting option.</p>
+              </div>
+            )}
 
-                  <div className="section">
-                    <h4>Performance & Schedule</h4>
-                    <div className="info-grid">
-                      <div className="info-item">
-                        <FontAwesomeIcon icon={faStar} />
-                        <span>Performance: {selectedStaff.performance}/5.0</span>
-                      </div>
-                      <div className="info-item">
-                        <FontAwesomeIcon icon={faClock} />
-                        <span>{selectedStaff.schedule}</span>
-                      </div>
-                      <div className="info-item">
-                        <FontAwesomeIcon icon={faDollarSign} />
-                        <span>Salary: {formatCurrency(selectedStaff.salary)}</span>
-                      </div>
-                    </div>
-                  </div>
+            <div className="staff-pagination">
+              <p>
+                Showing {pageStart} to {pageEnd} of {filteredStaff.length} staff records
+              </p>
 
-                  <div className="section">
-                    <h4>Emergency Contact</h4>
-                    <div className="info-item">
-                      <FontAwesomeIcon icon={faPhoneAlt} />
-                      <span>{selectedStaff.emergencyContact}</span>
-                    </div>
-                  </div>
-                </div>
+              <div>
+                <button
+                  type="button"
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                >
+                  <FontAwesomeIcon icon={faChevronLeft} />
+                  Previous
+                </button>
+
+                <span>
+                  Page {currentPage} of {totalPages}
+                </span>
+
+                <button
+                  type="button"
+                  disabled={currentPage === totalPages}
+                  onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                >
+                  Next
+                  <FontAwesomeIcon icon={faChevronRight} />
+                </button>
               </div>
             </div>
-            <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={() => setShowDetailsModal(false)}>
-                Close
-              </button>
-              <button className="btn btn-primary" onClick={() => {
-                setShowDetailsModal(false);
-                handleEdit(selectedStaff);
-              }}>
-                <FontAwesomeIcon icon={faEdit} />
-                Edit Staff
-              </button>
-            </div>
-          </div>
-        </div>
+          </>
+        )}
+      </section>
+
+      {activeModal === "profile" && selectedStaff && (
+        <ProfileModal staff={selectedStaff} onClose={closeModal} />
       )}
 
-      {/* Delete Confirmation Modal */}
-      {showDeleteModal && selectedStaff && (
-        <div className="modal-overlay">
-          <div className="modal delete-modal">
-            <div className="modal-header">
-              <h2>Confirm Delete</h2>
-              <button onClick={() => setShowDeleteModal(false)}>
-                <FontAwesomeIcon icon={faTimes} />
-              </button>
-            </div>
-            <div className="modal-content">
-              <div className="warning-message">
-                <FontAwesomeIcon icon={faExclamationTriangle} />
-                <p>Are you sure you want to delete {selectedStaff.name} from the staff directory?</p>
-                <p>This action cannot be undone.</p>
-              </div>
-            </div>
-            <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={() => setShowDeleteModal(false)}>
-                Cancel
-              </button>
-              <button className="btn btn-danger" onClick={confirmDelete}>
-                <FontAwesomeIcon icon={faTrash} />
-                Delete Staff
-              </button>
-            </div>
-          </div>
-        </div>
+      {(activeModal === "attendance" || activeModal === "payroll") && selectedStaff && (
+        <RecordsModal
+          type={activeModal}
+          staff={selectedStaff}
+          records={modalRecords}
+          loading={modalLoading}
+          error={modalError}
+          onClose={closeModal}
+        />
       )}
-        </>
+
+      {toast && (
+        <div className={`staff-toast ${toast.type}`}>
+          <FontAwesomeIcon
+            icon={toast.type === "warning" ? faTriangleExclamation : faCheckCircle}
+          />
+          <span>{toast.message}</span>
+        </div>
       )}
     </div>
   );
 };
+
+const SummaryCard = ({ label, value, icon, tone }) => (
+  <article className={`staff-summary-card ${tone}`}>
+    <span>
+      <FontAwesomeIcon icon={icon} />
+    </span>
+    <div>
+      <strong>{value}</strong>
+      <p>{label}</p>
+    </div>
+  </article>
+);
+
+const FilterField = ({ label, children }) => (
+  <label className="staff-filter-field">
+    <span>{label}</span>
+    {children}
+  </label>
+);
+
+const SortableHeader = ({ label, field, sortBy, sortOrder, onSort }) => (
+  <th>
+    <button type="button" onClick={() => onSort(field)}>
+      {label}
+      {sortBy === field && (
+        <FontAwesomeIcon icon={sortOrder === "asc" ? faChevronUp : faChevronDown} />
+      )}
+    </button>
+  </th>
+);
+
+const StatusBadge = ({ status }) => (
+  <span className={`staff-status ${normalizeStatus(status)}`}>{formatLabel(status)}</span>
+);
+
+const ProfileModal = ({ staff, onClose }) => (
+  <div className="staff-modal-overlay">
+    <div className="staff-modal large">
+      <div className="staff-modal-header">
+        <div>
+          <span className="staff-eyebrow">Employee Profile</span>
+          <h2>{staff.name}</h2>
+        </div>
+
+        <button type="button" onClick={onClose}>
+          <FontAwesomeIcon icon={faXmark} />
+        </button>
+      </div>
+
+      <div className="staff-modal-body">
+        <div className="staff-profile-card">
+          <span className="staff-profile-avatar">
+            {staff.avatar ? <img src={staff.avatar} alt={staff.name} /> : staff.name.charAt(0)}
+          </span>
+
+          <div>
+            <h3>{staff.name}</h3>
+            <p>{staff.role}</p>
+            <StatusBadge status={staff.status} />
+          </div>
+        </div>
+
+        <div className="staff-detail-grid">
+          <DetailItem icon={faIdCard} label="Employee Code" value={staff.employeeCode} />
+          <DetailItem icon={faBriefcase} label="Department" value={staff.department} />
+          <DetailItem icon={faEnvelope} label="Email" value={staff.email} />
+          <DetailItem icon={faPhone} label="Phone" value={staff.phone} />
+          <DetailItem icon={faMapMarkerAlt} label="Address" value={staff.address} />
+          <DetailItem icon={faCalendarAlt} label="Hire Date" value={formatDate(staff.hireDate)} />
+          <DetailItem icon={faClock} label="Schedule" value={staff.schedule} />
+          <DetailItem
+            icon={faMoneyBillWave}
+            label="Latest Payroll"
+            value={formatCurrency(staff.latestPayroll)}
+          />
+        </div>
+
+        <div className="staff-profile-summary">
+          <div>
+            <small>Attendance Records</small>
+            <strong>{staff.attendanceRecords}</strong>
+          </div>
+          <div>
+            <small>Present Days</small>
+            <strong>{staff.presentDays}</strong>
+          </div>
+          <div>
+            <small>Late Days</small>
+            <strong>{staff.lateDays}</strong>
+          </div>
+          <div>
+            <small>Absent Days</small>
+            <strong>{staff.absentDays}</strong>
+          </div>
+          <div>
+            <small>Payroll Records</small>
+            <strong>{staff.payrollRecords}</strong>
+          </div>
+        </div>
+      </div>
+
+      <div className="staff-modal-footer">
+        <button type="button" className="staff-btn secondary" onClick={onClose}>
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+);
+
+const RecordsModal = ({ type, staff, records, loading, error, onClose }) => {
+  const isAttendance = type === "attendance";
+
+  return (
+    <div className="staff-modal-overlay">
+      <div className="staff-modal large">
+        <div className="staff-modal-header">
+          <div>
+            <span className="staff-eyebrow">
+              {isAttendance ? "Attendance Records" : "Payroll Records"}
+            </span>
+            <h2>{staff.name}</h2>
+          </div>
+
+          <button type="button" onClick={onClose}>
+            <FontAwesomeIcon icon={faXmark} />
+          </button>
+        </div>
+
+        <div className="staff-modal-body">
+          {loading ? (
+            <div className="staff-modal-state">
+              <FontAwesomeIcon icon={faSpinner} spin />
+              <h3>Loading records</h3>
+              <p>Please wait while records are being loaded.</p>
+            </div>
+          ) : (
+            <>
+              {error && (
+                <div className="staff-modal-alert">
+                  <FontAwesomeIcon icon={faTriangleExclamation} />
+                  <span>{error}</span>
+                </div>
+              )}
+
+              {records.length === 0 ? (
+                <div className="staff-modal-state">
+                  <FontAwesomeIcon icon={faTable} />
+                  <h3>No records found</h3>
+                  <p>No {isAttendance ? "attendance" : "payroll"} records are available.</p>
+                </div>
+              ) : (
+                <div className="staff-modal-table-wrap">
+                  <table className="staff-modal-table">
+                    <thead>
+                      <tr>
+                        {isAttendance ? (
+                          <>
+                            <th>Date</th>
+                            <th>Status</th>
+                            <th>Time In</th>
+                            <th>Time Out</th>
+                            <th>Review</th>
+                            <th>Remarks</th>
+                          </>
+                        ) : (
+                          <>
+                            <th>Period</th>
+                            <th>Date</th>
+                            <th>Gross Pay</th>
+                            <th>Deductions</th>
+                            <th>Net Pay</th>
+                            <th>Status</th>
+                          </>
+                        )}
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      {records.map((record) =>
+                        isAttendance ? (
+                          <tr key={record.id}>
+                            <td>{formatDate(record.date)}</td>
+                            <td>
+                              <StatusBadge status={record.status} />
+                            </td>
+                            <td>{record.timeIn || "N/A"}</td>
+                            <td>{record.timeOut || "N/A"}</td>
+                            <td>
+                              <StatusBadge status={record.reviewStatus} />
+                            </td>
+                            <td>{record.remarks || "No remarks"}</td>
+                          </tr>
+                        ) : (
+                          <tr key={record.id}>
+                            <td>{record.period}</td>
+                            <td>{formatDate(record.date)}</td>
+                            <td>{formatCurrency(record.grossPay)}</td>
+                            <td>{formatCurrency(record.deductions)}</td>
+                            <td>
+                              <strong>{formatCurrency(record.netPay)}</strong>
+                            </td>
+                            <td>
+                              <StatusBadge status={record.status} />
+                            </td>
+                          </tr>
+                        )
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        <div className="staff-modal-footer">
+          <button type="button" className="staff-btn secondary" onClick={onClose}>
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const DetailItem = ({ icon, label, value }) => (
+  <div className="staff-detail-item">
+    <FontAwesomeIcon icon={icon} />
+    <div>
+      <small>{label}</small>
+      <strong>{value || "N/A"}</strong>
+    </div>
+  </div>
+);
 
 export default ManagerStaff;

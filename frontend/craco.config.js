@@ -1,4 +1,12 @@
 module.exports = {
+  devServer: {
+    proxy: {
+      '/api': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+      },
+    },
+  },
   webpack: {
     configure: (webpackConfig) => {
       // Find and modify the source-map-loader rule to exclude DOMPurify

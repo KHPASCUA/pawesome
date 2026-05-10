@@ -214,6 +214,7 @@ Route::middleware(['auth.api', 'throttle:api', 'role:customer'])->prefix('custom
     Route::get('dashboard', [PortalController::class, 'overview']);
     Route::get('pets', [PortalController::class, 'pets']);
     Route::post('pets', [PortalController::class, 'addPet']);
+    Route::delete('pets/{id}', [PortalController::class, 'deletePet']);
     Route::get('appointments', [PortalController::class, 'appointments']);
     Route::get('bookings', [PortalController::class, 'bookings']);
     Route::get('transactions', [PortalController::class, 'transactions']);
@@ -223,6 +224,11 @@ Route::middleware(['auth.api', 'throttle:api', 'role:customer'])->prefix('custom
     Route::post('boardings', [PortalController::class, 'bookBoarding']);
     Route::get('services', [PortalController::class, 'services']);
     Route::post('chatbot', [PortalController::class, 'chatbot']);
+
+    // Customer History Routes
+    Route::get('orders/history', [PortalController::class, 'transactions']);
+    Route::get('requests/history', [ServiceRequestController::class, 'customerRequests']);
+    Route::get('payments/history', [PortalController::class, 'transactions']);
     
     // Customer Service Requests
     Route::post('requests', [ServiceRequestController::class, 'store']);
@@ -234,6 +240,7 @@ Route::middleware(['auth.api', 'throttle:api', 'role:customer'])->prefix('custom
     // Customer Store Checkout
     Route::post('store/checkout', [CustomerStoreController::class, 'checkout']);
     Route::get('store/orders', [CustomerStoreController::class, 'orders']);
+    Route::get('store/orders/{id}', [CustomerStoreController::class, 'orders']);
     Route::post('store/orders/{id}/payment-proof', [CustomerStoreController::class, 'uploadPaymentProof']);
     Route::get('store/orders/{id}/receipt', [CustomerStoreController::class, 'receipt']);
     Route::post('store/orders/{id}/cancel', [CustomerStoreController::class, 'cancel']);
@@ -461,6 +468,26 @@ Route::middleware(['auth.api', 'throttle:api', 'role:manager'])->prefix('manager
     Route::get('reports/medical-confinement', [WorkflowReportController::class, 'medicalConfinement']);
     Route::get('reports/room-occupancy', [WorkflowReportController::class, 'roomOccupancy']);
     Route::get('reports/veterinary-services', [WorkflowReportController::class, 'veterinaryServices']);
+    Route::get('reports/attendance', [ReportsController::class, 'payrollReports']);
+    Route::get('reports/payroll', [ReportsController::class, 'payrollReports']);
+
+    // Manager Attendance Routes
+    Route::get('attendance', [AttendanceController::class, 'index']);
+    Route::post('attendance/{id}/remarks', [AttendanceController::class, 'update']);
+    Route::post('attendance/{id}/review', [AttendanceController::class, 'update']);
+
+    // Manager Payroll Routes
+    Route::get('payroll', [ApiPayrollController::class, 'index']);
+    Route::post('payroll/generate', [ApiPayrollController::class, 'generate']);
+    Route::post('payroll/{id}/approve', [ApiPayrollController::class, 'approve']);
+    Route::post('payroll/{id}/release', [ApiPayrollController::class, 'markAsPaid']);
+
+    // Manager History Route
+    Route::get('history', [ReportsController::class, 'orders']);
+
+    // Manager Staff-Specific Routes
+    Route::get('staff/{id}/attendance', [AttendanceController::class, 'index']);
+    Route::get('staff/{id}/payroll', [ApiPayrollController::class, 'index']);
 });
 
 // Attendance Routes (Admin and Manager)

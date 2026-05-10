@@ -281,6 +281,20 @@ class PortalController extends Controller
         return response()->json($pet, 201);
     }
 
+    public function deletePet($id)
+    {
+        $cust = $this->currentCustomer();
+        if (!$cust) return response()->json(['message' => 'Customer not found'], 404);
+
+        $pet = Pet::where('id', $id)->where('customer_id', $cust->id)->first();
+        if (!$pet) {
+            return response()->json(['message' => 'Pet not found'], 404);
+        }
+
+        $pet->delete();
+        return response()->json(['message' => 'Pet deleted successfully']);
+    }
+
     public function services()
     {
         return response()->json(Service::where('is_active', true)->orderBy('name')->get());

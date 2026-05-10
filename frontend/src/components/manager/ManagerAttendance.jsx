@@ -1,986 +1,1320 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faCalendarAlt,
-  faClock,
-  faUserCheck,
-  faUserTimes,
-  faExclamationTriangle,
-  faSpinner,
-  faSearch,
-  faFilter,
-  faDownload,
-  faPlus,
-  faEdit,
-  faTrash,
-  faEye,
-  faFileExcel,
-  faFilePdf,
   faCheckCircle,
-  faTimesCircle,
-  faSort,
   faChevronDown,
-  faChevronUp,
-  faSave,
-  faCancel,
-  faChartBar,
-  faList,
-  faUser,
-  faDollarSign,
-  faHourglassHalf,
-  faFingerprint,
-  faHandPaper,
-  faUsers,
-  faCalendarDay,
-  faCalendarWeek,
-  faCalendar,
-  faInfoCircle,
   faChevronLeft,
   faChevronRight,
-  faSync,
-  faCoffee,
-  faHome,
-  faBriefcase,
-  faStethoscope,
-  faCashRegister,
-  faBox,
+  faChevronUp,
+  faClock,
+  faDownload,
+  faEye,
+  faFilter,
+  faHourglassHalf,
+  faPenToSquare,
+  faPrint,
+  faRefresh,
+  faSearch,
+  faSpinner,
+  faTriangleExclamation,
+  faUserCheck,
+  faUserClock,
+  faUserTimes,
+  faUsers,
   faXmark,
-  faBell,
 } from "@fortawesome/free-solid-svg-icons";
-import { formatCurrency } from "../../utils/currency";
 import { attendanceApi } from "../../api/attendance";
+import { apiRequest } from "../../api/client";
+import { formatCurrency } from "../../utils/currency";
+import "./ManagerAttendance.css";
 
-// Utility: Safe Laravel API response parser
-const parseLaravelResponse = (response) => {
-  if (!response) return [];
-  
-  // Handle direct array response
+const TODAY = new Date().toISOString().split("T")[0];
+
+const DEFAULT_REMARKS_FORM = {
+  remarks: "",
+};
+
+const parseApiList = (response) => {
   if (Array.isArray(response)) return response;
-  
-  // Handle Laravel standard format: { success: true, data: [...] }
-  if (response.success && Array.isArray(response.data)) return response.data;
-  
-  // Handle alternative Laravel format: { data: [...] }
-  if (Array.isArray(response.data)) return response.data;
-  
-  // Handle format: { attendance: [...] }
-  if (Array.isArray(response.attendance)) return response.attendance;
-  
-  // Handle format: { records: [...] }
-  if (Array.isArray(response.records)) return response.records;
-  
-  // Handle format: { results: [...] }
-  if (Array.isArray(response.results)) return response.results;
-  
-  // Handle single object wrapped in data
-  if (response.data && typeof response.data === 'object') return [response.data];
-  
-  // Handle direct object (single record)
-  if (typeof response === 'object' && !Array.isArray(response) && response.id) return [response];
-  
-  console.warn('Unexpected API response format:', response);
+  if (Array.isArray(response?.data)) return response.data;
+  if (Array.isArray(response?.data?.data)) return response.data.data;
+  if (Array.isArray(response?.attendance)) return response.attendance;
+  if (Array.isArray(response?.records)) return response.records;
+  if (Array.isArray(response?.results)) return response.results;
+  if (Array.isArray(response?.items)) return response.items;
+  if (response?.data && typeof response.data === "object") return [response.data];
+  if (response?.id) return [response];
+
   return [];
 };
 
-// Utility: Debounce hook
-const useDebounce = (value, delay) => {
-  const [debouncedValue, setDebouncedValue] = useState(value);
-  
-  useEffect(() => {
-    const timer = setTimeout(() => setDebouncedValue(value), delay);
-    return () => clearTimeout(timer);
-  }, [value, delay]);
-  
-  return debouncedValue;
+const normalizeStatus = (value) =>
+  String(value || "absent")
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, "_")
+    .replace(/-/g, "_");
+
+const formatStatus = (value) =>
+  String(value || "N/A")
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+
+const safeNumber = (value) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const toHours = (value) => {
+  if (!value || value === "00:00") return 0;
+
+  if (typeof value === "number") return value;
+
+  const text = String(value);
+
+  if (text.includes(":")) {
+    const [hours, minutes] = text.split(":").map(Number);
+    return safeNumber(hours) + safeNumber(minutes) / 60;
+  }
+
+  return safeNumber(text);
+};
+
+const formatHours = (value) => {
+  const hours = toHours(value);
+  if (!hours) return "0h";
+
+  return `${hours.toFixed(2)}h`;
+};
+
+const formatTime = (value) => {
+  if (!value) return "--";
+
+  const text = String(value);
+
+  if (text.includes("AM") || text.includes("PM")) return text;
+
+  if (text.includes(":") && !text.includes("T")) {
+    const [hour, minute] = text.split(":");
+    const date = new Date();
+    date.setHours(Number(hour || 0), Number(minute || 0), 0, 0);
+
+    return date.toLocaleTimeString("en-PH", {
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return text;
+
+  return date.toLocaleTimeString("en-PH", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+};
+
+const formatDate = (value) => {
+  if (!value) return "N/A";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  return date.toLocaleDateString("en-PH", {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+  });
+};
+
+const escapeCSV = (value) => {
+  const text = String(value ?? "");
+  if (text.includes(",") || text.includes('"') || text.includes("\n")) {
+    return `"${text.replace(/"/g, '""')}"`;
+  }
+
+  return text;
+};
+
+const normalizeAttendanceRecord = (record, fallbackDate) => {
+  const employeeId =
+    record.employeeId ||
+    record.employee_id ||
+    record.staff_id ||
+    record.user?.id ||
+    record.employee?.id ||
+    "";
+
+  const totalHours =
+    record.totalHours ||
+    record.total_hours ||
+    record.hours_worked ||
+    record.worked_hours ||
+    "00:00";
+
+  const overtime =
+    record.overtime ||
+    record.overtime_hours ||
+    record.ot_hours ||
+    "00:00";
+
+  const undertime =
+    record.undertime ||
+    record.undertime_hours ||
+    record.early_leave_hours ||
+    "00:00";
+
+  const status = normalizeStatus(record.status || record.attendance_status);
+
+  return {
+    id:
+      record.id ||
+      record.attendance_id ||
+      `${employeeId || "record"}-${record.date || fallbackDate}`,
+    employeeId: employeeId ? `EMP${String(employeeId).padStart(3, "0")}` : "N/A",
+    rawEmployeeId: employeeId,
+    name:
+      record.name ||
+      record.employee_name ||
+      record.staff_name ||
+      record.user?.name ||
+      record.employee?.name ||
+      "Unknown Employee",
+    email: record.email || record.user?.email || record.employee?.email || "N/A",
+    department:
+      record.department ||
+      record.user?.department ||
+      record.employee?.department ||
+      "Unassigned",
+    role:
+      record.role ||
+      record.position ||
+      record.user?.role ||
+      record.employee?.position ||
+      "Staff",
+    date: record.date || record.attendance_date || fallbackDate,
+    timeIn: record.time_in || record.check_in || record.checkIn || "",
+    timeOut: record.time_out || record.check_out || record.checkOut || "",
+    breakTime: record.break_time || record.breakTime || "00:00",
+    totalHours,
+    overtime,
+    undertime,
+    status,
+    isLate:
+      Boolean(record.is_late) ||
+      Boolean(record.late) ||
+      status === "late",
+    isEarlyLeave:
+      Boolean(record.is_early_leave) ||
+      Boolean(record.earlyLeave) ||
+      status === "half_day",
+    location: record.location || "N/A",
+    remarks:
+      record.remarks ||
+      record.notes ||
+      record.manager_remarks ||
+      record.attendance_remarks ||
+      "",
+    reviewStatus: normalizeStatus(
+      record.review_status ||
+        record.manager_review_status ||
+        record.reviewStatus ||
+        (record.reviewed || record.is_reviewed ? "reviewed" : "pending")
+    ),
+    approvedBy:
+      record.approved_by ||
+      record.reviewed_by ||
+      record.approver?.name ||
+      record.manager?.name ||
+      "N/A",
+    salaryRate: safeNumber(record.salary_rate || record.salaryRate || 0),
+    dailyEarnings: safeNumber(
+      record.daily_earnings || record.dailyEarnings || record.amount || 0
+    ),
+  };
 };
 
 const ManagerAttendance = () => {
-  // State management
   const [attendance, setAttendance] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [actionLoadingId, setActionLoadingId] = useState(null);
+
+  const [error, setError] = useState("");
+  const [toast, setToast] = useState(null);
+
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedDepartment, setSelectedDepartment] = useState("all");
   const [selectedStatus, setSelectedStatus] = useState("all");
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedReviewStatus, setSelectedReviewStatus] = useState("all");
+  const [selectedDate, setSelectedDate] = useState(TODAY);
+
   const [sortBy, setSortBy] = useState("name");
   const [sortOrder, setSortOrder] = useState("asc");
   const [showFilters, setShowFilters] = useState(false);
-  const [selectedAttendance, setSelectedAttendance] = useState(null);
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
+
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
-  const [viewMode, setViewMode] = useState("day"); // day, week, month
-  const [refreshing, setRefreshing] = useState(false);
-  const [departments, setDepartments] = useState([]);
-  const [showNotificationDropdown, setShowNotificationDropdown] = useState(false);
 
-  // Debounced search term
-  const debouncedSearchTerm = useDebounce(searchTerm, 500);
+  const [selectedAttendance, setSelectedAttendance] = useState(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showRemarksModal, setShowRemarksModal] = useState(false);
+  const [remarksForm, setRemarksForm] = useState(DEFAULT_REMARKS_FORM);
 
-  // Load attendance data from API
-  useEffect(() => {
-    const loadAttendance = async () => {
-      setLoading(true);
-      setError(null);
+  const showToast = useCallback((message, type = "info") => {
+    setToast({ message, type });
+    window.clearTimeout(window.managerAttendanceToastTimer);
+    window.managerAttendanceToastTimer = window.setTimeout(
+      () => setToast(null),
+      3500
+    );
+  }, []);
+
+  const loadAttendance = useCallback(
+    async ({ silent = false } = {}) => {
       try {
-        const params = { date: selectedDate };
+        if (silent) {
+          setRefreshing(true);
+        } else {
+          setLoading(true);
+        }
+
+        setError("");
+
+        const params = {
+          date: selectedDate,
+        };
+
         if (selectedDepartment !== "all") {
           params.department = selectedDepartment;
         }
+
         if (selectedStatus !== "all") {
           params.status = selectedStatus;
         }
-        if (debouncedSearchTerm) {
-          params.search = debouncedSearchTerm;
+
+        if (searchTerm.trim()) {
+          params.search = searchTerm.trim();
         }
 
-        let dataList = [];
-        
-        try {
-          const response = await attendanceApi.getAll(params);
-          dataList = parseLaravelResponse(response);
-        } catch (apiErr) {
-          throw apiErr;
-        }
-        
-        if (dataList.length > 0) {
-          // Transform API data to match component structure
-          const transformedData = dataList.map(record => ({
-            id: record.id,
-            employeeId: record.user?.id ? `EMP${String(record.user.id).padStart(3, '0')}` : 
-                       record.employee_id ? `EMP${String(record.employee_id).padStart(3, '0')}` : 
-                       record.employeeId || 'N/A',
-            name: record.user?.name || record.employee_name || record.name || 'Unknown',
-            email: record.user?.email || record.email || '',
-            department: record.user?.department || record.department || 'Unassigned',
-            role: record.user?.role || record.role || 'Staff',
-            date: record.date || selectedDate,
-            checkIn: record.check_in || record.checkIn,
-            checkOut: record.check_out || record.checkOut,
-            breakTime: record.break_time || record.breakTime,
-            totalHours: record.total_hours ? String(record.total_hours).replace('.', ':') : 
-                        record.totalHours || '00:00',
-            status: record.status || 'absent',
-            overtime: record.overtime_hours ? String(record.overtime_hours).replace('.', ':') : 
-                      record.overtime || '00:00',
-            late: record.is_late || record.late || false,
-            earlyLeave: record.is_early_leave || record.earlyLeave || false,
-            location: record.location || '',
-            notes: record.notes || '',
-            approvedBy: record.approver?.name || record.approved_by || 'System',
-            salaryRate: record.salary_rate || record.salaryRate || 0,
-            dailyEarnings: record.daily_earnings || record.dailyEarnings || 0,
-          }));
-          setAttendance(transformedData);
-          
-          // Extract unique departments
-          const uniqueDepts = [...new Set(transformedData.map(r => r.department))].filter(Boolean);
-          setDepartments(uniqueDepts);
-        } else {
-          setAttendance([]);
-          setDepartments([]);
-        }
-      } catch (error) {
-        setError(error.message || 'Failed to load attendance data');
+        const response = await attendanceApi.getAll(params);
+        const dataList = parseApiList(response);
+
+        const normalized = dataList.map((record) =>
+          normalizeAttendanceRecord(record, selectedDate)
+        );
+
+        setAttendance(normalized);
+        setCurrentPage(1);
+      } catch (err) {
+        console.error("Manager attendance load error:", err);
+        setError(
+          err.message ||
+            "Failed to load attendance records. Please verify the attendance API endpoint."
+        );
         setAttendance([]);
-        setDepartments([]);
       } finally {
         setLoading(false);
+        setRefreshing(false);
       }
-    };
-
-    loadAttendance();
-  }, [selectedDate, selectedDepartment, selectedStatus, debouncedSearchTerm]);
-
-  // Filter and sort attendance
-  const filteredAndSortedAttendance = useMemo(() => {
-    let filtered = attendance;
-
-    // Apply search filter
-    if (searchTerm) {
-      filtered = filtered.filter(record =>
-        record.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        record.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        record.employeeId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        record.department.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    // Apply department filter
-    if (selectedDepartment !== "all") {
-      filtered = filtered.filter(record => record.department === selectedDepartment);
-    }
-
-    // Apply status filter
-    if (selectedStatus !== "all") {
-      filtered = filtered.filter(record => record.status === selectedStatus);
-    }
-
-    // Apply sorting
-    filtered.sort((a, b) => {
-      let aValue = a[sortBy];
-      let bValue = b[sortBy];
-
-      if (sortBy === "checkIn" || sortBy === "checkOut") {
-        aValue = aValue || "00:00";
-        bValue = bValue || "00:00";
-      }
-
-      if (aValue < bValue) return sortOrder === "asc" ? -1 : 1;
-      if (aValue > bValue) return sortOrder === "asc" ? 1 : -1;
-      return 0;
-    });
-
-    return filtered;
-  }, [attendance, searchTerm, selectedDepartment, selectedStatus, sortBy, sortOrder]);
-
-  // Pagination
-  const totalPages = Math.ceil(filteredAndSortedAttendance.length / itemsPerPage);
-  const paginatedAttendance = filteredAndSortedAttendance.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
+    },
+    [searchTerm, selectedDate, selectedDepartment, selectedStatus]
   );
 
-  // Get unique statuses for filters
-  const statuses = useMemo(() => {
-    const statusList = [...new Set(attendance.map(record => record.status))];
-    return statusList.sort();
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      loadAttendance();
+    }, 250);
+
+    return () => window.clearTimeout(timer);
+  }, [loadAttendance]);
+
+  const departments = useMemo(() => {
+    return [...new Set(attendance.map((record) => record.department))]
+      .filter(Boolean)
+      .sort();
   }, [attendance]);
 
-  // Statistics with Payroll Integration
+  const statuses = useMemo(() => {
+    return [...new Set(attendance.map((record) => record.status))]
+      .filter(Boolean)
+      .sort();
+  }, [attendance]);
+
+  const filteredAttendance = useMemo(() => {
+    const search = searchTerm.trim().toLowerCase();
+
+    return attendance
+      .filter((record) => {
+        const matchesSearch =
+          !search ||
+          [
+            record.name,
+            record.email,
+            record.employeeId,
+            record.department,
+            record.role,
+            record.remarks,
+          ]
+            .join(" ")
+            .toLowerCase()
+            .includes(search);
+
+        const matchesDepartment =
+          selectedDepartment === "all" ||
+          record.department === selectedDepartment;
+
+        const matchesStatus =
+          selectedStatus === "all" || record.status === selectedStatus;
+
+        const matchesReviewStatus =
+          selectedReviewStatus === "all" ||
+          record.reviewStatus === selectedReviewStatus;
+
+        return (
+          matchesSearch &&
+          matchesDepartment &&
+          matchesStatus &&
+          matchesReviewStatus
+        );
+      })
+      .sort((a, b) => {
+        const first = String(a[sortBy] || "").toLowerCase();
+        const second = String(b[sortBy] || "").toLowerCase();
+
+        if (first < second) return sortOrder === "asc" ? -1 : 1;
+        if (first > second) return sortOrder === "asc" ? 1 : -1;
+        return 0;
+      });
+  }, [
+    attendance,
+    searchTerm,
+    selectedDepartment,
+    selectedStatus,
+    selectedReviewStatus,
+    sortBy,
+    sortOrder,
+  ]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredAttendance.length / itemsPerPage));
+
+  const paginatedAttendance = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredAttendance.slice(start, start + itemsPerPage);
+  }, [currentPage, filteredAttendance, itemsPerPage]);
+
   const statistics = useMemo(() => {
     const total = attendance.length;
-    const present = attendance.filter(record => record.status === 'present').length;
-    const absent = attendance.filter(record => record.status === 'absent').length;
-    const late = attendance.filter(record => record.late).length;
-    const earlyLeave = attendance.filter(record => record.earlyLeave).length;
-    
-    // Daily rate for calculations
-    const dailyRate = 500; // ₱500 per day
-    
-    // Calculate total earnings based on attendance
+    const present = attendance.filter((record) => record.status === "present").length;
+    const absent = attendance.filter((record) => record.status === "absent").length;
+    const late = attendance.filter(
+      (record) => record.isLate || record.status === "late"
+    ).length;
+    const halfDay = attendance.filter(
+      (record) =>
+        record.status === "half_day" ||
+        record.status === "half-day" ||
+        record.isEarlyLeave
+    ).length;
+    const leave = attendance.filter((record) =>
+      ["leave", "on_leave"].includes(record.status)
+    ).length;
+    const pendingReview = attendance.filter(
+      (record) => record.reviewStatus !== "reviewed"
+    ).length;
+
+    const totalHours = attendance.reduce(
+      (sum, record) => sum + toHours(record.totalHours),
+      0
+    );
+    const overtimeHours = attendance.reduce(
+      (sum, record) => sum + toHours(record.overtime),
+      0
+    );
+    const undertimeHours = attendance.reduce(
+      (sum, record) => sum + toHours(record.undertime),
+      0
+    );
+
     const totalEarnings = attendance.reduce((sum, record) => {
-      if (record.status === 'present') return sum + dailyRate;
-      if (record.status === 'present' && record.late) return sum + (dailyRate * 0.8); // 20% deduction for late
+      if (record.dailyEarnings) return sum + record.dailyEarnings;
+      if (record.status === "present") return sum + 500;
+      if (record.status === "late") return sum + 400;
       return sum;
     }, 0);
-    
-    const totalHours = attendance.reduce((sum, record) => {
-      if (record.totalHours && record.totalHours !== "00:00") {
-        const [hours, minutes] = record.totalHours.split(':').map(Number);
-        return sum + hours + minutes / 60;
-      }
-      return sum;
-    }, 0);
-    
-    // Payroll metrics
-    const avgHours = total > 0 ? (totalHours / total).toFixed(2) : 0;
-    const overtimeHours = attendance.reduce((sum, record) => {
-      if (record.overtime && record.overtime !== "00:00") {
-        const [hours, minutes] = record.overtime.split(':').map(Number);
-        return sum + hours + minutes / 60;
-      }
-      return sum;
-    }, 0);
-    
-    // Late deductions: ₱100 per late arrival
+
     const lateDeductions = late * 100;
-    
-    // Overtime bonus: ₱50 per OT hour
     const overtimeBonus = overtimeHours * 50;
-    
-    // Net payroll calculation
     const netPayroll = totalEarnings - lateDeductions + overtimeBonus;
 
-    return { 
-      total, present, absent, late, earlyLeave, totalHours, totalEarnings,
-      avgHours, overtimeHours: overtimeHours.toFixed(2), lateDeductions, overtimeBonus: overtimeBonus.toFixed(2), netPayroll
+    return {
+      total,
+      present,
+      absent,
+      late,
+      halfDay,
+      leave,
+      pendingReview,
+      totalHours,
+      averageHours: total ? totalHours / total : 0,
+      overtimeHours,
+      undertimeHours,
+      lateDeductions,
+      overtimeBonus,
+      netPayroll,
     };
   }, [attendance]);
 
-  // Event handlers
-  const handleSort = useCallback((field) => {
+  const handleSort = (field) => {
     if (sortBy === field) {
-      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
-    } else {
-      setSortBy(field);
-      setSortOrder("asc");
+      setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+      return;
     }
-  }, [sortBy, sortOrder]);
 
-  const handleViewDetails = useCallback((attendanceRecord) => {
-    setSelectedAttendance(attendanceRecord);
+    setSortBy(field);
+    setSortOrder("asc");
+  };
+
+  const handleClearFilters = () => {
+    setSearchTerm("");
+    setSelectedDepartment("all");
+    setSelectedStatus("all");
+    setSelectedReviewStatus("all");
+    setSortBy("name");
+    setSortOrder("asc");
+    setCurrentPage(1);
+  };
+
+  const handleViewDetails = (record) => {
+    setSelectedAttendance(record);
     setShowDetailsModal(true);
-  }, []);
+  };
 
-  const handleEdit = useCallback((attendanceRecord) => {
-    setSelectedAttendance(attendanceRecord);
-    setShowEditModal(true);
-  }, []);
+  const handleOpenRemarks = (record) => {
+    setSelectedAttendance(record);
+    setRemarksForm({
+      remarks: record.remarks || "",
+    });
+    setShowRemarksModal(true);
+  };
 
-  const handleDelete = useCallback((attendanceRecord) => {
-    setSelectedAttendance(attendanceRecord);
-    setShowDeleteModal(true);
-  }, []);
+  const handleSaveRemarks = async () => {
+    if (!selectedAttendance) return;
 
-  const handleAddNew = useCallback(() => {
-    setShowAddModal(true);
-  }, []);
+    setActionLoadingId(selectedAttendance.id);
 
-  const handleRefresh = useCallback(async () => {
-    setRefreshing(true);
     try {
-      // Simulate API refresh
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      // In production: refetch data from API
-    } catch (error) {
-      console.error('Failed to refresh attendance:', error);
-    } finally {
-      setRefreshing(false);
-    }
-  }, []);
+      await apiRequest(`/manager/attendance/${selectedAttendance.id}/remarks`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          remarks: remarksForm.remarks,
+        }),
+      });
 
-  const confirmDelete = useCallback(() => {
-    if (selectedAttendance) {
-      // API call: DELETE /api/attendance/:id
-      setAttendance(prev => prev.filter(record => record.id !== selectedAttendance.id));
-      setShowDeleteModal(false);
+      setAttendance((prev) =>
+        prev.map((record) =>
+          record.id === selectedAttendance.id
+            ? { ...record, remarks: remarksForm.remarks }
+            : record
+        )
+      );
+
+      setShowRemarksModal(false);
       setSelectedAttendance(null);
-    }
-  }, [selectedAttendance]);
+      showToast("Attendance remarks updated successfully.", "success");
+    } catch (err) {
+      console.error("Save attendance remarks error:", err);
 
-  const exportToExcel = useCallback(async () => {
-    try {
-      // API call: POST /api/attendance/export with format: 'excel'
-      console.log('Exporting to Excel...');
-      // const response = await fetch(API_ENDPOINTS.EXPORT_ATTENDANCE, {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ format: 'excel', date: selectedDate, filters: { selectedDepartment, selectedStatus } })
-      // });
-    } catch (error) {
-      console.error('Failed to export to Excel:', error);
-    }
-  }, [selectedDate, selectedDepartment, selectedStatus]);
+      setAttendance((prev) =>
+        prev.map((record) =>
+          record.id === selectedAttendance.id
+            ? { ...record, remarks: remarksForm.remarks }
+            : record
+        )
+      );
 
-  const exportToPDF = useCallback(async () => {
-    try {
-      // API call: POST /api/attendance/export with format: 'pdf'
-      console.log('Exporting to PDF...');
-      // const response = await fetch(API_ENDPOINTS.EXPORT_ATTENDANCE, {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ format: 'pdf', date: selectedDate, filters: { selectedDepartment, selectedStatus } })
-      // });
-    } catch (error) {
-      console.error('Failed to export to PDF:', error);
+      setShowRemarksModal(false);
+      showToast(
+        "Remarks were updated on-screen. Backend remarks endpoint still needs verification.",
+        "warning"
+      );
+    } finally {
+      setActionLoadingId(null);
     }
-  }, [selectedDate, selectedDepartment, selectedStatus]);
+  };
+
+  const handleMarkReviewed = async (record) => {
+    setActionLoadingId(record.id);
+
+    try {
+      await apiRequest(`/manager/attendance/${record.id}/review`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          review_status: "reviewed",
+        }),
+      });
+
+      setAttendance((prev) =>
+        prev.map((item) =>
+          item.id === record.id ? { ...item, reviewStatus: "reviewed" } : item
+        )
+      );
+
+      showToast("Attendance record marked as reviewed.", "success");
+    } catch (err) {
+      console.error("Mark reviewed error:", err);
+
+      setAttendance((prev) =>
+        prev.map((item) =>
+          item.id === record.id ? { ...item, reviewStatus: "reviewed" } : item
+        )
+      );
+
+      showToast(
+        "Marked as reviewed on-screen. Backend review endpoint still needs verification.",
+        "warning"
+      );
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const exportToCSV = () => {
+    const headers = [
+      "Employee ID",
+      "Name",
+      "Email",
+      "Department",
+      "Role",
+      "Date",
+      "Time In",
+      "Time Out",
+      "Status",
+      "Total Hours",
+      "Overtime",
+      "Undertime",
+      "Remarks",
+      "Review Status",
+    ];
+
+    const rows = filteredAttendance.map((record) => [
+      record.employeeId,
+      record.name,
+      record.email,
+      record.department,
+      record.role,
+      record.date,
+      formatTime(record.timeIn),
+      formatTime(record.timeOut),
+      formatStatus(record.status),
+      record.totalHours,
+      record.overtime,
+      record.undertime,
+      record.remarks,
+      formatStatus(record.reviewStatus),
+    ]);
+
+    const csvContent = [headers, ...rows]
+      .map((row) => row.map(escapeCSV).join(","))
+      .join("\n");
+
+    const blob = new Blob([csvContent], {
+      type: "text/csv;charset=utf-8;",
+    });
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = `manager-attendance-${selectedDate}.csv`;
+    link.click();
+
+    URL.revokeObjectURL(url);
+    showToast("Attendance CSV exported successfully.", "success");
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
+
+  const pageStart = filteredAttendance.length
+    ? (currentPage - 1) * itemsPerPage + 1
+    : 0;
+  const pageEnd = Math.min(currentPage * itemsPerPage, filteredAttendance.length);
 
   return (
     <div className="manager-attendance">
-      {/* Header */}
-      <div className="attendance-header">
-        <div className="header-left">
-          <h1>
-            <FontAwesomeIcon icon={faCalendarAlt} />
-            Attendance Management
-          </h1>
-          <p>Track and manage employee attendance records</p>
+      <section className="manager-attendance-hero">
+        <div>
+          <span className="attendance-eyebrow">Manager Attendance</span>
+          <h1>Attendance Management</h1>
+          <p>
+            Monitor employee attendance, review daily records, update remarks,
+            and prepare attendance data for payroll validation.
+          </p>
         </div>
-        <div className="header-actions">
-          {/* Notification Bell Dropdown */}
-          <div className="notification-wrapper">
-            <button
-              className="notif-btn"
-              onClick={() => setShowNotificationDropdown(!showNotificationDropdown)}
-            >
-              <FontAwesomeIcon icon={faBell} />
-            </button>
 
-            {showNotificationDropdown && (
-              <div className="notification-dropdown">
-                <div className="notif-header">
-                  <span>Notifications</span>
-                  <button
-                    className="notif-close"
-                    onClick={() => setShowNotificationDropdown(false)}
-                  >
-                    ✕
-                  </button>
-                </div>
-                <div className="notif-empty">
-                  <FontAwesomeIcon icon={faBell} />
-                  <span>No new notifications</span>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <button className="btn btn-primary" onClick={handleAddNew}>
-            <FontAwesomeIcon icon={faPlus} />
-            Add Record
-          </button>
-          <button className="btn btn-secondary" onClick={handleRefresh} disabled={refreshing}>
-            <FontAwesomeIcon icon={faSync} className={refreshing ? 'spinning' : ''} />
+        <div className="attendance-hero-actions">
+          <button
+            type="button"
+            className="attendance-btn secondary"
+            onClick={() => loadAttendance({ silent: true })}
+            disabled={loading || refreshing}
+          >
+            <FontAwesomeIcon icon={refreshing ? faSpinner : faRefresh} spin={refreshing} />
             Refresh
           </button>
-          <div className="export-actions">
-            <button className="export-btn" onClick={exportToExcel}>
-              <FontAwesomeIcon icon={faFileExcel} />
-              Export Excel
-            </button>
-            <button className="export-btn" onClick={exportToPDF}>
-              <FontAwesomeIcon icon={faFilePdf} />
-              Export PDF
-            </button>
-          </div>
-        </div>
-      </div>
 
-      {/* Payroll Integration Panel */}
-      <div className="payroll-integration-panel">
-        <div className="panel-header">
-          <FontAwesomeIcon icon={faCashRegister} />
-          <span>Payroll Integration</span>
-        </div>
-        <p style={{ fontSize: "13px", color: "#64748b", margin: "8px 0" }}>
-          Attendance automatically affects payroll calculations. Late arrivals & absences apply deductions.
-        </p>
-        <div className="payroll-stats">
-          <div className="payroll-stat">
-            <label>Avg Hours:</label>
-            <span>{statistics.avgHours}h</span>
-          </div>
-          <div className="payroll-stat">
-            <label>OT Hours:</label>
-            <span>{Number(statistics.overtimeHours || 0).toFixed(2)}h</span>
-          </div>
-          <div className="payroll-stat deduction">
-            <label>Late Deductions:</label>
-            <span>-{formatCurrency(statistics.lateDeductions)}</span>
-          </div>
-          <div className="payroll-stat bonus">
-            <label>OT Bonus:</label>
-            <span>+{formatCurrency(statistics.overtimeBonus)}</span>
-          </div>
-          <div className="payroll-stat net">
-            <label>Net Payroll:</label>
-            <span>{formatCurrency(statistics.netPayroll)}</span>
-          </div>
-        </div>
-      </div>
+          <button type="button" className="attendance-btn secondary" onClick={exportToCSV}>
+            <FontAwesomeIcon icon={faDownload} />
+            Export CSV
+          </button>
 
-      {/* Statistics Cards */}
-      <div className="stats-grid">
-        <div className="stat-card">
-          <div className="stat-icon">
-            <FontAwesomeIcon icon={faUsers} />
-          </div>
-          <div className="stat-info">
-            <h3>{statistics.total}</h3>
-            <p>Total Employees</p>
-          </div>
+          <button type="button" className="attendance-btn primary" onClick={handlePrint}>
+            <FontAwesomeIcon icon={faPrint} />
+            Print
+          </button>
         </div>
-        <div className="stat-card present">
-          <div className="stat-icon">
-            <FontAwesomeIcon icon={faUserCheck} />
-          </div>
-          <div className="stat-info">
-            <h3>{statistics.present}</h3>
-            <p>Present</p>
-          </div>
+      </section>
+
+      {error && (
+        <div className="attendance-alert error">
+          <FontAwesomeIcon icon={faTriangleExclamation} />
+          <span>{error}</span>
+          <button type="button" onClick={() => loadAttendance()}>
+            Retry
+          </button>
         </div>
-        <div className="stat-card absent">
-          <div className="stat-icon">
-            <FontAwesomeIcon icon={faUserTimes} />
-          </div>
-          <div className="stat-info">
-            <h3>{statistics.absent}</h3>
-            <p>Absent</p>
-          </div>
-        </div>
-        <div className="stat-card late">
-          <div className="stat-icon">
+      )}
+
+      <section className="attendance-payroll-panel">
+        <div className="attendance-panel-heading">
+          <span>
             <FontAwesomeIcon icon={faClock} />
-          </div>
-          <div className="stat-info">
-            <h3>{statistics.late}</h3>
-            <p>Late</p>
-          </div>
-        </div>
-        <div className="stat-card earnings">
-          <div className="stat-icon">
-            <FontAwesomeIcon icon={faDollarSign} />
-          </div>
-          <div className="stat-info">
-            <h3>{formatCurrency(statistics.totalEarnings)}</h3>
-            <p>Total Earnings</p>
+          </span>
+          <div>
+            <h2>Payroll Attendance Basis</h2>
+            <p>
+              Attendance hours, late arrivals, undertime, and overtime can be
+              used as payroll references.
+            </p>
           </div>
         </div>
-      </div>
 
-      {/* Date and View Controls */}
-      <div className="date-controls">
-        <div className="date-selector">
-          <label htmlFor="date-select">Select Date:</label>
-          <input
-            type="date"
-            id="date-select"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            max={new Date().toISOString().split('T')[0]}
+        <div className="attendance-payroll-grid">
+          <InfoMetric label="Average Hours" value={`${statistics.averageHours.toFixed(2)}h`} />
+          <InfoMetric label="Overtime Hours" value={`${statistics.overtimeHours.toFixed(2)}h`} />
+          <InfoMetric label="Undertime" value={`${statistics.undertimeHours.toFixed(2)}h`} />
+          <InfoMetric
+            label="Late Deductions"
+            value={`-${formatCurrency(statistics.lateDeductions)}`}
+            tone="danger"
+          />
+          <InfoMetric
+            label="Overtime Bonus"
+            value={`+${formatCurrency(statistics.overtimeBonus)}`}
+            tone="success"
+          />
+          <InfoMetric
+            label="Estimated Net Payroll"
+            value={formatCurrency(statistics.netPayroll)}
+            tone="primary"
           />
         </div>
-        <div className="view-mode-selector">
+      </section>
+
+      <section className="attendance-summary-grid">
+        <SummaryCard title="Total Records" value={statistics.total} icon={faUsers} tone="primary" />
+        <SummaryCard title="Present" value={statistics.present} icon={faUserCheck} tone="success" />
+        <SummaryCard title="Late" value={statistics.late} icon={faUserClock} tone="warning" />
+        <SummaryCard title="Absent" value={statistics.absent} icon={faUserTimes} tone="danger" />
+        <SummaryCard title="Half-day" value={statistics.halfDay} icon={faHourglassHalf} tone="info" />
+        <SummaryCard title="Leave" value={statistics.leave} icon={faCalendarAlt} tone="neutral" />
+        <SummaryCard
+          title="Pending Review"
+          value={statistics.pendingReview}
+          icon={faTriangleExclamation}
+          tone="review"
+        />
+      </section>
+
+      <section className="attendance-controls-card">
+        <div className="attendance-date-row">
+          <div className="attendance-date-field">
+            <label htmlFor="manager-attendance-date">Attendance Date</label>
+            <input
+              id="manager-attendance-date"
+              type="date"
+              value={selectedDate}
+              max={TODAY}
+              onChange={(event) => setSelectedDate(event.target.value)}
+            />
+          </div>
+
           <button
-            className={`view-btn ${viewMode === 'day' ? 'active' : ''}`}
-            onClick={() => setViewMode('day')}
+            type="button"
+            className={`attendance-filter-toggle ${showFilters ? "active" : ""}`}
+            onClick={() => setShowFilters((prev) => !prev)}
           >
-            <FontAwesomeIcon icon={faCalendarDay} />
-            Day
-          </button>
-          <button
-            className={`view-btn ${viewMode === 'week' ? 'active' : ''}`}
-            onClick={() => setViewMode('week')}
-          >
-            <FontAwesomeIcon icon={faCalendarWeek} />
-            Week
-          </button>
-          <button
-            className={`view-btn ${viewMode === 'month' ? 'active' : ''}`}
-            onClick={() => setViewMode('month')}
-          >
-            <FontAwesomeIcon icon={faCalendar} />
-            Month
+            <FontAwesomeIcon icon={faFilter} />
+            Filters
+            <FontAwesomeIcon icon={showFilters ? faChevronUp : faChevronDown} />
           </button>
         </div>
-      </div>
 
-      {/* Search and Filters */}
-      <div className="search-filters">
-        <div className="search-bar">
-          <div className="search-input">
+        <div className="attendance-search-row">
+          <div className="attendance-search">
             <FontAwesomeIcon icon={faSearch} />
             <input
               type="text"
-              placeholder="Search by name, email, employee ID, or department..."
+              placeholder="Search employee, email, ID, role, department, or remarks..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(event) => setSearchTerm(event.target.value)}
             />
+
             {searchTerm && (
-              <button onClick={() => setSearchTerm("")}>
+              <button type="button" onClick={() => setSearchTerm("")}>
                 <FontAwesomeIcon icon={faXmark} />
               </button>
             )}
           </div>
-          <button
-            className={`filter-toggle ${showFilters ? 'active' : ''}`}
-            onClick={() => setShowFilters(!showFilters)}
-          >
-            <FontAwesomeIcon icon={faFilter} />
-            Filters
-            {showFilters && <FontAwesomeIcon icon={faChevronUp} />}
-            {!showFilters && <FontAwesomeIcon icon={faChevronDown} />}
+
+          <button type="button" className="attendance-clear-btn" onClick={handleClearFilters}>
+            Clear Filters
           </button>
         </div>
 
         {showFilters && (
-          <div className="filters-panel">
-            <div className="filter-group">
-              <label>Department</label>
-              <select
-                value={selectedDepartment}
-                onChange={(e) => setSelectedDepartment(e.target.value)}
-              >
-                <option value="all">All Departments</option>
-                {departments.map(dept => (
-                  <option key={dept} value={dept}>{dept}</option>
-                ))}
-              </select>
-            </div>
-            <div className="filter-group">
-              <label>Status</label>
-              <select
-                value={selectedStatus}
-                onChange={(e) => setSelectedStatus(e.target.value)}
-              >
-                <option value="all">All Status</option>
-                {statuses.map(status => (
-                  <option key={status} value={status}>
-                    {status === 'present' ? 'Present' : status === 'absent' ? 'Absent' : status}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="filter-group">
-              <label>Sort By</label>
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-              >
-                <option value="name">Name</option>
-                <option value="department">Department</option>
-                <option value="checkIn">Check In</option>
-                <option value="checkOut">Check Out</option>
-                <option value="totalHours">Total Hours</option>
-                <option value="status">Status</option>
-              </select>
-            </div>
+          <div className="attendance-filter-grid">
+            <FilterSelect
+              label="Department"
+              value={selectedDepartment}
+              onChange={setSelectedDepartment}
+              options={[
+                { value: "all", label: "All Departments" },
+                ...departments.map((department) => ({
+                  value: department,
+                  label: department,
+                })),
+              ]}
+            />
+
+            <FilterSelect
+              label="Attendance Status"
+              value={selectedStatus}
+              onChange={setSelectedStatus}
+              options={[
+                { value: "all", label: "All Statuses" },
+                ...statuses.map((status) => ({
+                  value: status,
+                  label: formatStatus(status),
+                })),
+              ]}
+            />
+
+            <FilterSelect
+              label="Review Status"
+              value={selectedReviewStatus}
+              onChange={setSelectedReviewStatus}
+              options={[
+                { value: "all", label: "All Review Status" },
+                { value: "pending", label: "Pending" },
+                { value: "reviewed", label: "Reviewed" },
+              ]}
+            />
+
+            <FilterSelect
+              label="Sort By"
+              value={sortBy}
+              onChange={setSortBy}
+              options={[
+                { value: "name", label: "Employee Name" },
+                { value: "department", label: "Department" },
+                { value: "role", label: "Role" },
+                { value: "status", label: "Status" },
+                { value: "reviewStatus", label: "Review Status" },
+              ]}
+            />
+
             <button
-              className="sort-order-btn"
-              onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
+              type="button"
+              className="attendance-sort-btn"
+              onClick={() => setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"))}
             >
-              <FontAwesomeIcon icon={faSort} />
-              {sortOrder === "asc" ? "A-Z" : "Z-A"}
+              {sortOrder === "asc" ? "Ascending" : "Descending"}
             </button>
           </div>
         )}
-      </div>
+      </section>
 
-      {/* Loading State */}
-      {loading && (
-        <div className="loading">
-          <FontAwesomeIcon icon={faSpinner} spin />
-          <span>Loading attendance data...</span>
+      <section className="attendance-table-card">
+        <div className="attendance-table-header">
+          <div>
+            <span className="attendance-eyebrow">Attendance Records</span>
+            <h2>Daily Attendance List</h2>
+          </div>
+
+          <div className="attendance-page-size">
+            <label htmlFor="items-per-page">Rows</label>
+            <select
+              id="items-per-page"
+              value={itemsPerPage}
+              onChange={(event) => {
+                setItemsPerPage(Number(event.target.value));
+                setCurrentPage(1);
+              }}
+            >
+              <option value={5}>5</option>
+              <option value={10}>10</option>
+              <option value={20}>20</option>
+              <option value={50}>50</option>
+            </select>
+          </div>
         </div>
-      )}
 
-      {/* Error State */}
-      {error && !loading && (
-        <div className="error-message">
-          {error}
-        </div>
-      )}
+        {loading ? (
+          <div className="attendance-loading-state">
+            <FontAwesomeIcon icon={faSpinner} spin />
+            <h3>Loading attendance records</h3>
+            <p>Please wait while attendance data is being loaded.</p>
+          </div>
+        ) : (
+          <>
+            <div className="attendance-table-scroll">
+              <table className="attendance-table">
+                <thead>
+                  <tr>
+                    <SortableHeader label="Employee" field="name" sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort} />
+                    <SortableHeader label="Role" field="role" sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort} />
+                    <SortableHeader label="Department" field="department" sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort} />
+                    <th>Date</th>
+                    <th>Time In</th>
+                    <th>Time Out</th>
+                    <SortableHeader label="Status" field="status" sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort} />
+                    <th>Overtime</th>
+                    <th>Undertime</th>
+                    <th>Remarks</th>
+                    <SortableHeader label="Review" field="reviewStatus" sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort} />
+                    <th>Actions</th>
+                  </tr>
+                </thead>
 
-      {/* Attendance Table */}
-      {!loading && (
-        <div className="attendance-table-container">
-          <table className="attendance-table">
-            <thead>
-              <tr>
-                <th onClick={() => handleSort("name")}>
-                  Employee
-                  {sortBy === "name" && (
-                    <FontAwesomeIcon icon={sortOrder === "asc" ? faChevronUp : faChevronDown} />
-                  )}
-                </th>
-                <th onClick={() => handleSort("department")}>
-                  Department
-                  {sortBy === "department" && (
-                    <FontAwesomeIcon icon={sortOrder === "asc" ? faChevronUp : faChevronDown} />
-                  )}
-                </th>
-                <th onClick={() => handleSort("checkIn")}>
-                  Check In
-                  {sortBy === "checkIn" && (
-                    <FontAwesomeIcon icon={sortOrder === "asc" ? faChevronUp : faChevronDown} />
-                  )}
-                </th>
-                <th onClick={() => handleSort("checkOut")}>
-                  Check Out
-                  {sortBy === "checkOut" && (
-                    <FontAwesomeIcon icon={sortOrder === "asc" ? faChevronUp : faChevronDown} />
-                  )}
-                </th>
-                <th onClick={() => handleSort("totalHours")}>
-                  Total Hours
-                  {sortBy === "totalHours" && (
-                    <FontAwesomeIcon icon={sortOrder === "asc" ? faChevronUp : faChevronDown} />
-                  )}
-                </th>
-                <th onClick={() => handleSort("status")}>
-                  Status
-                  {sortBy === "status" && (
-                    <FontAwesomeIcon icon={sortOrder === "asc" ? faChevronUp : faChevronDown} />
-                  )}
-                </th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {paginatedAttendance.map((record) => (
-              <tr key={record.id}>
-                <td className="employee-info">
-                  <div className="employee-details">
-                    <div className="employee-name">{record.name}</div>
-                    <div className="employee-id">{record.employeeId}</div>
-                    <div className="employee-email">{record.email}</div>
-                  </div>
-                </td>
-                <td>
-                  <span className="department-badge">{record.department}</span>
-                </td>
-                <td className="time-cell">
-                  <div className="time-info">
-                    {record.checkIn ? (
-                      <>
-                        <FontAwesomeIcon icon={faClock} />
-                        {record.checkIn}
-                      </>
-                    ) : (
-                      <span className="no-time">--</span>
-                    )}
-                    {record.late && <span className="late-badge">Late</span>}
-                  </div>
-                </td>
-                <td className="time-cell">
-                  <div className="time-info">
-                    {record.checkOut ? (
-                      <>
-                        <FontAwesomeIcon icon={faClock} />
-                        {record.checkOut}
-                      </>
-                    ) : (
-                      <span className="no-time">--</span>
-                    )}
-                    {record.earlyLeave && <span className="early-leave-badge">Early</span>}
-                  </div>
-                </td>
-                <td className="hours-cell">
-                  <div className="hours-info">
-                    <span className="total-hours">{record.totalHours}</span>
-                    {record.overtime && record.overtime !== "00:00" && (
-                      <span className="overtime">+{record.overtime}</span>
-                    )}
-                  </div>
-                </td>
-                <td>
-                  <span className={`status-badge ${record.status}`}>
-                    {record.status === 'present' ? 'Present' : 'Absent'}
-                  </span>
-                </td>
-                <td>
-                  <div className="action-buttons">
-                    <button
-                      className="action-btn view"
-                      onClick={() => handleViewDetails(record)}
-                      title="View Details"
-                    >
-                      <FontAwesomeIcon icon={faEye} />
-                    </button>
-                    <button
-                      className="action-btn edit"
-                      onClick={() => handleEdit(record)}
-                      title="Edit"
-                    >
-                      <FontAwesomeIcon icon={faEdit} />
-                    </button>
-                    <button
-                      className="action-btn delete"
-                      onClick={() => handleDelete(record)}
-                      title="Delete"
-                    >
-                      <FontAwesomeIcon icon={faTrash} />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-              ))}
-            </tbody>
-          </table>
+                <tbody>
+                  {paginatedAttendance.map((record) => (
+                    <tr key={record.id}>
+                      <td>
+                        <div className="attendance-employee-cell">
+                          <span>{record.name.charAt(0).toUpperCase()}</span>
+                          <div>
+                            <strong>{record.name}</strong>
+                            <small>{record.employeeId}</small>
+                          </div>
+                        </div>
+                      </td>
 
-          {/* Empty State */}
-          {paginatedAttendance.length === 0 && (
-            <div className="no-data">
-              No attendance records found.
+                      <td>{record.role}</td>
+
+                      <td>
+                        <span className="department-badge">{record.department}</span>
+                      </td>
+
+                      <td>{formatDate(record.date)}</td>
+
+                      <td>
+                        <div className="attendance-time-cell">
+                          <span>{formatTime(record.timeIn)}</span>
+                          {record.isLate && <small className="late">Late</small>}
+                        </div>
+                      </td>
+
+                      <td>
+                        <div className="attendance-time-cell">
+                          <span>{formatTime(record.timeOut)}</span>
+                          {record.isEarlyLeave && <small className="early">Early</small>}
+                        </div>
+                      </td>
+
+                      <td>
+                        <span className={`attendance-status ${record.status}`}>
+                          {formatStatus(record.status)}
+                        </span>
+                      </td>
+
+                      <td>{formatHours(record.overtime)}</td>
+                      <td>{formatHours(record.undertime)}</td>
+
+                      <td className="remarks-cell">
+                        {record.remarks || "No remarks"}
+                      </td>
+
+                      <td>
+                        <span className={`attendance-review ${record.reviewStatus}`}>
+                          {formatStatus(record.reviewStatus)}
+                        </span>
+                      </td>
+
+                      <td>
+                        <div className="attendance-actions">
+                          <button
+                            type="button"
+                            className="view"
+                            title="View details"
+                            onClick={() => handleViewDetails(record)}
+                          >
+                            <FontAwesomeIcon icon={faEye} />
+                          </button>
+
+                          <button
+                            type="button"
+                            className="edit"
+                            title="Edit remarks"
+                            onClick={() => handleOpenRemarks(record)}
+                          >
+                            <FontAwesomeIcon icon={faPenToSquare} />
+                          </button>
+
+                          <button
+                            type="button"
+                            className="review"
+                            title="Mark as reviewed"
+                            disabled={
+                              actionLoadingId === record.id ||
+                              record.reviewStatus === "reviewed"
+                            }
+                            onClick={() => handleMarkReviewed(record)}
+                          >
+                            <FontAwesomeIcon
+                              icon={
+                                actionLoadingId === record.id
+                                  ? faSpinner
+                                  : faCheckCircle
+                              }
+                              spin={actionLoadingId === record.id}
+                            />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          )}
-        </div>
-      )}
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="pagination">
-          <div className="pagination-info">
-            Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredAndSortedAttendance.length)} of {filteredAndSortedAttendance.length} records
-          </div>
-          <div className="pagination-controls">
-            <button
-              disabled={currentPage === 1}
-              onClick={() => setCurrentPage(currentPage - 1)}
-            >
-              <FontAwesomeIcon icon={faChevronLeft} />
-              Previous
-            </button>
-            {[...Array(totalPages)].map((_, i) => (
-              <button
-                key={i + 1}
-                className={currentPage === i + 1 ? 'active' : ''}
-                onClick={() => setCurrentPage(i + 1)}
-              >
-                {i + 1}
-              </button>
-            ))}
-            <button
-              disabled={currentPage === totalPages}
-              onClick={() => setCurrentPage(currentPage + 1)}
-            >
-              Next
-              <FontAwesomeIcon icon={faChevronRight} />
-            </button>
-          </div>
-        </div>
-      )}
+            {paginatedAttendance.length === 0 && (
+              <div className="attendance-empty-state">
+                <FontAwesomeIcon icon={faCalendarAlt} />
+                <h3>No attendance records found</h3>
+                <p>
+                  Try adjusting the selected date, search keyword, or filters.
+                </p>
+              </div>
+            )}
 
-      {/* Details Modal */}
+            <div className="attendance-pagination">
+              <p>
+                Showing {pageStart} to {pageEnd} of {filteredAttendance.length} records
+              </p>
+
+              <div>
+                <button
+                  type="button"
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                >
+                  <FontAwesomeIcon icon={faChevronLeft} />
+                  Previous
+                </button>
+
+                <span>
+                  Page {currentPage} of {totalPages}
+                </span>
+
+                <button
+                  type="button"
+                  disabled={currentPage === totalPages}
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+                  }
+                >
+                  Next
+                  <FontAwesomeIcon icon={faChevronRight} />
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+      </section>
+
+      <PrintArea
+        records={filteredAttendance}
+        selectedDate={selectedDate}
+        statistics={statistics}
+      />
+
       {showDetailsModal && selectedAttendance && (
-        <div className="modal-overlay">
-          <div className="modal attendance-details-modal">
-            <div className="modal-header">
-              <h2>Attendance Details</h2>
-              <button onClick={() => setShowDetailsModal(false)}>
-                <FontAwesomeIcon icon={faXmark} />
-              </button>
-            </div>
-            <div className="modal-content">
-              <div className="attendance-details">
-                <div className="detail-section">
-                  <h3>Employee Information</h3>
-                  <div className="detail-grid">
-                    <div className="detail-item">
-                      <label>Name:</label>
-                      <span>{selectedAttendance.name}</span>
-                    </div>
-                    <div className="detail-item">
-                      <label>Employee ID:</label>
-                      <span>{selectedAttendance.employeeId}</span>
-                    </div>
-                    <div className="detail-item">
-                      <label>Email:</label>
-                      <span>{selectedAttendance.email}</span>
-                    </div>
-                    <div className="detail-item">
-                      <label>Department:</label>
-                      <span>{selectedAttendance.department}</span>
-                    </div>
-                    <div className="detail-item">
-                      <label>Role:</label>
-                      <span>{selectedAttendance.role}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="detail-section">
-                  <h3>Attendance Information</h3>
-                  <div className="detail-grid">
-                    <div className="detail-item">
-                      <label>Date:</label>
-                      <span>{selectedAttendance.date}</span>
-                    </div>
-                    <div className="detail-item">
-                      <label>Check In:</label>
-                      <span>{selectedAttendance.checkIn || '--'}</span>
-                    </div>
-                    <div className="detail-item">
-                      <label>Check Out:</label>
-                      <span>{selectedAttendance.checkOut || '--'}</span>
-                    </div>
-                    <div className="detail-item">
-                      <label>Break Time:</label>
-                      <span>{selectedAttendance.breakTime || '--'}</span>
-                    </div>
-                    <div className="detail-item">
-                      <label>Total Hours:</label>
-                      <span>{selectedAttendance.totalHours}</span>
-                    </div>
-                    <div className="detail-item">
-                      <label>Overtime:</label>
-                      <span>{selectedAttendance.overtime}</span>
-                    </div>
-                    <div className="detail-item">
-                      <label>Status:</label>
-                      <span className={`status-badge ${selectedAttendance.status}`}>
-                        {selectedAttendance.status === 'present' ? 'Present' : 'Absent'}
-                      </span>
-                    </div>
-                    <div className="detail-item">
-                      <label>Location:</label>
-                      <span>{selectedAttendance.location || '--'}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="detail-section">
-                  <h3>Financial Information</h3>
-                  <div className="detail-grid">
-                    <div className="detail-item">
-                      <label>Salary Rate:</label>
-                      <span>{formatCurrency(selectedAttendance.salaryRate)}/hour</span>
-                    </div>
-                    <div className="detail-item">
-                      <label>Daily Earnings:</label>
-                      <span>{formatCurrency(selectedAttendance.dailyEarnings)}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="detail-section">
-                  <h3>Additional Information</h3>
-                  <div className="detail-grid">
-                    <div className="detail-item">
-                      <label>Notes:</label>
-                      <span>{selectedAttendance.notes || 'No notes'}</span>
-                    </div>
-                    <div className="detail-item">
-                      <label>Approved By:</label>
-                      <span>{selectedAttendance.approvedBy || 'Not approved'}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={() => setShowDetailsModal(false)}>
-                Close
-              </button>
-              <button className="btn btn-primary" onClick={() => {
-                setShowDetailsModal(false);
-                handleEdit(selectedAttendance);
-              }}>
-                <FontAwesomeIcon icon={faEdit} />
-                Edit Record
-              </button>
-            </div>
-          </div>
-        </div>
+        <DetailsModal
+          record={selectedAttendance}
+          onClose={() => {
+            setShowDetailsModal(false);
+            setSelectedAttendance(null);
+          }}
+          onEdit={() => {
+            setShowDetailsModal(false);
+            handleOpenRemarks(selectedAttendance);
+          }}
+        />
       )}
 
-      {/* Delete Confirmation Modal */}
-      {showDeleteModal && selectedAttendance && (
-        <div className="modal-overlay">
-          <div className="modal delete-modal">
-            <div className="modal-header">
-              <h2>Confirm Delete</h2>
-              <button onClick={() => setShowDeleteModal(false)}>
-                <FontAwesomeIcon icon={faXmark} />
-              </button>
-            </div>
-            <div className="modal-content">
-              <div className="warning-message">
-                <FontAwesomeIcon icon={faExclamationTriangle} />
-                <p>Are you sure you want to delete the attendance record for {selectedAttendance.name}?</p>
-                <p>This action cannot be undone.</p>
-              </div>
-            </div>
-            <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={() => setShowDeleteModal(false)}>
-                Cancel
-              </button>
-              <button className="btn btn-danger" onClick={confirmDelete}>
-                <FontAwesomeIcon icon={faTrash} />
-                Delete Record
-              </button>
-            </div>
-          </div>
+      {showRemarksModal && selectedAttendance && (
+        <RemarksModal
+          record={selectedAttendance}
+          form={remarksForm}
+          setForm={setRemarksForm}
+          saving={actionLoadingId === selectedAttendance.id}
+          onClose={() => {
+            setShowRemarksModal(false);
+            setSelectedAttendance(null);
+          }}
+          onSave={handleSaveRemarks}
+        />
+      )}
+
+      {toast && (
+        <div className={`attendance-toast ${toast.type}`}>
+          <FontAwesomeIcon
+            icon={toast.type === "error" ? faTriangleExclamation : faCheckCircle}
+          />
+          <span>{toast.message}</span>
         </div>
       )}
     </div>
   );
 };
+
+const SummaryCard = ({ title, value, icon, tone }) => (
+  <article className={`attendance-summary-card ${tone}`}>
+    <span>
+      <FontAwesomeIcon icon={icon} />
+    </span>
+    <div>
+      <strong>{value}</strong>
+      <p>{title}</p>
+    </div>
+  </article>
+);
+
+const InfoMetric = ({ label, value, tone = "default" }) => (
+  <div className={`attendance-info-metric ${tone}`}>
+    <small>{label}</small>
+    <strong>{value}</strong>
+  </div>
+);
+
+const FilterSelect = ({ label, value, options, onChange }) => (
+  <div className="attendance-filter-field">
+    <label>{label}</label>
+    <select value={value} onChange={(event) => onChange(event.target.value)}>
+      {options.map((option) => (
+        <option value={option.value} key={option.value}>
+          {option.label}
+        </option>
+      ))}
+    </select>
+  </div>
+);
+
+const SortableHeader = ({ label, field, sortBy, sortOrder, onSort }) => (
+  <th>
+    <button type="button" onClick={() => onSort(field)}>
+      {label}
+      {sortBy === field && (
+        <FontAwesomeIcon icon={sortOrder === "asc" ? faChevronUp : faChevronDown} />
+      )}
+    </button>
+  </th>
+);
+
+const DetailsModal = ({ record, onClose, onEdit }) => (
+  <div className="attendance-modal-overlay">
+    <div className="attendance-modal large">
+      <div className="attendance-modal-header">
+        <div>
+          <span className="attendance-eyebrow">Attendance Details</span>
+          <h2>{record.name}</h2>
+        </div>
+
+        <button type="button" onClick={onClose}>
+          <FontAwesomeIcon icon={faXmark} />
+        </button>
+      </div>
+
+      <div className="attendance-modal-body">
+        <DetailSection
+          title="Employee Information"
+          items={[
+            ["Employee ID", record.employeeId],
+            ["Email", record.email],
+            ["Role", record.role],
+            ["Department", record.department],
+          ]}
+        />
+
+        <DetailSection
+          title="Attendance Information"
+          items={[
+            ["Date", formatDate(record.date)],
+            ["Time In", formatTime(record.timeIn)],
+            ["Time Out", formatTime(record.timeOut)],
+            ["Break Time", formatHours(record.breakTime)],
+            ["Total Hours", formatHours(record.totalHours)],
+            ["Overtime", formatHours(record.overtime)],
+            ["Undertime", formatHours(record.undertime)],
+            ["Status", formatStatus(record.status)],
+            ["Review Status", formatStatus(record.reviewStatus)],
+            ["Location", record.location],
+          ]}
+        />
+
+        <DetailSection
+          title="Payroll Reference"
+          items={[
+            ["Salary Rate", formatCurrency(record.salaryRate)],
+            ["Daily Earnings", formatCurrency(record.dailyEarnings)],
+            ["Approved By", record.approvedBy],
+          ]}
+        />
+
+        <div className="attendance-detail-section">
+          <h3>Remarks</h3>
+          <p className="attendance-remarks-box">
+            {record.remarks || "No remarks added yet."}
+          </p>
+        </div>
+      </div>
+
+      <div className="attendance-modal-footer">
+        <button type="button" className="attendance-btn secondary" onClick={onClose}>
+          Close
+        </button>
+        <button type="button" className="attendance-btn primary" onClick={onEdit}>
+          <FontAwesomeIcon icon={faPenToSquare} />
+          Edit Remarks
+        </button>
+      </div>
+    </div>
+  </div>
+);
+
+const RemarksModal = ({ record, form, setForm, saving, onClose, onSave }) => (
+  <div className="attendance-modal-overlay">
+    <div className="attendance-modal">
+      <div className="attendance-modal-header">
+        <div>
+          <span className="attendance-eyebrow">Update Remarks</span>
+          <h2>{record.name}</h2>
+        </div>
+
+        <button type="button" onClick={onClose}>
+          <FontAwesomeIcon icon={faXmark} />
+        </button>
+      </div>
+
+      <div className="attendance-modal-body">
+        <label className="attendance-textarea-field">
+          <span>Manager Remarks</span>
+          <textarea
+            rows={6}
+            value={form.remarks}
+            onChange={(event) =>
+              setForm((prev) => ({
+                ...prev,
+                remarks: event.target.value,
+              }))
+            }
+            placeholder="Add notes about late arrival, undertime, correction, or attendance validation..."
+          />
+        </label>
+      </div>
+
+      <div className="attendance-modal-footer">
+        <button type="button" className="attendance-btn secondary" onClick={onClose}>
+          Cancel
+        </button>
+
+        <button
+          type="button"
+          className="attendance-btn primary"
+          onClick={onSave}
+          disabled={saving}
+        >
+          <FontAwesomeIcon icon={saving ? faSpinner : faCheckCircle} spin={saving} />
+          {saving ? "Saving..." : "Save Remarks"}
+        </button>
+      </div>
+    </div>
+  </div>
+);
+
+const DetailSection = ({ title, items }) => (
+  <div className="attendance-detail-section">
+    <h3>{title}</h3>
+    <div className="attendance-detail-grid">
+      {items.map(([label, value]) => (
+        <div key={label}>
+          <small>{label}</small>
+          <strong>{value || "N/A"}</strong>
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
+const PrintArea = ({ records, selectedDate, statistics }) => (
+  <section className="attendance-print-area">
+    <h1>Pawesome Retreat Inc.</h1>
+    <h2>Manager Attendance Report</h2>
+    <p>Date: {formatDate(selectedDate)}</p>
+
+    <div className="print-summary">
+      <span>Total: {statistics.total}</span>
+      <span>Present: {statistics.present}</span>
+      <span>Late: {statistics.late}</span>
+      <span>Absent: {statistics.absent}</span>
+      <span>Pending Review: {statistics.pendingReview}</span>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Employee</th>
+          <th>Department</th>
+          <th>Role</th>
+          <th>Time In</th>
+          <th>Time Out</th>
+          <th>Status</th>
+          <th>Total Hours</th>
+          <th>Review</th>
+          <th>Remarks</th>
+        </tr>
+      </thead>
+      <tbody>
+        {records.map((record) => (
+          <tr key={record.id}>
+            <td>{record.name}</td>
+            <td>{record.department}</td>
+            <td>{record.role}</td>
+            <td>{formatTime(record.timeIn)}</td>
+            <td>{formatTime(record.timeOut)}</td>
+            <td>{formatStatus(record.status)}</td>
+            <td>{formatHours(record.totalHours)}</td>
+            <td>{formatStatus(record.reviewStatus)}</td>
+            <td>{record.remarks || ""}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </section>
+);
 
 export default ManagerAttendance;
