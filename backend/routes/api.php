@@ -451,6 +451,26 @@ Route::middleware(['auth.api', 'throttle:api', 'role:manager'])->prefix('manager
     Route::get('reports/medical-confinement', [WorkflowReportController::class, 'medicalConfinement']);
     Route::get('reports/room-occupancy', [WorkflowReportController::class, 'roomOccupancy']);
     Route::get('reports/veterinary-services', [WorkflowReportController::class, 'veterinaryServices']);
+    Route::get('reports/attendance', [ReportsController::class, 'payrollReports']);
+    Route::get('reports/payroll', [ReportsController::class, 'payrollReports']);
+
+    // Manager Attendance Routes
+    Route::get('attendance', [AttendanceController::class, 'index']);
+    Route::post('attendance/{id}/remarks', [AttendanceController::class, 'update']);
+    Route::post('attendance/{id}/review', [AttendanceController::class, 'update']);
+
+    // Manager Payroll Routes
+    Route::get('payroll', [ApiPayrollController::class, 'index']);
+    Route::post('payroll/generate', [ApiPayrollController::class, 'generate']);
+    Route::post('payroll/{id}/approve', [ApiPayrollController::class, 'approve']);
+    Route::post('payroll/{id}/release', [ApiPayrollController::class, 'markAsPaid']);
+
+    // Manager History Route
+    Route::get('history', [ReportsController::class, 'orders']);
+
+    // Manager Staff-Specific Routes
+    Route::get('staff/{id}/attendance', [AttendanceController::class, 'index']);
+    Route::get('staff/{id}/payroll', [ApiPayrollController::class, 'index']);
 });
 
 // Attendance Routes (Admin and Manager)

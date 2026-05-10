@@ -18,6 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'role' => \App\Http\Middleware\EnsureRole::class,
             'auth.api' => \App\Http\Middleware\ApiTokenAuth::class,
+            'throttle' => \Illuminate\Routing\Middleware\ThrottleRequests::class,
         ]);
         $middleware->redirectGuestsTo(function (Request $request) {
             return $request->is('api/*') ? null : '/login';

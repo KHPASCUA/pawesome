@@ -1,321 +1,684 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  faSearch,
   faCalendarAlt,
-  faChartLine,
-  faMoneyBillWave,
-  faBox,
-  faUsers,
+  faCheckCircle,
+  faChevronDown,
+  faChevronUp,
   faClipboardList,
-  faSpinner,
-  faExclamationTriangle,
+  faClock,
   faDownload,
   faEye,
-  faSort,
+  faExclamationTriangle,
+  faFileInvoiceDollar,
+  faFilter,
+  faMoneyBillWave,
+  faSearch,
+  faSpinner,
+  faSync,
+  faTimesCircle,
+  faUserCheck,
+  faXmark,
 } from "@fortawesome/free-solid-svg-icons";
 import { apiRequest } from "../../api/client";
 import { formatCurrency } from "../../utils/currency";
 import { useTheme } from "../../utils/theme";
 import "./ManagerHistory.css";
 
+const ACTION_OPTIONS = [
+  { value: "all", label: "All Actions" },
+  { value: "attendance_review", label: "Attendance Review" },
+  { value: "attendance_remarks", label: "Attendance Remarks" },
+  { value: "attendance_record", label: "Attendance Record" },
+  { value: "payroll_generated", label: "Payroll Generated" },
+  { value: "payroll_approved", label: "Payroll Approved" },
+  { value: "payroll_released", label: "Payroll Released" },
+  { value: "payroll_record", label: "Payroll Record" },
+  { value: "report_exported", label: "Report Exported" },
+];
+
+const CATEGORY_OPTIONS = [
+  { value: "all", label: "All Categories" },
+  { value: "attendance", label: "Attendance" },
+  { value: "payroll", label: "Payroll" },
+  { value: "reports", label: "Reports" },
+];
+
+const SORT_OPTIONS = [
+  { value: "newest", label: "Newest First" },
+  { value: "oldest", label: "Oldest First" },
+  { value: "action", label: "Action Type" },
+  { value: "employee", label: "Employee Name" },
+  { value: "status", label: "Status" },
+];
+
+const normalizeList = (payload, keys = []) => {
+  if (Array.isArray(payload)) return payload;
+
+  for (const key of keys) {
+    if (Array.isArray(payload?.[key])) return payload[key];
+    if (Array.isArray(payload?.data?.[key])) return payload.data[key];
+    if (Array.isArray(payload?.[key]?.data)) return payload[key].data;
+    if (Array.isArray(payload?.data?.[key]?.data)) return payload.data[key].data;
+  }
+
+  if (Array.isArray(payload?.data)) return payload.data;
+  if (Array.isArray(payload?.data?.data)) return payload.data.data;
+  if (Array.isArray(payload?.records)) return payload.records;
+  if (Array.isArray(payload?.items)) return payload.items;
+  if (Array.isArray(payload?.history)) return payload.history;
+  if (Array.isArray(payload?.activities)) return payload.activities;
+  if (Array.isArray(payload?.logs)) return payload.logs;
+
+  return [];
+};
+
+const toNumber = (value) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const normalizeText = (value, fallback = "N/A") => {
+  if (value === null || value === undefined || value === "") return fallback;
+  return String(value);
+};
+
+const normalizeStatus = (value) =>
+  String(value || "completed")
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, "_")
+    .replace(/-/g, "_");
+
+const formatLabel = (value) =>
+  String(value || "N/A")
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+
+const formatDateTime = (value) => {
+  if (!value) return "N/A";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+
+  return date.toLocaleString("en-PH", {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+};
+
+const getActionType = (record) => {
+  const rawAction = normalizeStatus(
+    record.action_type ||
+      record.action ||
+      record.type ||
+      record.event ||
+      record.activity_type
+  );
+
+  if (rawAction.includes("remark")) return "attendance_remarks";
+  if (rawAction.includes("attendance") && rawAction.includes("review")) {
+    return "attendance_review";
+  }
+  if (rawAction.includes("attendance")) return "attendance_record";
+  if (rawAction.includes("payroll") && rawAction.includes("generate")) {
+    return "payroll_generated";
+  }
+  if (rawAction.includes("payroll") && rawAction.includes("approve")) {
+    return "payroll_approved";
+  }
+  if (
+    rawAction.includes("payroll") &&
+    (rawAction.includes("release") || rawAction.includes("paid"))
+  ) {
+    return "payroll_released";
+  }
+  if (rawAction.includes("payroll")) return "payroll_record";
+  if (rawAction.includes("export") || rawAction.includes("report")) {
+    return "report_exported";
+  }
+
+  return rawAction && rawAction !== "completed" ? rawAction : "attendance_record";
+};
+
+const getCategory = (actionType) => {
+  if (actionType.includes("attendance")) return "attendance";
+  if (actionType.includes("payroll")) return "payroll";
+  if (actionType.includes("report")) return "reports";
+  return "attendance";
+};
+
+const getEmployeeName = (record) =>
+  record.employee_name ||
+  record.affected_employee ||
+  record.staff_name ||
+  record.user?.name ||
+  record.employee?.name ||
+  record.name ||
+  record.customer_name ||
+  "N/A";
+
+const getPayrollPeriod = (record) =>
+  record.payroll_period ||
+  record.period ||
+  record.period_label ||
+  record.month ||
+  record.cutoff ||
+  record.date_range ||
+  "N/A";
+
+const normalizeHistoryRecord = (record, index, source = "history") => {
+  const actionType = getActionType(record);
+  const category = getCategory(actionType);
+  const status = normalizeStatus(
+    record.status ||
+      record.result ||
+      record.review_status ||
+      record.payroll_status ||
+      record.payment_status ||
+      "completed"
+  );
+
+  const date =
+    record.created_at ||
+    record.updated_at ||
+    record.performed_at ||
+    record.date ||
+    record.timestamp ||
+    record.report_date ||
+    record.attendance_date ||
+    record.payroll_date;
+
+  const amount =
+    record.amount ||
+    record.net_pay ||
+    record.total_net_pay ||
+    record.total_amount ||
+    record.gross_pay ||
+    record.total_payroll ||
+    0;
+
+  return {
+    id: record.id || record.history_id || record.log_id || `${source}-${index}`,
+    source,
+    actionType,
+    category,
+    action:
+      record.action_label ||
+      record.title ||
+      record.action ||
+      record.event ||
+      formatLabel(actionType),
+    description:
+      record.description ||
+      record.message ||
+      record.remarks ||
+      record.notes ||
+      buildDescription(actionType, record),
+    employeeName: getEmployeeName(record),
+    employeeId:
+      record.employee_id ||
+      record.staff_id ||
+      record.user_id ||
+      record.employee?.id ||
+      "N/A",
+    payrollPeriod: getPayrollPeriod(record),
+    performedBy:
+      record.performed_by ||
+      record.created_by ||
+      record.generated_by ||
+      record.manager_name ||
+      record.approved_by ||
+      record.released_by ||
+      "Manager",
+    status,
+    date,
+    amount: toNumber(amount),
+    reference:
+      record.reference_no ||
+      record.reference_number ||
+      record.receipt_number ||
+      record.report_id ||
+      record.payroll_id ||
+      record.attendance_id ||
+      "N/A",
+    raw: record,
+  };
+};
+
+const buildDescription = (actionType, record) => {
+  if (actionType === "attendance_review") {
+    return `${getEmployeeName(record)} attendance was reviewed.`;
+  }
+
+  if (actionType === "attendance_remarks") {
+    return `${getEmployeeName(record)} attendance remarks were updated.`;
+  }
+
+  if (actionType === "attendance_record") {
+    return `${getEmployeeName(record)} attendance record was logged or updated.`;
+  }
+
+  if (actionType === "payroll_generated") {
+    return `Payroll was generated for ${getPayrollPeriod(record)}.`;
+  }
+
+  if (actionType === "payroll_approved") {
+    return `Payroll was approved for ${getPayrollPeriod(record)}.`;
+  }
+
+  if (actionType === "payroll_released") {
+    return `Payroll was released for ${getPayrollPeriod(record)}.`;
+  }
+
+  if (actionType === "payroll_record") {
+    return `Payroll record was updated for ${getPayrollPeriod(record)}.`;
+  }
+
+  if (actionType === "report_exported") {
+    return "A manager report was exported.";
+  }
+
+  return "Manager activity record.";
+};
+
+const buildAttendanceFallback = (records) => {
+  return records.map((record, index) =>
+    normalizeHistoryRecord(
+      {
+        ...record,
+        action_type:
+          record.review_status === "reviewed" || record.is_reviewed
+            ? "attendance_review"
+            : "attendance_record",
+        description:
+          record.description ||
+          record.remarks ||
+          `Attendance record for ${getEmployeeName(record)}.`,
+        performed_by: record.reviewed_by || record.manager_name || "Manager",
+        created_at: record.updated_at || record.created_at || record.date,
+      },
+      index,
+      "attendance"
+    )
+  );
+};
+
+const buildPayrollFallback = (records) => {
+  return records.map((record, index) => {
+    const status = normalizeStatus(record.status || record.payroll_status);
+    let actionType = "payroll_record";
+
+    if (status === "generated" || status === "draft") {
+      actionType = "payroll_generated";
+    }
+
+    if (status === "approved") {
+      actionType = "payroll_approved";
+    }
+
+    if (status === "released" || status === "paid") {
+      actionType = "payroll_released";
+    }
+
+    return normalizeHistoryRecord(
+      {
+        ...record,
+        action_type: actionType,
+        description:
+          record.description ||
+          `Payroll record for ${getEmployeeName(record)} during ${getPayrollPeriod(record)}.`,
+        performed_by:
+          record.approved_by ||
+          record.released_by ||
+          record.generated_by ||
+          "Manager",
+        created_at: record.updated_at || record.created_at || record.payroll_date,
+      },
+      index,
+      "payroll"
+    );
+  });
+};
+
+const escapeCSV = (value) => {
+  const text = String(value ?? "");
+  if (text.includes(",") || text.includes('"') || text.includes("\n")) {
+    return `"${text.replace(/"/g, '""')}"`;
+  }
+
+  return text;
+};
+
 const ManagerHistory = () => {
   const { theme } = useTheme();
-  const [activeTab, setActiveTab] = useState("sales");
-  const [salesHistory, setSalesHistory] = useState([]);
-  const [paymentHistory, setPaymentHistory] = useState([]);
-  const [inventoryHistory, setInventoryHistory] = useState([]);
-  const [serviceHistory, setServiceHistory] = useState([]);
-  const [customerHistory, setCustomerHistory] = useState([]);
+
+  const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
+  const [toast, setToast] = useState(null);
+
   const [searchTerm, setSearchTerm] = useState("");
-  const [sortBy, setSortBy] = useState("date");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [actionFilter, setActionFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [sortBy, setSortBy] = useState("newest");
+  const [showFilters, setShowFilters] = useState(false);
+
   const [selectedRecord, setSelectedRecord] = useState(null);
 
-  // Safe data normalization
-  const normalizeList = (result, keys = []) => {
-    if (Array.isArray(result)) return result;
-    
-    for (const key of keys) {
-      if (Array.isArray(result?.[key])) return result[key];
-    }
-    
-    if (Array.isArray(result?.data)) return result.data;
-    if (Array.isArray(result?.items)) return result.items;
-    if (Array.isArray(result?.history)) return result.history;
-    if (Array.isArray(result?.reports)) return result.reports;
-    if (Array.isArray(result?.records)) return result.records;
-    
-    return [];
-  };
-
-  const formatDate = (value) => {
-    if (!value) return "N/A";
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return "N/A";
-    return date.toLocaleDateString("en-PH", {
-      month: "short",
-      day: "numeric", 
-      year: "numeric",
-    });
-  };
-
-  const formatTime = (value) => {
-    if (!value) return "N/A";
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return "N/A";
-    return date.toLocaleTimeString("en-PH", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
-  // Fetch sales report history
-  const fetchSalesHistory = useCallback(async ({ silent = false } = {}) => {
-    try {
-      if (!silent) setLoading(true);
-      else setRefreshing(true);
-
-      const response = await apiRequest("/manager/reports/sales/history");
-      const salesData = normalizeList(response, ["data", "history", "reports"]);
-      
-      setSalesHistory(salesData);
-      setError("");
-    } catch (err) {
-      console.error("Failed to fetch sales history:", err);
-      setError(err.message || "Failed to load sales history");
-      setSalesHistory([]);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
+  const showToast = useCallback((message, type = "info") => {
+    setToast({ message, type });
+    window.clearTimeout(window.managerHistoryToastTimer);
+    window.managerHistoryToastTimer = window.setTimeout(
+      () => setToast(null),
+      3500
+    );
   }, []);
 
-  // Fetch payment report history
-  const fetchPaymentHistory = useCallback(async ({ silent = false } = {}) => {
-    try {
-      if (!silent) setLoading(true);
-      else setRefreshing(true);
+  const loadHistory = useCallback(
+    async ({ silent = false } = {}) => {
+      try {
+        if (silent) {
+          setRefreshing(true);
+        } else {
+          setLoading(true);
+        }
 
-      const response = await apiRequest("/manager/reports/payments/history");
-      const paymentData = normalizeList(response, ["data", "history", "reports"]);
-      
-      setPaymentHistory(paymentData);
-      setError("");
-    } catch (err) {
-      console.error("Failed to fetch payment history:", err);
-      setError(err.message || "Failed to load payment history");
-      setPaymentHistory([]);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
+        setError("");
 
-  // Fetch inventory report history
-  const fetchInventoryHistory = useCallback(async ({ silent = false } = {}) => {
-    try {
-      if (!silent) setLoading(true);
-      else setRefreshing(true);
+        const [historyResponse, attendanceResponse, payrollResponse] =
+          await Promise.all([
+            apiRequest("/manager/history").catch(() => null),
+            apiRequest("/manager/attendance").catch(() => null),
+            apiRequest("/manager/payroll").catch(() => null),
+          ]);
 
-      const response = await apiRequest("/manager/reports/inventory/history");
-      const inventoryData = normalizeList(response, ["data", "history", "reports"]);
-      
-      setInventoryHistory(inventoryData);
-      setError("");
-    } catch (err) {
-      console.error("Failed to fetch inventory history:", err);
-      setError(err.message || "Failed to load inventory history");
-      setInventoryHistory([]);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
+        const historyRecords = normalizeList(historyResponse, [
+          "history",
+          "activities",
+          "logs",
+          "records",
+        ]);
 
-  // Fetch service report history
-  const fetchServiceHistory = useCallback(async ({ silent = false } = {}) => {
-    try {
-      if (!silent) setLoading(true);
-      else setRefreshing(true);
+        const attendanceRecords = normalizeList(attendanceResponse, [
+          "attendance",
+          "records",
+          "items",
+        ]);
 
-      const response = await apiRequest("/manager/reports/services/history");
-      const serviceData = normalizeList(response, ["data", "history", "reports"]);
-      
-      setServiceHistory(serviceData);
-      setError("");
-    } catch (err) {
-      console.error("Failed to fetch service history:", err);
-      setError(err.message || "Failed to load service history");
-      setServiceHistory([]);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
+        const payrollRecords = normalizeList(payrollResponse, [
+          "payroll",
+          "records",
+          "items",
+        ]);
 
-  // Fetch customer activity history
-  const fetchCustomerHistory = useCallback(async ({ silent = false } = {}) => {
-    try {
-      if (!silent) setLoading(true);
-      else setRefreshing(true);
+        let normalized = [];
 
-      const response = await apiRequest("/manager/reports/customers/history");
-      const customerData = normalizeList(response, ["data", "history", "reports"]);
-      
-      setCustomerHistory(customerData);
-      setError("");
-    } catch (err) {
-      console.error("Failed to fetch customer history:", err);
-      setError(err.message || "Failed to load customer history");
-      setCustomerHistory([]);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
+        if (historyRecords.length > 0) {
+          normalized = historyRecords.map((record, index) =>
+            normalizeHistoryRecord(record, index, "history")
+          );
+        } else {
+          normalized = [
+            ...buildAttendanceFallback(attendanceRecords),
+            ...buildPayrollFallback(payrollRecords),
+          ];
 
-  // Load data based on active tab
+          if (normalized.length > 0) {
+            showToast(
+              "Using attendance and payroll records as history fallback. Dedicated manager history endpoint still needs verification.",
+              "warning"
+            );
+          }
+        }
+
+        setHistory(normalized);
+
+        if (
+          !historyResponse &&
+          !attendanceResponse &&
+          !payrollResponse &&
+          normalized.length === 0
+        ) {
+          setError(
+            "No manager history data is available yet. Please verify /manager/history, /manager/attendance, and /manager/payroll."
+          );
+        }
+      } catch (err) {
+        console.error("Manager history load error:", err);
+        setError(err.message || "Failed to load manager history.");
+        setHistory([]);
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [showToast]
+  );
+
   useEffect(() => {
-    switch (activeTab) {
-      case "sales":
-        fetchSalesHistory();
-        break;
-      case "payments":
-        fetchPaymentHistory();
-        break;
-      case "inventory":
-        fetchInventoryHistory();
-        break;
-      case "services":
-        fetchServiceHistory();
-        break;
-      case "customers":
-        fetchCustomerHistory();
-        break;
-      default:
-        break;
-    }
-  }, [activeTab, fetchSalesHistory, fetchPaymentHistory, fetchInventoryHistory, fetchServiceHistory, fetchCustomerHistory]);
+    loadHistory();
+  }, [loadHistory]);
 
-  // Filter and sort data
-  const filteredData = useMemo(() => {
-    let data = [];
-    switch (activeTab) {
-      case "sales":
-        data = salesHistory;
-        break;
-      case "payments":
-        data = paymentHistory;
-        break;
-      case "inventory":
-        data = inventoryHistory;
-        break;
-      case "services":
-        data = serviceHistory;
-        break;
-      case "customers":
-        data = customerHistory;
-        break;
-      default:
-        data = [];
-        break;
-    }
+  const statusOptions = useMemo(() => {
+    const statuses = [...new Set(history.map((record) => record.status))]
+      .filter(Boolean)
+      .sort();
 
-    if (!data) return [];
+    return [
+      { value: "all", label: "All Status" },
+      ...statuses.map((status) => ({
+        value: status,
+        label: formatLabel(status),
+      })),
+    ];
+  }, [history]);
 
-    // Apply search filter
-    const filtered = data.filter(item => {
-      const searchLower = searchTerm.toLowerCase();
-      const searchableFields = [
-        item.id,
-        item.report_id,
-        item.period,
-        item.month,
-        item.year,
-        item.total_amount,
-        item.total_sales,
-        item.total_revenue,
-        item.summary,
-        item.description,
-      ].filter(Boolean).join(' ').toLowerCase();
-      
-      return searchableFields.includes(searchLower);
+  const filteredHistory = useMemo(() => {
+    const search = searchTerm.trim().toLowerCase();
+
+    return history
+      .filter((record) => {
+        const recordDate = record.date ? new Date(record.date) : null;
+        const fromDate = dateFrom ? new Date(`${dateFrom}T00:00:00`) : null;
+        const toDate = dateTo ? new Date(`${dateTo}T23:59:59`) : null;
+
+        const matchesSearch =
+          !search ||
+          [
+            record.id,
+            record.action,
+            record.description,
+            record.employeeName,
+            record.employeeId,
+            record.payrollPeriod,
+            record.performedBy,
+            record.status,
+            record.reference,
+          ]
+            .join(" ")
+            .toLowerCase()
+            .includes(search);
+
+        const matchesCategory =
+          categoryFilter === "all" || record.category === categoryFilter;
+
+        const matchesAction =
+          actionFilter === "all" || record.actionType === actionFilter;
+
+        const matchesStatus =
+          statusFilter === "all" || record.status === statusFilter;
+
+        const matchesDateFrom =
+          !fromDate ||
+          !recordDate ||
+          Number.isNaN(recordDate.getTime()) ||
+          recordDate >= fromDate;
+
+        const matchesDateTo =
+          !toDate ||
+          !recordDate ||
+          Number.isNaN(recordDate.getTime()) ||
+          recordDate <= toDate;
+
+        return (
+          matchesSearch &&
+          matchesCategory &&
+          matchesAction &&
+          matchesStatus &&
+          matchesDateFrom &&
+          matchesDateTo
+        );
+      })
+      .sort((a, b) => {
+        if (sortBy === "oldest") {
+          return new Date(a.date || 0) - new Date(b.date || 0);
+        }
+
+        if (sortBy === "action") {
+          return a.action.localeCompare(b.action);
+        }
+
+        if (sortBy === "employee") {
+          return a.employeeName.localeCompare(b.employeeName);
+        }
+
+        if (sortBy === "status") {
+          return a.status.localeCompare(b.status);
+        }
+
+        return new Date(b.date || 0) - new Date(a.date || 0);
+      });
+  }, [
+    actionFilter,
+    categoryFilter,
+    dateFrom,
+    dateTo,
+    history,
+    searchTerm,
+    sortBy,
+    statusFilter,
+  ]);
+
+  const summary = useMemo(() => {
+    const attendanceActions = history.filter(
+      (record) => record.category === "attendance"
+    ).length;
+
+    const payrollActions = history.filter(
+      (record) => record.category === "payroll"
+    ).length;
+
+    const reportActions = history.filter(
+      (record) => record.category === "reports"
+    ).length;
+
+    const pendingActions = history.filter((record) =>
+      ["pending", "draft", "for_approval", "pending_review"].includes(
+        record.status
+      )
+    ).length;
+
+    const completedActions = history.filter((record) =>
+      ["completed", "reviewed", "approved", "released", "paid"].includes(
+        record.status
+      )
+    ).length;
+
+    return {
+      total: history.length,
+      attendanceActions,
+      payrollActions,
+      reportActions,
+      pendingActions,
+      completedActions,
+    };
+  }, [history]);
+
+  const handleClearFilters = () => {
+    setSearchTerm("");
+    setCategoryFilter("all");
+    setActionFilter("all");
+    setStatusFilter("all");
+    setDateFrom("");
+    setDateTo("");
+    setSortBy("newest");
+  };
+
+  const handleExportCSV = () => {
+    const headers = [
+      "Action",
+      "Category",
+      "Description",
+      "Employee",
+      "Employee ID",
+      "Payroll Period",
+      "Performed By",
+      "Status",
+      "Reference",
+      "Amount",
+      "Date",
+    ];
+
+    const rows = filteredHistory.map((record) => [
+      record.action,
+      formatLabel(record.category),
+      record.description,
+      record.employeeName,
+      record.employeeId,
+      record.payrollPeriod,
+      record.performedBy,
+      formatLabel(record.status),
+      record.reference,
+      record.amount ? formatCurrency(record.amount) : "",
+      formatDateTime(record.date),
+    ]);
+
+    const csvContent = [headers, ...rows]
+      .map((row) => row.map(escapeCSV).join(","))
+      .join("\n");
+
+    const blob = new Blob([csvContent], {
+      type: "text/csv;charset=utf-8;",
     });
 
-    // Apply sorting
-    return filtered.sort((a, b) => {
-      if (sortBy === "date") {
-        const dateA = new Date(a.created_at || a.report_date || a.period_start || 0);
-        const dateB = new Date(b.created_at || b.report_date || b.period_start || 0);
-        return dateB - dateA;
-      }
-      if (sortBy === "amount") {
-        const amountA = Number(a.total_amount || a.total_sales || a.total_revenue || 0);
-        const amountB = Number(b.total_amount || b.total_sales || b.total_revenue || 0);
-        return amountB - amountA;
-      }
-      return 0;
-    });
-  }, [activeTab, salesHistory, paymentHistory, inventoryHistory, serviceHistory, customerHistory, searchTerm, sortBy]);
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
 
-  const handleRefresh = () => {
-    switch (activeTab) {
-      case "sales":
-        fetchSalesHistory({ silent: true });
-        break;
-      case "payments":
-        fetchPaymentHistory({ silent: true });
-        break;
-      case "inventory":
-        fetchInventoryHistory({ silent: true });
-        break;
-      case "services":
-        fetchServiceHistory({ silent: true });
-        break;
-      case "customers":
-        fetchCustomerHistory({ silent: true });
-        break;
-      default:
-        break;
-    }
+    link.href = url;
+    link.download = `manager-history-${new Date().toISOString().split("T")[0]}.csv`;
+    link.click();
+
+    URL.revokeObjectURL(url);
+    showToast("Manager history exported successfully.", "success");
   };
 
-  const handleExport = () => {
-    // TODO: Implement export functionality
-    alert("Export feature coming soon!");
+  const getActionIcon = (actionType) => {
+    if (actionType.includes("attendance")) return faUserCheck;
+    if (actionType.includes("payroll")) return faFileInvoiceDollar;
+    if (actionType.includes("report")) return faClipboardList;
+    return faClock;
   };
 
-  const getTabIcon = (tab) => {
-    switch (tab) {
-      case "sales": return faMoneyBillWave;
-      case "payments": return faMoneyBillWave;
-      case "inventory": return faBox;
-      case "services": return faClipboardList;
-      case "customers": return faUsers;
-      default: return faChartLine;
-    }
-  };
-
-  const getTabLabel = (tab) => {
-    switch (tab) {
-      case "sales": return "Sales Reports";
-      case "payments": return "Payment Reports";
-      case "inventory": return "Inventory Reports";
-      case "services": return "Service Reports";
-      case "customers": return "Customer Activity";
-      default: return "Reports";
-    }
+  const getCategoryLabel = (category) => {
+    const found = CATEGORY_OPTIONS.find((item) => item.value === category);
+    return found ? found.label : formatLabel(category);
   };
 
   if (loading) {
     return (
-      <div className="manager-history loading">
-        <div className="loading-container">
-          <FontAwesomeIcon icon={faSpinner} spin className="loading-spinner" />
-          <p>Loading history...</p>
+      <div className={`manager-history ${theme}`}>
+        <div className="history-loading-state">
+          <FontAwesomeIcon icon={faSpinner} spin />
+          <h2>Loading manager history</h2>
+          <p>Please wait while the manager audit trail is being loaded.</p>
         </div>
       </div>
     );
@@ -323,163 +686,360 @@ const ManagerHistory = () => {
 
   return (
     <div className={`manager-history ${theme}`}>
-      <div className="history-header">
-        <div className="header-content">
+      <section className="history-hero">
+        <div>
+          <span className="history-eyebrow">Manager Audit Trail</span>
           <h1>Manager History</h1>
-          <p>View read-only reports and monitoring history across all departments</p>
+          <p>
+            Track attendance review activity, payroll actions, report exports,
+            and manager-level monitoring history.
+          </p>
         </div>
-        <div className="header-actions">
-          <button 
-            className="refresh-btn" 
-            onClick={handleRefresh}
+
+        <div className="history-hero-actions">
+          <button
+            type="button"
+            className="history-btn secondary"
+            onClick={() => loadHistory({ silent: true })}
             disabled={refreshing}
           >
-            <FontAwesomeIcon icon={faSpinner} spin={refreshing} />
+            <FontAwesomeIcon icon={refreshing ? faSpinner : faSync} spin={refreshing} />
             {refreshing ? "Refreshing..." : "Refresh"}
           </button>
-          <button className="export-btn" onClick={handleExport}>
+
+          <button
+            type="button"
+            className="history-btn primary"
+            onClick={handleExportCSV}
+          >
             <FontAwesomeIcon icon={faDownload} />
-            Export
+            Export CSV
           </button>
         </div>
-      </div>
+      </section>
 
       {error && (
-        <div className="error-banner">
+        <div className="history-alert error">
           <FontAwesomeIcon icon={faExclamationTriangle} />
           <span>{error}</span>
+          <button type="button" onClick={() => loadHistory()}>
+            Retry
+          </button>
         </div>
       )}
 
-      <div className="history-tabs">
-        {["sales", "payments", "inventory", "services", "customers"].map((tab) => (
-          <button 
-            key={tab}
-            className={`tab-btn ${activeTab === tab ? "active" : ""}`}
-            onClick={() => setActiveTab(tab)}
+      <section className="history-summary-grid">
+        <SummaryCard
+          label="Total Activities"
+          value={summary.total}
+          icon={faClipboardList}
+          tone="primary"
+        />
+        <SummaryCard
+          label="Attendance Actions"
+          value={summary.attendanceActions}
+          icon={faUserCheck}
+          tone="success"
+        />
+        <SummaryCard
+          label="Payroll Actions"
+          value={summary.payrollActions}
+          icon={faMoneyBillWave}
+          tone="money"
+        />
+        <SummaryCard
+          label="Report Exports"
+          value={summary.reportActions}
+          icon={faDownload}
+          tone="info"
+        />
+        <SummaryCard
+          label="Pending"
+          value={summary.pendingActions}
+          icon={faClock}
+          tone="warning"
+        />
+        <SummaryCard
+          label="Completed"
+          value={summary.completedActions}
+          icon={faCheckCircle}
+          tone="success"
+        />
+      </section>
+
+      <section className="history-controls-card">
+        <div className="history-search-row">
+          <div className="history-search-box">
+            <FontAwesomeIcon icon={faSearch} />
+            <input
+              type="text"
+              placeholder="Search action, employee, payroll period, status, reference, or description..."
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+            />
+
+            {searchTerm && (
+              <button type="button" onClick={() => setSearchTerm("")}>
+                <FontAwesomeIcon icon={faXmark} />
+              </button>
+            )}
+          </div>
+
+          <button
+            type="button"
+            className={`history-filter-toggle ${showFilters ? "active" : ""}`}
+            onClick={() => setShowFilters((prev) => !prev)}
           >
-            <FontAwesomeIcon icon={getTabIcon(tab)} />
-            {getTabLabel(tab)}
+            <FontAwesomeIcon icon={faFilter} />
+            Filters
+            <FontAwesomeIcon icon={showFilters ? faChevronUp : faChevronDown} />
           </button>
-        ))}
-      </div>
+        </div>
 
-      <div className="history-toolbar">
-        <div className="search-box">
-          <FontAwesomeIcon icon={faSearch} />
-          <input
-            type="text"
-            placeholder={`Search ${getTabLabel(activeTab)}...`}
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-        <div className="toolbar-controls">
-          <label>
-            <FontAwesomeIcon icon={faSort} />
-            <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
-              <option value="date">Sort by Date</option>
-              <option value="amount">Sort by Amount</option>
-            </select>
-          </label>
-        </div>
-        <div className="result-count">
-          Showing <strong>{filteredData.length}</strong> records
-        </div>
-      </div>
+        {showFilters && (
+          <div className="history-filter-grid">
+            <FilterSelect
+              label="Category"
+              value={categoryFilter}
+              onChange={setCategoryFilter}
+              options={CATEGORY_OPTIONS}
+            />
 
-      <div className="history-content">
-        {filteredData.length === 0 ? (
-          <div className="empty-state">
-            <FontAwesomeIcon icon={faChartLine} />
-            <h3>No history found</h3>
+            <FilterSelect
+              label="Action Type"
+              value={actionFilter}
+              onChange={setActionFilter}
+              options={ACTION_OPTIONS}
+            />
+
+            <FilterSelect
+              label="Status"
+              value={statusFilter}
+              onChange={setStatusFilter}
+              options={statusOptions}
+            />
+
+            <FilterSelect
+              label="Sort"
+              value={sortBy}
+              onChange={setSortBy}
+              options={SORT_OPTIONS}
+            />
+
+            <div className="history-filter-field">
+              <label htmlFor="history-date-from">Date From</label>
+              <input
+                id="history-date-from"
+                type="date"
+                value={dateFrom}
+                onChange={(event) => setDateFrom(event.target.value)}
+              />
+            </div>
+
+            <div className="history-filter-field">
+              <label htmlFor="history-date-to">Date To</label>
+              <input
+                id="history-date-to"
+                type="date"
+                value={dateTo}
+                onChange={(event) => setDateTo(event.target.value)}
+              />
+            </div>
+
+            <button
+              type="button"
+              className="history-clear-btn"
+              onClick={handleClearFilters}
+            >
+              Clear Filters
+            </button>
+          </div>
+        )}
+      </section>
+
+      <section className="history-content-card">
+        <div className="history-content-header">
+          <div>
+            <span className="history-eyebrow">Activity Records</span>
+            <h2>Manager Activity Timeline</h2>
+          </div>
+
+          <p>
+            Showing <strong>{filteredHistory.length}</strong> of{" "}
+            <strong>{history.length}</strong> records
+          </p>
+        </div>
+
+        {filteredHistory.length === 0 ? (
+          <div className="history-empty-state">
+            <FontAwesomeIcon icon={faClipboardList} />
+            <h3>No history records found</h3>
             <p>
-              {searchTerm 
-                ? "Try adjusting your search terms." 
-                : `${getTabLabel(activeTab)} history will appear here once reports are generated.`
-              }
+              Try adjusting your search, category, action type, status, or date
+              filters.
             </p>
           </div>
         ) : (
-          <div className="history-list">
-            {filteredData.map((record) => (
-              <div key={record.id} className="history-card">
-                <div className="card-header">
-                  <div className="report-info">
-                    <span className="report-id">#{record.id}</span>
-                    <span className="report-period">{record.period || record.month || "N/A"}</span>
+          <div className="history-timeline">
+            {filteredHistory.map((record) => (
+              <article className="history-record-card" key={record.id}>
+                <div className={`history-record-icon ${record.category}`}>
+                  <FontAwesomeIcon icon={getActionIcon(record.actionType)} />
+                </div>
+
+                <div className="history-record-main">
+                  <div className="history-record-top">
+                    <div>
+                      <span className="history-category-pill">
+                        {getCategoryLabel(record.category)}
+                      </span>
+                      <h3>{formatLabel(record.action)}</h3>
+                    </div>
+
+                    <span className={`history-status ${record.status}`}>
+                      {formatLabel(record.status)}
+                    </span>
                   </div>
-                  <div className="report-date">
-                    <FontAwesomeIcon icon={faCalendarAlt} />
-                    {formatDate(record.created_at || record.report_date)} {formatTime(record.created_at || record.report_date)}
+
+                  <p>{record.description}</p>
+
+                  <div className="history-record-meta">
+                    <span>
+                      <FontAwesomeIcon icon={faUserCheck} />
+                      {record.employeeName}
+                    </span>
+                    <span>
+                      <FontAwesomeIcon icon={faFileInvoiceDollar} />
+                      {record.payrollPeriod}
+                    </span>
+                    <span>
+                      <FontAwesomeIcon icon={faCalendarAlt} />
+                      {formatDateTime(record.date)}
+                    </span>
+                    <span>
+                      <FontAwesomeIcon icon={faClock} />
+                      By {record.performedBy}
+                    </span>
                   </div>
                 </div>
-                <div className="card-body">
-                  <div className="report-details">
-                    <div className="detail-row">
-                      <span>Report Type:</span>
-                      <strong>{getTabLabel(activeTab)}</strong>
-                    </div>
-                    <div className="detail-row">
-                      <span>Period:</span>
-                      <strong>{record.period || `${record.month} ${record.year}` || "N/A"}</strong>
-                    </div>
-                    {(record.total_amount || record.total_sales || record.total_revenue) && (
-                      <div className="detail-row">
-                        <span>Total Amount:</span>
-                        <strong>{formatCurrency(record.total_amount || record.total_sales || record.total_revenue || 0)}</strong>
-                      </div>
-                    )}
-                    {record.summary && (
-                      <div className="detail-row">
-                        <span>Summary:</span>
-                        <span className="report-summary">{record.summary}</span>
-                      </div>
-                    )}
-                    {record.description && (
-                      <div className="detail-row">
-                        <span>Description:</span>
-                        <span className="report-description">{record.description}</span>
-                      </div>
-                    )}
-                    {record.generated_by && (
-                      <div className="detail-row">
-                        <span>Generated By:</span>
-                        <strong>{record.generated_by}</strong>
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div className="card-footer">
-                  <button 
-                    className="view-btn"
+
+                <div className="history-record-actions">
+                  <button
+                    type="button"
                     onClick={() => setSelectedRecord(record)}
                   >
                     <FontAwesomeIcon icon={faEye} />
                     View Details
                   </button>
                 </div>
-              </div>
+              </article>
             ))}
           </div>
         )}
-      </div>
+      </section>
 
       {selectedRecord && (
-        <div className="modal-overlay" onClick={() => setSelectedRecord(null)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>Report Details</h3>
-              <button onClick={() => setSelectedRecord(null)}>×</button>
-            </div>
-            <div className="modal-body">
-              <pre>{JSON.stringify(selectedRecord, null, 2)}</pre>
-            </div>
-          </div>
+        <HistoryDetailsModal
+          record={selectedRecord}
+          onClose={() => setSelectedRecord(null)}
+        />
+      )}
+
+      {toast && (
+        <div className={`history-toast ${toast.type}`}>
+          <FontAwesomeIcon
+            icon={
+              toast.type === "error"
+                ? faTimesCircle
+                : toast.type === "warning"
+                  ? faExclamationTriangle
+                  : faCheckCircle
+            }
+          />
+          <span>{toast.message}</span>
         </div>
       )}
     </div>
   );
 };
+
+const SummaryCard = ({ label, value, icon, tone }) => (
+  <article className={`history-summary-card ${tone}`}>
+    <span>
+      <FontAwesomeIcon icon={icon} />
+    </span>
+    <div>
+      <strong>{value}</strong>
+      <p>{label}</p>
+    </div>
+  </article>
+);
+
+const FilterSelect = ({ label, value, options, onChange }) => (
+  <div className="history-filter-field">
+    <label>{label}</label>
+    <select value={value} onChange={(event) => onChange(event.target.value)}>
+      {options.map((option) => (
+        <option value={option.value} key={option.value}>
+          {option.label}
+        </option>
+      ))}
+    </select>
+  </div>
+);
+
+const DetailItem = ({ label, value, wide = false }) => (
+  <div className={wide ? "wide" : ""}>
+    <small>{label}</small>
+    <strong>{value || "N/A"}</strong>
+  </div>
+);
+
+const HistoryDetailsModal = ({ record, onClose }) => (
+  <div className="history-modal-overlay">
+    <div className="history-modal">
+      <div className="history-modal-header">
+        <div>
+          <span className="history-eyebrow">Activity Details</span>
+          <h2>{formatLabel(record.action)}</h2>
+        </div>
+
+        <button type="button" onClick={onClose} aria-label="Close details">
+          <FontAwesomeIcon icon={faXmark} />
+        </button>
+      </div>
+
+      <div className="history-modal-body">
+        <div className="history-detail-grid">
+          <DetailItem label="Category" value={formatLabel(record.category)} />
+          <DetailItem label="Action Type" value={formatLabel(record.actionType)} />
+          <DetailItem label="Status" value={formatLabel(record.status)} />
+          <DetailItem label="Date and Time" value={formatDateTime(record.date)} />
+          <DetailItem label="Employee" value={record.employeeName} />
+          <DetailItem label="Employee ID" value={record.employeeId} />
+          <DetailItem label="Payroll Period" value={record.payrollPeriod} />
+          <DetailItem label="Performed By" value={record.performedBy} />
+          <DetailItem label="Reference" value={record.reference} />
+          <DetailItem
+            label="Amount"
+            value={record.amount ? formatCurrency(record.amount) : "N/A"}
+          />
+          <DetailItem label="Description" value={record.description} wide />
+        </div>
+
+        <div className="history-raw-section">
+          <h3>Source Data</h3>
+          <pre>{JSON.stringify(record.raw, null, 2)}</pre>
+        </div>
+      </div>
+
+      <div className="history-modal-footer">
+        <button type="button" className="history-btn secondary" onClick={onClose}>
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+);
 
 export default ManagerHistory;

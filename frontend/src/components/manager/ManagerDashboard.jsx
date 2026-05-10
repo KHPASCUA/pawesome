@@ -1,46 +1,204 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { Outlet, NavLink, useLocation } from "react-router-dom";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-} from "recharts";
-import {
-  faMoon,
-  faSun,
-  faUsers,
-  faCalendarAlt,
-  faArrowUp,
-  faSearch,
-  faTimes,
-  faCheck,
-  faClock,
-  faArrowTrendUp,
-  faArrowTrendDown,
-  faExclamationTriangle,
-  faSpinner,
-  faRefresh,
-  faChartLine,
-  faHotel,
-  faFileInvoice,
   faArrowRight,
+  faCalendarAlt,
+  faChartLine,
+  faCheck,
+  faClipboardList,
+  faClock,
+  faExclamationTriangle,
+  faHistory,
   faMoneyBill,
+  faMoon,
+  faRefresh,
+  faSpinner,
+  faSun,
+  faTimes,
+  faUsers,
 } from "@fortawesome/free-solid-svg-icons";
-import { apiRequest, uploadProfilePhoto } from "../../api/client";
+import { apiRequest } from "../../api/client";
 import { formatCurrency } from "../../utils/currency";
 import { useTheme } from "../../utils/theme";
 import ManagerSidebar from "./ManagerSidebar";
-import RoleAwareChatbot from "../chatbot/RoleAwareChatbot";
 import NotificationDropdown from "../shared/NotificationDropdown";
 import DashboardProfile from "../shared/DashboardProfile";
 import "./ManagerDashboard.css";
+
+const DEFAULT_STATS = {
+  totalEmployees: 0,
+  presentToday: 0,
+  lateToday: 0,
+  absentToday: 0,
+  pendingReviews: 0,
+  currentPayrollTotal: 0,
+  payrollPendingApproval: 0,
+  payrollReleased: 0,
+};
+
+const normalizeList = (payload, keys = []) => {
+  if (Array.isArray(payload)) return payload;
+
+  for (const key of keys) {
+    if (Array.isArray(payload?.[key])) return payload[key];
+    if (Array.isArray(payload?.data?.[key])) return payload.data[key];
+    if (Array.isArray(payload?.[key]?.data)) return payload[key].data;
+    if (Array.isArray(payload?.data?.[key]?.data)) return payload.data[key].data;
+  }
+
+  if (Array.isArray(payload?.data)) return payload.data;
+  if (Array.isArray(payload?.data?.data)) return payload.data.data;
+  if (Array.isArray(payload?.records)) return payload.records;
+  if (Array.isArray(payload?.items)) return payload.items;
+
+  return [];
+};
+
+const toNumber = (value) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const normalizeStatus = (value) =>
+  String(value || "pending")
+    .toLowerCase()
+    .replace(/\s+/g, "_");
+
+const formatStatusLabel = (value) =>
+  String(value || "N/A")
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+
+const formatDateTime = (value) => {
+  if (!value) return "N/A";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  return date.toLocaleString("en-PH", {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+};
+
+const formatTime = (value) => {
+  if (!value) return "N/A";
+
+  if (String(value).includes("AM") || String(value).includes("PM")) {
+    return value;
+  }
+
+  if (String(value).includes(":") && !String(value).includes("T")) {
+    const [hour, minute] = String(value).split(":");
+    const date = new Date();
+
+    date.setHours(Number(hour || 0), Number(minute || 0), 0, 0);
+
+    return date.toLocaleTimeString("en-PH", {
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  return date.toLocaleTimeString("en-PH", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+};
+
+const getEmployeeName = (record) =>
+  record?.employee_name ||
+  record?.staff_name ||
+  record?.user?.name ||
+  record?.employee?.name ||
+  record?.name ||
+  "Unknown Employee";
+
+const getEmployeeRole = (record) =>
+  record?.role ||
+  record?.position ||
+  record?.employee?.position ||
+  record?.department ||
+  "Staff";
+
+const buildStatsFromData = (dashboardData, attendanceList, payrollList) => {
+  const pendingAttendance = attendanceList.filter((item) => {
+    const reviewStatus = normalizeStatus(
+      item.review_status || item.manager_review_status || item.reviewed_status
+    );
+
+    return (
+      reviewStatus === "pending" ||
+      reviewStatus === "unreviewed" ||
+      item.reviewed === false ||
+      item.is_reviewed === false
+    );
+  }).length;
+
+  const presentToday = attendanceList.filter(
+    (item) => normalizeStatus(item.status) === "present"
+  ).length;
+
+  const lateToday = attendanceList.filter(
+    (item) => normalizeStatus(item.status) === "late"
+  ).length;
+
+  const absentToday = attendanceList.filter(
+    (item) => normalizeStatus(item.status) === "absent"
+  ).length;
+
+  const payrollPendingApproval = payrollList.filter((item) =>
+    ["pending", "pending_review", "for_approval", "draft"].includes(
+      normalizeStatus(item.status || item.payroll_status)
+    )
+  ).length;
+
+  const payrollReleased = payrollList.filter((item) =>
+    ["released", "paid"].includes(normalizeStatus(item.status || item.payroll_status))
+  ).length;
+
+  const currentPayrollTotal = payrollList.reduce(
+    (sum, item) =>
+      sum +
+      toNumber(
+        item.net_pay ||
+          item.total_net_pay ||
+          item.amount ||
+          item.total_amount ||
+          item.gross_pay
+      ),
+    0
+  );
+
+  return {
+    totalEmployees:
+      toNumber(dashboardData.total_employees) ||
+      toNumber(dashboardData.total_staff) ||
+      new Set(attendanceList.map((item) => getEmployeeName(item))).size ||
+      payrollList.length,
+    presentToday: toNumber(dashboardData.present_today) || presentToday,
+    lateToday: toNumber(dashboardData.late_today) || lateToday,
+    absentToday: toNumber(dashboardData.absent_today) || absentToday,
+    pendingReviews:
+      toNumber(dashboardData.pending_reviews) ||
+      toNumber(dashboardData.pending_attendance_reviews) ||
+      pendingAttendance,
+    currentPayrollTotal:
+      toNumber(dashboardData.current_payroll_total) ||
+      toNumber(dashboardData.total_payroll) ||
+      currentPayrollTotal,
+    payrollPendingApproval:
+      toNumber(dashboardData.payroll_pending_approval) || payrollPendingApproval,
+    payrollReleased: toNumber(dashboardData.payroll_released) || payrollReleased,
+  };
+};
 
 const ManagerDashboard = () => {
   const name = localStorage.getItem("name") || "Manager";
@@ -48,250 +206,244 @@ const ManagerDashboard = () => {
 
   const { theme, toggle } = useTheme();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedTimeRange, setSelectedTimeRange] = useState("month");
-  const [animatedStats, setAnimatedStats] = useState(false);
-  const [hotelStats, setHotelStats] = useState({
-    totalRooms: 0,
-    occupiedRooms: 0,
-    occupancyRate: 0,
-    todayCheckIns: 0,
-    todayCheckOuts: 0,
-    revenue: 0,
-  });
-  const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [staffStats, setStaffStats] = useState({
-    onlineStaff: 0,
-    totalTasks: 0,
-    completedTasks: 0,
-    pendingTasks: 0,
-  });
-  const location = useLocation();
+  const [toast, setToast] = useState(null);
+  const [lastUpdated, setLastUpdated] = useState("");
 
-  const handleProfilePhotoUpload = async (file) => {
-    try {
-      const data = await uploadProfilePhoto(file);
-      localStorage.setItem("profile_photo", data.url || data.profile_photo);
-      window.location.reload();
-    } catch (err) {
-      alert("Failed to upload profile photo: " + err.message);
-    }
-  };
+  const [dashboardStats, setDashboardStats] = useState(DEFAULT_STATS);
+  const [todayAttendance, setTodayAttendance] = useState([]);
+  const [payrollPeriod, setPayrollPeriod] = useState([]);
+  const [recentActivity, setRecentActivity] = useState([]);
+
+  const location = useLocation();
+  const navigate = useNavigate();
 
   const normalizedPath = location.pathname.replace(/\/+$/, "");
   const showOverview =
     normalizedPath === "/manager" || normalizedPath === "/manager/";
 
-  const revenueChartData = useMemo(() => {
-    if (!dashboardData?.monthly_revenue) return [];
-    // Generate from actual monthly revenue data if available
-    return Array.isArray(dashboardData.monthly_revenue) 
-      ? dashboardData.monthly_revenue.map(item => ({
-          month: new Date(item.month || Date.now()).toLocaleDateString('en-US', { month: 'short' }),
-          revenue: Number(item.revenue || item.amount || 0),
-        }))
-      : [];
-  }, [dashboardData]);
+  const showToast = useCallback((message, type = "info") => {
+    setToast({ message, type });
+    window.clearTimeout(window.managerDashboardToastTimer);
+    window.managerDashboardToastTimer = window.setTimeout(() => setToast(null), 3500);
+  }, []);
 
-  const staffChartData = useMemo(() => {
-    if (!dashboardData?.staff_performance) return [];
-    // Generate from actual staff data
-    const roleCounts = {};
-    dashboardData.staff_performance.forEach(staff => {
-      const role = staff.role || 'Other';
-      roleCounts[role] = (roleCounts[role] || 0) + 1;
-    });
-    return Object.entries(roleCounts).map(([department, staff]) => ({
-      department: department.charAt(0).toUpperCase() + department.slice(1),
-      staff,
-    }));
-  }, [dashboardData]);
-
-  const fetchDashboardData = async () => {
+  const handleProfilePhotoUpload = async (file) => {
     try {
-      setLoading(true);
-      const data = await apiRequest("/manager/dashboard");
-      
-      setDashboardData(data);
-      setError("");
+      const { uploadProfilePhoto } = await import("../../api/client");
+      const data = await uploadProfilePhoto(file);
+
+      localStorage.setItem("profile_photo", data.url || data.profile_photo);
+      showToast("Profile photo updated successfully.", "success");
+
+      window.setTimeout(() => {
+        window.location.reload();
+      }, 700);
     } catch (err) {
-      setError(err.message || "Failed to load dashboard data");
-      console.error("Manager dashboard fetch error:", err);
-      // Set empty state on error, not demo data
-      setDashboardData({
-        total_staff: 0,
-        active_staff: 0,
-        today_appointments: 0,
-        completed_appointments: 0,
-        pending_appointments: 0,
-        today_revenue: 0,
-        monthly_revenue: 0,
-        recent_tasks: [],
-        staff_performance: [],
-      });
-    } finally {
-      setLoading(false);
+      showToast(err.message || "Failed to upload profile photo.", "error");
     }
   };
+
+  const fetchDashboardData = useCallback(
+    async ({ silent = false } = {}) => {
+      if (!showOverview) return;
+
+      try {
+        if (silent) {
+          setRefreshing(true);
+        } else {
+          setLoading(true);
+        }
+
+        setError("");
+
+        const [
+          dashboardResponse,
+          attendanceResponse,
+          payrollResponse,
+          historyResponse,
+        ] = await Promise.all([
+          apiRequest("/manager/dashboard").catch(() => null),
+          apiRequest("/manager/attendance").catch(() => null),
+          apiRequest("/manager/payroll").catch(() => null),
+          apiRequest("/manager/history").catch(() => null),
+        ]);
+
+        const dashboardData = dashboardResponse?.data || dashboardResponse || {};
+
+        const attendanceList = normalizeList(attendanceResponse, [
+          "attendance",
+          "records",
+          "items",
+        ]);
+
+        const payrollList = normalizeList(payrollResponse, [
+          "payroll",
+          "records",
+          "items",
+        ]);
+
+        const historyList = normalizeList(historyResponse, [
+          "history",
+          "activities",
+          "logs",
+          "records",
+        ]);
+
+        setDashboardStats(
+          buildStatsFromData(dashboardData, attendanceList, payrollList)
+        );
+
+        setTodayAttendance(attendanceList.slice(0, 6));
+        setPayrollPeriod(payrollList.slice(0, 6));
+        setRecentActivity(historyList.slice(0, 6));
+        setLastUpdated(new Date().toLocaleString("en-PH"));
+
+        if (!dashboardResponse && !attendanceResponse && !payrollResponse) {
+          setError(
+            "No manager dashboard endpoint returned data yet. The dashboard is ready, but backend data still needs to be connected."
+          );
+        }
+      } catch (err) {
+        console.error("Manager dashboard fetch error:", err);
+        setError(err.message || "Failed to load manager dashboard data.");
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [showOverview]
+  );
 
   useEffect(() => {
     if (showOverview) {
       fetchDashboardData();
     }
-  }, [showOverview]);
+  }, [showOverview, fetchDashboardData]);
 
-  const summaryCards = useMemo(() => dashboardData ? [
-    {
-      title: "Total Orders",
-      value: dashboardData.total_orders || dashboardData.totalOrders || dashboardData.total_service_requests || 0,
-      subtitle: `${dashboardData.approved_orders || dashboardData.approvedOrders || 0} approved`,
-      change: "",
-      icon: faFileInvoice,
-      color: "blue",
-      trend: "up",
-    },
-    {
-      title: "Paid Orders",
-      value: dashboardData.paid_orders || dashboardData.paidOrders || dashboardData.paid_service_count || 0,
-      subtitle: `${dashboardData.pending_payments || dashboardData.pendingPayments || 0} pending payments`,
-      change: "",
-      icon: faMoneyBill,
-      color: "green",
-      trend: "up",
-    },
-    {
-      title: "Rejected Orders",
-      value: dashboardData.rejected_orders || dashboardData.rejectedOrders || 0,
-      subtitle: "Rejected or cancelled",
-      change: "",
-      icon: faExclamationTriangle,
-      color: "orange",
-      trend: "stable",
-    },
-    {
-      title: "Sales Total",
-      value: formatCurrency(dashboardData.sales_total || dashboardData.salesTotal || dashboardData.paid_service_revenue || 0),
-      subtitle: `Today: ${formatCurrency(dashboardData.today_revenue || dashboardData.todayRevenue || 0)}`,
-      change: "",
-      icon: faChartLine,
-      color: (dashboardData.sales_total || dashboardData.salesTotal || 0) > 5000 ? "green" : "orange",
-      trend: (dashboardData.sales_total || dashboardData.salesTotal || 0) > 5000 ? "up" : "stable",
-    },
-    {
-      title: "Low Stock",
-      value: dashboardData.low_stock_count || dashboardData.lowStock || 0,
-      subtitle: `${dashboardData.completed_services || dashboardData.completedServices || 0} completed services`,
-      change: "",
-      icon: faExclamationTriangle,
-      color: (dashboardData.low_stock_count || dashboardData.lowStock || 0) > 0 ? "red" : "green",
-      trend: "stable",
-    },
-  ] : [], [dashboardData, hotelStats]);
-
-  const [teamPerformance, setTeamPerformance] = useState([]);
-
-  const transformStaffPerformance = (staffData) => {
-    if (!staffData || !Array.isArray(staffData)) return [];
-
-    const byRole = staffData.reduce((acc, staff) => {
-      const role = staff.role || 'Other';
-      if (!acc[role]) {
-        acc[role] = { 
-          department: role.charAt(0).toUpperCase() + role.slice(1),
-          staff: 0, 
-          active: 0,
-          efficiency: 0 
-        };
-      }
-      acc[role].staff++;
-      if (staff.is_active) acc[role].active++;
-      return acc;
-    }, {});
-
-    return Object.values(byRole).map(dept => ({
-      department: dept.department,
-      efficiency: Math.round((dept.active / Math.max(dept.staff, 1)) * 100),
-      tasks: dept.staff * 5, // Estimate based on staff count
-      staff: dept.staff,
-      completedToday: dept.active * 2, // Estimate
-      avgResponseTime: "2.5 min",
-      satisfaction: 4.5,
-      trend: dept.active > dept.staff * 0.7 ? "up" : "stable"
-    }));
-  };
-
-  const handleRefresh = useCallback(async () => {
-    setRefreshing(true);
-    try {
-      const [dashData, staffData] = await Promise.all([
-        apiRequest("/manager/dashboard"),
-        apiRequest("/manager/staff")
-      ]);
-      setDashboardData(dashData);
-
-      const staffList = dashData.staff_performance || staffData?.staff || [];
-      setTeamPerformance(transformStaffPerformance(staffList));
-
-      const activeStaff = staffList.filter(s => s.is_active).length;
-      setStaffStats({
-        onlineStaff: activeStaff,
-        totalTasks: staffList.length * 5,
-        completedTasks: activeStaff * 3,
-        pendingTasks: staffList.length * 2
-      });
-    } catch (error) {
-      console.error('Failed to refresh data:', error);
-    } finally {
-      setRefreshing(false);
-    }
-  }, []);
-
-  const filteredTeamPerformance = useMemo(() => {
-    if (!searchTerm) return teamPerformance;
-    return teamPerformance.filter(dept => 
-      dept.department?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [teamPerformance, searchTerm]);
-
-  const LoadingSpinner = () => (
-    <div className="loading-spinner">
-      <FontAwesomeIcon icon={faSpinner} className="spinning" />
-      <span>Loading...</span>
-    </div>
+  const summaryCards = useMemo(
+    () => [
+      {
+        title: "Total Employees",
+        value: dashboardStats.totalEmployees,
+        subtitle: "Active workforce",
+        icon: faUsers,
+        tone: "primary",
+      },
+      {
+        title: "Present Today",
+        value: dashboardStats.presentToday,
+        subtitle: "On duty today",
+        icon: faCheck,
+        tone: "success",
+      },
+      {
+        title: "Late Today",
+        value: dashboardStats.lateToday,
+        subtitle: "Late arrivals",
+        icon: faClock,
+        tone: "warning",
+      },
+      {
+        title: "Absent Today",
+        value: dashboardStats.absentToday,
+        subtitle: "Not present",
+        icon: faTimes,
+        tone: "danger",
+      },
+      {
+        title: "Pending Reviews",
+        value: dashboardStats.pendingReviews,
+        subtitle: "Attendance needing review",
+        icon: faExclamationTriangle,
+        tone: "info",
+      },
+      {
+        title: "Current Payroll",
+        value: formatCurrency(dashboardStats.currentPayrollTotal),
+        subtitle: "Current period estimate",
+        icon: faMoneyBill,
+        tone: "money",
+      },
+      {
+        title: "Pending Approval",
+        value: dashboardStats.payrollPendingApproval,
+        subtitle: "Payroll records waiting",
+        icon: faClock,
+        tone: "warning",
+      },
+      {
+        title: "Released Payroll",
+        value: dashboardStats.payrollReleased,
+        subtitle: "Released payments",
+        icon: faCheck,
+        tone: "success",
+      },
+    ],
+    [dashboardStats]
   );
 
-  useEffect(() => {
-    handleRefresh();
-  }, [handleRefresh]);
+  const quickActions = [
+    {
+      title: "View Attendance",
+      description: "Review daily employee attendance records.",
+      icon: faCalendarAlt,
+      path: "/manager/attendance",
+    },
+    {
+      title: "Manage Payroll",
+      description: "Monitor payroll periods and payroll status.",
+      icon: faMoneyBill,
+      path: "/manager/payroll",
+    },
+    {
+      title: "View Reports",
+      description: "Open attendance and payroll reports.",
+      icon: faChartLine,
+      path: "/manager/reports",
+    },
+    {
+      title: "View History",
+      description: "Review manager activity and audit trail.",
+      icon: faHistory,
+      path: "/manager/history",
+    },
+  ];
 
-  useEffect(() => {
-    const timer = setTimeout(() => setAnimatedStats(true), 100);
+  const payrollTotals = useMemo(() => {
+    const totalNetPay = payrollPeriod.reduce(
+      (sum, item) =>
+        sum +
+        toNumber(
+          item.net_pay ||
+            item.total_net_pay ||
+            item.amount ||
+            item.total_amount ||
+            item.gross_pay
+        ),
+      0
+    );
 
-    const fetchHotelStats = async () => {
-      try {
-        const data = await apiRequest("/manager/dashboard");
-        const executiveMetrics = data?.executive_metrics || {};
-        const occupancyRate = Math.round(Number(executiveMetrics.occupancy_rate) || 0);
+    const approved = payrollPeriod.filter((item) =>
+      ["approved", "released", "paid"].includes(
+        normalizeStatus(item.status || item.payroll_status)
+      )
+    ).length;
 
-        setHotelStats({
-          totalRooms: Number(data?.hotel_stats?.total_rooms) || 0,
-          occupiedRooms: Number(data?.hotel_stats?.occupied_rooms) || 0,
-          occupancyRate,
-          todayCheckIns: Number(data?.hotel_stats?.today_check_ins) || 0,
-          todayCheckOuts: Number(data?.hotel_stats?.today_check_outs) || 0,
-          revenue: Number(data?.hotel_stats?.revenue) || 0,
-        });
-      } catch (error) {
-        console.error("Failed to fetch hotel stats:", error);
-      }
+    const pending = payrollPeriod.filter((item) =>
+      ["pending", "pending_review", "for_approval", "draft"].includes(
+        normalizeStatus(item.status || item.payroll_status)
+      )
+    ).length;
+
+    return {
+      totalNetPay,
+      approved,
+      pending,
     };
-
-    fetchHotelStats();
-    return () => clearTimeout(timer);
-  }, []);
+  }, [payrollPeriod]);
 
   return (
     <div className={`manager-dashboard ${sidebarCollapsed ? "collapsed" : ""}`}>
@@ -301,34 +453,14 @@ const ManagerDashboard = () => {
       />
 
       <main className="manager-main">
-        <header className="manager-navbar top-navbar">
-          <div className="navbar-left">
-            <h1>Management Overview</h1>
-            <p>Monitor team performance and operational metrics</p>
+        <header className="manager-navbar">
+          <div className="manager-navbar-title">
+            <span className="manager-eyebrow">Manager Workspace</span>
+            <h1>Manager Dashboard</h1>
+            <p>Workforce, attendance, payroll, and reporting overview.</p>
           </div>
 
-          <div className="search-group">
-            <div className="search-input-wrapper">
-              <FontAwesomeIcon icon={faSearch} className="search-icon" />
-              <input
-                type="text"
-                placeholder="Search staff, projects, tasks..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className={searchTerm ? "has-value" : ""}
-              />
-              {searchTerm && (
-                <button 
-                  className="clear-search"
-                  onClick={() => setSearchTerm("")}
-                >
-                  <FontAwesomeIcon icon={faTimes} />
-                </button>
-              )}
-            </div>
-          </div>
-
-          <div className="navbar-actions">
+          <div className="manager-navbar-actions">
             <DashboardProfile
               name={name}
               role="Manager"
@@ -338,17 +470,21 @@ const ManagerDashboard = () => {
 
             <NotificationDropdown role="manager" />
 
-            <button 
-              className="icon-btn refresh-btn"
-              onClick={handleRefresh}
-              disabled={refreshing}
-              title="Refresh data"
+            <button
+              className="manager-icon-btn"
+              onClick={() => fetchDashboardData({ silent: true })}
+              disabled={refreshing || loading}
+              title="Refresh dashboard"
+              type="button"
             >
-              <FontAwesomeIcon icon={refreshing ? faSpinner : faRefresh} className={refreshing ? "spinning" : ""} />
+              <FontAwesomeIcon
+                icon={refreshing || loading ? faSpinner : faRefresh}
+                spin={refreshing || loading}
+              />
             </button>
 
             <button
-              className="theme-toggle-btn"
+              className="manager-icon-btn"
               type="button"
               onClick={toggle}
               title="Toggle theme"
@@ -359,278 +495,316 @@ const ManagerDashboard = () => {
         </header>
 
         {showOverview ? (
-          <>
-            <section className="overview-cards">
-              {summaryCards.map((card, index) => (
-                <div 
-                  key={card.title} 
-                  className={`overview-card ${card.color} ${animatedStats ? 'animate' : ''}`}
-                  style={{ animationDelay: `${index * 100}ms` }}
-                >
-                  <div className="card-content">
-                    <div className="card-icon">
-                      <FontAwesomeIcon icon={card.icon} />
-                    </div>
-                    <div className="card-info">
-                      <h3 className={`stat-value ${animatedStats ? 'count-up' : ''}`}>
-                        {card.value}
-                        {card.title.includes("Rate") && "%"}
-                      </h3>
-                      <p className="stat-label">{card.title}</p>
-                      <span className="stat-subtitle">{card.subtitle}</span>
-                    </div>
-                  </div>
-                  <div className={`card-change ${card.trend}`}>
-                    <FontAwesomeIcon icon={card.trend === 'up' ? faArrowTrendUp : faArrowTrendDown} />
-                    <span>{card.change}</span>
-                  </div>
-                  {card.color === 'red' && (
-                    <div className="warning-indicator">
+          <section className="manager-dashboard-content">
+            {loading ? (
+              <div className="manager-state-card">
+                <FontAwesomeIcon icon={faSpinner} spin />
+                <h2>Loading manager dashboard</h2>
+                <p>Please wait while the workforce and payroll overview loads.</p>
+              </div>
+            ) : (
+              <>
+                {error && (
+                  <div className="manager-alert warning">
+                    <div>
                       <FontAwesomeIcon icon={faExclamationTriangle} />
+                      <span>{error}</span>
                     </div>
-                  )}
-                </div>
-              ))}
-            </section>
 
-            <section className="manager-quick-actions">
-              <NavLink to="/manager/payroll" className="quick-action-card">
-                <span className="quick-action-icon">
-                  <FontAwesomeIcon icon={faMoneyBill} />
-                </span>
-                <span className="quick-action-content">
-                  <strong>Payroll</strong>
-                  <small>Generate and approve payroll</small>
-                </span>
-                <FontAwesomeIcon icon={faArrowRight} className="quick-action-arrow" />
-              </NavLink>
-              <NavLink to="/manager/reports" className="quick-action-card">
-                <span className="quick-action-icon">
-                  <FontAwesomeIcon icon={faFileInvoice} />
-                </span>
-                <span className="quick-action-content">
-                  <strong>View Reports</strong>
-                  <small>Open monthly and operational reports</small>
-                </span>
-                <FontAwesomeIcon icon={faArrowRight} className="quick-action-arrow" />
-              </NavLink>
-              <NavLink to="/manager/staff" className="quick-action-card">
-                <span className="quick-action-icon">
-                  <FontAwesomeIcon icon={faUsers} />
-                </span>
-                <span className="quick-action-content">
-                  <strong>Monitor Staff</strong>
-                  <small>Check active employees and team status</small>
-                </span>
-                <FontAwesomeIcon icon={faArrowRight} className="quick-action-arrow" />
-              </NavLink>
-              <NavLink to="/manager/attendance" className="quick-action-card">
-                <span className="quick-action-icon">
-                  <FontAwesomeIcon icon={faCalendarAlt} />
-                </span>
-                <span className="quick-action-content">
-                  <strong>Attendance</strong>
-                  <small>Review attendance and time tracking</small>
-                </span>
-                <FontAwesomeIcon icon={faArrowRight} className="quick-action-arrow" />
-              </NavLink>
-            </section>
-
-            <section className="manager-charts">
-              <div className="chart-card">
-                <h3>Revenue Trend</h3>
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={revenueChartData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="month" />
-                    <YAxis />
-                    <Tooltip />
-                    <Line type="monotone" dataKey="revenue" stroke="#ec4899" strokeWidth={2} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-              <div className="chart-card">
-                <h3>Staff Distribution</h3>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={staffChartData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="department" />
-                    <YAxis />
-                    <Tooltip />
-                    <Bar dataKey="staff" fill="#8b5cf6" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </section>
-
-            <section className="dashboard-grid">
-              <article className="panel overview-panel">
-                <div className="panel-header">
-                  <div>
-                    <h2>Team Performance</h2>
-                  </div>
-                  <span className="badge">4 Departments</span>
-                </div>
-                {refreshing ? (
-                  <div className="loading-container">
-                    <LoadingSpinner />
-                  </div>
-                ) : (
-                  <div className="performance-grid">
-                    {filteredTeamPerformance.length > 0 ? (
-                      filteredTeamPerformance.map((dept, index) => (
-                        <div key={index} className={`performance-card ${dept.trend}`}>
-                          <div className="performance-header">
-                            <div className="dept-info">
-                              <h3>{dept.department}</h3>
-                              <div className="trend-indicator">
-                                <FontAwesomeIcon icon={dept.trend === 'up' ? faArrowTrendUp : dept.trend === 'down' ? faArrowTrendDown : faChartLine} />
-                                <span>{dept.trend}</span>
-                              </div>
-                            </div>
-                            <div className="efficiency-badge">
-                              {dept.efficiency}%
-                            </div>
-                          </div>
-                          <div className="performance-metrics">
-                            <div className="metric">
-                              <span className="metric-value">{dept.tasks}</span>
-                              <span className="metric-label">Total Tasks</span>
-                            </div>
-                            <div className="metric">
-                              <span className="metric-value">{dept.completedToday}</span>
-                              <span className="metric-label">Today</span>
-                            </div>
-                            <div className="metric">
-                              <span className="metric-value">{dept.staff}</span>
-                              <span className="metric-label">Staff</span>
-                            </div>
-                          </div>
-                          <div className="performance-details">
-                            <div className="detail-item">
-                              <FontAwesomeIcon icon={faClock} />
-                              <span>{dept.avgResponseTime}</span>
-                            </div>
-                            <div className="detail-item">
-                              <span className="satisfaction-score">{'\u2b50'.repeat(Math.floor(dept.satisfaction))}</span>
-                              <span>{dept.satisfaction}/5.0</span>
-                            </div>
-                          </div>
-                          <div className="progress-bar">
-                            <div 
-                              className="progress-fill" 
-                              style={{ width: `${dept.efficiency}%` }}
-                            />
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="no-results">
-                        <FontAwesomeIcon icon={faSearch} />
-                        <p>No departments found matching "{searchTerm}"</p>
-                      </div>
-                    )}
+                    <button type="button" onClick={() => fetchDashboardData()}>
+                      Retry
+                    </button>
                   </div>
                 )}
-              </article>
 
-              <article className="panel quick-stat-panel">
-                <div className="metric-card accent">
-                  <h3>{staffStats.completedTasks}</h3>
-                  <p>Tasks Completed</p>
-                  <small>Team productivity</small>
-                </div>
-
-                <div className="metric-card">
-                  <h3>{staffStats.onlineStaff}</h3>
-                  <p>Staff Online</p>
-                </div>
-
-                <div className="metric-card">
-                  <h3>{staffStats.pendingTasks}</h3>
-                  <p>Pending Tasks</p>
-                </div>
-              </article>
-            </section>
-
-            <section className="dashboard-bottom">
-              <div className="panel tasks-panel">
-                <div className="panel-header space-between">
-                  <div>
-                    <h2>Recent Tasks</h2>
+                <section className="manager-hero">
+                  <div className="manager-hero-copy">
+                    <span className="manager-eyebrow">Workforce & Payroll Overview</span>
+                    <h2>Monitor attendance, payroll readiness, and staff activity.</h2>
+                    <p>
+                      This dashboard gives the manager a clear overview of daily
+                      attendance, pending reviews, payroll status, and recent
+                      workforce-related activity.
+                    </p>
+                    <small>
+                      Last updated: {lastUpdated || "Not refreshed yet"}
+                    </small>
                   </div>
-                  <NavLink to="/manager/reports" className="see-all-link">
-                    See all activity
-                  </NavLink>
-                </div>
 
-                <div className="task-list">
-                  {dashboardData?.recent_tasks?.length > 0 ? (
-                    dashboardData.recent_tasks.map((task, index) => (
-                      <div className="task-item" key={index}>
-                        <div className="task-header">
-                          <h3>{task.title}</h3>
-                          <span className={`status-badge ${task.status}`}>{task.status}</span>
-                        </div>
-                        <div className="task-info">
-                          <span>
-                            <FontAwesomeIcon icon={faUsers} /> {task.department}
-                          </span>
-                          <span>
-                            <FontAwesomeIcon icon={faCalendarAlt} /> Due: {task.due_date}
-                          </span>
-                        </div>
+                  <div className="manager-hero-panel">
+                    <div>
+                      <span>Payroll Estimate</span>
+                      <strong>{formatCurrency(dashboardStats.currentPayrollTotal)}</strong>
+                      <small>Current payroll period</small>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => navigate("/manager/payroll")}
+                    >
+                      Open Payroll
+                      <FontAwesomeIcon icon={faArrowRight} />
+                    </button>
+                  </div>
+                </section>
+
+                <section className="manager-summary-grid">
+                  {summaryCards.map((card) => (
+                    <article
+                      className={`manager-stat-card ${card.tone}`}
+                      key={card.title}
+                    >
+                      <span className="manager-stat-icon">
+                        <FontAwesomeIcon icon={card.icon} />
+                      </span>
+
+                      <div>
+                        <strong>{card.value}</strong>
+                        <p>{card.title}</p>
+                        <small>{card.subtitle}</small>
                       </div>
-                    ))
-                  ) : (
-                    <div className="no-data">No active tasks</div>
-                  )}
-                </div>
-              </div>
+                    </article>
+                  ))}
+                </section>
 
-              <div className="panel analytics-panel">
-                <div className="panel-header space-between">
-                  <div>
-                    <h2>Performance Analytics</h2>
-                  </div>
-                  <NavLink to="/manager/reports" className="see-all-link">
-                    View details
-                  </NavLink>
-                </div>
-                
-                <div className="analytics-metrics">
-                  <div className="status-card success">
-                    <strong>{staffStats.completedTasks}</strong>
-                    <p>Tasks Completed</p>
-                    <small>This month</small>
-                  </div>
-                  <div className="status-card info">
-                    <strong>{staffStats.onlineStaff}</strong>
-                    <p>Staff Online</p>
-                    <small>Currently active</small>
-                  </div>
-                </div>
-                
-                <div className="mini-chart-placeholder">
-                  <FontAwesomeIcon icon={faArrowUp} />
-                  <span>Performance Trend</span>
-                </div>
+                <section className="manager-quick-actions">
+                  {quickActions.map((action) => (
+                    <button
+                      type="button"
+                      className="manager-action-card"
+                      key={action.title}
+                      onClick={() => navigate(action.path)}
+                    >
+                      <span>
+                        <FontAwesomeIcon icon={action.icon} />
+                      </span>
+
+                      <div>
+                        <strong>{action.title}</strong>
+                        <small>{action.description}</small>
+                      </div>
+
+                      <FontAwesomeIcon icon={faArrowRight} />
+                    </button>
+                  ))}
+                </section>
+
+                <section className="manager-overview-grid">
+                  <article className="manager-panel manager-panel-large">
+                    <PanelHeader
+                      eyebrow="Daily Attendance"
+                      title="Today's Attendance Snapshot"
+                      actionLabel="View All"
+                      onAction={() => navigate("/manager/attendance")}
+                    />
+
+                    {todayAttendance.length === 0 ? (
+                      <EmptyPanel
+                        icon={faClipboardList}
+                        title="No attendance records"
+                        message="No employee attendance records are available for today."
+                      />
+                    ) : (
+                      <div className="manager-record-list">
+                        {todayAttendance.map((record, index) => {
+                          const status = normalizeStatus(record.status);
+
+                          return (
+                            <div
+                              className="manager-record-item"
+                              key={record.id || record.attendance_id || index}
+                            >
+                              <div className="manager-record-main">
+                                <span className="manager-avatar">
+                                  {getEmployeeName(record).charAt(0).toUpperCase()}
+                                </span>
+
+                                <div>
+                                  <strong>{getEmployeeName(record)}</strong>
+                                  <small>{getEmployeeRole(record)}</small>
+                                </div>
+                              </div>
+
+                              <div className="manager-time-group">
+                                <span>In: {formatTime(record.time_in)}</span>
+                                <span>Out: {formatTime(record.time_out)}</span>
+                              </div>
+
+                              <span className={`manager-status-badge ${status}`}>
+                                {formatStatusLabel(status)}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </article>
+
+                  <article className="manager-panel">
+                    <PanelHeader
+                      eyebrow="Payroll"
+                      title="Payroll Period Snapshot"
+                      actionLabel="View All"
+                      onAction={() => navigate("/manager/payroll")}
+                    />
+
+                    <div className="manager-payroll-summary">
+                      <div>
+                        <small>Visible Net Pay</small>
+                        <strong>{formatCurrency(payrollTotals.totalNetPay)}</strong>
+                      </div>
+
+                      <div>
+                        <small>Approved / Released</small>
+                        <strong>{payrollTotals.approved}</strong>
+                      </div>
+
+                      <div>
+                        <small>Pending Review</small>
+                        <strong>{payrollTotals.pending}</strong>
+                      </div>
+                    </div>
+
+                    {payrollPeriod.length === 0 ? (
+                      <EmptyPanel
+                        icon={faMoneyBill}
+                        title="No payroll records"
+                        message="No payroll period records are available yet."
+                      />
+                    ) : (
+                      <div className="manager-compact-list">
+                        {payrollPeriod.map((payroll, index) => {
+                          const status = normalizeStatus(
+                            payroll.status || payroll.payroll_status
+                          );
+
+                          return (
+                            <div
+                              className="manager-compact-item"
+                              key={payroll.id || payroll.payroll_id || index}
+                            >
+                              <div>
+                                <strong>{getEmployeeName(payroll)}</strong>
+                                <small>{getEmployeeRole(payroll)}</small>
+                              </div>
+
+                              <div>
+                                <span>
+                                  {formatCurrency(
+                                    payroll.net_pay ||
+                                      payroll.total_net_pay ||
+                                      payroll.amount ||
+                                      payroll.total_amount ||
+                                      0
+                                  )}
+                                </span>
+                                <small className={`manager-text-status ${status}`}>
+                                  {formatStatusLabel(status)}
+                                </small>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </article>
+                </section>
+
+                <section className="manager-panel">
+                  <PanelHeader
+                    eyebrow="Audit Trail"
+                    title="Recent Manager Activity"
+                    actionLabel="View History"
+                    onAction={() => navigate("/manager/history")}
+                  />
+
+                  {recentActivity.length === 0 ? (
+                    <EmptyPanel
+                      icon={faHistory}
+                      title="No recent activity"
+                      message="Manager action history will appear here once available."
+                    />
+                  ) : (
+                    <div className="manager-activity-list">
+                      {recentActivity.map((activity, index) => (
+                        <div
+                          className="manager-activity-item"
+                          key={activity.id || activity.log_id || index}
+                        >
+                          <span>
+                            <FontAwesomeIcon icon={faClipboardList} />
+                          </span>
+
+                          <div>
+                            <strong>
+                              {activity.action ||
+                                activity.type ||
+                                activity.event ||
+                                "Manager Action"}
+                            </strong>
+                            <p>
+                              {activity.description ||
+                                activity.remarks ||
+                                activity.message ||
+                                "No description provided."}
+                            </p>
+                            <small>
+                              {formatDateTime(
+                                activity.created_at ||
+                                  activity.date ||
+                                  activity.timestamp
+                              )}
+                            </small>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </section>
+              </>
+            )}
+
+            {toast && (
+              <div className={`manager-toast ${toast.type}`}>
+                <FontAwesomeIcon
+                  icon={toast.type === "error" ? faExclamationTriangle : faCheck}
+                />
+                <span>{toast.message}</span>
               </div>
-            </section>
-          </>
+            )}
+          </section>
         ) : (
-          <section className="dashboard-content">
+          <section className="manager-dashboard-content">
             <Outlet />
           </section>
         )}
       </main>
-      <RoleAwareChatbot
-        mode="widget"
-        title="Manager Assistant"
-        subtitle="Operations guidance and dashboard shortcuts"
-      />
     </div>
   );
 };
+
+const PanelHeader = ({ eyebrow, title, actionLabel, onAction }) => (
+  <div className="manager-panel-header">
+    <div>
+      <span className="manager-eyebrow">{eyebrow}</span>
+      <h3>{title}</h3>
+    </div>
+
+    {actionLabel && (
+      <button type="button" onClick={onAction}>
+        {actionLabel}
+        <FontAwesomeIcon icon={faArrowRight} />
+      </button>
+    )}
+  </div>
+);
+
+const EmptyPanel = ({ icon, title, message }) => (
+  <div className="manager-empty-state">
+    <FontAwesomeIcon icon={icon} />
+    <h4>{title}</h4>
+    <p>{message}</p>
+  </div>
+);
 
 export default ManagerDashboard;
