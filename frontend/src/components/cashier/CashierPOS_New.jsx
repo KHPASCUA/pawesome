@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import styled, { createGlobalStyle, keyframes, css } from "styled-components";
 import { apiRequest } from "../../api/client";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -11,6 +12,7 @@ import {
   faPause, faFolderOpen, faBarcode, faPercent, faKeyboard,
   faBolt, faUser, faChevronDown, faChevronUp, faList,
   faStore, faHistory, faBan, faCalculator, faExpand, faCompress,
+  faBars, faChartLine, faUserCircle, faClipboardList, faWallet,
 } from "@fortawesome/free-solid-svg-icons";
 
 /* ─── Constants ────────────────────────────────────────────────── */
@@ -1182,8 +1184,63 @@ const ToastItem = styled.div`
   max-width: 320px;
 `;
 
+/* Navigation Menu */
+const NavMenuContainer = styled.div`
+  position: relative;
+`;
+
+const NavMenuDropdown = styled.div`
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 8px;
+  width: 220px;
+  background: #fff;
+  border: 1px solid #E5E7EB;
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+  z-index: 1000;
+  animation: ${fadeIn} 0.15s ease;
+  overflow: hidden;
+`;
+
+const NavMenuHeader = styled.div`
+  padding: 12px 16px;
+  background: #F9FAFB;
+  border-bottom: 1px solid #E5E7EB;
+  font-size: 11px;
+  font-weight: 700;
+  color: #6B7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+`;
+
+const NavMenuItem = styled.button`
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border: none;
+  background: transparent;
+  color: #374151;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: left;
+  svg { color: #6B7280; }
+  &:hover {
+    background: #F3F4F6;
+    color: #E91E63;
+    svg { color: #E91E63; }
+  }
+`;
+
 /* ─── Main Component ────────────────────────────────────────────── */
 const CashierPOS = () => {
+  const navigate = useNavigate();
+
   /* State */
   const [products, setProducts]           = useState([]);
   const [cart, setCart]                   = useState([]);
@@ -1210,8 +1267,10 @@ const CashierPOS = () => {
   });
   const [showHeldOrders, setShowHeldOrders] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showNavMenu, setShowNavMenu] = useState(false);
 
   const searchRef = useRef(null);
+  const navMenuRef = useRef(null);
 
   /* Toast */
   const addToast = useCallback((message, type = "info") => {
@@ -1390,7 +1449,7 @@ const CashierPOS = () => {
     const handleFullscreenChange = () => {
       const isFullscreenNow = !!document.fullscreenElement;
       setIsFullscreen(isFullscreenNow);
-      
+
       // Restore navbar and sidebar when exiting fullscreen
       if (!isFullscreenNow) {
         setTimeout(() => {
@@ -1403,15 +1462,25 @@ const CashierPOS = () => {
     };
 
     document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => {
-      document.removeEventListener('fullscreenchange', handleFullscreenChange);
-      // Cleanup: restore navbar/sidebar when component unmounts
-      const navbar = document.querySelector('.navbar, .sidebar, nav, aside');
-      const sidebar = document.querySelector('.sidebar, aside, .sidebar-wrapper, .main-sidebar');
-      if (navbar) navbar.style.display = '';
-      if (sidebar) sidebar.style.display = '';
-    };
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
+
+  /* Close nav menu when clicking outside */
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (navMenuRef.current && !navMenuRef.current.contains(event.target)) {
+        setShowNavMenu(false);
+      }
+    };
+
+    if (showNavMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showNavMenu]);
 
   /* Categories */
   const categories = useMemo(() => {
@@ -1722,6 +1791,35 @@ const CashierPOS = () => {
           </ShortcutPills>
 
           <TopBarRight>
+            <NavMenuContainer ref={navMenuRef}>
+              <IconBtn onClick={() => setShowNavMenu(!showNavMenu)}>
+                <FontAwesomeIcon icon={faBars} /> Menu
+              </IconBtn>
+              {showNavMenu && (
+                <NavMenuDropdown>
+                  <NavMenuHeader>Navigate To</NavMenuHeader>
+                  <NavMenuItem onClick={() => { navigate('/cashier/dashboard'); setShowNavMenu(false); }}>
+                    <FontAwesomeIcon icon={faChartLine} /> Dashboard
+                  </NavMenuItem>
+                  <NavMenuItem onClick={() => { navigate('/cashier/transactions'); setShowNavMenu(false); }}>
+                    <FontAwesomeIcon icon={faClipboardList} /> Transactions
+                  </NavMenuItem>
+                  <NavMenuItem onClick={() => { navigate('/cashier/reports'); setShowNavMenu(false); }}>
+                    <FontAwesomeIcon icon={faChartLine} /> Reports
+                  </NavMenuItem>
+                  <NavMenuItem onClick={() => { navigate('/cashier/history'); setShowNavMenu(false); }}>
+                    <FontAwesomeIcon icon={faHistory} /> History
+                  </NavMenuItem>
+                  <NavMenuItem onClick={() => { navigate('/cashier/payment-verification'); setShowNavMenu(false); }}>
+                    <FontAwesomeIcon icon={faWallet} /> Payment Verification
+                  </NavMenuItem>
+                  <NavMenuItem onClick={() => { navigate('/cashier/profile'); setShowNavMenu(false); }}>
+                    <FontAwesomeIcon icon={faUserCircle} /> Profile
+                  </NavMenuItem>
+                </NavMenuDropdown>
+              )}
+            </NavMenuContainer>
+
             {lowStockCount > 0 && (
               <Badge $type="low"><FontAwesomeIcon icon={faTriangleExclamation} /> {lowStockCount} Low</Badge>
             )}
