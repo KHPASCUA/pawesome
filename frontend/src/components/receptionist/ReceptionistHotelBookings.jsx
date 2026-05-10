@@ -322,7 +322,13 @@ const ReceptionistHotelBookings = () => {
       await fetchRooms();
     } catch (err) {
       console.error("Hotel action failed:", err);
-      showMessage("error", err.message || "Action failed.");
+      
+      // Handle specific double booking conflict errors
+      if (err.message?.includes('already booked for selected date range')) {
+        showMessage("error", "This room/kennel is already booked for the selected date range.");
+      } else {
+        showMessage("error", err.message || "Action failed.");
+      }
     } finally {
       setProcessingId(null);
     }

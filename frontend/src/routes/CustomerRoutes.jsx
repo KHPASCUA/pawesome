@@ -7,7 +7,6 @@ import CustomerDashboard from "../components/customers/CustomerDashboard";
 import CustomerReports from "../components/customers/CustomerReports";
 import CustomerBookings from "../components/customers/CustomerBookings";
 import CustomerPets from "../components/customers/CustomerPets";
-import CustomerStore from "../components/customers/CustomerStore";
 import CustomerOrders from "../components/customers/CustomerOrders";
 import CustomerChatbot from "../components/customers/CustomerChatbot";
 import CustomerUserInfo from "../components/customers/CustomerUserInfo";
@@ -45,8 +44,7 @@ const CustomerRoutes = () => (
       <Route path="grooming" element={<GroomingForm />} />
       <Route path="vet" element={<VetForm />} />
       <Route path="medical-confinements" element={<CustomerMedicalConfinements />} />
-      <Route path="store" element={<CustomerStore />} />
-      <Route path="chatbot" element={<CustomerChatbot />} />
+            <Route path="chatbot" element={<CustomerChatbot />} />
       <Route path="userinfo" element={<CustomerUserInfo />} />
       <Route path="profile" element={<ProfileSettings />} />
       <Route path="history" element={<CustomerHistory />} />

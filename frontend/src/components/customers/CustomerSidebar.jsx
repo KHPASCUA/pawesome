@@ -3,13 +3,10 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faHome,
-  faCalendarCheck,
   faPaw,
-  faShoppingCart,
   faSignOutAlt,
   faUser,
   faBone,
-  faBox,
   faCalendarAlt,
   faCreditCard,
 } from "@fortawesome/free-solid-svg-icons";
@@ -37,22 +34,7 @@ const CustomerSidebar = () => {
       label: "My Pets",
       icon: faPaw,
     },
-    // {
-    //   to: "/customer/booking",
-    //   label: "Book Service",
-    //   icon: faCalendarCheck,
-    // },
-    // {
-    //   to: "/customer/store",
-    //   label: "Store",
-    //   icon: faShoppingCart,
-    // },
-    // {
-    //   to: "/customer/orders",
-    //   label: "My Orders",
-    //   icon: faBox,
-    // },
-    {
+        {
       to: "/customer/bookings",
       label: "My Requests",
       icon: faCalendarAlt,

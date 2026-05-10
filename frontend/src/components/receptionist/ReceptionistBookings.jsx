@@ -948,7 +948,17 @@ const ReceptionistBookings = () => {
       await fetchBookings({ silent: true });
     } catch (err) {
       console.error("Reschedule request error:", err);
-      notify("error", err.message || "Failed to update reschedule request.");
+      
+      // Handle specific double booking conflict errors
+      if (err.message?.includes('already has an appointment at the selected date and time')) {
+        notify("error", "This veterinarian already has an appointment at the selected date and time.");
+      } else if (err.message?.includes('already reserved')) {
+        notify("error", "This grooming slot is already reserved.");
+      } else if (err.message?.includes('already booked for the selected date range')) {
+        notify("error", "This room/kennel is already booked for the selected date range.");
+      } else {
+        notify("error", err.message || "Failed to update reschedule request.");
+      }
     } finally {
       setProcessing(false);
     }

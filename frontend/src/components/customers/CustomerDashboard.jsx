@@ -18,8 +18,7 @@ import {
   faArrowRight,
   faCreditCard,
   faBell,
-  faShoppingCart,
-} from "@fortawesome/free-solid-svg-icons";
+  } from "@fortawesome/free-solid-svg-icons";
 import CustomerSidebar from "./CustomerSidebar";
 import CustomerDashboardChatbot from "../CustomerDashboardChatbot";
 import NotificationDropdown from "../shared/NotificationDropdown";
@@ -223,8 +222,7 @@ const CustomerDashboard = () => {
   const quickActions = [
     { label: "Add Pet", icon: faPlus, link: "/customer/pets", tone: "pink" },
     { label: "Book Service", icon: faCalendarCheck, link: "/customer/booking", tone: "soft" },
-    { label: "Shop Products", icon: faShoppingCart, link: "/customer/store", tone: "success" },
-    { label: "Upload Payment", icon: faCreditCard, link: "/customer/payments", tone: "gold" },
+        { label: "Upload Payment", icon: faCreditCard, link: "/customer/payments", tone: "gold" },
     { label: "View Orders", icon: faList, link: "/customer/requests", tone: "info" },
     { label: "View Notifications", icon: faBell, link: "/customer/notifications", tone: "soft" },
   ];

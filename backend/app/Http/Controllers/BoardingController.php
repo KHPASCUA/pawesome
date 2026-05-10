@@ -376,6 +376,32 @@ class BoardingController extends Controller
         $checkOut = $request->input('check_out', optional($boarding->check_out)->toDateString() ?? $boarding->check_out);
         $room = HotelRoom::findOrFail($request->hotel_room_id);
 
+        // Enhanced double booking prevention - explicit database conflict check
+        $conflictingBoarding = Boarding::where('hotel_room_id', $request->hotel_room_id)
+            ->whereIn('status', ['approved', 'scheduled', 'checked_in', 'in_stay'])
+            ->where('id', '!=', $boarding->id)
+            ->where(function ($query) use ($checkIn, $checkOut) {
+                $query->where(function ($subQuery) use ($checkIn, $checkOut) {
+                    $subQuery->where('check_in', '<', $checkOut)
+                           ->where('check_out', '>', $checkIn);
+                });
+            })
+            ->first();
+
+        if ($conflictingBoarding) {
+            return response()->json([
+                'error' => 'This room/kennel is already booked for the selected date range.',
+                'conflict_with' => $conflictingBoarding->id,
+                'conflict_dates' => [
+                    'existing_check_in' => $conflictingBoarding->check_in,
+                    'existing_check_out' => $conflictingBoarding->check_out,
+                    'requested_check_in' => $checkIn,
+                    'requested_check_out' => $checkOut
+                ]
+            ], 422);
+        }
+
+        // Additional check using existing room availability method
         if (!$room->isAvailableForDates($checkIn, $checkOut)) {
             return response()->json(['error' => 'Room is not available for selected dates'], 422);
         }

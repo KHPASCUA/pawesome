@@ -180,6 +180,23 @@ class GroomingController extends Controller
             ], 404);
         }
 
+        // Check for double booking conflicts when approving or scheduling
+        if (in_array($request->status, ['approved', 'scheduled'])) {
+            $conflictingAppointment = GroomingAppointment::where('appointment_date', $appointment->appointment_date)
+                ->whereIn('status', ['approved', 'scheduled', 'in_progress'])
+                ->where('id', '!=', $appointment->id)
+                ->first();
+
+            if ($conflictingAppointment) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'This grooming slot is already reserved.',
+                    'conflict_with' => $conflictingAppointment->id,
+                    'conflict_date' => $conflictingAppointment->appointment_date
+                ], 422);
+            }
+        }
+
         $appointment->update(['status' => $request->status]);
 
         return response()->json([

@@ -423,7 +423,7 @@ const ReceptionistApprovals = () => {
         payload.veterinarian_id = Number(veterinarianId);
       }
 
-      await apiRequest(`/receptionist/requests/${requestId}/approve`, {
+      const response = await apiRequest(`/receptionist/requests/${requestId}/approve`, {
         method: "POST",
         body: JSON.stringify(payload),
       });
@@ -439,7 +439,17 @@ const ReceptionistApprovals = () => {
       await fetchRequests({ silent: true });
     } catch (err) {
       console.error("Approve request error:", err);
-      showMessage("error", err.message || "Failed to approve request.");
+      
+      // Handle specific double booking conflict errors
+      if (err.message?.includes('already has an appointment at selected date and time')) {
+        showMessage("error", "This veterinarian already has an appointment at the selected date and time.");
+      } else if (err.message?.includes('already reserved')) {
+        showMessage("error", "This grooming slot is already reserved.");
+      } else if (err.message?.includes('already booked for selected date range')) {
+        showMessage("error", "This room/kennel is already booked for the selected date range.");
+      } else {
+        showMessage("error", err.message || "Failed to approve request.");
+      }
     } finally {
       setProcessingId(null);
     }

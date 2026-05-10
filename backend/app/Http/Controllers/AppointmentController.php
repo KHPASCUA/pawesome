@@ -225,6 +225,21 @@ class AppointmentController extends Controller
             return response()->json(['message' => 'Assigned user must be a veterinarian'], 422);
         }
 
+        // Check for double booking conflicts
+        $conflictingAppointment = Appointment::where('veterinarian_id', $request->veterinarian_id)
+            ->where('scheduled_at', $appointment->scheduled_at)
+            ->whereIn('status', ['approved', 'scheduled', 'in_progress', 'in_consultation'])
+            ->where('id', '!=', $appointment->id)
+            ->first();
+
+        if ($conflictingAppointment) {
+            return response()->json([
+                'message' => 'This veterinarian already has an appointment at the selected date and time.',
+                'conflict_with' => $conflictingAppointment->id,
+                'conflict_time' => $conflictingAppointment->scheduled_at
+            ], 422);
+        }
+
         $appointment->update([
             'status' => 'approved',
             'veterinarian_id' => $request->veterinarian_id,
