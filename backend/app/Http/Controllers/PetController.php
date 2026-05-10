@@ -139,8 +139,118 @@ class PetController extends Controller
             return response()->json(['message' => 'Pet not found'], 404);
         }
 
-        $pet->delete();
+        // Check if pet has active bookings before allowing deletion
+        $activeBookings = $this->getActiveBookings($pet);
+        
+        if ($activeBookings->isNotEmpty()) {
+            return response()->json([
+                'message' => 'This pet cannot be deleted because it has an active booking or appointment.',
+                'active_bookings' => $activeBookings
+            ], 422);
+        }
 
-        return response()->json(['message' => 'Pet deleted successfully']);
+        // Archive the pet instead of hard delete to preserve historical records
+        $pet->update([
+            'status' => 'archived',
+            'archived_at' => now(),
+            'archived_by' => $request->user()->id,
+            'archive_reason' => 'Deleted via legacy endpoint - migrated to archive'
+        ]);
+
+        return response()->json(['message' => 'Pet archived successfully']);
+    }
+
+    public function archive(Request $request, $id)
+    {
+        $pet = Pet::findOrFail($id);
+
+        if ($request->user()?->role === 'customer' && !$this->customerOwnsPet($request, $pet)) {
+            return response()->json(['message' => 'Pet not found'], 404);
+        }
+
+        // Check if pet has active bookings
+        $activeBookings = $this->getActiveBookings($pet);
+        
+        if ($activeBookings->isNotEmpty()) {
+            return response()->json([
+                'message' => 'This pet cannot be archived because it has an active booking or appointment.',
+                'active_bookings' => $activeBookings
+            ], 422);
+        }
+
+        // Archive the pet
+        $pet->update([
+            'status' => 'archived',
+            'archived_at' => now(),
+            'archived_by' => $request->user()->id,
+            'archive_reason' => $request->input('archive_reason') ?: 'Customer request'
+        ]);
+
+        return response()->json([
+            'message' => 'Pet archived successfully',
+            'pet' => $pet
+        ]);
+    }
+
+    /**
+     * Get active bookings for a pet
+     */
+    private function getActiveBookings(Pet $pet)
+    {
+        $bookings = collect([]);
+        
+        // Check veterinary appointments
+        $vetAppointments = $pet->appointments()
+            ->whereIn('status', ['pending', 'pending_review', 'approved', 'scheduled', 'in_progress', 'in_consultation', 'needs_confinement', 'treated'])
+            ->whereDate('scheduled_at', '>=', now())
+            ->get();
+            
+        if ($vetAppointments->isNotEmpty()) {
+            $bookings = $bookings->merge($vetAppointments->map(function ($appointment) {
+                return (object) [
+                    'type' => 'veterinary_appointment',
+                    'date' => $appointment->scheduled_at,
+                    'status' => $appointment->status
+                ];
+            }));
+        }
+        
+        // Check grooming appointments
+        $groomingAppointments = $pet->groomingAppointments()
+            ->whereIn('status', ['pending', 'pending_review', 'approved', 'scheduled'])
+            ->whereDate('appointment_date', '>=', now())
+            ->get();
+            
+        if ($groomingAppointments->isNotEmpty()) {
+            $bookings = $bookings->merge($groomingAppointments->map(function ($appointment) {
+                return (object) [
+                    'type' => 'grooming_appointment',
+                    'date' => $appointment->appointment_date,
+                    'status' => $appointment->status
+                ];
+            }));
+        }
+        
+        // Check boarding reservations
+        $boardingReservations = $pet->boardings()
+            ->whereIn('status', ['pending', 'pending_review', 'approved', 'scheduled', 'checked_in', 'in_stay'])
+            ->where(function ($query) {
+                $query->where('check_in', '>=', now())
+                   ->orWhere('check_out', '>=', now());
+            })
+            ->get();
+            
+        if ($boardingReservations->isNotEmpty()) {
+            $bookings = $bookings->merge($boardingReservations->map(function ($reservation) {
+                return (object) [
+                    'type' => 'boarding_reservation',
+                    'check_in' => $reservation->check_in,
+                    'check_out' => $reservation->check_out,
+                    'status' => $reservation->status
+                ];
+            }));
+        }
+        
+        return $bookings;
     }
 }

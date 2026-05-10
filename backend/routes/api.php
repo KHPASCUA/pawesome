@@ -739,6 +739,7 @@ Route::middleware(['auth.api', 'throttle:api', 'role:customer'])->prefix('custom
     Route::get('/{id}', [PetController::class, 'show']);
     Route::put('/{id}', [PetController::class, 'update']);
     Route::delete('/{id}', [PetController::class, 'destroy']);
+    Route::post('/{id}/archive', [PetController::class, 'archive']);
 });
 
 // Customer Vet Routes (View own appointments, create new)
@@ -755,6 +756,7 @@ Route::middleware(['auth.api', 'throttle:api', 'role:receptionist,admin,manager,
     Route::get('/{id}', [PetController::class, 'show']);
     Route::put('/{id}', [PetController::class, 'update']);
     Route::delete('/{id}', [PetController::class, 'destroy']);
+    Route::post('/{id}/archive', [PetController::class, 'archive']);
 });
 
 // Legacy Route Aliases (for backward compatibility with tests)

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  FaArchive,
   FaCalendarAlt,
   FaCat,
   FaDog,
@@ -14,7 +15,6 @@ import {
   FaStethoscope,
   FaSyncAlt,
   FaTimes,
-  FaTrash,
   FaUserAlt,
   FaVenusMars,
 } from "react-icons/fa";
@@ -210,6 +210,15 @@ const CustomerPets = () => {
     const keyword = searchTerm.trim().toLowerCase();
 
     return pets.filter((pet) => {
+      // Filter out archived pets by default
+      const isArchived =
+        String(pet?.status || "").toLowerCase() === "archived" ||
+        Boolean(pet?.archived_at);
+
+      if (isArchived) {
+        return false;
+      }
+
       const species = getPetSpecies(pet);
 
       const matchesSpecies =
@@ -306,30 +315,37 @@ const CustomerPets = () => {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Delete this pet? This may affect future booking selection.")) {
+  const handleArchive = async (id) => {
+    if (
+      !window.confirm(
+        "Archive this pet? It will no longer appear in booking forms, but previous records will remain available."
+      )
+    ) {
       return;
     }
 
     try {
       setDeletingId(id);
 
-      try {
-        await apiRequest(`/customer/pets/${id}`, {
-          method: "DELETE",
-        });
-      } catch (customerDeleteError) {
-        console.warn("Customer delete endpoint failed. Trying /pets:", customerDeleteError);
-        await apiRequest(`/pets/${id}`, {
-          method: "DELETE",
-        });
-      }
+      await apiRequest(`/customer/pets/${id}/archive`, {
+        method: "POST",
+        body: JSON.stringify({
+          archive_reason: "Customer request",
+        }),
+      });
 
       await fetchPets({ silent: true });
-      showMessage("success", "Pet deleted successfully.");
+      showMessage("success", "Pet archived successfully.");
     } catch (error) {
-      console.error("Failed to delete pet:", error);
-      showMessage("error", "Failed to delete pet. Please try again.");
+      console.error("Failed to archive pet:", error);
+
+      const errorMessage =
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        error?.message ||
+        "Failed to archive pet. Please try again.";
+
+      showMessage("error", errorMessage);
     } finally {
       setDeletingId(null);
     }
@@ -655,13 +671,13 @@ const CustomerPets = () => {
                   </div>
 
                   <button
-                    className="pet-delete-btn"
+                    className="pet-archive-btn"
                     type="button"
-                    onClick={() => handleDelete(pet.id)}
+                    onClick={() => handleArchive(pet.id)}
                     disabled={deletingId === pet.id}
                   >
-                    <FaTrash />
-                    {deletingId === pet.id ? "Deleting..." : "Delete"}
+                    <FaArchive />
+                    {deletingId === pet.id ? "Archiving..." : "Archive"}
                   </button>
                 </article>
               ))}

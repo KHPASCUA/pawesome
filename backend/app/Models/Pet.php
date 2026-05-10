@@ -4,10 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Pet extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $fillable = [
         'customer_id',
@@ -20,6 +21,24 @@ class Pet extends Model
         'image',
         'notes',
     ];
+
+    protected $dates = ['deleted_at'];
+
+    /**
+     * Scope to get only active pets
+     */
+    public function scopeActive($query)
+    {
+        return $query->where('status', 'active');
+    }
+
+    /**
+     * Scope to get only archived pets
+     */
+    public function scopeArchived($query)
+    {
+        return $query->where('status', 'archived');
+    }
 
     public function customer()
     {
@@ -44,6 +63,11 @@ class Pet extends Model
     public function vaccinations()
     {
         return $this->hasMany(Vaccination::class)->orderBy('date_administered', 'desc');
+    }
+
+    public function groomingAppointments()
+    {
+        return $this->hasMany(ServiceRequest::class)->where('service_type', 'grooming');
     }
 
     /**
