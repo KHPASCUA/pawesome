@@ -166,7 +166,7 @@ const CashierDashboard = () => {
   const location = useLocation();
 
   const normalizedPath = location.pathname.replace(/\/+$/, "");
-  const showOverview = normalizedPath === "/cashier";
+  const showOverview = normalizedPath === "/cashier" || normalizedPath === "/cashier/dashboard";
 
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
