@@ -858,6 +858,95 @@
   word-break: break-word;
 }
 
+/* Additional Health Toggle */
+
+.additional-health-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem;
+  border-radius: 20px;
+  border: 1px dashed rgba(255, 95, 147, 0.35);
+  background:
+    radial-gradient(circle at top left, rgba(255, 95, 147, 0.1), transparent 34%),
+    rgba(255, 255, 255, 0.68);
+}
+
+.additional-health-card > div {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.additional-health-card > div > span {
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  display: grid;
+  place-items: center;
+  border-radius: 17px;
+  background: rgba(255, 95, 147, 0.12);
+  color: var(--color-primary);
+}
+
+.additional-health-card strong {
+  display: block;
+  color: var(--color-heading);
+  font-weight: 950;
+}
+
+.additional-health-card p {
+  margin: 0.2rem 0 0;
+  color: var(--color-muted);
+  font-size: 0.86rem;
+  font-weight: 750;
+  line-height: 1.45;
+}
+
+.add-health-info-btn,
+.cancel-health-info-btn {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: none;
+  border-radius: var(--radius-pill);
+  padding: 0 1rem;
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 950;
+  cursor: pointer;
+  transition: 0.22s ease;
+  white-space: nowrap;
+}
+
+.add-health-info-btn {
+  color: #ffffff;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+  box-shadow: var(--shadow-primary);
+}
+
+.cancel-health-info-btn {
+  color: #b91c1c;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.18);
+}
+
+.add-health-info-btn:hover,
+.cancel-health-info-btn:hover {
+  transform: translateY(-2px);
+}
+
+.vet-health-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
 /* Vet Symptoms */
 
 .symptom-grid {
@@ -1075,6 +1164,17 @@
   .selected-pet-card {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .additional-health-card,
+  .vet-health-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .add-health-info-btn,
+  .cancel-health-info-btn {
+    width: 100%;
+  }
 }
 
 @media (max-width: 768px) {
@@ -1171,6 +1271,11 @@
   }
 
   .form-section-title {
+    flex-direction: column;
+  }
+
+  .additional-health-card > div {
+    align-items: flex-start;
     flex-direction: column;
   }
 

@@ -19,6 +19,7 @@ import {
   FaSyncAlt,
   FaClipboardList,
   FaHeartbeat,
+  FaPlus,
 } from "react-icons/fa";
 
 const groomingServices = [
@@ -152,6 +153,7 @@ const CustomerBookings = () => {
   const [errorMessage, setErrorMessage] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [showVetHealthInfo, setShowVetHealthInfo] = useState(false);
 
   const [formData, setFormData] = useState({
     customer_name: customerName,
@@ -491,6 +493,7 @@ const CustomerBookings = () => {
 
     setSelectedBooking(type);
     setReceipt(null);
+    setShowVetHealthInfo(false);
 
     if (previewUrl) {
       URL.revokeObjectURL(previewUrl);
@@ -516,12 +519,29 @@ const CustomerBookings = () => {
   const handleClose = () => {
     setSelectedBooking(null);
     setReceipt(null);
+    setShowVetHealthInfo(false);
 
     if (previewUrl) {
       URL.revokeObjectURL(previewUrl);
     }
 
     setPreviewUrl(null);
+  };
+
+  const handleAddVetHealthInfo = () => {
+    setShowVetHealthInfo(true);
+    setErrorMessage("");
+  };
+
+  const handleCancelVetHealthInfo = () => {
+    setShowVetHealthInfo(false);
+
+    setFormData((prev) => ({
+      ...prev,
+      vet_info: initialVetInfo,
+    }));
+
+    if (errorMessage) setErrorMessage("");
   };
 
   const handleInputChange = (event) => {
@@ -621,7 +641,7 @@ const CustomerBookings = () => {
     const info = formData.vet_info;
 
     return [
-      "Veterinary Health Information:",
+      "Additional Veterinary Health Information:",
       `Flu-like symptoms: ${info.has_flu_symptoms || "Not answered"}`,
       `Symptoms selected: ${
         info.symptoms?.length ? info.symptoms.join(", ") : "None selected"
@@ -640,7 +660,7 @@ const CustomerBookings = () => {
   const buildFinalNotes = () => {
     const baseNotes = formData.notes.trim();
 
-    if (formData.service_type !== "vet") {
+    if (formData.service_type !== "vet" || !showVetHealthInfo) {
       return baseNotes;
     }
 
@@ -668,11 +688,11 @@ const CustomerBookings = () => {
       return "Schedule cannot be in the past.";
     }
 
-    if (formData.service_type === "vet") {
-      if (!formData.notes.trim()) {
-        return "Please describe the reason for the veterinary visit.";
-      }
+    if (formData.service_type === "vet" && !formData.notes.trim()) {
+      return "Please describe the reason for the veterinary visit.";
+    }
 
+    if (formData.service_type === "vet" && showVetHealthInfo) {
       if (
         formData.vet_info.has_flu_symptoms === "yes" &&
         formData.vet_info.symptoms.length === 0 &&
@@ -722,7 +742,9 @@ const CustomerBookings = () => {
         notes: buildFinalNotes(),
         request_type: formData.service_type,
         veterinary_health_info:
-          formData.service_type === "vet" ? formData.vet_info : undefined,
+          formData.service_type === "vet" && showVetHealthInfo
+            ? formData.vet_info
+            : undefined,
       };
 
       const data = await apiRequest("/customer/requests", {
@@ -1159,18 +1181,55 @@ const CustomerBookings = () => {
                     />
                   </label>
                 </div>
+
+                {isVetBooking && !showVetHealthInfo && (
+                  <div className="additional-health-card">
+                    <div>
+                      <span>
+                        <FaHeartbeat />
+                      </span>
+                      <div>
+                        <strong>Add more health details</strong>
+                        <p>
+                          Optional: provide symptoms, appetite, energy level, medication,
+                          and exposure details for the veterinarian.
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      className="add-health-info-btn"
+                      onClick={handleAddVetHealthInfo}
+                    >
+                      <FaPlus />
+                      Add Additional Health Information
+                    </button>
+                  </div>
+                )}
               </div>
 
-              {isVetBooking && (
+              {isVetBooking && showVetHealthInfo && (
                 <div className="booking-form-section vet-health-section">
-                  <div className="form-section-title">
-                    <FaHeartbeat />
-                    <div>
-                      <h3>Veterinary Health Information</h3>
-                      <p>
-                        These details help the veterinarian understand your pet's condition before the appointment.
-                      </p>
+                  <div className="vet-health-header">
+                    <div className="form-section-title">
+                      <FaHeartbeat />
+                      <div>
+                        <h3>Veterinary Health Information</h3>
+                        <p>
+                          These optional details help the veterinarian understand your pet's condition before the appointment.
+                        </p>
+                      </div>
                     </div>
+
+                    <button
+                      type="button"
+                      className="cancel-health-info-btn"
+                      onClick={handleCancelVetHealthInfo}
+                    >
+                      <FaTimes />
+                      Cancel Additional Health Info
+                    </button>
                   </div>
 
                   <div className="booking-form-grid">
