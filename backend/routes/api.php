@@ -109,6 +109,7 @@ Route::middleware(['auth.api', 'throttle:api', 'role:admin'])->prefix('admin')->
     Route::delete('inventory/items/{id}', [InventoryController::class, 'destroy']); // Frontend compatibility
     Route::post('inventory/{id}/archive', [InventoryController::class, 'archive']); // Archive with reason
     Route::get('inventory/archived', [InventoryController::class, 'archived']); // Get archived items
+    Route::post('inventory/{id}/unarchive', [InventoryController::class, 'unarchive']); // Unarchive item
     Route::post('inventory/{id}/adjust-stock', [InventoryController::class, 'adjustStock']);
     Route::post('inventory/items/{id}/adjust', [InventoryController::class, 'adjustStock']); // Frontend compatibility
     Route::patch('inventory/{id}/stock', [InventoryController::class, 'updateStock']); // Simple stock update
@@ -405,6 +406,12 @@ Route::middleware(['auth.api', 'throttle:api', 'role:receptionist'])->prefix('re
     Route::get('boarding-requests/{id}/care-logs', [BoardingController::class, 'careLogs']);
     Route::post('boarding-requests/{id}/ready-for-pickup', [BoardingController::class, 'readyForPickup']);
     Route::post('boarding-requests/{id}/check-out', [BoardingController::class, 'checkOut']);
+    
+    // Boarding Inventory Usage Routes
+    Route::post('boarding-requests/{id}/inventory-usage', [BoardingController::class, 'recordInventoryUsage']);
+    Route::get('boarding-requests/{id}/inventory-usage-history', [BoardingController::class, 'getInventoryUsageHistory']);
+    Route::get('boarding/inventory-items', [BoardingController::class, 'getAvailableInventoryItems']);
+    
     Route::get('boarding-rooms', [HotelRoomController::class, 'index']);
 
     Route::get('medical-confinements', [MedicalConfinementController::class, 'index']);
@@ -731,6 +738,11 @@ Route::middleware(['auth.api', 'throttle:api', 'role:receptionist'])->prefix('gr
     Route::get('/{id}', [\App\Http\Controllers\Api\GroomingController::class, 'show']);
     Route::put('/{id}', [\App\Http\Controllers\Api\GroomingController::class, 'update']);
     Route::delete('/{id}', [\App\Http\Controllers\Api\GroomingController::class, 'destroy']);
+    
+    // Grooming Inventory Usage Routes
+    Route::post('/{id}/inventory-usage', [\App\Http\Controllers\Api\GroomingController::class, 'recordInventoryUsage']);
+    Route::get('/{id}/inventory-usage-history', [\App\Http\Controllers\Api\GroomingController::class, 'getInventoryUsageHistory']);
+    Route::get('/inventory-items', [\App\Http\Controllers\Api\GroomingController::class, 'getAvailableInventoryItems']);
 });
 
 // Admin Grooming View-Only Routes
@@ -792,6 +804,8 @@ Route::middleware(['auth.api', 'throttle:api', 'role:receptionist,admin,manager,
     Route::put('/{id}', [PetController::class, 'update']);
     Route::delete('/{id}', [PetController::class, 'destroy']);
     Route::post('/{id}/archive', [PetController::class, 'archive']);
+    Route::get('/archived', [PetController::class, 'archived']);
+    Route::post('/{id}/unarchive', [PetController::class, 'unarchive']);
 });
 
 // Legacy Route Aliases (for backward compatibility with tests)

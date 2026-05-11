@@ -20,9 +20,12 @@ class Pet extends Model
         'gender',
         'image',
         'notes',
+        'status',
+        'archived_at',
+        'archived_by',
     ];
 
-    protected $dates = ['deleted_at'];
+    protected $dates = ['deleted_at', 'archived_at'];
 
     /**
      * Scope to get only active pets
@@ -87,5 +90,70 @@ class Pet extends Model
             ->whereNotNull('next_due_date')
             ->whereBetween('next_due_date', [now(), now()->addDays($days)])
             ->orderBy('next_due_date');
+    }
+
+    /**
+     * Relationship to user who archived this pet
+     */
+    public function archivedBy()
+    {
+        return $this->belongsTo(User::class, 'archived_by');
+    }
+
+    /**
+     * Archive the pet
+     */
+    public function archive($reason = '', $userId = null)
+    {
+        $this->status = 'archived';
+        $this->archived_at = now();
+        $this->archived_by = $userId ?? auth()->id();
+        $this->save();
+
+        // Log the archiving action
+        ActivityLog::create([
+            'user_id' => $this->archived_by,
+            'action' => 'archived',
+            'subject_type' => 'Pet',
+            'subject_id' => $this->id,
+            'description' => "Archived pet: {$this->name}. Reason: {$reason}",
+            'properties' => [
+                'old_status' => 'active',
+                'new_status' => 'archived',
+                'archive_reason' => $reason,
+            ],
+        ]);
+    }
+
+    /**
+     * Unarchive the pet
+     */
+    public function unarchive($userId = null)
+    {
+        $this->status = 'active';
+        $this->archived_at = null;
+        $this->archived_by = null;
+        $this->save();
+
+        // Log the unarchiving action
+        ActivityLog::create([
+            'user_id' => $userId ?? auth()->id(),
+            'action' => 'unarchived',
+            'subject_type' => 'Pet',
+            'subject_id' => $this->id,
+            'description' => "Unarchived pet: {$this->name}",
+            'properties' => [
+                'old_status' => 'archived',
+                'new_status' => 'active',
+            ],
+        ]);
+    }
+
+    /**
+     * Check if pet is archived
+     */
+    public function isArchived(): bool
+    {
+        return $this->status === 'archived';
     }
 }

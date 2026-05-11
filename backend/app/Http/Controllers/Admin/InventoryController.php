@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\ActivityLog;
 use App\Models\InventoryItem;
 use App\Models\InventoryBatch;
 use App\Models\InventoryLog;
@@ -167,6 +168,54 @@ class InventoryController extends Controller
         return response()->json(array_merge($items->toArray(), [
             'items' => $items->items(),
         ]));
+    }
+
+    /**
+     * Unarchive an inventory item
+     */
+    public function unarchive(Request $request, $id)
+    {
+        try {
+            $item = InventoryItem::findOrFail($id);
+            
+            if ($item->status !== 'archived') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Item is not archived'
+                ], 422);
+            }
+
+            $item->update([
+                'status' => 'active',
+                'archived_at' => null,
+                'archived_by' => null,
+                'archive_reason' => null,
+            ]);
+
+            // Log the unarchiving action
+            ActivityLog::create([
+                'user_id' => auth()->id(),
+                'action' => 'unarchived',
+                'subject_type' => 'InventoryItem',
+                'subject_id' => $item->id,
+                'description' => "Unarchived inventory item: {$item->name}",
+                'properties' => [
+                    'old_status' => 'archived',
+                    'new_status' => 'active',
+                ],
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Inventory item unarchived successfully',
+                'item' => $item->fresh()
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 422);
+        }
     }
 
     /**
@@ -472,11 +521,12 @@ class InventoryController extends Controller
 
     /**
      * Get sellable products for POS and Customer Store
-     * Only returns items that are sellable and have stock > 0
+     * Only returns items that are sellable, active, and have stock > 0
      */
     public function sellable()
     {
         $items = InventoryItem::where('is_sellable', true)
+            ->where('status', 'active')
             ->where('stock', '>', 0)
             ->orderBy('name')
             ->get()

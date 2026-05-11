@@ -1,0 +1,370 @@
+.grooming-inventory-usage {
+  background: var(--color-surface);
+  border-radius: 12px;
+  padding: 24px;
+  margin: 20px 0;
+  border: 1px solid var(--color-border);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.section-header h3 {
+  color: var(--color-primary);
+  margin: 0 0 8px 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.section-header p {
+  color: var(--color-text-secondary);
+  margin: 0 0 20px 0;
+  font-size: 0.9rem;
+}
+
+.message {
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.message.success {
+  background: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.message.error {
+  background: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+.close-message {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  opacity: 0.7;
+  padding: 0;
+  margin-left: 10px;
+}
+
+.close-message:hover {
+  opacity: 1;
+}
+
+.usage-form {
+  margin-bottom: 30px;
+}
+
+.form-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.form-header h4 {
+  color: var(--color-text);
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 500;
+}
+
+.add-item-btn {
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.2s;
+}
+
+.add-item-btn:hover {
+  background: var(--color-primary-dark);
+}
+
+.no-items {
+  text-align: center;
+  padding: 40px;
+  color: var(--color-text-secondary);
+  background: var(--color-surface);
+  border-radius: 8px;
+  border: 1px dashed var(--color-border);
+}
+
+.items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.item-row {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  padding: 16px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+}
+
+.item-fields {
+  display: flex;
+  gap: 16px;
+  flex: 1;
+  align-items: flex-end;
+}
+
+.field-group {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.field-group label {
+  color: var(--color-text);
+  font-weight: 500;
+  margin-bottom: 6px;
+  font-size: 0.9rem;
+}
+
+.item-select,
+.quantity-input,
+.notes-input {
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-size: 0.9rem;
+  background: var(--color-background);
+  color: var(--color-text);
+}
+
+.item-select:focus,
+.quantity-input:focus,
+.notes-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
+}
+
+.item-select:disabled {
+  background: var(--color-surface);
+  opacity: 0.6;
+}
+
+.quantity-input {
+  width: 100px;
+}
+
+.notes-input {
+  flex: 1;
+  min-width: 200px;
+}
+
+.unit-label {
+  color: var(--color-text-secondary);
+  font-size: 0.85rem;
+  margin-left: 8px;
+  margin-top: 4px;
+}
+
+.remove-item-btn {
+  background: #dc3545;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: background-color 0.2s;
+  margin-top: 24px;
+}
+
+.remove-item-btn:hover {
+  background: #c82333;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+.save-btn {
+  background: var(--color-success);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.save-btn:hover:not(:disabled) {
+  background: #218838;
+}
+
+.save-btn:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.usage-history h4 {
+  color: var(--color-text);
+  margin: 0 0 16px 0;
+  font-size: 1.2rem;
+  font-weight: 500;
+}
+
+.usage-history > p {
+  color: var(--color-text-secondary);
+  font-style: italic;
+}
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.history-item {
+  padding: 16px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+}
+
+.history-details {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.item-name {
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.quantity {
+  color: var(--color-primary);
+  font-weight: 500;
+}
+
+.batch-info {
+  color: var(--color-text-secondary);
+  font-size: 0.85rem;
+  background: var(--color-surface);
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--color-border);
+}
+
+.history-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.85rem;
+}
+
+.notes {
+  color: var(--color-text-secondary);
+  font-style: italic;
+}
+
+.used-by {
+  color: var(--color-text-secondary);
+}
+
+/* Dark mode adjustments */
+[data-theme="dark"] .grooming-inventory-usage {
+  background: var(--color-surface);
+  border-color: var(--color-border);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .message.success {
+  background: #1e3f26;
+  color: #5eead4;
+  border-color: #2f4f3f;
+}
+
+[data-theme="dark"] .message.error {
+  background: #3f1f1f;
+  color: #f87171;
+  border-color: #5f2f2f;
+}
+
+[data-theme="dark"] .no-items {
+  background: var(--color-surface);
+  border-color: var(--color-border);
+}
+
+[data-theme="dark"] .item-row {
+  background: var(--color-surface);
+  border-color: var(--color-border);
+}
+
+[data-theme="dark"] .item-select,
+[data-theme="dark"] .quantity-input,
+[data-theme="dark"] .notes-input {
+  background: var(--color-background);
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+
+[data-theme="dark"] .history-item {
+  background: var(--color-surface);
+  border-color: var(--color-border);
+}
+
+[data-theme="dark"] .batch-info {
+  background: var(--color-surface);
+  border-color: var(--color-border);
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .grooming-inventory-usage {
+    padding: 16px;
+  }
+  
+  .item-fields {
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .field-group {
+    width: 100%;
+  }
+  
+  .item-row {
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .remove-item-btn {
+    margin-top: 0;
+    align-self: flex-end;
+  }
+  
+  .history-details {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .form-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+}

@@ -253,4 +253,62 @@ class PetController extends Controller
         
         return $bookings;
     }
+
+    /**
+     * Get archived pets
+     */
+    public function archived(Request $request)
+    {
+        $query = Pet::where('status', 'archived')
+            ->with(['customer', 'archivedBy'])
+            ->orderBy('archived_at', 'desc');
+
+        // Enforce customer ownership for customer role
+        if ($request->user()?->role === 'customer') {
+            $query->where('customer_id', $request->user()->id);
+        }
+        // Filter by customer if specified (for admin/staff)
+        elseif ($request->has('customer_id')) {
+            $query->where('customer_id', $request->customer_id);
+        }
+
+        // Search functionality
+        if ($request->has('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('species', 'like', "%{$search}%")
+                  ->orWhere('breed', 'like', "%{$search}%");
+            });
+        }
+
+        $pets = $query->paginate($request->per_page ?? 20);
+
+        return response()->json(array_merge($pets->toArray(), [
+            'pets' => $pets->items(),
+        ]));
+    }
+
+    /**
+     * Unarchive a pet
+     */
+    public function unarchive(Request $request, $id)
+    {
+        $pet = Pet::findOrFail($id);
+
+        if ($request->user()?->role === 'customer' && !$this->customerOwnsPet($request, $pet)) {
+            return response()->json(['message' => 'Pet not found'], 404);
+        }
+
+        $pet->update([
+            'status' => 'active',
+            'archived_at' => null,
+            'archived_by' => null,
+        ]);
+
+        return response()->json([
+            'message' => 'Pet unarchived successfully',
+            'pet' => $pet
+        ]);
+    }
 }

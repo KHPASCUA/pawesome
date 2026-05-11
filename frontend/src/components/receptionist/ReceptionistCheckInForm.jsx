@@ -21,6 +21,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import "./ReceptionistCheckInForm.css";
 import { apiRequest } from "../../api/client";
+import BoardingInventoryUsage from "../boarding/BoardingInventoryUsage";
 
 const STATUS_READY_FOR_CHECKIN = ["approved", "scheduled", "confirmed"];
 
@@ -503,6 +504,20 @@ const ReceptionistCheckInForm = () => {
                       </div>
                     </div>
                   </div>
+
+                  {/* Boarding Food / Supply Usage Section */}
+                  {selectedBooking?.id && (
+                    <div className="boarding-inventory-section">
+                      <h4>
+                        <FontAwesomeIcon icon={faClipboardList} />
+                        Boarding Food / Supply Usage
+                      </h4>
+                      <BoardingInventoryUsage 
+                        boardingId={selectedBooking.id}
+                        petId={selectedBooking.pet_id || selectedBooking.pet?.id}
+                      />
+                    </div>
+                  )}
 
                   <div className="boarding-card-actions">
                     <button

@@ -207,24 +207,39 @@ class GroomingController extends Controller
     }
 
     /**
-     * Delete grooming appointment
+     * Archive grooming appointment (replaces delete)
      */
     public function destroy($id): JsonResponse
     {
         $appointment = GroomingAppointment::find($id);
-
+        
         if (!$appointment) {
             return response()->json([
                 'success' => false,
                 'message' => 'Appointment not found'
             ], 404);
         }
-
-        $appointment->delete();
-
+        
+        // Check for active dependencies before archiving
+        if ($appointment->status === 'completed' || $appointment->status === 'no_show') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Cannot archive completed or no-show appointment. Please cancel or reschedule first.'
+            ], 422);
+        }
+        
+        // Archive the appointment
+        $appointment->update([
+            'status' => 'archived',
+            'archived_at' => now(),
+            'archived_by' => auth()->id(),
+            'archive_reason' => 'Archived via grooming management'
+        ]);
+        
         return response()->json([
             'success' => true,
-            'message' => 'Appointment deleted successfully'
+            'message' => 'Grooming appointment archived successfully',
+            'data' => $appointment->fresh()
         ]);
     }
 }

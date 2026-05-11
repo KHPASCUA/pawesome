@@ -16,6 +16,7 @@ import {
   faBoxes,
   faBell,
   faSync,
+  faArchive,
 } from '@fortawesome/free-solid-svg-icons';
 import { inventoryApi } from '../../api/inventory';
 import PremiumToast from '../shared/PremiumToast';
@@ -62,6 +63,7 @@ const INITIAL_FORM_DATA = {
 const InventoryManagement = () => {
   // State
   const [items, setItems] = useState([]);
+  const [archivedItems, setArchivedItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
@@ -76,6 +78,7 @@ const InventoryManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [activeTab, setActiveTab] = useState('active');
   
   // Stats
   const [stats, setStats] = useState({
@@ -124,16 +127,19 @@ const InventoryManagement = () => {
       setLoading(true);
       setError(null);
       
-      const [itemsResponse, dashboardResponse] = await Promise.all([
+      const [itemsResponse, dashboardResponse, archivedResponse] = await Promise.all([
         inventoryApi.getItems(),
-        inventoryApi.getDashboard().catch(() => null)
+        inventoryApi.getDashboard().catch(() => null),
+        inventoryApi.getArchivedItems().catch(() => [])
       ]);
       
       const fetchedItems = Array.isArray(itemsResponse) ? itemsResponse : (itemsResponse.items || itemsResponse.data || []);
+      const fetchedArchivedItems = Array.isArray(archivedResponse) ? archivedResponse : (archivedResponse.items || archivedResponse.data || []);
       
+      setItems(fetchedItems);
+      setArchivedItems(fetchedArchivedItems);
+
       if (fetchedItems.length > 0) {
-        setItems(fetchedItems);
-        
         // Update stats from API
         if (dashboardResponse) {
           setStats({
@@ -355,19 +361,54 @@ const InventoryManagement = () => {
     }
   };
 
+  // Unarchive item
+  const handleUnarchive = async (id) => {
+    const item = archivedItems.find(i => i.id === id);
+    if (!item) return;
+
+    try {
+      setLoading(true);
+      await inventoryApi.unarchiveItem(id);
+      await fetchInventory();
+
+      addActivityLog('unarchive', `Unarchived "${item.name}"`);
+
+      setToast({
+        show: true,
+        type: 'success',
+        title: 'Item Unarchived',
+        message: 'Item restored to active inventory successfully!'
+      });
+    } catch (err) {
+      setToast({
+        show: true,
+        type: 'error',
+        title: 'Unarchive Failed',
+        message: `Failed to unarchive item: ${err.message}`
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Filter items
-  const filteredItems = items.filter(item => {
+  const currentItems = activeTab === 'active' ? items : archivedItems;
+  const filteredItems = currentItems.filter(item => {
     const matchesSearch = 
       (item.name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
       (item.sku?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-      (item.brand?.toLowerCase() || '').includes(searchTerm.toLowerCase());
+      (item.category?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+      (item.brand?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+      (item.supplier?.toLowerCase() || '').includes(searchTerm.toLowerCase());
     
     const matchesCategory = categoryFilter === 'all' || item.category === categoryFilter;
     
-    const matchesStatus = statusFilter === 'all' || 
-      (statusFilter === 'in_stock' && (item.stock_quantity || item.stock || 0) > (item.reorder_level || item.min_stock_level || 10)) ||
-      (statusFilter === 'low_stock' && (item.stock_quantity || item.stock || 0) > 0 && (item.stock_quantity || item.stock || 0) <= (item.reorder_level || item.min_stock_level || 10)) ||
-      (statusFilter === 'out_of_stock' && (item.stock_quantity || item.stock || 0) === 0);
+    // For archived items, ignore status filter
+    const matchesStatus = activeTab === 'archived' ? true : 
+      (statusFilter === 'all' || 
+        (statusFilter === 'in_stock' && (item.stock_quantity || item.stock || 0) > (item.reorder_level || item.min_stock_level || 10)) ||
+        (statusFilter === 'low_stock' && (item.stock_quantity || item.stock || 0) > 0 && (item.stock_quantity || item.stock || 0) <= (item.reorder_level || item.min_stock_level || 10)) ||
+        (statusFilter === 'out_of_stock' && (item.stock_quantity || item.stock || 0) === 0));
     
     return matchesSearch && matchesCategory && matchesStatus;
   });
@@ -468,6 +509,24 @@ const InventoryManagement = () => {
         )}
       </div>
 
+      {/* Tabs */}
+      <div className="inventory-tabs">
+        <button
+          className={`tab-button ${activeTab === 'active' ? 'active' : ''}`}
+          onClick={() => setActiveTab('active')}
+        >
+          <FontAwesomeIcon icon={faBox} />
+          Active Items ({items.length})
+        </button>
+        <button
+          className={`tab-button ${activeTab === 'archived' ? 'active' : ''}`}
+          onClick={() => setActiveTab('archived')}
+        >
+          <FontAwesomeIcon icon={faArchive} />
+          Archived Items ({archivedItems.length})
+        </button>
+      </div>
+
       {/* Filters */}
       <div className="filters-bar">
         <div className="search-box">
@@ -486,12 +545,14 @@ const InventoryManagement = () => {
               <option key={cat.value} value={cat.value}>{cat.icon} {cat.label}</option>
             ))}
           </select>
-          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-            <option value="all">All Status</option>
-            <option value="in_stock">In Stock</option>
-            <option value="low_stock">Low Stock</option>
-            <option value="out_of_stock">Out of Stock</option>
-          </select>
+          {activeTab === 'active' && (
+            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+              <option value="all">All Status</option>
+              <option value="in_stock">In Stock</option>
+              <option value="low_stock">Low Stock</option>
+              <option value="out_of_stock">Out of Stock</option>
+            </select>
+          )}
           <button className="btn btn-refresh" onClick={fetchInventory}>
             <FontAwesomeIcon icon={faSync} />
           </button>
@@ -515,9 +576,9 @@ const InventoryManagement = () => {
                 <th>Product Name</th>
                 <th>Category</th>
                 <th>Price</th>
-                <th>Stock</th>
-                <th>Status</th>
-                <th>Location</th>
+                <th>{activeTab === 'archived' ? 'Stock' : 'Stock'}</th>
+                <th>{activeTab === 'archived' ? 'Archived Date' : 'Status'}</th>
+                <th>{activeTab === 'archived' ? 'Archive Reason' : 'Location'}</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -538,20 +599,52 @@ const InventoryManagement = () => {
                   </td>
                   <td className="price-cell">₱{(item.price || 0).toLocaleString()}</td>
                   <td className="stock-cell">
-                    <span className={`stock-value ${(item.stock_quantity || item.stock || 0) <= (item.reorder_level || item.min_stock_level || 10) ? 'low' : ''}`}>
-                      {item.stock_quantity || item.stock || 0}
-                    </span>
-                    <span className="min-stock">/ {item.reorder_level || item.min_stock_level || item.minStock || 10} min</span>
+                    {activeTab === 'archived' ? (
+                      <span className="archived-stock">{item.stock_quantity || item.stock || 0}</span>
+                    ) : (
+                      <>
+                        <span className={`stock-value ${(item.stock_quantity || item.stock || 0) <= (item.reorder_level || item.min_stock_level || 10) ? 'low' : ''}`}>
+                          {item.stock_quantity || item.stock || 0}
+                        </span>
+                        <span className="min-stock">/ {item.reorder_level || item.min_stock_level || item.minStock || 10} min</span>
+                      </>
+                    )}
                   </td>
-                  <td>{getStatusBadge(item)}</td>
-                  <td className="location-cell">{item.location || '-'}</td>
+                  <td>
+                    {activeTab === 'archived' ? (
+                      <span className="archived-date">
+                        {item.archived_at ? new Date(item.archived_at).toLocaleDateString() : 'N/A'}
+                      </span>
+                    ) : (
+                      getStatusBadge(item)
+                    )}
+                  </td>
+                  <td>
+                    {activeTab === 'archived' ? (
+                      <span className="archive-reason">{item.archive_reason || 'No reason'}</span>
+                    ) : (
+                      <span className="location-cell">{item.location || '-'}</span>
+                    )}
+                  </td>
                   <td className="actions-cell">
-                    <button className="btn-icon edit" onClick={() => handleEdit(item)} title="Edit">
-                      <FontAwesomeIcon icon={faEdit} />
-                    </button>
-                    <button className="btn-icon delete" onClick={() => handleArchive(item.id)} title="Archive">
-                      <FontAwesomeIcon icon={faTrash} />
-                    </button>
+                    {activeTab === 'archived' ? (
+                      <button 
+                        className="btn-icon unarchive" 
+                        onClick={() => handleUnarchive(item.id)} 
+                        title="Unarchive"
+                      >
+                        <FontAwesomeIcon icon={faPlus} />
+                      </button>
+                    ) : (
+                      <>
+                        <button className="btn-icon edit" onClick={() => handleEdit(item)} title="Edit">
+                          <FontAwesomeIcon icon={faEdit} />
+                        </button>
+                        <button className="btn-icon delete" onClick={() => handleArchive(item.id)} title="Archive">
+                          <FontAwesomeIcon icon={faTrash} />
+                        </button>
+                      </>
+                    )}
                   </td>
                 </tr>
               ))}

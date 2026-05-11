@@ -252,6 +252,25 @@ export const inventoryApi = {
   },
 
   /**
+   * Unarchives an inventory item (restores to active status).
+   * @async
+   * @param {string|number} id - Inventory item ID
+   * @returns {Promise<Object>} Unarchive confirmation
+   * @throws {Error} When item not found or request fails
+   */
+  unarchiveItem: async (id) => {
+    validateId(id, "Item ID");
+    try {
+      return await apiRequest(`/inventory/items/${id}/unarchive`, {
+        method: "POST",
+      });
+    } catch (error) {
+      console.error(`[InventoryAPI] Failed to unarchive item ${id}:`, error.message);
+      throw error;
+    }
+  },
+
+  /**
    * Deletes an inventory item (admin only for items with no history).
    * @async
    * @param {string|number} id - Inventory item ID

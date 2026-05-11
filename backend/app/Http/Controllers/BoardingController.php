@@ -10,6 +10,7 @@ use App\Models\Customer;
 use App\Services\NotificationService;
 use App\Services\WorkflowNotifier;
 use App\Services\BookingAvailabilityService;
+use App\Services\BoardingInventoryService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -293,20 +294,38 @@ class BoardingController extends Controller
     }
 
     /**
-     * Delete boarding reservation
+     * Archive boarding reservation (replaces delete)
      */
     public function destroy($id): JsonResponse
     {
         $boarding = Boarding::findOrFail($id);
-
+        
+        // Check for active dependencies before archiving
+        if ($boarding->status === 'active' || $boarding->status === 'checked_in') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Cannot archive active boarding reservation. Please complete or cancel the reservation first.'
+            ], 422);
+        }
+        
+        // Archive the boarding reservation
+        $boarding->update([
+            'status' => 'archived',
+            'archived_at' => now(),
+            'archived_by' => auth()->id(),
+            'archive_reason' => 'Archived via boarding management'
+        ]);
+        
         // Release room if checked in
         if ($boarding->status === 'checked_in' && $boarding->hotelRoom) {
             $boarding->hotelRoom->update(['status' => 'available']);
         }
-
-        $boarding->delete();
-
-        return response()->json(['message' => 'Reservation deleted successfully']);
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Boarding reservation archived successfully',
+            'data' => $boarding->fresh()
+        ]);
     }
 
     /**
@@ -861,5 +880,115 @@ class BoardingController extends Controller
             'total_revenue' => $totalRevenue,
             'average_daily_rate' => $totalNights > 0 ? round($totalRevenue / $totalNights, 2) : 0,
         ]);
+    }
+
+    /**
+     * Record inventory usage for boarding (food/supplies)
+     */
+    public function recordInventoryUsage(Request $request, int $id): JsonResponse
+    {
+        $boarding = Boarding::findOrFail($id);
+        
+        // Check access - only staff/admin can record usage
+        if (!in_array($request->user()?->role, ['admin', 'receptionist', 'veterinary', 'inventory'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You do not have permission to record inventory usage'
+            ], 403);
+        }
+        
+        $validator = Validator::make($request->all(), [
+            'items' => 'required|array',
+            'items.*.inventory_item_id' => 'required|integer|exists:inventory_items,id',
+            'items.*.quantity_used' => 'required|integer|min:1',
+            'items.*.notes' => 'nullable|string|max:500',
+        ]);
+        
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+        
+        try {
+            $boardingInventoryService = new BoardingInventoryService();
+            $result = $boardingInventoryService->recordInventoryUsage(
+                $request->input('items'),
+                $id,
+                $boarding->pet_id,
+                'Boarding food/supply usage',
+                $request->user()?->id
+            );
+            
+            if ($result['success']) {
+                return response()->json([
+                    'success' => true,
+                    'message' => $result['message'],
+                    'usages' => $result['usages'],
+                    'total_items' => $result['total_items'],
+                    'processed_items' => $result['processed_items']
+                ]);
+            } else {
+                return response()->json([
+                    'success' => false,
+                    'message' => $result['message'],
+                    'errors' => $result['errors']
+                ], 422);
+            }
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to record inventory usage: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    /**
+     * Get inventory usage history for a boarding record
+     */
+    public function getInventoryUsageHistory(int $id): JsonResponse
+    {
+        $boarding = Boarding::findOrFail($id);
+        
+        try {
+            $boardingInventoryService = new BoardingInventoryService();
+            $history = $boardingInventoryService->getBoardingUsageHistory($id);
+            
+            return response()->json([
+                'success' => true,
+                'history' => $history,
+                'boarding_id' => $id,
+                'pet_id' => $boarding->pet_id
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch usage history: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    /**
+     * Get available inventory items for boarding usage
+     */
+    public function getAvailableInventoryItems(): JsonResponse
+    {
+        try {
+            $boardingInventoryService = new BoardingInventoryService();
+            $items = $boardingInventoryService->getAvailableServiceItems();
+            
+            return response()->json([
+                'success' => true,
+                'items' => $items,
+                'count' => count($items)
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch available items: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

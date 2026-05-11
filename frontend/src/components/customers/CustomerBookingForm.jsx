@@ -87,7 +87,12 @@ const CustomerBookingForm = () => {
         ? result
         : result.pets || result.data || [];
 
-      setPets(petList);
+      // Filter out archived pets - only show active pets for booking
+      const activePets = petList.filter(pet => 
+        pet.status !== 'archived' && !pet.archived_at
+      );
+
+      setPets(activePets);
     } catch (error) {
       console.error("Failed to load pets:", error);
       setPets([]);

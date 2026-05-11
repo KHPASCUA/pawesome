@@ -3,6 +3,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faCalendarAlt,
   faCheckCircle,
+  faClipboardList,
   faClock,
   faCut,
   faDownload,
@@ -20,6 +21,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import "./ReceptionistGrooming.css";
 import { apiRequest } from "../../api/client";
+import GroomingInventoryUsage from "../grooming/GroomingInventoryUsage";
 
 const STATUS_OPTIONS = [
   { value: "all", label: "All Status" },
@@ -762,6 +764,20 @@ const Grooming = () => {
                 <FontAwesomeIcon icon={faTimes} />
               </button>
             </div>
+
+            {/* Grooming Supply Usage Section */}
+            {selectedAppointment?.id && (
+              <div className="grooming-inventory-section">
+                <h4>
+                  <FontAwesomeIcon icon={faClipboardList} />
+                  Grooming Supply Usage
+                </h4>
+                <GroomingInventoryUsage 
+                  groomingId={selectedAppointment.id}
+                  petId={selectedAppointment.pet_id || selectedAppointment.pet?.id}
+                />
+              </div>
+            )}
 
             <div className="modal-content">
               <div className="info-grid">

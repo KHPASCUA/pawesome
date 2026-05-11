@@ -24,6 +24,15 @@ class InventoryItem extends Model
         'is_sellable',
         'barcode',
         'threshold',
+        'deleted_by',
+        'archive_reason',
+        'archive_status',
+        'archived_at',
+        'archived_by',
+        'customer_snapshot',
+        'pet_snapshot',
+        'service_item_usage_snapshot',
+        'payment_snapshot',
     ];
 
     /**
@@ -379,5 +388,80 @@ class InventoryItem extends Model
     {
         return $query->where('stock', '>', 0)
             ->whereColumn('stock', '<=', 'reorder_level');
+    }
+
+    /**
+     * Scope: Archived items only
+     */
+    public function scopeArchived($query)
+    {
+        return $query->where('status', 'archived');
+    }
+
+    /**
+     * Relationship to user who archived this item
+     */
+    public function archivedBy()
+    {
+        return $this->belongsTo(User::class, 'archived_by');
+    }
+
+    /**
+     * Archive the inventory item
+     */
+    public function archive($reason = '', $userId = null)
+    {
+        $this->status = 'archived';
+        $this->archived_at = now();
+        $this->archived_by = $userId ?? auth()->id();
+        $this->archive_reason = $reason;
+        $this->save();
+
+        // Log the archiving action
+        ActivityLog::create([
+            'user_id' => $this->archived_by,
+            'action' => 'archived',
+            'subject_type' => 'InventoryItem',
+            'subject_id' => $this->id,
+            'description' => "Archived inventory item: {$this->name}. Reason: {$reason}",
+            'properties' => [
+                'old_status' => 'active',
+                'new_status' => 'archived',
+                'archive_reason' => $reason,
+            ],
+        ]);
+    }
+
+    /**
+     * Unarchive the inventory item
+     */
+    public function unarchive($userId = null)
+    {
+        $this->status = 'active';
+        $this->archived_at = null;
+        $this->archived_by = null;
+        $this->archive_reason = null;
+        $this->save();
+
+        // Log the unarchiving action
+        ActivityLog::create([
+            'user_id' => $userId ?? auth()->id(),
+            'action' => 'unarchived',
+            'subject_type' => 'InventoryItem',
+            'subject_id' => $this->id,
+            'description' => "Unarchived inventory item: {$this->name}",
+            'properties' => [
+                'old_status' => 'archived',
+                'new_status' => 'active',
+            ],
+        ]);
+    }
+
+    /**
+     * Check if item is archived
+     */
+    public function isArchived(): bool
+    {
+        return $this->status === 'archived';
     }
 }

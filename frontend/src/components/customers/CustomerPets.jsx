@@ -35,6 +35,7 @@ const CustomerPets = () => {
   const customerEmail = localStorage.getItem("email") || "";
 
   const [pets, setPets] = useState([]);
+  const [archivedPets, setArchivedPets] = useState([]);
   const [formData, setFormData] = useState(initialForm(customerEmail));
 
   const [loading, setLoading] = useState(false);
@@ -44,6 +45,7 @@ const CustomerPets = () => {
 
   const [searchTerm, setSearchTerm] = useState("");
   const [speciesFilter, setSpeciesFilter] = useState("all");
+  const [activeTab, setActiveTab] = useState("active");
   const [message, setMessage] = useState({ type: "", text: "" });
 
   const [selectedPet, setSelectedPet] = useState(null);
@@ -174,9 +176,21 @@ const CustomerPets = () => {
     }
   }, []);
 
+  const fetchArchivedPets = useCallback(async () => {
+    try {
+      const data = await apiRequest("/pets/archived");
+      setArchivedPets(safeArray(data));
+    } catch (error) {
+      console.error("Failed to load archived pets:", error);
+      setArchivedPets([]);
+      showMessage("error", "Failed to load archived pets. Please refresh the page.");
+    }
+  }, []);
+
   useEffect(() => {
     fetchPets();
-  }, [fetchPets]);
+    fetchArchivedPets();
+  }, [fetchPets, fetchArchivedPets]);
 
   const stats = useMemo(() => {
     const speciesCount = new Set(
@@ -208,17 +222,9 @@ const CustomerPets = () => {
 
   const filteredPets = useMemo(() => {
     const keyword = searchTerm.trim().toLowerCase();
+    const currentPets = activeTab === "active" ? pets : archivedPets;
 
-    return pets.filter((pet) => {
-      // Filter out archived pets by default
-      const isArchived =
-        String(pet?.status || "").toLowerCase() === "archived" ||
-        Boolean(pet?.archived_at);
-
-      if (isArchived) {
-        return false;
-      }
-
+    return currentPets.filter((pet) => {
       const species = getPetSpecies(pet);
 
       const matchesSpecies =
@@ -232,6 +238,8 @@ const CustomerPets = () => {
         getPetAge(pet),
         getPetGender(pet),
         getPetNotes(pet),
+        pet.archived_at ? formatDate(pet.archived_at) : "",
+        pet.archived_reason || "",
       ]
         .filter(Boolean)
         .join(" ")
@@ -241,7 +249,7 @@ const CustomerPets = () => {
 
       return matchesSpecies && matchesSearch;
     });
-  }, [pets, searchTerm, speciesFilter]);
+  }, [pets, archivedPets, searchTerm, speciesFilter, activeTab]);
 
   const validateForm = () => {
     if (!formData.name.trim()) return "Pet name is required.";
@@ -576,7 +584,23 @@ const CustomerPets = () => {
         <div className="pets-card pets-list-card">
           <div className="pets-card-header">
             <div>
-              <h2>Registered Pets</h2>
+              <h2>My Pets</h2>
+              <div className="pets-tabs">
+                <button
+                  className={`tab-button ${activeTab === "active" ? "active" : ""}`}
+                  onClick={() => setActiveTab("active")}
+                >
+                  <FaPaw />
+                  Active Pets ({pets.length})
+                </button>
+                <button
+                  className={`tab-button ${activeTab === "archived" ? "active" : ""}`}
+                  onClick={() => setActiveTab("archived")}
+                >
+                  <FaArchive />
+                  Archived Pets ({archivedPets.length})
+                </button>
+              </div>
               <p>Search, manage, and view veterinary medical history.</p>
             </div>
           </div>
@@ -641,6 +665,9 @@ const CustomerPets = () => {
 
                       <span className="pet-species-badge">
                         {getPetSpecies(pet)}
+                        {activeTab === "archived" && (
+                          <span className="archived-badge">Archived</span>
+                        )}
                       </span>
                     </div>
 
@@ -654,6 +681,20 @@ const CustomerPets = () => {
                         <FaVenusMars />
                         Gender: {getPetGender(pet)}
                       </span>
+
+                      {activeTab === "archived" && pet.archived_at && (
+                        <span>
+                          <FaCalendarAlt />
+                          Archived: {formatDate(pet.archived_at)}
+                        </span>
+                      )}
+
+                      {activeTab === "archived" && pet.archived_reason && (
+                        <span>
+                          <FaArchive />
+                          Reason: {pet.archived_reason}
+                        </span>
+                      )}
                     </div>
 
                     <small>{getPetNotes(pet)}</small>
@@ -665,20 +706,22 @@ const CustomerPets = () => {
                         onClick={() => fetchMedicalHistory(pet)}
                       >
                         <FaFileMedical />
-                        Medical History
+                        {activeTab === "archived" ? "View History" : "Medical History"}
                       </button>
+                      
+                      {activeTab === "active" && (
+                        <button
+                          className="pet-archive-btn"
+                          type="button"
+                          onClick={() => handleArchive(pet.id)}
+                          disabled={deletingId === pet.id}
+                        >
+                          <FaArchive />
+                          {deletingId === pet.id ? "Archiving..." : "Archive"}
+                        </button>
+                      )}
                     </div>
                   </div>
-
-                  <button
-                    className="pet-archive-btn"
-                    type="button"
-                    onClick={() => handleArchive(pet.id)}
-                    disabled={deletingId === pet.id}
-                  >
-                    <FaArchive />
-                    {deletingId === pet.id ? "Archiving..." : "Archive"}
-                  </button>
                 </article>
               ))}
             </div>
