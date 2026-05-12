@@ -28,9 +28,9 @@ import toast from "react-hot-toast";
 import { apiRequest } from "../../api/client";
 import styled, { createGlobalStyle } from "styled-components";
 import {
-  fadeIn, fadeInUp, slideInUp, scaleIn, pulse,
-  FadeIn, ScaleIn, SlideInUp, Spinning, Glowing,
-  useScrollAnimation, useLoadingAnimation,
+  // eslint-disable-next-line no-unused-vars
+  slideInUp,
+  FadeIn, ScaleIn, SlideInUp, Spinning,
   hoverMixin, glassHoverMixin, focusMixin
 } from "../shared/animations";
 
@@ -187,24 +187,6 @@ const RefreshButton = styled.button`
     cursor: not-allowed;
     transform: none;
   }
-`;
-
-const PrimaryButton = styled(NavLink)`
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  height: 44px;
-  padding: 0 24px;
-  border-radius: 16px;
-  background: white;
-  color: ${THEME.primary};
-  text-decoration: none;
-  font-weight: 600;
-  font-size: 14px;
-  transition: all 0.3s ease;
-  box-shadow: 0 8px 20px rgba(0,0,0,0.1);
-  
-  ${hoverMixin('translateY(-2px)', '0 12px 30px rgba(0,0,0,0.15)')}
 `;
 
 const ErrorAlert = styled.div`
@@ -791,7 +773,7 @@ const VetAppointments = () => {
     return String(status || "pending").toLowerCase().replace(/\s+/g, "_");
   };
 
-  const transformAppointment = (apt) => {
+  const transformAppointment = useCallback((apt) => {
     const scheduledAt =
       apt?.scheduled_at ||
       apt?.appointment_date ||
@@ -843,7 +825,7 @@ const VetAppointments = () => {
       scheduledAt,
       createdAt: apt?.created_at || apt?.createdAt || null,
     };
-  };
+  }, []);
 
   const fetchAppointments = useCallback(async ({ silent = false } = {}) => {
     try {
@@ -872,7 +854,7 @@ const VetAppointments = () => {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [transformAppointment]);
 
   useEffect(() => {
     fetchAppointments({ silent: false });

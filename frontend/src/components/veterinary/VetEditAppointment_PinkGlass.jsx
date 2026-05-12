@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { NavLink, useNavigate, useParams } from "react-router-dom";
+import React, { useState, useEffect, useCallback } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faArrowLeft,
@@ -9,7 +9,6 @@ import {
   faUser,
   faPaw,
   faCalendarAlt,
-  faClock,
   faNotesMedical,
   faSearch,
 } from "@fortawesome/free-solid-svg-icons";
@@ -87,6 +86,23 @@ const VetEditAppointment = () => {
   const getPetSpecies = (pet) => pet?.species || pet?.type || "Pet";
 
   const getPetBreed = (pet) => pet?.breed || "Unknown breed";
+
+  const fetchCustomerPets = useCallback(async (customerId) => {
+    try {
+      setPetsLoading(true);
+      const data = await apiRequest(`/customers/${customerId}/pets`);
+      const petsList = safeArray(data);
+      setPets(petsList);
+      return petsList;
+    } catch (err) {
+      console.error("Failed to fetch customer pets:", err);
+      setPets([]);
+      toast.error("Failed to load customer pets.");
+      return [];
+    } finally {
+      setPetsLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     const loadInitialData = async () => {
@@ -171,24 +187,7 @@ const VetEditAppointment = () => {
     };
 
     loadInitialData();
-  }, [appointmentId]);
-
-  const fetchCustomerPets = async (customerId) => {
-    try {
-      setPetsLoading(true);
-      const data = await apiRequest(`/customers/${customerId}/pets`);
-      const petsList = safeArray(data);
-      setPets(petsList);
-      return petsList;
-    } catch (err) {
-      console.error("Failed to fetch customer pets:", err);
-      setPets([]);
-      toast.error("Failed to load customer pets.");
-      return [];
-    } finally {
-      setPetsLoading(false);
-    }
-  };
+  }, [appointmentId, fetchCustomerPets]);
 
   const handleCustomerSelect = (customer) => {
     setSelectedCustomer(customer);

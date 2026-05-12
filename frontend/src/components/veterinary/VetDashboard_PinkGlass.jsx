@@ -3,7 +3,6 @@ import { Outlet, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faMoon,
-  faSun,
   faCalendarAlt,
   faUsers,
   faHotel,
@@ -18,7 +17,6 @@ import {
   faArrowDown,
   faStethoscope,
   faSearch,
-  faRotateRight,
   faNotesMedical,
   faHeartbeat,
   faCircleCheck,
@@ -34,9 +32,7 @@ import DashboardProfile from "../shared/DashboardProfile";
 import toast from "react-hot-toast";
 import styled, { createGlobalStyle } from "styled-components";
 import {
-  fadeIn, fadeInUp, slideInUp, scaleIn, pulse,
-  FadeIn, ScaleIn, SlideInUp, Spinning, Glowing,
-  useScrollAnimation, useLoadingAnimation,
+  FadeIn, ScaleIn, Spinning,
   hoverMixin, glassHoverMixin, focusMixin
 } from "../shared/animations";
 

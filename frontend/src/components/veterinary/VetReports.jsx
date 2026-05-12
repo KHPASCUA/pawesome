@@ -95,21 +95,6 @@ const VetReports = () => {
   });
   const [selectedService, setSelectedService] = useState(null);
 
-  const safeArray = (value) => {
-    if (Array.isArray(value)) return value;
-    if (Array.isArray(value?.data)) return value.data;
-    if (Array.isArray(value?.data?.data)) return value.data.data;
-    if (Array.isArray(value?.service_breakdown)) return value.service_breakdown;
-    if (Array.isArray(value?.services)) return value.services;
-    if (Array.isArray(value?.records)) return value.records;
-    if (Array.isArray(value?.appointments)) return value.appointments;
-    if (Array.isArray(value?.recent_appointments)) return value.recent_appointments;
-    if (Array.isArray(value?.completed_appointments)) return value.completed_appointments;
-    if (Array.isArray(value?.result)) return value.result;
-    if (Array.isArray(value?.results)) return value.results;
-    return [];
-  };
-
   const showToast = (type, text) => {
     setToast({ type, text });
 

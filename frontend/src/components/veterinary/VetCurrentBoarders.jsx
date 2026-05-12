@@ -15,10 +15,7 @@ import {
   faXmark,
   faClipboardList,
   faDoorOpen,
-  faMoneyBillWave,
-  faEnvelope,
   faEye,
-  faClock,
   faShieldHeart,
 } from "@fortawesome/free-solid-svg-icons";
 import toast from "react-hot-toast";

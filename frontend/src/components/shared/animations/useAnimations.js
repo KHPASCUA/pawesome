@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import styled, { keyframes } from 'styled-components';
+import { keyframes } from 'styled-components';
 import { 
-  fadeIn, fadeInUp, fadeInDown, fadeInLeft, fadeInRight,
+  fadeIn,
   scaleIn, scaleInBounce, slideInUp, slideInDown, slideInLeft, slideInRight,
-  spin, pulse, shake, bounce, glow, glowPulse,
+  spin, pulse, shake, bounce, glow,
   getAnimationProps, getTransitionProps
 } from './GlobalAnimations';
 

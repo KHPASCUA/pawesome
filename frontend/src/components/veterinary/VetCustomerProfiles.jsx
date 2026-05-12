@@ -17,8 +17,6 @@ import {
   faEye,
   faNotesMedical,
   faCalendarCheck,
-  faVenusMars,
-  faCakeCandles,
   faShieldDog,
   faHeartPulse,
   faArrowLeft,
@@ -56,69 +54,69 @@ const VetCustomerProfiles = () => {
     return [];
   };
 
-  const getOwnerId = (pet) =>
+  const getOwnerId = useCallback((pet) =>
     pet?.customer?.id ||
     pet?.owner?.id ||
     pet?.customer_id ||
     pet?.owner_id ||
     pet?.user_id ||
-    "";
-
-  const getOwnerName = (pet) =>
+    ""
+  , []);
+  const getOwnerName = useCallback((pet) =>
     pet?.customer?.name ||
     pet?.owner?.name ||
     pet?.customer_name ||
     pet?.owner_name ||
     pet?.client_name ||
-    "Unknown Customer";
-
-  const getOwnerEmail = (pet) =>
+    "Unknown Customer"
+  , []);
+  const getOwnerEmail = useCallback((pet) =>
     pet?.customer?.email ||
     pet?.owner?.email ||
     pet?.customer_email ||
     pet?.owner_email ||
     pet?.email ||
-    "";
-
-  const getOwnerPhone = (pet) =>
+    ""
+  , []);
+  const getOwnerPhone = useCallback((pet) =>
     pet?.customer?.phone ||
     pet?.owner?.phone ||
     pet?.customer_phone ||
     pet?.owner_phone ||
     pet?.phone ||
     pet?.contact_number ||
-    "";
-
-  const getOwnerAddress = (pet) =>
+    ""
+  , []);
+  const getOwnerAddress = useCallback((pet) =>
     pet?.customer?.address ||
     pet?.owner?.address ||
     pet?.customer_address ||
     pet?.owner_address ||
     pet?.address ||
-    "";
+    ""
+  , []);
+  const getPetName = useCallback((pet) => pet?.name || pet?.pet_name || "Unknown Pet", []);
 
-  const getPetName = (pet) => pet?.name || pet?.pet_name || "Unknown Pet";
+  const getPetSpecies = useCallback((pet) =>
+    pet?.species || pet?.pet_species || pet?.type || "Unknown", []);
 
-  const getPetSpecies = (pet) =>
-    pet?.species || pet?.pet_species || pet?.type || "Unknown";
+  const getPetBreed = useCallback((pet) =>
+    pet?.breed || pet?.pet_breed || pet?.breed_name || "Unknown", []);
 
-  const getPetBreed = (pet) =>
-    pet?.breed || pet?.pet_breed || pet?.breed_name || "Unknown";
+  const getPetAge = useCallback((pet) => pet?.age || pet?.pet_age || "", []);
 
-  const getPetAge = (pet) => pet?.age || pet?.pet_age || "";
+  const getPetGender = useCallback((pet) =>
+    pet?.gender || pet?.sex || pet?.pet_gender || "Not specified", []);
 
-  const getPetGender = (pet) =>
-    pet?.gender || pet?.sex || pet?.pet_gender || "Not specified";
+  const getPetStatus = useCallback((pet) =>
+    pet?.status || pet?.health_status || pet?.pet_status || "Active", []);
 
-  const getPetStatus = (pet) =>
-    pet?.status || pet?.health_status || pet?.pet_status || "Active";
-
-  const getPetNotes = (pet) =>
+  const getPetNotes = useCallback((pet) =>
     pet?.notes ||
     pet?.medical_notes ||
     pet?.special_needs ||
     pet?.description ||
-    "No notes available.";
+    "No notes available.", []);
 
   const formatDate = (value) => {
     if (!value) return "No date";
@@ -133,7 +131,7 @@ const VetCustomerProfiles = () => {
     });
   };
 
-  const makeCustomerKey = (pet) => {
+  const makeCustomerKey = useCallback((pet) => {
     const ownerId = getOwnerId(pet);
     const email = getOwnerEmail(pet);
     const phone = getOwnerPhone(pet);
@@ -143,9 +141,9 @@ const VetCustomerProfiles = () => {
     if (email) return `email-${email.toLowerCase()}`;
     if (phone) return `phone-${phone}`;
     return `name-${name.toLowerCase()}`;
-  };
+  }, [getOwnerId, getOwnerEmail, getOwnerPhone, getOwnerName]);
 
-  const transformPet = (pet) => ({
+  const transformPet = useCallback((pet) => ({
     id: pet?.id || pet?.pet_id || `${getPetName(pet)}-${getPetSpecies(pet)}`,
     name: getPetName(pet),
     species: getPetSpecies(pet),
@@ -162,7 +160,7 @@ const VetCustomerProfiles = () => {
       pet?.updated_at ||
       "",
     raw: pet,
-  });
+  }), [getPetName, getPetSpecies, getPetBreed, getPetAge, getPetGender, getPetStatus, getPetNotes]);
 
   const groupPatientsByCustomer = useCallback((patients) => {
     const grouped = new Map();
@@ -201,7 +199,7 @@ const VetCustomerProfiles = () => {
     return Array.from(grouped.values()).sort((a, b) =>
       a.name.localeCompare(b.name)
     );
-  }, []);
+  }, [makeCustomerKey, getOwnerId, getOwnerName, getOwnerEmail, getOwnerPhone, getOwnerAddress, transformPet]);
 
   const fetchCustomers = useCallback(
     async ({ silent = false } = {}) => {
