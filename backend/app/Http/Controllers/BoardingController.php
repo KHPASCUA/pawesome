@@ -11,6 +11,9 @@ use App\Services\NotificationService;
 use App\Services\WorkflowNotifier;
 use App\Services\BookingAvailabilityService;
 use App\Services\BoardingInventoryService;
+use App\Services\PetServiceCompatibilityService;
+use App\Services\ServiceDurationService;
+use App\Services\ServiceBillingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -150,19 +153,69 @@ class BoardingController extends Controller
         }
 
         $pet = $request->pet_id ? Pet::find($request->pet_id) : null;
+        
+        // Service compatibility validation
+        if ($pet) {
+            $species = $pet->species ?? $pet->type ?? '';
+            $compatibility = PetServiceCompatibilityService::validateServiceCompatibility($pet->id, 'petHotel');
+            
+            if (!$compatibility['valid']) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $compatibility['message'],
+                    'error_code' => $compatibility['error_code'] ?? 'incompatible_species'
+                ], 422);
+            }
+        } elseif ($request->pet_type) {
+            // For manual pet entry, validate by species string
+            $species = $request->pet_type;
+            if (!PetServiceCompatibilityService::canBookHotel($species)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => PetServiceCompatibilityService::getUnavailableServiceMessage($species, 'petHotel'),
+                    'error_code' => 'incompatible_species'
+                ], 422);
+            }
+        }
         $customer = Customer::find($request->customer_id);
         $room = $request->hotel_room_id ? HotelRoom::find($request->hotel_room_id) : null;
 
-        if ($room && !BookingAvailabilityService::isBoardingRoomAvailable($room->id, $request->check_in, $request->check_out)) {
+        // Validate boarding overlap using new service
+        $boardingValidation = BookingAvailabilityService::validateBoardingOverlap(
+            $request->check_in,
+            $request->check_out,
+            $request->hotel_room_id,
+            $request->pet_id
+        );
+
+        if (!$boardingValidation['valid']) {
             return response()->json([
                 'success' => false,
-                'message' => 'This room is already booked for the selected dates. Please choose another room or dates.',
-                'errors' => ['hotel_room_id' => ['Room not available for selected dates']]
+                'message' => $boardingValidation['message'],
+                'conflicts' => $boardingValidation['conflicts']
             ], 422);
         }
 
         $totalAmount = 0;
-        if ($room) {
+        $boardingType = $request->boarding_type ?? 'standard';
+        
+        // Handle special care requests and pricing
+        if ($pet) {
+            $species = $pet->species ?? $pet->type ?? '';
+            $requiresManualQuotation = PetServiceCompatibilityService::requiresManualQuotation($species, 'petHotel');
+            $isSpecialRequestOnly = PetServiceCompatibilityService::isHotelSpecialRequestOnly($species);
+            
+            if ($isSpecialRequestOnly) {
+                $boardingType = 'special_care';
+                $totalAmount = 0; // Manual quotation required
+                $room = null; // No room assignment for special requests
+            } elseif ($requiresManualQuotation) {
+                $totalAmount = 0; // Manual quotation required
+            }
+        }
+        
+        // Calculate pricing only if not manual quotation
+        if ($room && $totalAmount === 0) {
             $checkIn = new \Carbon\Carbon($request->check_in);
             $checkOut = new \Carbon\Carbon($request->check_out);
             $days = max(1, $checkIn->diffInDays($checkOut));
@@ -171,22 +224,30 @@ class BoardingController extends Controller
 
         $initialPaymentStatus = DB::getDriverName() === 'sqlite' ? 'pending' : 'unpaid';
 
-        $boarding = Boarding::create([
+        // Determine status based on approval requirements
+        $status = 'pending';
+        if ($pet) {
+            $species = $pet->species ?? $pet->type ?? '';
+            $requiresApproval = PetServiceCompatibilityService::requiresStaffApproval($species, 'petHotel');
+            // Keep status as 'pending' but note approval requirement in notes
+        }
+        
+        $boardingData = [
             'pet_id' => $request->pet_id,
-            'pet_name' => $pet?->name ?? $request->pet_name,
-            'pet_type' => $pet?->type ?? $pet?->species ?? $request->pet_type,
-            'pet_breed' => $pet?->breed ?? $request->pet_breed,
+            'pet_name' => ($pet ? $pet->name : null) ?? $request->pet_name,
+            'pet_type' => ($pet ? ($pet->type ?? $pet->species) : null) ?? $request->pet_type,
+            'pet_breed' => ($pet ? $pet->breed : null) ?? $request->pet_breed,
             'customer_id' => $request->customer_id,
-            'customer_email' => $customer?->email ?? $request->user()?->email,
-            'customer_name' => $customer?->name ?? $request->user()?->name,
-            'hotel_room_id' => $request->hotel_room_id,
+            'customer_email' => ($customer ? $customer->email : null) ?? ($request->user() ? $request->user()->email : null),
+            'customer_name' => ($customer ? $customer->name : null) ?? ($request->user() ? $request->user()->name : null),
+            'hotel_room_id' => $room ? $room->id : null,
             'stay_type' => 'hotel_boarding',
             'check_in' => $request->check_in,
             'check_in_time' => $request->check_in_time,
             'check_out' => $request->check_out,
             'check_out_time' => $request->check_out_time,
-            'boarding_type' => $request->boarding_type ?? $request->room_type,
-            'status' => 'pending',
+            'boarding_type' => $boardingType,
+            'status' => $status,
             'total_amount' => $totalAmount,
             'payment_status' => $initialPaymentStatus,
             'special_requests' => $request->special_requests ?? $request->special_instructions,
@@ -195,7 +256,42 @@ class BoardingController extends Controller
             'emergency_contact' => $request->emergency_contact,
             'emergency_phone' => $request->emergency_phone,
             'notes' => $request->notes,
-        ]);
+        ];
+        
+        // Note: Special care fields and compatibility metadata stored in notes field
+        // to avoid database migrations
+        $compatibilityNotes = [];
+        if ($request->has('cage_provided')) {
+            $compatibilityNotes[] = 'Cage: ' . $request->cage_provided;
+        }
+        if ($request->has('special_care_notes')) {
+            $compatibilityNotes[] = 'Special Care: ' . $request->special_care_notes;
+        }
+        if ($request->has('handling_instructions')) {
+            $compatibilityNotes[] = 'Handling: ' . $request->handling_instructions;
+        }
+        
+        // Add species compatibility metadata to notes
+        if ($pet) {
+            $species = $pet->species ?? $pet->type ?? '';
+            $compatibilityNotes[] = 'Species: ' . $species;
+            $compatibilityNotes[] = 'Category: ' . PetServiceCompatibilityService::getSpeciesCategory($species);
+            if (PetServiceCompatibilityService::requiresStaffApproval($species, 'petHotel')) {
+                $compatibilityNotes[] = 'Requires Staff Approval';
+            }
+            if (PetServiceCompatibilityService::requiresManualQuotation($species, 'petHotel')) {
+                $compatibilityNotes[] = 'Requires Manual Quotation';
+            }
+        }
+        
+        // Append compatibility notes to existing notes
+        if (!empty($compatibilityNotes)) {
+            $existingNotes = $boardingData['notes'] ?? '';
+            $compatibilityText = implode(' | ', $compatibilityNotes);
+            $boardingData['notes'] = $existingNotes ? $existingNotes . ' | ' . $compatibilityText : $compatibilityText;
+        }
+        
+        $boarding = Boarding::create($boardingData);
 
         $boarding->load(['pet', 'customer', 'hotelRoom']);
 
@@ -347,6 +443,30 @@ class BoardingController extends Controller
                 ? $boarding->payment_status
                 : ($boarding->payment_status === 'pending' ? 'unpaid' : $boarding->payment_status),
         ]);
+
+        // Create base service billing item when boarding is approved
+        if ($boarding->hotelRoom && $boarding->pet_id) {
+            $checkIn = \Carbon\Carbon::parse($boarding->check_in)->startOfDay();
+            $checkOut = \Carbon\Carbon::parse($boarding->check_out)->startOfDay();
+            $days = max(1, $checkIn->diffInDays($checkOut));
+            $totalAmount = $days * $boarding->hotelRoom->daily_rate;
+            
+            // Check if base service billing item already exists
+            $existingBaseItem = \App\Models\ServiceItemUsage::where('service_type', 'boarding')
+                ->where('service_id', $boarding->id)
+                ->where('item_type', 'base_service')
+                ->first();
+                
+            if (!$existingBaseItem) {
+                ServiceBillingService::createBaseServiceItem(
+                    'boarding',
+                    $boarding->id,
+                    $boarding->hotelRoom->name . ' - ' . $days . ' day(s)',
+                    $totalAmount,
+                    $boarding->pet_id
+                );
+            }
+        }
 
         // Send notification
         NotificationService::notifyBoardingStatusChange($boarding, $oldStatus);

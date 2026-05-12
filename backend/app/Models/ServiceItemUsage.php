@@ -21,10 +21,21 @@ class ServiceItemUsage extends Model
         'unit',
         'used_by',
         'notes',
+        // Billing fields
+        'item_type',
+        'description',
+        'unit_price',
+        'total_price',
+        'is_billable',
+        'is_paid',
     ];
 
     protected $casts = [
         'quantity_used' => 'integer',
+        'unit_price' => 'decimal:2',
+        'total_price' => 'decimal:2',
+        'is_billable' => 'boolean',
+        'is_paid' => 'boolean',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
@@ -34,6 +45,13 @@ class ServiceItemUsage extends Model
     const SERVICE_GROOMING = 'grooming';
     const SERVICE_BOARDING = 'boarding';
     const SERVICE_CASHIER = 'cashier';
+    
+    // Item type constants
+    const ITEM_BASE_SERVICE = 'base_service';
+    const ITEM_ADD_ON_SERVICE = 'add_on_service';
+    const ITEM_INVENTORY_USAGE = 'inventory_usage';
+    const ITEM_MANUAL_CHARGE = 'manual_charge';
+    const ITEM_DISCOUNT = 'discount';
 
     /**
      * Get the inventory item that was used
@@ -105,5 +123,74 @@ class ServiceItemUsage extends Model
     public function scopeCashier($query)
     {
         return $query->where('service_type', self::SERVICE_CASHIER);
+    }
+    
+    /**
+     * Scope for billable items only
+     */
+    public function scopeBillable($query)
+    {
+        return $query->where('is_billable', true);
+    }
+    
+    /**
+     * Scope for unpaid items only
+     */
+    public function scopeUnpaid($query)
+    {
+        return $query->where('is_billable', true)->where('is_paid', false);
+    }
+    
+    /**
+     * Scope for paid items only
+     */
+    public function scopePaid($query)
+    {
+        return $query->where('is_paid', true);
+    }
+    
+    /**
+     * Calculate total billable amount for a service
+     */
+    public static function calculateTotalBill($serviceType, $serviceId)
+    {
+        return self::where('service_type', $serviceType)
+            ->where('service_id', $serviceId)
+            ->billable()
+            ->sum('total_price');
+    }
+    
+    /**
+     * Calculate total paid amount for a service
+     */
+    public static function calculateTotalPaid($serviceType, $serviceId)
+    {
+        return self::where('service_type', $serviceType)
+            ->where('service_id', $serviceId)
+            ->paid()
+            ->sum('total_price');
+    }
+    
+    /**
+     * Calculate balance due for a service
+     */
+    public static function calculateBalanceDue($serviceType, $serviceId)
+    {
+        $totalBill = self::calculateTotalBill($serviceType, $serviceId);
+        $totalPaid = self::calculateTotalPaid($serviceType, $serviceId);
+        return $totalBill - $totalPaid;
+    }
+    
+    /**
+     * Get itemized billing for a service
+     */
+    public static function getItemizedBilling($serviceType, $serviceId)
+    {
+        return self::where('service_type', $serviceType)
+            ->where('service_id', $serviceId)
+            ->billable()
+            ->with(['inventoryItem', 'user'])
+            ->orderBy('created_at', 'asc')
+            ->get();
     }
 }
