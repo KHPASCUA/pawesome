@@ -805,6 +805,8 @@ Route::middleware(['auth.api', 'throttle:api', 'role:receptionist,admin,manager,
     Route::delete('/{id}', [PetController::class, 'destroy']);
     Route::post('/{id}/archive', [PetController::class, 'archive']);
     Route::get('/archived', [PetController::class, 'archived']);
+    Route::get('/pets/archived', [PetController::class, 'archived']); // Frontend compatibility
+    Route::get('/pets/archived', [PetController::class, 'archived']); // Frontend compatibility
     Route::post('/{id}/unarchive', [PetController::class, 'unarchive']);
 });
 
