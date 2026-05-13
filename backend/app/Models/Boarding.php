@@ -5,6 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Boarding extends Model
 {
@@ -18,7 +20,12 @@ class Boarding extends Model
         'customer_id',
         'customer_email',
         'customer_name',
-        'hotel_room_id',
+        'room_id',
+        'room_name',
+        'room_type',
+        'rate_per_day',
+        'number_of_days',
+        'hotel_room_id', // Keep for backward compatibility
         'stay_type',
         'check_in',
         'check_in_time',
@@ -144,14 +151,36 @@ class Boarding extends Model
         return $this->belongsTo(Customer::class);
     }
 
+    /**
+     * Get the hotel room associated with the boarding
+     */
     public function hotelRoom(): BelongsTo
     {
-        return $this->belongsTo(HotelRoom::class);
+        return $this->belongsTo(HotelRoom::class, 'hotel_room_id');
     }
 
-    public function room(): BelongsTo
+    /**
+     * Get the room reservation associated with the boarding
+     */
+    public function roomReservation(): HasOne
     {
-        return $this->belongsTo(HotelRoom::class, 'hotel_room_id');
+        return $this->hasOne(BoardingRoomReservation::class, 'boarding_booking_id');
+    }
+
+    /**
+     * Get the room reservations associated with the boarding
+     */
+    public function roomReservations(): HasMany
+    {
+        return $this->hasMany(BoardingRoomReservation::class, 'boarding_booking_id');
+    }
+
+    /**
+     * Get the booking add-ons for this boarding
+     */
+    public function bookingAddOns(): HasMany
+    {
+        return $this->hasMany(BookingAddOn::class, 'booking_id');
     }
 
     public function careLogs()

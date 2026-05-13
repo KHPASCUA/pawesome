@@ -1,10 +1,15 @@
 import React, { useEffect, useState, useCallback } from "react";
 import "./VetForm.css";
-import { apiRequest } from "../../api/client";
+import { apiRequest, normalizeList } from "../../api/client";
+import {
+  validateServiceCompatibility,
+  getSpecialCareWarning,
+} from "../../config/petServiceRules";
 
 const VetForm = () => {
   const [activeTab, setActiveTab] = useState("book");
   const [appointments, setAppointments] = useState([]);
+  const [pets, setPets] = useState([]);
   const [loading, setLoading] = useState(false);
 
   const customerEmail = localStorage.getItem("email");
@@ -13,6 +18,7 @@ const VetForm = () => {
   const [formData, setFormData] = useState({
     customer_name: customerName,
     customer_email: customerEmail || "",
+    pet_id: "",
     pet_name: "",
     service_type: "vet",
     service_name: "Checkup",
@@ -33,21 +39,62 @@ const VetForm = () => {
     }
   }, [customerEmail]);
 
+  const fetchPets = useCallback(async () => {
+    try {
+      const data = await apiRequest("/customer/pets");
+      const activePets = normalizeList(data, ["pets", "data"]).filter(
+        (pet) => pet.status !== "archived" && !pet.archived_at
+      );
+      setPets(activePets);
+    } catch (error) {
+      console.error("Failed to load pets:", error);
+      setPets([]);
+    }
+  }, []);
+
   useEffect(() => {
     fetchAppointments();
-  }, [fetchAppointments]);
+    fetchPets();
+  }, [fetchAppointments, fetchPets]);
+
+  const selectedPet = pets.find((pet) => String(pet.id) === String(formData.pet_id));
+  const compatibility = selectedPet
+    ? validateServiceCompatibility(selectedPet.species || selectedPet.type, "veterinary")
+    : null;
+  const serviceMessage = selectedPet
+    ? getSpecialCareWarning(selectedPet.species || selectedPet.type, "veterinary")
+    : "";
 
   const handleChange = (e) => {
-    setFormData((prev) => ({
-      ...prev,
-      [e.target.name]: e.target.value,
-    }));
+    const { name, value } = e.target;
+
+    if (name === "pet_id") {
+      const pet = pets.find((item) => String(item.id) === String(value));
+      setFormData((prev) => ({
+        ...prev,
+        pet_id: value,
+        pet_name: pet?.name || "",
+      }));
+      return;
+    }
+
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     try {
+      if (!formData.pet_id) {
+        alert("Please select an active pet for this appointment.");
+        return;
+      }
+
+      if (compatibility && !compatibility.isValid) {
+        alert(compatibility.message || "This service is not available for this pet species.");
+        return;
+      }
+
       setLoading(true);
 
       const data = await apiRequest("/customer/requests", {
@@ -61,6 +108,7 @@ const VetForm = () => {
         setFormData({
           customer_name: customerName,
           customer_email: customerEmail || "",
+          pet_id: "",
           pet_name: "",
           service_type: "vet",
           service_name: "Checkup",
@@ -109,14 +157,29 @@ const VetForm = () => {
           <h2>Vet Appointment Form</h2>
 
           <form className="vet-form" onSubmit={handleSubmit}>
-            <input
-              type="text"
-              name="pet_name"
-              placeholder="Pet Name"
-              value={formData.pet_name}
+            <select
+              name="pet_id"
+              value={formData.pet_id}
               onChange={handleChange}
               required
-            />
+            >
+              <option value="">Select active pet</option>
+              {pets.map((pet) => (
+                <option key={pet.id} value={pet.id}>
+                  {pet.name} - {pet.species || pet.type || "Pet"}
+                </option>
+              ))}
+            </select>
+
+            {selectedPet && serviceMessage && (
+              <div className="vet-service-note">{serviceMessage}</div>
+            )}
+
+            {selectedPet && compatibility && !compatibility.isValid && (
+              <div className="vet-service-note error">
+                {compatibility.message || "This service is not available for this pet species."}
+              </div>
+            )}
 
             <select
               name="service_name"
@@ -153,7 +216,10 @@ const VetForm = () => {
               required
             />
 
-            <button type="submit" disabled={loading}>
+            <button
+              type="submit"
+              disabled={loading || (compatibility && !compatibility.isValid)}
+            >
               {loading ? "Submitting..." : "Submit Request"}
             </button>
           </form>

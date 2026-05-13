@@ -11,16 +11,28 @@ use App\Services\NotificationService;
 use App\Services\WorkflowNotifier;
 use App\Services\BookingAvailabilityService;
 use App\Services\BoardingInventoryService;
+use App\Services\BoardingRoomService;
+use App\Services\BoardingAddOnInventoryService;
+use App\Services\InventoryDeductionService;
 use App\Services\PetServiceCompatibilityService;
 use App\Services\ServiceDurationService;
 use App\Services\ServiceBillingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 
 class BoardingController extends Controller
 {
+    protected $boardingRoomService;
+
+    public function __construct(BoardingRoomService $boardingRoomService)
+    {
+        $this->boardingRoomService = $boardingRoomService;
+    }
+
     private function currentCustomerId(Request $request): ?int
     {
         $user = $request->user();
@@ -53,57 +65,121 @@ class BoardingController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $query = Boarding::with(['pet', 'customer', 'hotelRoom', 'careLogs.loggedBy']);
+        try {
+            $email = $request->query('email');
 
-        if ($request->user()?->role === 'customer') {
-            $query->where('customer_id', $this->currentCustomerId($request) ?? 0);
+            $query = Boarding::query();
+
+            /*
+             Filter by authenticated customer first if available.
+             If no auth user, fall back to customer email query.
+             Use customer relationship if boardings table has customer_id only.
+            */
+            $user = $request->user();
+
+            if ($user && isset($user->id)) {
+                if (Schema::hasColumn('boardings', 'customer_id')) {
+                    $query->where('customer_id', $user->id);
+                }
+            } elseif ($email) {
+                if (Schema::hasColumn('boardings', 'customer_email')) {
+                    $query->where('customer_email', $email);
+                } else {
+                    $query->whereHas('customer', function ($customerQuery) use ($email) {
+                        $customerQuery->where('email', $email);
+                    });
+                }
+            }
+
+            /*
+             IMPORTANT:
+             Only eager-load relationships that actually exist on the Boarding model.
+            */
+            $with = [];
+
+            if (method_exists(Boarding::class, 'pet')) {
+                $with[] = 'pet';
+            }
+
+            if (method_exists(Boarding::class, 'customer')) {
+                $with[] = 'customer';
+            }
+
+            if (method_exists(Boarding::class, 'roomReservation')) {
+                $with[] = 'roomReservation.room';
+            }
+
+            if (method_exists(Boarding::class, 'roomReservations')) {
+                $with[] = 'roomReservations.room';
+            }
+
+            if (method_exists(Boarding::class, 'bookingAddOns')) {
+                $with[] = 'bookingAddOns.addOn';
+            }
+
+            if (method_exists(Boarding::class, 'hotelRoom')) {
+                $with[] = 'hotelRoom';
+            }
+
+            if (!empty($with)) {
+                $query->with($with);
+            }
+
+            // Filter by status
+            if ($request->has('status')) {
+                $query->where('status', $request->status);
+            }
+
+            // Filter by date range
+            if ($request->has('date_from')) {
+                $query->where('check_in', '>=', $request->date_from);
+            }
+            if ($request->has('date_to')) {
+                $query->where('check_out', '<=', $request->date_to);
+            }
+
+            // Filter by customer
+            if ($request->has('customer_id')) {
+                $query->where('customer_id', $request->customer_id);
+            }
+
+            // Filter by pet
+            if ($request->has('pet_id')) {
+                $query->where('pet_id', $request->pet_id);
+            }
+
+            // Current boarders only
+            if ($request->has('current')) {
+                $query->current();
+            }
+
+            $boardings = $query
+                ->orderByDesc('created_at')
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'boardings' => $boardings,
+                'data' => $boardings,
+            ]);
+        } catch (\Throwable $e) {
+            \Log::error('Customer boarding index error', [
+                'message' => $e->getMessage(),
+                'line' => $e->getLine(),
+                'file' => $e->getFile(),
+                'trace' => $e->getTraceAsString(),
+                'email' => $request->query('email'),
+                'user_id' => optional($request->user())->id,
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to load customer boardings.',
+                'boardings' => [],
+                'data' => [],
+                'debug' => app()->environment('local') ? $e->getMessage() : null,
+            ], 500);
         }
-
-        // Filter by status
-        if ($request->has('status')) {
-            $query->where('status', $request->status);
-        }
-
-        // Filter by date range
-        if ($request->has('date_from')) {
-            $query->where('check_in', '>=', $request->date_from);
-        }
-        if ($request->has('date_to')) {
-            $query->where('check_out', '<=', $request->date_to);
-        }
-
-        // Filter by customer
-        if ($request->has('customer_id')) {
-            $query->where('customer_id', $request->customer_id);
-        }
-
-        // Filter by pet
-        if ($request->has('pet_id')) {
-            $query->where('pet_id', $request->pet_id);
-        }
-
-        // Current boarders only
-        if ($request->has('current')) {
-            $query->current();
-        }
-
-        $boardings = $query->orderBy('check_in', 'desc')->paginate(20);
-
-        $summaryQuery = Boarding::query();
-        if ($request->user()?->role === 'customer') {
-            $summaryQuery->where('customer_id', $this->currentCustomerId($request) ?? 0);
-        }
-
-        return response()->json([
-            'boardings' => $boardings,
-            'summary' => [
-                'total' => (clone $summaryQuery)->count(),
-                'checked_in' => (clone $summaryQuery)->checkedIn()->count(),
-                'pending' => (clone $summaryQuery)->pending()->count(),
-                'today_checkins' => (clone $summaryQuery)->whereDate('check_in', today())->count(),
-                'today_checkouts' => (clone $summaryQuery)->whereDate('check_out', today())->count(),
-            ]
-        ]);
     }
 
     /**
@@ -122,17 +198,13 @@ class BoardingController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
-            'pet_id' => 'nullable|exists:pets,id',
+            'pet_id' => 'required|exists:pets,id',
             'customer_id' => 'required|exists:customers,id',
-            'hotel_room_id' => 'nullable|exists:hotel_rooms,id',
-            'check_in' => 'required|date|after_or_equal:today',
-            'check_out' => 'required|date|after:check_in',
+            'room_id' => 'required|exists:boarding_rooms,id',
+            'check_in_date' => 'required|date|after_or_equal:today',
+            'check_out_date' => 'required|date|after:check_in_date',
             'check_in_time' => 'nullable|date_format:H:i',
             'check_out_time' => 'nullable|date_format:H:i',
-            'boarding_type' => 'nullable|string|max:255',
-            'pet_name' => 'required_without:pet_id|nullable|string|max:255',
-            'pet_type' => 'required_without:pet_id|nullable|string|max:255',
-            'pet_breed' => 'nullable|string|max:255',
             'special_requests' => 'nullable|string',
             'special_instructions' => 'nullable|string',
             'feeding_instructions' => 'nullable|string',
@@ -140,6 +212,9 @@ class BoardingController extends Controller
             'emergency_contact' => 'nullable|string|max:255',
             'emergency_phone' => 'nullable|string|max:255',
             'notes' => 'nullable|string',
+            'add_ons' => 'nullable|array',
+            'add_ons.*.id' => 'required|exists:add_ons,id',
+            'add_ons.*.quantity' => 'required|integer|min:1',
         ]);
 
         if ($validator->fails()) {
@@ -152,76 +227,73 @@ class BoardingController extends Controller
             }
         }
 
-        $pet = $request->pet_id ? Pet::find($request->pet_id) : null;
-        
-        // Service compatibility validation
-        if ($pet) {
-            $species = $pet->species ?? $pet->type ?? '';
-            $compatibility = PetServiceCompatibilityService::validateServiceCompatibility($pet->id, 'petHotel');
-            
-            if (!$compatibility['valid']) {
-                return response()->json([
-                    'success' => false,
-                    'message' => $compatibility['message'],
-                    'error_code' => $compatibility['error_code'] ?? 'incompatible_species'
-                ], 422);
-            }
-        } elseif ($request->pet_type) {
-            // For manual pet entry, validate by species string
-            $species = $request->pet_type;
-            if (!PetServiceCompatibilityService::canBookHotel($species)) {
-                return response()->json([
-                    'success' => false,
-                    'message' => PetServiceCompatibilityService::getUnavailableServiceMessage($species, 'petHotel'),
-                    'error_code' => 'incompatible_species'
-                ], 422);
-            }
+        $pet = Pet::find($request->pet_id);
+        if (!$pet) {
+            return response()->json(['error' => 'Pet not found'], 404);
         }
-        $customer = Customer::find($request->customer_id);
-        $room = $request->hotel_room_id ? HotelRoom::find($request->hotel_room_id) : null;
 
-        // Validate boarding overlap using new service
-        $boardingValidation = BookingAvailabilityService::validateBoardingOverlap(
-            $request->check_in,
-            $request->check_out,
-            $request->hotel_room_id,
-            $request->pet_id
+        // Calculate total amount using room-based pricing
+        $pricingResult = $this->boardingRoomService->calculateTotalAmount(
+            $request->room_id,
+            $request->check_in_date,
+            $request->check_out_date
         );
 
-        if (!$boardingValidation['valid']) {
+        if (!$pricingResult['success']) {
             return response()->json([
                 'success' => false,
-                'message' => $boardingValidation['message'],
-                'conflicts' => $boardingValidation['conflicts']
+                'message' => $pricingResult['message']
             ], 422);
         }
 
-        $totalAmount = 0;
-        $boardingType = $request->boarding_type ?? 'standard';
+        // Use room-based pricing
+        $totalAmount = $pricingResult['total_amount'];
+        $dailyRate = $pricingResult['daily_rate'];
+        $numberOfDays = $pricingResult['number_of_days'];
+        $roomName = $pricingResult['room_name'];
+        $roomType = $pricingResult['room_type'];
+
+        // Process add-ons
+        $addOnSubtotal = 0;
+        $selectedAddOns = [];
         
-        // Handle special care requests and pricing
-        if ($pet) {
-            $species = $pet->species ?? $pet->type ?? '';
-            $requiresManualQuotation = PetServiceCompatibilityService::requiresManualQuotation($species, 'petHotel');
-            $isSpecialRequestOnly = PetServiceCompatibilityService::isHotelSpecialRequestOnly($species);
-            
-            if ($isSpecialRequestOnly) {
-                $boardingType = 'special_care';
-                $totalAmount = 0; // Manual quotation required
-                $room = null; // No room assignment for special requests
-            } elseif ($requiresManualQuotation) {
-                $totalAmount = 0; // Manual quotation required
+        if ($request->has('add_ons')) {
+            foreach ($request->add_ons as $addOnKey => $addOnPayload) {
+                $addOnId = is_array($addOnPayload)
+                    ? ($addOnPayload['id'] ?? $addOnPayload['add_on_id'] ?? $addOnPayload['boarding_add_on_id'] ?? null)
+                    : $addOnKey;
+                $quantity = is_array($addOnPayload)
+                    ? ($addOnPayload['quantity'] ?? 1)
+                    : $addOnPayload;
+                $quantity = max(1, (int) $quantity);
+                $addOn = \App\Models\AddOn::find($addOnId);
+                if ($addOn && $addOn->status) {
+                    $subtotal = $addOn->unit_price * $quantity;
+                    
+                    // For per_day add-ons, multiply by number of days
+                    if ($addOn->charge_type === 'per_day') {
+                        $subtotal = $addOn->unit_price * $quantity * $numberOfDays;
+                    }
+                    
+                    $addOnSubtotal += $subtotal;
+                    $selectedAddOns[] = [
+                        'id' => $addOn->id,
+                        'name' => $addOn->name,
+                        'add_on_type' => $addOn->add_on_type,
+                        'charge_type' => $addOn->charge_type,
+                        'quantity' => $quantity,
+                        'unit_price' => (float) $addOn->unit_price,
+                        'number_of_days' => $addOn->charge_type === 'per_day' ? $numberOfDays : null,
+                        'subtotal' => (float) $subtotal,
+                        'inventory_item_id' => $addOn->inventory_item_id,
+                    ];
+                }
             }
         }
-        
-        // Calculate pricing only if not manual quotation
-        if ($room && $totalAmount === 0) {
-            $checkIn = new \Carbon\Carbon($request->check_in);
-            $checkOut = new \Carbon\Carbon($request->check_out);
-            $days = max(1, $checkIn->diffInDays($checkOut));
-            $totalAmount = $days * $room->daily_rate;
-        }
 
+        $finalTotal = $totalAmount + $addOnSubtotal;
+
+        $customer = Customer::find($request->customer_id);
         $initialPaymentStatus = DB::getDriverName() === 'sqlite' ? 'pending' : 'unpaid';
 
         // Determine status based on approval requirements
@@ -234,29 +306,44 @@ class BoardingController extends Controller
         
         $boardingData = [
             'pet_id' => $request->pet_id,
-            'pet_name' => ($pet ? $pet->name : null) ?? $request->pet_name,
-            'pet_type' => ($pet ? ($pet->type ?? $pet->species) : null) ?? $request->pet_type,
-            'pet_breed' => ($pet ? $pet->breed : null) ?? $request->pet_breed,
+            'pet_name' => $pet ? $pet->name : null,
+            'pet_type' => $pet ? ($pet->type ?? $pet->species) : null,
+            'pet_breed' => $pet ? $pet->breed : null,
             'customer_id' => $request->customer_id,
-            'customer_email' => ($customer ? $customer->email : null) ?? ($request->user() ? $request->user()->email : null),
-            'customer_name' => ($customer ? $customer->name : null) ?? ($request->user() ? $request->user()->name : null),
-            'hotel_room_id' => $room ? $room->id : null,
+            'customer_email' => $customer ? $customer->email : ($request->user() ? $request->user()->email : null),
+            'customer_name' => $customer ? $customer->name : ($request->user() ? $request->user()->name : null),
+            'room_name' => $roomName,
+            'room_type' => $roomType,
+            'rate_per_day' => $dailyRate,
+            'number_of_days' => $numberOfDays,
             'stay_type' => 'hotel_boarding',
-            'check_in' => $request->check_in,
+            'check_in' => $request->check_in_date,
             'check_in_time' => $request->check_in_time,
-            'check_out' => $request->check_out,
+            'check_out' => $request->check_out_date,
             'check_out_time' => $request->check_out_time,
-            'boarding_type' => $boardingType,
+            'boarding_type' => $roomType,
             'status' => $status,
-            'total_amount' => $totalAmount,
+            'total_amount' => $finalTotal,
             'payment_status' => $initialPaymentStatus,
-            'special_requests' => $request->special_requests ?? $request->special_instructions,
+            'special_requests' => $request->special_requests,
             'feeding_instructions' => $request->feeding_instructions,
             'medication_notes' => $request->medication_notes,
             'emergency_contact' => $request->emergency_contact,
             'emergency_phone' => $request->emergency_phone,
             'notes' => $request->notes,
         ];
+
+        if (Schema::hasColumn('boardings', 'room_id')) {
+            $boardingData['room_id'] = $request->room_id;
+        }
+
+        if (
+            Schema::hasColumn('boardings', 'hotel_room_id') &&
+            Schema::hasTable('hotel_rooms') &&
+            DB::table('hotel_rooms')->where('id', $request->room_id)->exists()
+        ) {
+            $boardingData['hotel_room_id'] = $request->room_id;
+        }
         
         // Note: Special care fields and compatibility metadata stored in notes field
         // to avoid database migrations
@@ -290,19 +377,70 @@ class BoardingController extends Controller
             $compatibilityText = implode(' | ', $compatibilityNotes);
             $boardingData['notes'] = $existingNotes ? $existingNotes . ' | ' . $compatibilityText : $compatibilityText;
         }
-        
-        $boarding = Boarding::create($boardingData);
 
-        $boarding->load(['pet', 'customer', 'hotelRoom']);
+        $boardingData = array_intersect_key(
+            $boardingData,
+            array_flip(Schema::getColumnListing('boardings'))
+        );
+        
+        // Create boarding and room reservation in a transaction
+        $result = DB::transaction(function () use ($boardingData, $request, $selectedAddOns) {
+            $boarding = Boarding::create($boardingData);
+
+            // Create room reservation
+            $roomReservationResult = $this->boardingRoomService->createRoomReservation(
+                $request->room_id,
+                'pet_hotel',
+                $boarding->id,
+                $request->pet_id,
+                $request->check_in_date,
+                $request->check_out_date,
+                $request->customer_id
+            );
+
+            if (!$roomReservationResult['success']) {
+                throw new \Exception($roomReservationResult['message']);
+            }
+
+            // Create booking add-ons
+            foreach ($selectedAddOns as $addOn) {
+                \App\Models\BookingAddOn::create([
+                    'booking_id' => $boarding->id,
+                    'add_on_id' => $addOn['id'],
+                    'inventory_item_id' => $addOn['inventory_item_id'] ?? null,
+                    'name' => $addOn['name'],
+                    'add_on_type' => $addOn['add_on_type'],
+                    'charge_type' => $addOn['charge_type'],
+                    'quantity' => $addOn['quantity'],
+                    'unit_price' => $addOn['unit_price'],
+                    'number_of_days' => $addOn['number_of_days'],
+                    'subtotal' => $addOn['subtotal'],
+                ]);
+            }
+
+            return $boarding;
+        });
+
+        $result->load(['pet', 'customer', 'roomReservation.room']);
 
         // Send notifications
-        NotificationService::notifyBoardingCreated($boarding);
-        WorkflowNotifier::notifyRole('receptionist', 'New boarding request', "{$boarding->pet_name} has a pending pet hotel request.", 'info', 'boarding', $boarding->id);
+        NotificationService::notifyBoardingCreated($result);
+        WorkflowNotifier::notifyRole('receptionist', 'New boarding request', "{$result->pet_name} has a pending pet hotel request.", 'info', 'boarding', $result->id);
 
         return response()->json([
             'message' => 'Reservation created successfully',
-            'boarding' => $boarding,
+            'boarding' => $result,
         ], 201);
+    }
+
+    /**
+     * Get available add-ons
+     */
+    public function getAddOns(): JsonResponse
+    {
+        $addOns = \App\Models\AddOn::active()->get();
+        
+        return response()->json(['add_ons' => $addOns]);
     }
 
     /**
@@ -310,7 +448,7 @@ class BoardingController extends Controller
      */
     public function show($id): JsonResponse
     {
-        $boarding = Boarding::with(['pet', 'customer', 'hotelRoom', 'careLogs.loggedBy'])->findOrFail($id);
+        $boarding = Boarding::with(['pet', 'customer', 'hotelRoom', 'careLogs.loggedBy', 'bookingAddOns.addOn'])->findOrFail($id);
 
         if (!$this->customerCanAccess(request(), $boarding)) {
             return response()->json(['message' => 'Reservation not found'], 404);
@@ -420,60 +558,104 @@ class BoardingController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Boarding reservation archived successfully',
-            'data' => $boarding->fresh()
         ]);
     }
 
     /**
-     * Confirm reservation
+     * Confirm/Approve boarding reservation with inventory deduction
      */
     public function confirm($id): JsonResponse
     {
         $boarding = Boarding::findOrFail($id);
-        if ($boarding->status !== 'pending') {
-            return response()->json(['error' => 'Only pending boarding requests can be approved'], 422);
+
+        if (!in_array($boarding->status, ['pending'], true)) {
+            return response()->json(['error' => 'Only pending boarding requests can be confirmed'], 422);
         }
 
         $oldStatus = $boarding->status;
-        $boarding->update([
-            'status' => 'approved',
-            'approved_by' => request()->user()?->id,
-            'approved_at' => now(),
-            'payment_status' => DB::getDriverName() === 'sqlite'
-                ? $boarding->payment_status
-                : ($boarding->payment_status === 'pending' ? 'unpaid' : $boarding->payment_status),
-        ]);
-
-        // Create base service billing item when boarding is approved
-        if ($boarding->hotelRoom && $boarding->pet_id) {
-            $checkIn = \Carbon\Carbon::parse($boarding->check_in)->startOfDay();
-            $checkOut = \Carbon\Carbon::parse($boarding->check_out)->startOfDay();
-            $days = max(1, $checkIn->diffInDays($checkOut));
-            $totalAmount = $days * $boarding->hotelRoom->daily_rate;
-            
-            // Check if base service billing item already exists
-            $existingBaseItem = \App\Models\ServiceItemUsage::where('service_type', 'boarding')
-                ->where('service_id', $boarding->id)
-                ->where('item_type', 'base_service')
-                ->first();
-                
-            if (!$existingBaseItem) {
-                ServiceBillingService::createBaseServiceItem(
-                    'boarding',
-                    $boarding->id,
-                    $boarding->hotelRoom->name . ' - ' . $days . ' day(s)',
-                    $totalAmount,
-                    $boarding->pet_id
-                );
+        
+        // Initialize inventory service
+        $addOnInventoryService = new BoardingAddOnInventoryService();
+        
+        // Check if there are inventory-backed add-ons and verify stock
+        $inventoryAddOns = $addOnInventoryService->getInventoryAddOnsWithStockStatus($boarding);
+        $hasInsufficientStock = false;
+        $insufficientItems = [];
+        
+        foreach ($inventoryAddOns as $addOn) {
+            if (!$addOn['has_sufficient_stock']) {
+                $hasInsufficientStock = true;
+                $insufficientItems[] = [
+                    'name' => $addOn['add_on_name'],
+                    'required' => $addOn['required_quantity'],
+                    'available' => $addOn['available_stock']
+                ];
             }
         }
+        
+        if ($hasInsufficientStock) {
+            return response()->json([
+                'error' => 'Insufficient stock for some add-ons',
+                'insufficient_items' => $insufficientItems
+            ], 422);
+        }
+
+        // Process approval and inventory deduction in transaction
+        $result = DB::transaction(function () use ($boarding, $oldStatus, $addOnInventoryService) {
+            // Update boarding status
+            $boarding->update([
+                'status' => 'approved',
+                'approved_by' => request()->user()?->id,
+                'approved_at' => now(),
+                'payment_status' => DB::getDriverName() === 'sqlite'
+                    ? $boarding->payment_status
+                    : ($boarding->payment_status === 'pending' ? 'unpaid' : $boarding->payment_status),
+            ]);
+
+            // Create base service billing item when boarding is approved
+            if ($boarding->hotelRoom && $boarding->pet_id) {
+                $checkIn = \Carbon\Carbon::parse($boarding->check_in)->startOfDay();
+                $checkOut = \Carbon\Carbon::parse($boarding->check_out)->startOfDay();
+                $days = max(1, $checkIn->diffInDays($checkOut));
+                $totalAmount = $days * $boarding->hotelRoom->daily_rate;
+                
+                // Check if base service billing item already exists
+                $existingBaseItem = \App\Models\ServiceItemUsage::where('service_type', 'boarding')
+                    ->where('service_id', $boarding->id)
+                    ->where('item_type', 'base_service')
+                    ->first();
+                    
+                if (!$existingBaseItem) {
+                    ServiceBillingService::createBaseServiceItem(
+                        'boarding',
+                        $boarding->id,
+                        $boarding->hotelRoom->name . ' - ' . $days . ' day(s)',
+                        $totalAmount,
+                        $boarding->pet_id
+                    );
+                }
+            }
+
+            // Deduct inventory for add-ons
+            $inventoryResult = $addOnInventoryService->deductAddOnInventory($boarding, 'receptionist');
+            
+            if (!$inventoryResult['success']) {
+                throw new \Exception($inventoryResult['message'] ?? 'Inventory deduction failed');
+            }
+
+            return [
+                'boarding' => $boarding,
+                'inventory_result' => $inventoryResult
+            ];
+        });
 
         // Send notification
-        NotificationService::notifyBoardingStatusChange($boarding, $oldStatus);
+        NotificationService::notifyBoardingStatusChange($result['boarding'], $oldStatus);
 
         return response()->json([
-            'message' => 'Boarding request approved',
-            'boarding' => $boarding->fresh(['pet', 'customer', 'hotelRoom']),
+            'message' => 'Boarding request approved and inventory deducted',
+            'boarding' => $result['boarding']->fresh(['pet', 'customer', 'hotelRoom', 'bookingAddOns']),
+            'inventory_deductions' => $result['inventory_result']['deducted_items'] ?? []
         ]);
     }
 
@@ -586,24 +768,39 @@ class BoardingController extends Controller
         }
 
         $oldStatus = $boarding->status;
-        $boarding->update([
-            'status' => 'in_care',
-            'actual_check_in' => now(),
-            'checked_in_at' => now(),
-            'checked_in_by' => request()->user()?->id,
-        ]);
-        $boarding->hotelRoom?->update(['status' => 'occupied']);
+        
+        // Initialize inventory service
+        $addOnInventoryService = new BoardingAddOnInventoryService();
+        
+        // Process check-in and inventory deduction in transaction
+        $result = DB::transaction(function () use ($boarding, $oldStatus, $addOnInventoryService) {
+            $boarding->update([
+                'status' => 'in_care',
+                'actual_check_in' => now(),
+                'checked_in_at' => now(),
+                'checked_in_by' => request()->user()?->id,
+            ]);
+            $boarding->hotelRoom?->update(['status' => 'occupied']);
 
-        BoardingCareLog::create([
-            'boarding_id' => $boarding->id,
-            'logged_by' => request()->user()?->id,
-            'log_type' => 'general_update',
-            'title' => 'Pet checked in',
-            'notes' => request('notes', 'Pet checked in for boarding care.'),
-        ]);
+            BoardingCareLog::create([
+                'boarding_id' => $boarding->id,
+                'logged_by' => request()->user()?->id,
+                'log_type' => 'general_update',
+                'title' => 'Pet checked in',
+                'notes' => request('notes', 'Pet checked in for boarding care.'),
+            ]);
+
+            // Deduct inventory for add-ons if not already deducted
+            $inventoryResult = $addOnInventoryService->deductAddOnInventory($boarding, 'receptionist');
+            
+            return [
+                'boarding' => $boarding,
+                'inventory_result' => $inventoryResult
+            ];
+        });
 
         // Send notification
-        NotificationService::notifyBoardingStatusChange($boarding, $oldStatus);
+        NotificationService::notifyBoardingStatusChange($result['boarding'], $oldStatus);
 
         return response()->json([
             'message' => 'Guest checked in successfully',
@@ -689,13 +886,28 @@ class BoardingController extends Controller
         }
 
         $oldStatus = $boarding->status;
-        $boarding->update(['status' => 'cancelled']);
-        if ($boarding->hotelRoom && in_array($boarding->hotelRoom->status, ['reserved', 'occupied'], true)) {
-            $boarding->hotelRoom->update(['status' => 'available']);
-        }
+        
+        // Initialize inventory service
+        $addOnInventoryService = new BoardingAddOnInventoryService();
+        
+        // Process cancellation and inventory restoration in transaction
+        $result = DB::transaction(function () use ($boarding, $oldStatus, $addOnInventoryService) {
+            $boarding->update(['status' => 'cancelled']);
+            if ($boarding->hotelRoom && in_array($boarding->hotelRoom->status, ['reserved', 'occupied'], true)) {
+                $boarding->hotelRoom->update(['status' => 'available']);
+            }
+
+            // Restore inventory for add-ons that were deducted
+            $inventoryResult = $addOnInventoryService->restoreAddOnInventory($boarding, 'receptionist');
+            
+            return [
+                'boarding' => $boarding,
+                'inventory_result' => $inventoryResult
+            ];
+        });
 
         // Send notification
-        NotificationService::notifyBoardingStatusChange($boarding, $oldStatus);
+        NotificationService::notifyBoardingStatusChange($result['boarding'], $oldStatus);
 
         return response()->json([
             'message' => 'Reservation cancelled',
@@ -746,12 +958,13 @@ class BoardingController extends Controller
     }
 
     /**
-     * Get current boarders (checked in)
+     * Get current and upcoming boarders for veterinary health awareness.
      */
     public function currentBoarders(): JsonResponse
     {
-        $boarders = Boarding::with(['pet', 'customer', 'hotelRoom'])
-            ->checkedIn()
+        $boarders = Boarding::with(['pet', 'customer', 'hotelRoom', 'roomReservation.room', 'bookingAddOns.addOn'])
+            ->whereIn('status', ['approved', 'scheduled', 'confirmed', 'checked_in', 'in_care'])
+            ->whereDate('check_out', '>=', now()->toDateString())
             ->orderBy('check_out', 'asc')
             ->get();
 
@@ -875,7 +1088,11 @@ class BoardingController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $path = $request->file('payment_proof')->store('payment-proofs/boardings', 'public');
+        // Store the uploaded file in private storage
+        $originalName = $request->file('payment_proof')->getClientOriginalName();
+        $extension = $request->file('payment_proof')->getClientOriginalExtension();
+        $randomName = 'boarding_proof_' . time() . '_' . Str::random(10) . '.' . $extension;
+        $path = $request->file('payment_proof')->storeAs('payment-proofs/boardings', $randomName, 'private');
         $boarding->update([
             'payment_method' => $request->payment_method,
             'payment_reference' => $request->payment_reference,

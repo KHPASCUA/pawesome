@@ -1,10 +1,15 @@
 import React, { useEffect, useState, useCallback } from "react";
 import "./GroomingForm.css";
-import { apiRequest } from "../../api/client";
+import { apiRequest, normalizeList } from "../../api/client";
+import {
+  validateServiceCompatibility,
+  getUnavailableServiceMessage,
+} from "../../config/petServiceRules";
 
 const GroomingForm = () => {
   const [activeTab, setActiveTab] = useState("book");
   const [appointments, setAppointments] = useState([]);
+  const [pets, setPets] = useState([]);
   const [loading, setLoading] = useState(false);
   const [availabilityLoading, setAvailabilityLoading] = useState(false);
   const [groomingAvailability, setGroomingAvailability] = useState(null);
@@ -16,6 +21,7 @@ const GroomingForm = () => {
   const [formData, setFormData] = useState({
     customer_name: customerName,
     customer_email: customerEmail || "",
+    pet_id: "",
     pet_name: "",
     service_type: "grooming",
     service_name: "Basic Bath",
@@ -42,9 +48,31 @@ const GroomingForm = () => {
     }
   }, [customerEmail]);
 
+  const fetchPets = useCallback(async () => {
+    try {
+      const data = await apiRequest("/customer/pets");
+      const activePets = normalizeList(data, ["pets", "data"]).filter(
+        (pet) => pet.status !== "archived" && !pet.archived_at
+      );
+      setPets(activePets);
+    } catch (error) {
+      console.error("Failed to load pets:", error);
+      setPets([]);
+    }
+  }, []);
+
   useEffect(() => {
     fetchAppointments();
-  }, [fetchAppointments]);
+    fetchPets();
+  }, [fetchAppointments, fetchPets]);
+
+  const selectedPet = pets.find((pet) => String(pet.id) === String(formData.pet_id));
+  const compatibility = selectedPet
+    ? validateServiceCompatibility(selectedPet.species || selectedPet.type, "grooming")
+    : null;
+  const speciesMessage = selectedPet && compatibility && !compatibility.isValid
+    ? compatibility.message || getUnavailableServiceMessage(selectedPet.species || selectedPet.type, "grooming")
+    : "";
 
   const fetchGroomingAvailability = async (date) => {
     try {
@@ -72,6 +100,17 @@ const GroomingForm = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+
+    if (name === "pet_id") {
+      const pet = pets.find((item) => String(item.id) === String(value));
+      setFormData((prev) => ({
+        ...prev,
+        pet_id: value,
+        pet_name: pet?.name || "",
+      }));
+      return;
+    }
+
     setFormData((prev) => ({ ...prev, [name]: value }));
 
     // Check availability when date changes
@@ -82,6 +121,17 @@ const GroomingForm = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Check availability before submitting
+    if (!formData.pet_id) {
+      alert("Please select an active pet for this grooming appointment.");
+      return;
+    }
+
+    if (compatibility && !compatibility.isValid) {
+      alert(speciesMessage || "This service is not available for this pet species.");
+      return;
+    }
 
     // Check availability before submitting
     if (!dateAvailable) {
@@ -103,6 +153,7 @@ const GroomingForm = () => {
         setFormData({
           customer_name: customerName,
           customer_email: customerEmail || "",
+          pet_id: "",
           pet_name: "",
           service_type: "grooming",
           service_name: "Basic Bath",
@@ -166,14 +217,26 @@ const GroomingForm = () => {
               style={{ backgroundColor: "#f0f0f0" }}
             />
 
-            <input
-              type="text"
-              name="pet_name"
-              placeholder="Pet Name"
-              value={formData.pet_name}
+            <select
+              name="pet_id"
+              value={formData.pet_id}
               onChange={handleChange}
               required
-            />
+            >
+              <option value="">Select active pet</option>
+              {pets.map((pet) => (
+                <option key={pet.id} value={pet.id}>
+                  {pet.name} - {pet.species || pet.type || "Pet"}
+                </option>
+              ))}
+            </select>
+
+            {speciesMessage && (
+              <div className="no-availability">
+                <span>⚠</span>
+                <span>{speciesMessage}</span>
+              </div>
+            )}
 
             <select
               name="service_name"
@@ -238,7 +301,10 @@ const GroomingForm = () => {
               onChange={handleChange}
             />
 
-            <button type="submit" disabled={loading}>
+            <button
+              type="submit"
+              disabled={loading || (compatibility && !compatibility.isValid)}
+            >
               {loading ? "Submitting..." : "Submit Request"}
             </button>
           </form>

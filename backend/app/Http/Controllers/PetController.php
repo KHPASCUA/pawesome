@@ -34,7 +34,13 @@ class PetController extends Controller
 
         if ($user && $user->role !== 'customer') {
             return response()->json([
-                'pets' => Pet::with('customer')->latest()->get(),
+                'pets' => Pet::with('customer')->where(function ($q) {
+                    $q->whereNull('archived_at')
+                      ->where(function ($inner) {
+                          $inner->whereNull('status')
+                                ->orWhere('status', '!=', 'archived');
+                      });
+                })->latest()->get(),
             ]);
         }
 
@@ -47,6 +53,13 @@ class PetController extends Controller
         }
 
         $pets = Pet::where('customer_id', $customer->id)
+            ->where(function ($q) {
+                $q->whereNull('archived_at')
+                  ->where(function ($inner) {
+                      $inner->whereNull('status')
+                            ->orWhere('status', '!=', 'archived');
+                  });
+            })
             ->latest()
             ->get();
 
@@ -215,17 +228,21 @@ class PetController extends Controller
             }));
         }
         
-        // Check grooming appointments
-        $groomingAppointments = $pet->groomingAppointments()
+        // Check grooming service requests
+        $groomingServiceRequests = $pet->groomingAppointments()
             ->whereIn('status', ['pending', 'pending_review', 'approved', 'scheduled'])
-            ->whereDate('appointment_date', '>=', now())
+            ->where(function ($query) {
+                $today = now()->toDateString();
+                $query->whereDate('request_date', '>=', $today)
+                      ->orWhereDate('preferred_date', '>=', $today);
+            })
             ->get();
             
-        if ($groomingAppointments->isNotEmpty()) {
-            $bookings = $bookings->merge($groomingAppointments->map(function ($appointment) {
+        if ($groomingServiceRequests->isNotEmpty()) {
+            $bookings = $bookings->merge($groomingServiceRequests->map(function ($appointment) {
                 return (object) [
-                    'type' => 'grooming_appointment',
-                    'date' => $appointment->appointment_date,
+                    'type' => 'grooming_service_request',
+                    'date' => $appointment->request_date ?? $appointment->preferred_date,
                     'status' => $appointment->status
                 ];
             }));
@@ -259,13 +276,19 @@ class PetController extends Controller
      */
     public function archived(Request $request)
     {
-        $query = Pet::where('status', 'archived')
+        $query = Pet::where(function ($q) {
+                $q->where('status', 'archived')
+                  ->orWhereNotNull('archived_at');
+            })
             ->with(['customer', 'archivedBy'])
             ->orderBy('archived_at', 'desc');
 
         // Enforce customer ownership for customer role
         if ($request->user()?->role === 'customer') {
-            $query->where('customer_id', $request->user()->id);
+            $customer = $this->currentCustomer($request);
+            if ($customer) {
+                $query->where('customer_id', $customer->id);
+            }
         }
         // Filter by customer if specified (for admin/staff)
         elseif ($request->has('customer_id')) {

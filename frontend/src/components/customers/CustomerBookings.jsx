@@ -55,26 +55,6 @@ const groomingServices = [
   },
 ];
 
-const hotelServices = [
-  {
-    name: "Standard Room",
-    category: "Pet Hotel",
-    price: 500,
-    description: "Comfortable standard boarding room.",
-  },
-  {
-    name: "Deluxe Room",
-    category: "Pet Hotel",
-    price: 850,
-    description: "Larger room with additional comfort.",
-  },
-  {
-    name: "Suite",
-    category: "Pet Hotel",
-    price: 1200,
-    description: "Premium suite for pets that need extra space.",
-  },
-];
 
 const defaultVetServices = [
   {
@@ -155,6 +135,11 @@ const CustomerBookings = () => {
   const [boardingAvailability, setBoardingAvailability] = useState(null);
   const [selectedTimeSlot, setSelectedTimeSlot] = useState("");
   const [selectedRoom, setSelectedRoom] = useState(null);
+  const [selectedRoomType, setSelectedRoomType] = useState("");
+
+  // Hotel add-ons state
+  const [hotelAddOns, setHotelAddOns] = useState([]);
+  const [selectedAddOns, setSelectedAddOns] = useState([]);
 
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
@@ -196,9 +181,157 @@ const CustomerBookings = () => {
   const getPetGender = (pet) => pet?.gender || pet?.sex || "N/A";
   const getPetWeight = (pet) => pet?.weight || pet?.pet_weight || "N/A";
 
+  // Helper functions for hotel booking data
+  const getBoardingCheckIn = (item) =>
+    item.check_in ||
+    item.check_in_date ||
+    item.start_date ||
+    item.request_date ||
+    "";
+
+  const getBoardingCheckOut = (item) =>
+    item.check_out ||
+    item.check_out_date ||
+    item.end_date ||
+    "";
+
+  const getBoardingRoomName = (item) =>
+    item.room_name ||
+    item.room?.room_name ||
+    item.hotel_room?.room_name ||
+    item.hotelRoom?.room_name ||
+    item.roomReservation?.room?.room_name ||
+    item.room_reservation?.room?.room_name ||
+    "Pet Hotel Room";
+
+  const getBoardingRoomType = (item) =>
+    item.room_type ||
+    item.room?.room_type ||
+    item.hotel_room?.room_type ||
+    item.hotelRoom?.room_type ||
+    item.roomReservation?.room?.room_type ||
+    item.room_reservation?.room?.room_type ||
+    "";
+
+  const getBoardingPetName = (item) =>
+    item.pet_name ||
+    item.pet?.name ||
+    item.pet?.pet_name ||
+    "Unknown Pet";
+
   const selectedPet = useMemo(() => {
     return pets.find((pet) => String(pet.id) === String(formData.pet_id));
   }, [pets, formData.pet_id]);
+
+  // Text normalization helper function
+  function normalizeText(value) {
+    return String(value || "")
+      .toLowerCase()
+      .trim()
+      .replace(/\s+/g, "_");
+  }
+
+  const getAddOnPrice = useCallback((item) => {
+    const rawPrice =
+      item?.price ??
+      item?.amount ??
+      item?.fee ??
+      item?.cost ??
+      item?.unit_price ??
+      item?.add_on_price ??
+      item?.addon_price ??
+      item?.service_price ??
+      item?.daily_rate ??
+      item?.rate ??
+      item?.base_price ??
+      0;
+
+    const parsed = Number(rawPrice);
+
+    return Number.isFinite(parsed) ? parsed : 0;
+  }, []);
+
+  const getFallbackAddOnPriceByName = useCallback((name) => {
+    const key = normalizeText(name);
+
+    const fallbackPrices = {
+      premium_dog_food: 180,
+      premium_cat_food: 160,
+      extra_walk: 120,
+      playtime: 150,
+      bath_before_checkout: 300,
+      daily_photo_update: 80,
+      pee_pad_pack: 100,
+      treats_pack: 120,
+      standard_meal: 120,
+      premium_food: 200,
+      medication_assistance: 100,
+      bird_seed_mix: 90,
+      cage_liner_pack: 70,
+      small_pet_food: 100,
+    };
+
+    return fallbackPrices[key] || 0;
+  }, []);
+
+  // Helper function for species-based room type options
+  const getSpeciesRoomTypeOptions = useCallback((pet) => {
+    const species = normalizeText(getPetSpecies(pet));
+
+    if (species === "dog") {
+      return [
+        { value: "", label: "All Compatible Rooms" },
+        { value: "dog_standard", label: "Standard Kennel" },
+        { value: "dog_large", label: "Large Kennel" },
+        { value: "dog_family", label: "Family Suite" },
+      ];
+    }
+
+    if (species === "cat") {
+      return [
+        { value: "", label: "All Compatible Rooms" },
+        { value: "cat_condo", label: "Cat Condo" },
+        { value: "cat_suite", label: "Cat Suite" },
+      ];
+    }
+
+    if (species === "bird") {
+      return [
+        { value: "", label: "All Compatible Rooms" },
+        { value: "small_pet", label: "Small Pet Enclosure" },
+      ];
+    }
+
+    return [
+      { value: "", label: "All Compatible Rooms" },
+    ];
+  }, []);
+
+  // Memo for active room type options based on selected pet
+  const activeRoomTypeOptions = useMemo(() => {
+    return getSpeciesRoomTypeOptions(selectedPet);
+  }, [selectedPet, getSpeciesRoomTypeOptions]);
+
+  const isAddOnCompatibleWithPet = useCallback((addOn, pet) => {
+    if (!pet || !addOn) return false;
+
+    const species = normalizeText(getPetSpecies(pet));
+    const allowedSpecies = Array.isArray(addOn.species)
+      ? addOn.species.map((item) => normalizeText(item))
+      : [];
+
+    if (allowedSpecies.length === 0) return true;
+
+    return allowedSpecies.includes(species);
+  }, []);
+
+  const compatibleHotelAddOns = useMemo(() => {
+    if (!selectedPet) return [];
+
+    return hotelAddOns.filter((addOn) =>
+      isAddOnCompatibleWithPet(addOn, selectedPet)
+    );
+  }, [hotelAddOns, selectedPet, isAddOnCompatibleWithPet]);
 
   const formatCurrency = (value) => {
     const number = Number(value || 0);
@@ -237,7 +370,7 @@ const CustomerBookings = () => {
         title: "Pet Hotel",
         shortTitle: "Hotel",
         description: "Reserve a comfortable stay for your pet.",
-        defaultService: "Standard Room",
+        defaultService: "",
         accent: "hotel",
       };
     }
@@ -277,7 +410,7 @@ const CustomerBookings = () => {
   );
 
   const serviceOptions = useMemo(() => {
-    if (selectedBooking === "Hotel") return hotelServices;
+    if (selectedBooking === "Hotel") return [];
     if (selectedBooking === "Vet") return vetServices.length > 0 ? vetServices : defaultVetServices;
     if (selectedBooking === "Groom") return groomingServices;
     return [];
@@ -288,6 +421,253 @@ const CustomerBookings = () => {
       (service) => String(service.name) === String(formData.service_name)
     );
   }, [serviceOptions, formData.service_name]);
+
+  const getPetSize = (pet) =>
+    String(
+      pet?.size ||
+        pet?.pet_size ||
+        pet?.weight_category ||
+        pet?.category ||
+        ""
+    ).toLowerCase();
+
+  const getRoomType = (room) =>
+    normalizeText(room?.room_type || room?.type || room?.category || room?.name);
+
+  const getRoomDisplayName = (room) =>
+    room?.room_name || room?.name || room?.label || `Room #${room?.id || ""}`;
+
+  const getRoomCapacity = (room) =>
+    room?.capacity || room?.max_capacity || room?.size || "1 pet";
+
+  const getDailyRate = (room) =>
+    Number(room?.daily_rate || room?.rate || room?.price || room?.amount || 0);
+
+  const isUnsupportedBoardingPet = (pet) => {
+    const species = normalizeText(getPetSpecies(pet));
+    return species === "fish" || species === "reptile";
+  };
+
+  const getUnsupportedBoardingMessage = (pet) => {
+    const species = getPetSpecies(pet);
+    return `${species} cannot be accommodated in Pet Hotel rooms. Please contact staff for special arrangements.`;
+  };
+
+  const isRoomCompatibleWithPet = (room, pet) => {
+    if (!pet || !room) return false;
+
+    const species = normalizeText(getPetSpecies(pet));
+    const roomType = getRoomType(room);
+
+    if (species === "dog") {
+      return (
+        roomType.includes("kennel") ||
+        roomType.includes("dog") ||
+        roomType.includes("family_suite")
+      );
+    }
+
+    if (species === "cat") {
+      return (
+        roomType.includes("cat") ||
+        roomType.includes("cattery") ||
+        roomType.includes("condo") ||
+        roomType.includes("suite")
+      );
+    }
+
+    if (species === "bird") {
+      return (
+        roomType.includes("bird") ||
+        roomType.includes("cage") ||
+        roomType.includes("small_pet")
+      );
+    }
+
+    return false;
+  };
+
+  const calculateBoardingDays = () => {
+    if (!formData.request_date || !formData.check_out_date) return 0;
+
+    const checkIn = new Date(`${formData.request_date}T00:00:00`);
+    const checkOut = new Date(`${formData.check_out_date}T00:00:00`);
+
+    if (Number.isNaN(checkIn.getTime()) || Number.isNaN(checkOut.getTime())) return 0;
+
+    return Math.max(1, Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24)));
+  };
+
+  const getCompatibleRooms = () => {
+    const rooms = safeArray(boardingAvailability?.rooms || boardingAvailability?.data || []);
+
+    if (!selectedPet) return [];
+
+    return rooms.filter((room) => {
+      const roomType = getRoomType(room);
+      const matchesCompatibility = isRoomCompatibleWithPet(room, selectedPet);
+
+      const matchesFilter = selectedRoomType
+        ? roomType === selectedRoomType || roomType.includes(selectedRoomType)
+        : true;
+
+      return matchesCompatibility && matchesFilter;
+    });
+  };
+
+  // Add-on toggle logic
+  const handleAddOnToggle = (addOn) => {
+    if (!isAddOnCompatibleWithPet(addOn, selectedPet)) return;
+
+    setSelectedAddOns((prev) => {
+      const exists = prev.some((item) => String(item.id) === String(addOn.id));
+
+      if (exists) {
+        return prev.filter((item) => String(item.id) !== String(addOn.id));
+      }
+
+      return [
+        ...prev,
+        {
+          ...addOn,
+          quantity: Number(addOn.quantity || 1),
+        },
+      ];
+    });
+  };
+
+  const getAddOnQuantity = (item) => {
+  const quantity = Number(item?.quantity || 1);
+  return Number.isFinite(quantity) && quantity > 0 ? quantity : 1;
+};
+
+  const getSelectedAddOnsSubtotal = () => {
+    return selectedAddOns.reduce((sum, item) => {
+      const price = Number(item.price || 0);
+      const quantity = getAddOnQuantity(item);
+
+      return sum + price * quantity;
+    }, 0);
+  };
+
+  // Calculate total for Pet Hotel bookings
+  const calculateHotelTotal = () => {
+    if (!selectedRoom) return 0;
+
+    const numberOfDays = calculateBoardingDays();
+    const roomSubtotal = getDailyRate(selectedRoom) * numberOfDays;
+    const addOnsSubtotal = getSelectedAddOnsSubtotal();
+
+    return roomSubtotal + addOnsSubtotal;
+  };
+
+  // Default hotel add-ons fallback
+  const defaultHotelAddOns = useMemo(() => [
+    {
+      id: "premium_dog_food",
+      name: "Premium Dog Food",
+      type: "food",
+      species: ["dog"],
+      price: 180,
+      description: "High-quality premium dog food for all breeds.",
+    },
+    {
+      id: "extra_walk",
+      name: "Extra Walk",
+      type: "service",
+      species: ["dog"],
+      price: 120,
+      description: "Additional 15-minute walk with staff.",
+    },
+    {
+      id: "premium_cat_food",
+      name: "Premium Cat Food",
+      type: "food",
+      species: ["cat"],
+      price: 160,
+      description: "Nutritious premium cat food for all breeds.",
+    },
+    {
+      id: "cat_litter_care",
+      name: "Cat Litter Care",
+      type: "care",
+      species: ["cat"],
+      price: 90,
+      description: "Extra litter box cleaning and care.",
+    },
+    {
+      id: "bird_seed_mix",
+      name: "Bird Seed Mix",
+      type: "food",
+      species: ["bird"],
+      price: 90,
+      description: "Daily bird seed and feeding support.",
+    },
+    {
+      id: "cage_liner_pack",
+      name: "Cage Liner Pack",
+      type: "item",
+      species: ["bird"],
+      price: 70,
+      description: "Clean cage liner replacement pack.",
+    },
+    {
+      id: "small_pet_food",
+      name: "Small Pet Food",
+      type: "food",
+      species: ["bird", "small_pet"],
+      price: 100,
+      description: "Food option for small accommodated pets.",
+    },
+    {
+      id: "playtime",
+      name: "Playtime",
+      type: "service",
+      species: ["dog", "cat"],
+      price: 150,
+      description: "30 minutes of supervised playtime.",
+    },
+    {
+      id: "bath_before_checkout",
+      name: "Bath Before Checkout",
+      type: "grooming",
+      species: ["dog", "cat"],
+      price: 300,
+      description: "Bath service before pet checkout.",
+    },
+    {
+      id: "daily_photo_update",
+      name: "Daily Photo Update",
+      type: "care",
+      species: ["dog", "cat", "bird"],
+      price: 80,
+      description: "Daily photo update sent to owner.",
+    },
+    {
+      id: "medication_assistance",
+      name: "Medication Assistance",
+      type: "care",
+      species: ["dog", "cat", "bird"],
+      price: 100,
+      description: "Staff-assisted medication schedule.",
+    },
+    {
+      id: "pee_pad_pack",
+      name: "Pee Pad Pack",
+      type: "item",
+      species: ["dog"],
+      price: 100,
+      description: "Pack of 10 pee pads.",
+    },
+    {
+      id: "treats_pack",
+      name: "Treats Pack",
+      type: "item",
+      species: ["dog", "cat"],
+      price: 120,
+      description: "Assorted treats for pets.",
+    },
+  ], []);
 
   const fetchCustomerPets = useCallback(async () => {
     try {
@@ -354,6 +734,54 @@ const CustomerBookings = () => {
     }
   }, []);
 
+  const fetchHotelAddOns = useCallback(async () => {
+    try {
+      const data = await apiRequest("/boarding/add-ons");
+      const addOns = safeArray(data.add_ons || data.data || data.items || data);
+
+      const normalized = addOns
+        .map((item) => {
+          const itemName =
+            item.name ||
+            item.item_name ||
+            item.service_name ||
+            item.add_on_name ||
+            "Add-on";
+
+          const mappedPrice = getAddOnPrice(item);
+
+          const rawSpecies =
+            item.species ||
+            item.species_allowed ||
+            item.allowed_species ||
+            item.pet_species ||
+            item.compatible_species ||
+            "";
+
+          const speciesList = Array.isArray(rawSpecies)
+            ? rawSpecies.map((species) => normalizeText(species))
+            : String(rawSpecies || "")
+                .split(",")
+                .map((species) => normalizeText(species))
+                .filter(Boolean);
+
+          return {
+            id: item.id || item.addon_id || item.add_on_id || itemName,
+            name: itemName,
+            type: item.type || item.category || item.add_on_type || "add-on",
+            species: speciesList.length > 0 ? speciesList : ["dog", "cat", "bird"],
+            price: mappedPrice > 0 ? mappedPrice : getFallbackAddOnPriceByName(itemName),
+            description: item.description || item.notes || item.details || "",
+          };
+        })
+        .filter((item) => item.name);
+
+      setHotelAddOns(normalized.length > 0 ? normalized : defaultHotelAddOns);
+    } catch (error) {
+      setHotelAddOns(defaultHotelAddOns);
+    }
+  }, [defaultHotelAddOns, getAddOnPrice, getFallbackAddOnPriceByName]);
+
   const fetchBookings = useCallback(
     async ({ silent = false } = {}) => {
       try {
@@ -368,37 +796,93 @@ const CustomerBookings = () => {
           return;
         }
 
-        const data = await apiRequest(
-          `/customer/my-requests?email=${encodeURIComponent(customerEmail)}`
-        );
+        const [requestsResult, boardingsResult] = await Promise.allSettled([
+          apiRequest(`/customer/my-requests?email=${encodeURIComponent(customerEmail)}`),
+          apiRequest(`/customer/boardings?email=${encodeURIComponent(customerEmail)}`),
+        ]);
 
-        const requests = safeArray(data);
+        const requests =
+          requestsResult.status === "fulfilled"
+            ? safeArray(requestsResult.value?.requests || requestsResult.value?.data || requestsResult.value)
+            : [];
 
-        const mappedBookings = requests.map((item) => {
-          const meta = getBookingTypeMeta(item.type || item.service_type);
+        const boardings =
+          boardingsResult.status === "fulfilled"
+            ? safeArray(
+                boardingsResult.value?.boardings ||
+                  boardingsResult.value?.data ||
+                  boardingsResult.value?.records ||
+                  boardingsResult.value
+              )
+            : [];
+
+        const mappedRequests = requests.map((item) => {
+          const meta = getBookingTypeMeta(item.type || item.service_type || item.request_type);
 
           return {
-            id: item.id,
+            id: `request-${item.id}`,
+            sourceId: item.id,
+            sourceType: "service_request",
             raw: item,
             type: meta.shortTitle,
             serviceType: meta.type,
             title: meta.title,
             accent: meta.accent,
             icon: meta.icon,
-            pet: item.pet || item.pet_name || "Unknown Pet",
+            pet: item.pet || item.pet_name || item.pet?.name || "Unknown Pet",
             service: item.service || item.service_name || "Service Request",
-            details: `${item.pet || item.pet_name || "Unknown Pet"} • ${
+            details: `${item.pet || item.pet_name || item.pet?.name || "Unknown Pet"} • ${
               item.service || item.service_name || "Service Request"
             }`,
-            date: item.date || item.request_date || item.created_at || "",
-            time: item.time || item.request_time || "",
+            date: item.date || item.request_date || item.scheduled_date || item.created_at || "",
+            time: item.time || item.request_time || item.scheduled_time || "",
             notes: item.notes || "",
             status: normalizeStatus(item.status),
+            paymentStatus: normalizeStatus(item.payment_status || "unpaid"),
           };
         });
 
-        mappedBookings.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
-        setBookings(mappedBookings);
+        const mappedBoardings = boardings.map((item) => {
+          const meta = getBookingTypeMeta("hotel");
+          const checkIn = getBoardingCheckIn(item);
+          const checkOut = getBoardingCheckOut(item);
+          const roomName = getBoardingRoomName(item);
+          const roomType = getBoardingRoomType(item);
+          const petName = getBoardingPetName(item);
+
+          return {
+            id: `boarding-${item.id}`,
+            sourceId: item.id,
+            sourceType: "boarding",
+            raw: item,
+            type: meta.shortTitle,
+            serviceType: "hotel",
+            title: "Pet Hotel",
+            accent: meta.accent,
+            icon: meta.icon,
+            pet: petName,
+            service: roomName,
+            details: `${petName} • ${roomName}${roomType ? ` • ${String(roomType).replace(/_/g, " ")}` : ""}`,
+            date: checkIn || item.created_at || "",
+            checkIn,
+            checkOut,
+            time: "",
+            notes: item.notes || item.special_requests || "",
+            status: normalizeStatus(item.status || "pending"),
+            paymentStatus: normalizeStatus(item.payment_status || "unpaid"),
+            totalAmount: Number(item.total_amount || item.amount || 0),
+          };
+        });
+
+        const combinedBookings = [...mappedBoardings, ...mappedRequests];
+
+        combinedBookings.sort((a, b) => {
+          const dateA = new Date(a.date || a.raw?.created_at || 0).getTime();
+          const dateB = new Date(b.date || b.raw?.created_at || 0).getTime();
+          return dateB - dateA;
+        });
+
+        setBookings(combinedBookings);
         setErrorMessage("");
       } catch (error) {
         console.error("Error fetching bookings:", error);
@@ -415,7 +899,31 @@ const CustomerBookings = () => {
     fetchBookings();
     fetchVetServices();
     fetchCustomerPets();
-  }, [fetchBookings, fetchVetServices, fetchCustomerPets]);
+    fetchHotelAddOns();
+  }, [fetchBookings, fetchVetServices, fetchCustomerPets, fetchHotelAddOns]);
+
+  useEffect(() => {
+    if (
+      selectedBooking === "Hotel" &&
+      selectedPet &&
+      formData.request_date &&
+      formData.check_out_date
+    ) {
+      setSelectedRoom(null);
+      fetchBoardingAvailability(
+        formData.request_date,
+        formData.check_out_date,
+        selectedRoomType,
+        selectedPet
+      );
+    }
+  }, [
+    selectedBooking,
+    selectedPet,
+    formData.request_date,
+    formData.check_out_date,
+    selectedRoomType,
+  ]);
 
   useEffect(() => {
     return () => {
@@ -466,6 +974,10 @@ const CustomerBookings = () => {
         booking.time,
         booking.notes,
         booking.status,
+        booking.checkIn,
+        booking.checkOut,
+        booking.paymentStatus,
+        booking.totalAmount,
       ]
         .filter(Boolean)
         .join(" ")
@@ -491,9 +1003,7 @@ const CustomerBookings = () => {
   const handleSelect = (type) => {
     const meta = getBookingTypeMeta(type);
     const options =
-      meta.type === "hotel"
-        ? hotelServices
-        : meta.type === "vet"
+      meta.type === "vet"
         ? vetServices.length > 0
           ? vetServices
           : defaultVetServices
@@ -516,6 +1026,8 @@ const CustomerBookings = () => {
     setBoardingAvailability(null);
     setSelectedTimeSlot("");
     setSelectedRoom(null);
+    setSelectedRoomType("");
+    setSelectedAddOns([]);
 
     setFormData({
       customer_name: customerName,
@@ -523,7 +1035,7 @@ const CustomerBookings = () => {
       pet_id: "",
       pet_name: "",
       service_type: meta.type,
-      service_name: options[0]?.name || meta.defaultService,
+      service_name: meta.type === "hotel" ? "" : options[0]?.name || meta.defaultService,
       request_date: "",
       request_time: "",
       check_out_date: "",
@@ -536,6 +1048,7 @@ const CustomerBookings = () => {
     setSelectedBooking(null);
     setReceipt(null);
     setShowVetHealthInfo(false);
+    setSelectedAddOns([]);
 
     if (previewUrl) {
       URL.revokeObjectURL(previewUrl);
@@ -631,10 +1144,16 @@ const CustomerBookings = () => {
     const petId = event.target.value;
     const selectedPetRecord = pets.find((pet) => String(pet.id) === String(petId));
 
+    setSelectedRoom(null);
+    setSelectedRoomType("");
+    setSelectedAddOns([]);
+    setBoardingAvailability(null);
+
     setFormData((prev) => ({
       ...prev,
       pet_id: petId,
       pet_name: selectedPetRecord ? getPetName(selectedPetRecord) : "",
+      hotel_room_id: "",
     }));
 
     if (errorMessage) setErrorMessage("");
@@ -723,13 +1242,46 @@ const fetchVeterinaryAvailability = async (date, serviceName) => {
     }
   };
 
-  const fetchBoardingAvailability = async (checkIn, checkOut) => {
+  const fetchBoardingAvailability = async (
+    checkIn,
+    checkOut,
+    roomType = selectedRoomType,
+    pet = selectedPet
+  ) => {
     try {
+      if (!pet?.id || !checkIn || !checkOut) return;
+
+      if (isUnsupportedBoardingPet(pet)) {
+        setBoardingAvailability({
+          success: false,
+          rooms: [],
+          message: getUnsupportedBoardingMessage(pet),
+        });
+        setSelectedRoom(null);
+        return;
+      }
+
       setAvailabilityLoading(true);
 
-      const data = await apiRequest(`/customer/availability/boarding?check_in=${checkIn}&check_out=${checkOut}`);
+      const params = new URLSearchParams({
+        pet_id: String(pet.id),
+        species: normalizeText(getPetSpecies(pet)),
+        check_in_date: checkIn,
+        check_out_date: checkOut,
+      });
 
-      if (data.success) {
+      const petSize = getPetSize(pet);
+      if (petSize) {
+        params.append("size", petSize);
+      }
+
+      if (roomType) {
+        params.append("room_type", roomType);
+      }
+
+      const data = await apiRequest(`/boarding/rooms/available?${params.toString()}`);
+
+      if (data.success || Array.isArray(data.rooms) || Array.isArray(data.data)) {
         setBoardingAvailability(data);
       } else {
         setBoardingAvailability(null);
@@ -738,7 +1290,7 @@ const fetchVeterinaryAvailability = async (date, serviceName) => {
     } catch (error) {
       console.error("Error fetching boarding availability:", error);
       setBoardingAvailability(null);
-      showToast("Failed to check availability. Please try again.", "error");
+      showToast("Failed to check room availability. Please try again.", "error");
     } finally {
       setAvailabilityLoading(false);
     }
@@ -751,8 +1303,7 @@ const fetchVeterinaryAvailability = async (date, serviceName) => {
 
   const handleRoomSelect = (room) => {
     setSelectedRoom(room);
-    // For hotel bookings, we'll store the room info in form data
-    setFormData((prev) => ({ ...prev, hotel_room_id: room.id }));
+    setFormData((prev) => ({ ...prev, room_id: room.id }));
   };
 
   const buildVetHealthSummary = () => {
@@ -790,7 +1341,9 @@ const fetchVeterinaryAvailability = async (date, serviceName) => {
     if (!formData.customer_email.trim()) return "Customer email is required.";
     if (!formData.pet_id && !formData.pet_name.trim()) return "Please select a pet.";
     if (!formData.service_type) return "Please select a booking type.";
-    if (!formData.service_name) return "Please select a service.";
+    if (selectedBooking !== "Hotel" && !formData.service_name) {
+      return "Please select a service.";
+    }
     if (!formData.request_date) return "Please select a preferred date.";
 
     // For veterinary bookings, ensure time slot is selected and available
@@ -810,8 +1363,37 @@ const fetchVeterinaryAvailability = async (date, serviceName) => {
 
     // For hotel bookings, ensure room is selected and available
     if (selectedBooking === "Hotel") {
-      if (!selectedRoom) return "Please select an available room.";
-      if (boardingAvailability && !boardingAvailability.rooms?.find((room) => room.id === selectedRoom.id && room.available)) {
+      if (!selectedPet) return "Please select a pet first.";
+
+      if (isUnsupportedBoardingPet(selectedPet)) {
+        return getUnsupportedBoardingMessage(selectedPet);
+      }
+
+      if (!formData.request_date) return "Please select a check-in date.";
+      if (!formData.check_out_date) return "Please select a check-out date.";
+
+      const checkIn = new Date(`${formData.request_date}T00:00:00`);
+      const checkOut = new Date(`${formData.check_out_date}T00:00:00`);
+
+      if (checkOut <= checkIn) {
+        return "Check-out date must be after check-in date.";
+      }
+
+      if (!selectedRoom) return "Please select an available compatible room.";
+
+      if (!isRoomCompatibleWithPet(selectedRoom, selectedPet)) {
+        const species = normalizeText(getPetSpecies(selectedPet));
+
+        if (species === "dog") return "Dogs can only be accommodated in kennels.";
+        if (species === "cat") return "Cats can only be accommodated in catteries.";
+        if (species === "bird") return "Birds can only be accommodated in bird cages.";
+
+        return "Selected room is not compatible with this pet.";
+      }
+
+      const compatibleRooms = getCompatibleRooms();
+
+      if (!compatibleRooms.find((room) => String(room.id) === String(selectedRoom.id))) {
         return "Selected room is not available. Please choose another room.";
       }
     }
@@ -870,6 +1452,60 @@ const fetchVeterinaryAvailability = async (date, serviceName) => {
     try {
       setSubmitting(true);
 
+      // Handle Hotel booking submission separately
+      if (selectedBooking === "Hotel") {
+        const hotelPayload = {
+          pet_id: formData.pet_id,
+          customer_name: formData.customer_name,
+          customer_email: customerEmail || formData.customer_email,
+          hotel_room_id: selectedRoom.id,
+          room_id: selectedRoom.id,
+          check_in_date: formData.request_date,
+          check_out_date: formData.check_out_date,
+          special_requests: formData.notes,
+          notes: formData.notes,
+          room_daily_rate: getDailyRate(selectedRoom),
+          number_of_days: calculateBoardingDays(),
+          add_ons: selectedAddOns.map((item) => {
+          const quantity = getAddOnQuantity(item);
+          const price = Number(item.price || 0);
+
+          return {
+            id: item.id,
+            add_on_id: item.id,
+            boarding_add_on_id: item.id,
+            name: item.name,
+            type: item.type,
+            species: item.species,
+            price,
+            quantity,
+            subtotal: price * quantity,
+          };
+        }),
+          add_ons_total: getSelectedAddOnsSubtotal(),
+          total_amount: calculateHotelTotal(),
+        };
+
+        const data = await apiRequest("/customer/boardings", {
+          method: "POST",
+          body: JSON.stringify(hotelPayload),
+        });
+
+        if (data.success || data.boarding || data.message) {
+          showToast("Pet Hotel reservation submitted successfully. Please wait for approval.");
+          await fetchBookings({ silent: true });
+
+          setTimeout(() => {
+            handleClose();
+          }, 800);
+        } else {
+          showToast(data.message || "Failed to submit Pet Hotel reservation.", "error");
+        }
+
+        return;
+      }
+
+      // Handle Vet and Grooming submissions
       const payload = {
         customer_name: formData.customer_name,
         customer_email: customerEmail || formData.customer_email,
@@ -918,6 +1554,11 @@ const fetchVeterinaryAvailability = async (date, serviceName) => {
     fetchCustomerPets();
     fetchVetServices();
   };
+
+  const isSubmitDisabled =
+    submitting ||
+    pets.length === 0 ||
+    (selectedBooking === "Hotel" && !selectedRoom);
 
   const selectedMeta = selectedBooking ? getBookingTypeMeta(selectedBooking) : null;
   const isVetBooking = selectedMeta?.type === "vet";
@@ -1107,10 +1748,26 @@ const fetchVeterinaryAvailability = async (date, serviceName) => {
                     <p>{booking.details}</p>
 
                     <div className="booking-meta">
-                      <span>
-                        <FaCalendarCheck />
-                        {formatDate(booking.date)}
-                      </span>
+                      {booking.checkIn && (
+                        <span>
+                          <FaCalendarCheck />
+                          Check-in: {formatDate(booking.checkIn)}
+                        </span>
+                      )}
+
+                      {booking.checkOut && (
+                        <span>
+                          <FaCalendarCheck />
+                          Check-out: {formatDate(booking.checkOut)}
+                        </span>
+                      )}
+
+                      {!booking.checkIn && (
+                        <span>
+                          <FaCalendarCheck />
+                          {formatDate(booking.date)}
+                        </span>
+                      )}
 
                       {booking.time && (
                         <span>
@@ -1254,27 +1911,29 @@ const fetchVeterinaryAvailability = async (date, serviceName) => {
                 </div>
 
                 <div className="booking-form-grid">
-                  <label className="form-group full-width">
-                    Service
-                    <select
-                      name="service_name"
-                      value={formData.service_name}
-                      onChange={handleInputChange}
-                      required
-                    >
-                      {serviceOptions.map((service, index) => (
-                        <option key={`${service.name}-${index}`} value={service.name}>
-                          {service.name}
-                          {service.category ? ` • ${service.category}` : ""} -{" "}
-                          {formatCurrency(service.price || 0)}
-                        </option>
-                      ))}
-                    </select>
+                  {selectedBooking !== "Hotel" && (
+                    <label className="form-group full-width">
+                      Service
+                      <select
+                        name="service_name"
+                        value={formData.service_name}
+                        onChange={handleInputChange}
+                        required
+                      >
+                        {serviceOptions.map((service, index) => (
+                          <option key={`${service.name}-${index}`} value={service.name}>
+                            {service.name}
+                            {service.category ? ` • ${service.category}` : ""} -{" "}
+                            {formatCurrency(service.price || 0)}
+                          </option>
+                        ))}
+                      </select>
 
-                    {isVetBooking && servicesLoading && (
-                      <small>Loading veterinary services...</small>
-                    )}
-                  </label>
+                      {isVetBooking && servicesLoading && (
+                        <small>Loading veterinary services...</small>
+                      )}
+                    </label>
+                  )}
 
                   {selectedBooking === "Hotel" ? (
                     <>
@@ -1300,6 +1959,27 @@ const fetchVeterinaryAvailability = async (date, serviceName) => {
                           min={formData.request_date || new Date().toISOString().split("T")[0]}
                           required
                         />
+                      </label>
+
+                      <label className="form-group full-width">
+                        Room Type Filter
+                        <select
+                          name="room_type"
+                          value={selectedRoomType}
+                          onChange={(event) => {
+                            setSelectedRoomType(event.target.value);
+                            setSelectedRoom(null);
+                          }}
+                          disabled={!selectedPet || !formData.request_date || !formData.check_out_date}
+                        >
+                          {activeRoomTypeOptions.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+
+                        {!selectedPet && <small>Select a pet first to filter compatible rooms.</small>}
                       </label>
                     </>
                   ) : (
@@ -1393,33 +2073,107 @@ const fetchVeterinaryAvailability = async (date, serviceName) => {
                       {/* Boarding Availability */}
                       {selectedBooking === "Hotel" && boardingAvailability && (
                         <div className="availability-content">
-                          {boardingAvailability.rooms && boardingAvailability.rooms.length > 0 ? (
-                            <div className="rooms-grid">
-                              {boardingAvailability.rooms.map((room) => (
-                                <button
-                                  key={room.id}
-                                  type="button"
-                                  className={`room-card ${!room.available ? 'unavailable' : ''} ${selectedRoom?.id === room.id ? 'selected' : ''}`}
-                                  onClick={() => room.available && handleRoomSelect(room)}
-                                  disabled={!room.available}
-                                >
-                                  <div className="room-header">
-                                    <span className="room-name">{room.name}</span>
-                                    <span className="room-type">{room.type}</span>
-                                  </div>
-                                  <div className="room-details">
-                                    <span className="room-capacity">Capacity: {room.capacity}</span>
-                                    <span className="room-rate">{formatCurrency(room.daily_rate)}/day</span>
-                                  </div>
-                                  <span className="room-status">
-                                    {room.available ? 'Available' : room.reason || 'Not Available'}
-                                  </span>
-                                </button>
-                              ))}
+                          {isUnsupportedBoardingPet(selectedPet) ? (
+                            <div className="no-availability">
+                              <p>{getUnsupportedBoardingMessage(selectedPet)}</p>
                             </div>
+                          ) : getCompatibleRooms().length > 0 ? (
+                            <>
+                              <div className="rooms-grid">
+                                {getCompatibleRooms().map((room) => {
+                                  const roomType = getRoomType(room);
+                                  const isAvailable = room.available !== false;
+
+                                  return (
+                                    <button
+                                      key={room.id}
+                                      type="button"
+                                      className={`room-card ${!isAvailable ? "unavailable" : ""} ${
+                                        selectedRoom?.id === room.id ? "selected" : ""
+                                      }`}
+                                      onClick={() => isAvailable && handleRoomSelect(room)}
+                                      disabled={!isAvailable}
+                                    >
+                                      <div className="room-header">
+                                        <span className="room-name">{getRoomDisplayName(room)}</span>
+                                        <span className="room-type">{roomType.replace(/_/g, " ")}</span>
+                                      </div>
+
+                                      <div className="room-details">
+                                        <span className="room-capacity">Capacity: {getRoomCapacity(room)}</span>
+                                        <span className="room-rate">{formatCurrency(getDailyRate(room))}/day</span>
+                                      </div>
+
+                                      <span className="room-status">
+                                        {isAvailable ? "Available" : room.reason || "Not Available"}
+                                      </span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+
+                              {selectedBooking === "Hotel" && (
+                                <div className="form-group full-width hotel-addons-section">
+                                  <div className="availability-header">
+                                    <span className="availability-title">Optional Add-ons</span>
+                                  </div>
+
+                                  {compatibleHotelAddOns.length > 0 ? (
+                                    <div className="hotel-addons-grid">
+                                      {compatibleHotelAddOns.map((addOn) => {
+                                        const selected = selectedAddOns.some(
+                                          (item) => String(item.id) === String(addOn.id)
+                                        );
+
+                                        return (
+                                          <button
+                                            key={addOn.id}
+                                            type="button"
+                                            className={`hotel-addon-card ${selected ? "selected" : ""}`}
+                                            onClick={() => handleAddOnToggle(addOn)}
+                                          >
+                                            <div>
+                                              <strong>{addOn.name}</strong>
+                                              <small>{addOn.type}</small>
+                                              {addOn.description && <p>{addOn.description}</p>}
+                                            </div>
+
+                                            <span>{formatCurrency(addOn.price)}</span>
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                  ) : (
+                                    <div className="availability-prompt">
+                                      <p>No compatible add-ons available for this pet.</p>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+
+                              {selectedRoom && (
+                                <div className="hotel-total-card">
+                                  <strong>Total Estimate</strong>
+
+                                  <p>
+                                    Room: {formatCurrency(getDailyRate(selectedRoom))} × {calculateBoardingDays()} day
+                                    {calculateBoardingDays() > 1 ? "s" : ""} ={" "}
+                                    <b>{formatCurrency(getDailyRate(selectedRoom) * calculateBoardingDays())}</b>
+                                  </p>
+
+                                  <p>
+                                    Add-ons: <b>{formatCurrency(getSelectedAddOnsSubtotal())}</b>
+                                  </p>
+
+                                  <h4>
+                                    Grand Total: {formatCurrency(calculateHotelTotal())}
+                                  </h4>
+                                </div>
+                              )}
+                            </>
                           ) : (
                             <div className="no-availability">
-                              <p>No rooms or kennels are available for the selected date range.</p>
+                              <p>No compatible rooms are available for this pet and date range.</p>
                             </div>
                           )}
                         </div>
@@ -1428,7 +2182,11 @@ const fetchVeterinaryAvailability = async (date, serviceName) => {
                       {/* Show message when no availability data yet */}
                       {!veterinaryAvailability && !groomingAvailability && !boardingAvailability && !availabilityLoading && (
                         <div className="availability-prompt">
-                          <p>Select a date to check availability.</p>
+                          <p>
+                            {selectedBooking === "Hotel"
+                              ? "Select a pet, check-in date, and check-out date to view compatible rooms."
+                              : "Select a date to check availability."}
+                          </p>
                         </div>
                       )}
                     </div>
@@ -1652,6 +2410,17 @@ const fetchVeterinaryAvailability = async (date, serviceName) => {
                         rows="3"
                       />
                     </label>
+
+                    <label className="form-group full-width">
+                      Other medical history or concerns
+                      <textarea
+                        name="other_medical_history"
+                        value={formData.vet_info.other_medical_history}
+                        onChange={handleVetInfoChange}
+                        placeholder="Example: allergies, previous surgeries, chronic conditions..."
+                        rows="3"
+                      />
+                    </label>
                   </div>
                 </div>
               )}
@@ -1666,49 +2435,8 @@ const fetchVeterinaryAvailability = async (date, serviceName) => {
                     </p>
                   </div>
                 </div>
-
-                <div className="booking-payment-summary">
-                  <div>
-                    <small>Selected Service</small>
-                    <strong>{selectedService?.name || formData.service_name}</strong>
-                  </div>
-
-                  <div>
-                    <small>Estimated Fee</small>
-                    <strong>{formatCurrency(selectedService?.price || 0)}</strong>
-                  </div>
-                </div>
-
-                <label className="file-upload">
-                  <input
-                    type="file"
-                    accept="image/*,.pdf"
-                    onChange={handleReceiptUpload}
-                  />
-
-                  <span>
-                    <FaUpload />
-                  </span>
-
-                  <div>
-                    <strong>{receipt ? receipt.name : "Upload payment receipt"}</strong>
-                    <p>JPG, PNG, WEBP, or PDF up to 5MB.</p>
-                  </div>
-                </label>
-
                 {previewUrl && (
                   <div className="receipt-preview">
-                    <div className="preview-header">
-                      <span>
-                        <FaReceipt />
-                        Receipt Preview
-                      </span>
-
-                      <button type="button" onClick={handleRemoveReceipt}>
-                        Remove
-                      </button>
-                    </div>
-
                     {receipt?.type === "application/pdf" ? (
                       <div className="pdf-preview">PDF receipt selected: {receipt.name}</div>
                     ) : (
@@ -1722,8 +2450,7 @@ const fetchVeterinaryAvailability = async (date, serviceName) => {
                 <button type="button" className="cancel-btn" onClick={handleClose}>
                   Cancel
                 </button>
-
-                <button type="submit" className="submit-btn" disabled={submitting || pets.length === 0}>
+                <button type="submit" className="submit-btn" disabled={isSubmitDisabled}>
                   {submitting ? "Submitting..." : "Submit Booking Request"}
                 </button>
               </div>

@@ -8,22 +8,14 @@ class InventoryLog extends Model
 {
     protected $fillable = [
         'inventory_item_id',
-        'delta',
-        'reason',
-        'reference_type',
-        'reference_id',
+        'booking_id',
         'movement_type',
-        'type',
         'quantity',
-        'stock_before',
-        'stock_after',
         'previous_stock',
         'new_stock',
-        'reference',
+        'reason',
         'performed_by',
         'role',
-        'user_id',
-        'details',
     ];
 
     public function item()

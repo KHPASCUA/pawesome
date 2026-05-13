@@ -96,6 +96,9 @@ class GroomingController extends Controller
                 'paid_at' => now(),
                 'notes' => "Auto-generated payment for grooming service",
             ]);
+            
+            // Send completion notification to customer
+            $this->sendGroomingCompletionNotification($grooming);
         }
 
         return response()->json([
@@ -211,6 +214,49 @@ class GroomingController extends Controller
                 'success' => false,
                 'message' => 'Failed to fetch available items: ' . $e->getMessage()
             ], 500);
+        }
+    }
+    
+    /**
+     * Send completion notification to customer for grooming service
+     */
+    private function sendGroomingCompletionNotification(Grooming $grooming): void
+    {
+        try {
+            // Get customer information
+            $customer = \App\Models\Customer::find($grooming->customer_id);
+            if (!$customer || !$customer->user_id) return;
+            
+            // Get pet information
+            $pet = \App\Models\Pet::find($grooming->pet_id);
+            $petName = $pet ? $pet->name : 'Unknown Pet';
+            
+            // Create notification for customer
+            \App\Services\NotificationService::createNotification(
+                $customer->user_id,
+                'Grooming Service Completed',
+                "Your pet {$petName}'s grooming service has been completed!\n" .
+                "Service: {$grooming->service}\n" .
+                "Date: " . ($grooming->appointment_date ? $grooming->appointment_date->format('M d, Y') : 'Today') . "\n" .
+                "Thank you for choosing our grooming services!",
+                'success',
+                'grooming',
+                $grooming->id,
+                [
+                    'grooming_id' => $grooming->id,
+                    'pet_name' => $petName,
+                    'service' => $grooming->service,
+                    'amount' => $grooming->amount,
+                    'status' => 'completed'
+                ]
+            );
+            
+        } catch (\Exception $e) {
+            // Log error but don't fail the completion process
+            \Log::error('Failed to send grooming completion notification', [
+                'grooming_id' => $grooming->id,
+                'error' => $e->getMessage()
+            ]);
         }
     }
 }

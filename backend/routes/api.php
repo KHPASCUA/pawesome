@@ -30,6 +30,7 @@ use App\Http\Controllers\MedicalConfinementController;
 use App\Http\Controllers\Manager\WorkflowReportController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\BoardingController;
+use App\Http\Controllers\BoardingRoomController;
 use App\Http\Controllers\HotelRoomController;
 use App\Http\Controllers\TelegramBotController;
 use App\Http\Controllers\AppointmentController;
@@ -47,10 +48,15 @@ use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\CashierPaymentController;
 use App\Http\Controllers\Api\ServiceRequestController;
 use App\Http\Controllers\Api\ReceptionistCustomerController;
+use App\Http\Controllers\Api\SecureFileController;
 use App\Http\Controllers\Api\ReceptionistPetController;
 use App\Http\Controllers\Api\NotificationController as ApiNotificationController;
 use App\Http\Controllers\ReceptionistRequestController;
 use Illuminate\Support\Facades\Route;
+
+// Global route patterns to ensure ID parameters are numeric
+Route::pattern('id', '[0-9]+');
+Route::pattern('pet', '[0-9]+');
 
 // Health check endpoint for deployment monitoring
 Route::get('/health', function () {
@@ -149,6 +155,7 @@ Route::middleware(['auth.api', 'throttle:api', 'role:admin'])->prefix('admin')->
     Route::put('chatbot/faqs/{faq}', [ChatbotFaqController::class, 'update']);
     Route::delete('chatbot/faqs/{faq}', [ChatbotFaqController::class, 'destroy']);
 
+    // IMPORTANT: Static routes must come before dynamic routes
     Route::get('reports/summary', [ReportsController::class, 'summary']);
     Route::get('reports/sales', [ReportsController::class, 'sales']);
     Route::get('reports/overview', [ReportsController::class, 'overview']);
@@ -159,37 +166,18 @@ Route::middleware(['auth.api', 'throttle:api', 'role:admin'])->prefix('admin')->
     Route::get('reports/customers', [CustomerReportController::class, 'getCustomerReports']);
     Route::get('reports/customers/export', [CustomerReportController::class, 'exportCustomerReports']);
     Route::get('reports/customers/export-pdf', [CustomerReportController::class, 'exportCustomerReportsPdf']);
-    Route::get('reports/customers/{id}', [CustomerReportController::class, 'getCustomerDetail']);
     Route::get('reports/payments', [ReportsController::class, 'payments']);
     Route::get('reports/orders', [ReportsController::class, 'orders']);
     Route::get('reports/services', [ReportsController::class, 'serviceRequests']);
     Route::get('reports/service-requests', [ReportsController::class, 'serviceRequests']);
     Route::get('reports/logistics', [ReportsController::class, 'logistics']);
     Route::get('reports/reception', [ReportsController::class, 'reception']);
-    Route::get('payroll', [ReportsController::class, 'payrollReports']);
-    Route::get('payroll/reports', [ReportsController::class, 'payrollReports']);
-    Route::get('appointments', [AppointmentController::class, 'index']);
 
-    
-    // Activity Logs
-    Route::get('activity-logs', [ActivityLogController::class, 'index']);
-    Route::get('activity-logs/statistics', [ActivityLogController::class, 'statistics']);
-    Route::get('activity-logs/filters', [ActivityLogController::class, 'filters']);
-    Route::get('activity-logs/{id}', [ActivityLogController::class, 'show']);
-    Route::get('activity-logs/user/{userId}', [ActivityLogController::class, 'userLogs']);
-
-    // Login Logs
-    Route::get('login-logs', [LoginLogController::class, 'index']);
-    Route::get('login-logs/statistics', [LoginLogController::class, 'statistics']);
-    Route::get('login-logs/recent', [LoginLogController::class, 'recent']);
-    Route::get('login-logs/user/{userId}', [LoginLogController::class, 'userLogs']);
-    Route::get('login-logs/user/{userId}/sessions', [LoginLogController::class, 'userSessions']);
-
-    // Notifications
-    Route::get('notifications', [NotificationController::class, 'index']);
-    Route::get('notifications/unread-count', [NotificationController::class, 'unreadCount']);
-    Route::post('notifications/{id}/read', [NotificationController::class, 'markAsRead']);
-    Route::post('notifications/mark-all-read', [NotificationController::class, 'markAllAsRead']);
+    // Dynamic routes with ID parameters
+    Route::get('customers/{id}', [CustomersController::class, 'show']);
+    Route::get('customers/{id}/pets', [CustomersController::class, 'pets']);
+    Route::get('customers/{id}/purchases', [CustomersController::class, 'purchases']);
+    Route::get('reports/customers/{id}', [CustomerReportController::class, 'getCustomerDetail']);
 });
 
 // Veterinary Services Management
@@ -288,41 +276,17 @@ Route::middleware(['auth.api', 'throttle:api', 'role:customer'])->prefix('custom
 });
 
 Route::middleware(['auth.api', 'throttle:api', 'role:cashier'])->prefix('cashier')->group(function () {
+    // IMPORTANT: Static routes must come before dynamic routes
     Route::get('dashboard', [CashierDashboardController::class, 'overview']);
     Route::get('dashboard/overview', [CashierDashboardController::class, 'overviewWrapped']);
     Route::get('sales', [CashierDashboardController::class, 'sales']);
     Route::get('transactions', [CashierDashboardController::class, 'transactions']);
     Route::get('history', [CashierDashboardController::class, 'history']);
     Route::get('transactions/search', [CashierDashboardController::class, 'searchTransactions']);
-
-    // Cashier Transaction Operations
-    Route::post('refund', [CashierDashboardController::class, 'refund']);
-    Route::post('multi-payment', [CashierDashboardController::class, 'multiPayment']);
-    Route::post('apply-discount', [CashierDashboardController::class, 'applyDiscount']);
-    Route::post('handover', [CashierDashboardController::class, 'handover']);
-    Route::post('end-shift', [CashierDashboardController::class, 'endShift']);
-    Route::post('void', [CashierDashboardController::class, 'voidTransaction']);
-    Route::get('receipt/{id}', [CashierDashboardController::class, 'generateReceipt']);
-    Route::get('customer-order-receipts/{id}', [CashierDashboardController::class, 'customerOrderReceipt']);
-
-    // Payment Verification Routes
     Route::get('payment-requests', [CashierDashboardController::class, 'getPaymentRequests']);
-    Route::post('payment-requests/{id}/verify', [CashierDashboardController::class, 'verifyPayment']);
-    Route::post('payment-requests/{id}/reject', [CashierDashboardController::class, 'rejectPayment']);
-
-    // Existing Payment Verification Routes
     Route::get('payments', [CashierPaymentController::class, 'index']);
-    Route::put('payments/{id}/{type}/verify', [CashierPaymentController::class, 'verify']);
-    Route::put('payments/{id}/{type}/reject', [CashierPaymentController::class, 'reject']);
-
-    // POS Endpoints
-    Route::post('pos/transaction', [POSController::class, 'processTransaction']);
-    Route::get('pos/products', [POSController::class, 'getProducts']);
-    Route::get('pos/services', [POSController::class, 'getServices']);
-    Route::get('pos/transactions', [POSController::class, 'getTransactions']);
-    Route::get('pos/transaction/{id}', [POSController::class, 'getTransaction']);
-    Route::post('pos/transaction/{id}/void', [POSController::class, 'voidTransaction']);
-    Route::get('pos/invoice/{id}', [POSController::class, 'downloadInvoice']);
+    
+    // Reports static routes
     Route::get('reports/live', [ReportsController::class, 'cashier']);
     Route::get('reports/overview', [ReportsController::class, 'cashier']);
     Route::get('reports/pending-payments', [ReportsController::class, 'payments']);
@@ -332,33 +296,99 @@ Route::middleware(['auth.api', 'throttle:api', 'role:cashier'])->prefix('cashier
     Route::get('reports/receipts', [ReportsController::class, 'payments']);
     Route::get('reports/payment-methods', [ReportsController::class, 'cashier']);
     Route::get('boarding-payments/pending', [CashierDashboardController::class, 'getPaymentRequests']);
+    Route::get('confinement-payments/pending', [CashierDashboardController::class, 'getPaymentRequests']);
+    
+    // POS static routes
+    Route::get('pos/products', [POSController::class, 'getProducts']);
+    Route::get('pos/services', [POSController::class, 'getServices']);
+    Route::get('pos/transactions', [POSController::class, 'getTransactions']);
+    
+    // Cashier Transaction Operations
+    Route::post('refund', [CashierDashboardController::class, 'refund']);
+    Route::post('multi-payment', [CashierDashboardController::class, 'multiPayment']);
+    Route::post('apply-discount', [CashierDashboardController::class, 'applyDiscount']);
+    Route::post('handover', [CashierDashboardController::class, 'handover']);
+    Route::post('end-shift', [CashierDashboardController::class, 'endShift']);
+    Route::post('void', [CashierDashboardController::class, 'voidTransaction']);
+    
+    // POS Operations
+    Route::post('pos/transaction', [POSController::class, 'processTransaction']);
+    
+    // Dynamic routes with ID parameters
+    Route::get('receipt/{id}', [CashierDashboardController::class, 'generateReceipt']);
+    Route::get('customer-order-receipts/{id}', [CashierDashboardController::class, 'customerOrderReceipt']);
+    Route::get('pos/transaction/{id}', [POSController::class, 'getTransaction']);
+    Route::get('pos/invoice/{id}', [POSController::class, 'downloadInvoice']);
+    
+    // Payment Verification Routes
+    Route::post('payment-requests/{id}/verify', [CashierDashboardController::class, 'verifyPayment']);
+    Route::post('payment-requests/{id}/reject', [CashierDashboardController::class, 'rejectPayment']);
+    
+    // Existing Payment Verification Routes
+    Route::put('payments/{id}/{type}/verify', [CashierPaymentController::class, 'verify']);
+    Route::put('payments/{id}/{type}/reject', [CashierPaymentController::class, 'reject']);
+    
+    // Boarding/Confinement Payment Routes
     Route::post('boarding-payments/{id}/verify', [CashierDashboardController::class, 'verifyPayment'])->defaults('type', 'boarding');
     Route::post('boarding-payments/{id}/reject', [CashierDashboardController::class, 'rejectPayment'])->defaults('type', 'boarding');
-    Route::get('confinement-payments/pending', [CashierDashboardController::class, 'getPaymentRequests']);
     Route::post('confinement-payments/{id}/verify', [CashierDashboardController::class, 'verifyPayment'])->defaults('type', 'medical_confinement');
     Route::post('confinement-payments/{id}/reject', [CashierDashboardController::class, 'rejectPayment'])->defaults('type', 'medical_confinement');
+    
+    // POS Transaction Actions
+    Route::post('pos/transaction/{id}/void', [POSController::class, 'voidTransaction']);
 });
 
 Route::middleware(['auth.api', 'throttle:api', 'role:receptionist'])->prefix('receptionist')->group(function () {
     Route::get('dashboard', [ReceptionistDashboardController::class, 'overview']);
     Route::get('appointments', [ReceptionistDashboardController::class, 'appointments']);
     Route::get('customers', [ReceptionistDashboardController::class, 'customers']);
-
-    // Customer Order Management
-    Route::get('orders', [ReceptionistDashboardController::class, 'orders']);
-    Route::put('orders/{id}/status', [ReceptionistDashboardController::class, 'updateOrderStatus']);
+    
+    // IMPORTANT: Static routes must come before dynamic routes
+    Route::get('appointment/list', [AppointmentController::class, 'index']);
+    Route::get('veterinarians/available', [AppointmentController::class, 'availableVeterinarians']);
+    Route::get('customer-orders/pending', [ReceptionistCustomerOrderController::class, 'pending']);
+    Route::get('requests/pending', [ReceptionistRequestController::class, 'pending']);
+    Route::get('boarding-requests/pending', [BoardingController::class, 'pending']);
+    Route::get('medical-confinements/pending-admission', [MedicalConfinementController::class, 'pendingAdmission']);
+    Route::get('boarding/inventory-items', [BoardingController::class, 'getAvailableInventoryItems']);
+    Route::get('boarding-rooms', [HotelRoomController::class, 'index']);
+    
+    // Reports static routes
     Route::get('reports/transactions', [CashierDashboardController::class, 'transactions']);
     Route::get('reports/live', [ReportsController::class, 'reception']);
     Route::get('reports/overview', [ReportsController::class, 'reception']);
     Route::get('reports/customer-orders', [ReportsController::class, 'orders']);
     Route::get('reports/service-requests', [ReportsController::class, 'serviceRequests']);
     Route::get('reports/appointments', [ReportsController::class, 'veterinary']);
-    Route::get('reports/boarding', [ReportsController::class, 'serviceRequests']);
-    Route::get('reports/confinement-admissions', [ReportsController::class, 'serviceRequests']);
-    Route::get('reports/cancellations', [ReportsController::class, 'serviceRequests']);
-
+    
+    // Customer Order Management
+    Route::get('customer-orders', [ReceptionistCustomerOrderController::class, 'index']);
+    
+    // Customer Order actions
+    Route::get('customer-orders/{id}', [ReceptionistCustomerOrderController::class, 'show']);
+    Route::post('customer-orders/{id}/approve', [ReceptionistCustomerOrderController::class, 'approve']);
+    Route::post('customer-orders/{id}/reject', [ReceptionistCustomerOrderController::class, 'reject']);
+    Route::post('customer-orders/{id}/cancel', [ReceptionistCustomerOrderController::class, 'cancel']);
+    
+    // Pet Management
+    Route::get('pets', [\App\Http\Controllers\Api\ReceptionistPetController::class, 'index']);
+    Route::post('pets', [\App\Http\Controllers\Api\ReceptionistPetController::class, 'store']);
+    
+    // Service Request Management
+    Route::get('requests', [ReceptionistRequestController::class, 'index']);
+    Route::post('requests', [ReceptionistRequestController::class, 'store']);
+    Route::patch('requests/{id}/status', [ReceptionistRequestController::class, 'updateStatus']);
+    
+    // Boarding Requests
+    Route::get('boarding-requests', [BoardingController::class, 'index']);
+    
+    // Medical Confinements
+    Route::get('medical-confinements', [MedicalConfinementController::class, 'index']);
+    
+    // Dynamic routes with ID parameters
+    Route::put('orders/{id}/status', [ReceptionistDashboardController::class, 'updateOrderStatus']);
+    
     // Appointment management
-    Route::get('appointment/list', [AppointmentController::class, 'index']);
     Route::post('appointments', [AppointmentController::class, 'store']);
     Route::get('appointments/{id}', [AppointmentController::class, 'show']);
     Route::put('appointments/{id}', [AppointmentController::class, 'update']);
@@ -366,38 +396,19 @@ Route::middleware(['auth.api', 'throttle:api', 'role:receptionist'])->prefix('re
     Route::post('appointments/{id}/reject', [AppointmentController::class, 'reject']);
     Route::post('appointments/{id}/reschedule', [AppointmentController::class, 'reschedule']);
     Route::post('appointments/{id}/cancel', [AppointmentController::class, 'cancel']);
-    Route::get('veterinarians/available', [AppointmentController::class, 'availableVeterinarians']);
     Route::get('veterinarians/{id}/schedule', [AppointmentController::class, 'veterinarianSchedule']);
-
-    // Customer Profile Management
-    Route::get('customers', [ReceptionistCustomerController::class, 'index']);
-    Route::post('customers', [ReceptionistCustomerController::class, 'store']);
-
-    // Customer Order Management
-    Route::get('customer-orders', [ReceptionistCustomerOrderController::class, 'index']);
-    Route::get('customer-orders/pending', [ReceptionistCustomerOrderController::class, 'pending']);
+    
+    // Customer Order actions
     Route::get('customer-orders/{id}', [ReceptionistCustomerOrderController::class, 'show']);
     Route::post('customer-orders/{id}/approve', [ReceptionistCustomerOrderController::class, 'approve']);
     Route::post('customer-orders/{id}/reject', [ReceptionistCustomerOrderController::class, 'reject']);
     Route::post('customer-orders/{id}/cancel', [ReceptionistCustomerOrderController::class, 'cancel']);
-
-    // Pet Management
-    Route::get('pets', [ReceptionistPetController::class, 'index']);
-    Route::post('pets', [ReceptionistPetController::class, 'store']);
-
-    // Service Request Management
-    Route::get('requests', [ReceptionistRequestController::class, 'index']);
-    Route::get('requests/pending', [ReceptionistRequestController::class, 'pending']);
-    Route::post('requests', [ReceptionistRequestController::class, 'store']);
-    Route::patch('requests/{id}/status', [ReceptionistRequestController::class, 'updateStatus']);
+    
+    // Service Request actions
     Route::post('requests/{id}/approve', [ReceptionistRequestController::class, 'approve']);
     Route::post('requests/{id}/reject', [ReceptionistRequestController::class, 'reject']);
     
-    // Veterinarian Management
-    Route::get('veterinarians/available', [AppointmentController::class, 'availableVeterinarians']);
-
-    Route::get('boarding-requests', [BoardingController::class, 'index']);
-    Route::get('boarding-requests/pending', [BoardingController::class, 'pending']);
+    // Boarding Request actions
     Route::post('boarding-requests/{id}/approve', [BoardingController::class, 'approve']);
     Route::post('boarding-requests/{id}/reject', [BoardingController::class, 'reject']);
     Route::post('boarding-requests/{id}/schedule', [BoardingController::class, 'schedule']);
@@ -410,12 +421,8 @@ Route::middleware(['auth.api', 'throttle:api', 'role:receptionist'])->prefix('re
     // Boarding Inventory Usage Routes
     Route::post('boarding-requests/{id}/inventory-usage', [BoardingController::class, 'recordInventoryUsage']);
     Route::get('boarding-requests/{id}/inventory-usage-history', [BoardingController::class, 'getInventoryUsageHistory']);
-    Route::get('boarding/inventory-items', [BoardingController::class, 'getAvailableInventoryItems']);
     
-    Route::get('boarding-rooms', [HotelRoomController::class, 'index']);
-
-    Route::get('medical-confinements', [MedicalConfinementController::class, 'index']);
-    Route::get('medical-confinements/pending-admission', [MedicalConfinementController::class, 'pendingAdmission']);
+    // Medical Confinement actions
     Route::post('medical-confinements/{id}/assign-room', [MedicalConfinementController::class, 'assignRoom']);
     Route::post('medical-confinements/{id}/admit', [MedicalConfinementController::class, 'admit']);
     Route::post('medical-confinements/{id}/care-logs', [MedicalConfinementController::class, 'addCareLog']);
@@ -426,16 +433,22 @@ Route::middleware(['auth.api', 'throttle:api', 'role:receptionist'])->prefix('re
 Route::middleware(['auth.api', 'throttle:api'])->get('inventory/items', [InventoryDashboardController::class, 'publicItems']);
 
 Route::middleware(['auth.api', 'throttle:api', 'role:admin,inventory'])->prefix('inventory')->group(function () {
+    // IMPORTANT: Static routes must come before dynamic routes
     Route::get('dashboard', [InventoryDashboardController::class, 'overview']);
     Route::get('dashboard/overview', [InventoryDashboardController::class, 'dashboardOverview']);
     Route::get('dashboard/low-stock', [InventoryDashboardController::class, 'lowStockDashboard']);
     Route::get('dashboard/recent-activity', [InventoryDashboardController::class, 'recentActivity']);
-    Route::get('items', [InventoryDashboardController::class, 'items']);
-    Route::get('items/{id}', [InventoryDashboardController::class, 'showItem']);
-    Route::post('items', [InventoryDashboardController::class, 'storeItem']);
-    Route::put('items/{id}', [InventoryDashboardController::class, 'updateItem']);
-    Route::delete('items/{id}', [InventoryDashboardController::class, 'destroyItem']);
     Route::get('logs', [InventoryDashboardController::class, 'logs']);
+    Route::get('history', [InventoryDashboardController::class, 'history']);
+    Route::get('low-stock', [InventoryDashboardController::class, 'lowStock']);
+    Route::get('expiry-alerts', [InventoryDashboardController::class, 'expiryAlerts']);
+    Route::get('monthly-audit', [InventoryDashboardController::class, 'monthlyAudit']);
+    Route::get('monthly-audit-report', [InventoryDashboardController::class, 'monthlyAuditReport']);
+    Route::get('audit-analytics', [InventoryDashboardController::class, 'auditAnalytics']);
+    Route::get('monthly-audit/discrepancy-reasons', [InventoryDashboardController::class, 'discrepancyReasons']);
+    Route::post('reorder-requests', [InventoryDashboardController::class, 'reorderRequest']);
+    
+    // Reports static routes
     Route::get('reports', [InventoryDashboardController::class, 'reports']);
     Route::get('reports/live', [ReportsController::class, 'inventory']);
     Route::get('reports/overview', [ReportsController::class, 'inventory']);
@@ -447,15 +460,16 @@ Route::middleware(['auth.api', 'throttle:api', 'role:admin,inventory'])->prefix(
     Route::get('reports/order-deductions', [ReportsController::class, 'inventory']);
     Route::get('reports/stock-restores', [ReportsController::class, 'inventory']);
     Route::get('reports/valuation', [ReportsController::class, 'inventory']);
-    Route::get('history', [InventoryDashboardController::class, 'history']);
-    Route::get('low-stock', [InventoryDashboardController::class, 'lowStock']);
-    Route::get('expiry-alerts', [InventoryDashboardController::class, 'expiryAlerts']);
-    Route::get('monthly-audit', [InventoryDashboardController::class, 'monthlyAudit']);
+    
+    // Items collection routes
+    Route::get('items', [InventoryDashboardController::class, 'items']);
+    Route::post('items', [InventoryDashboardController::class, 'storeItem']);
     Route::post('monthly-audit', [InventoryDashboardController::class, 'saveMonthlyAudit']);
-    Route::get('monthly-audit-report', [InventoryDashboardController::class, 'monthlyAuditReport']);
-    Route::get('audit-analytics', [InventoryDashboardController::class, 'auditAnalytics']);
-    Route::get('monthly-audit/discrepancy-reasons', [InventoryDashboardController::class, 'discrepancyReasons']);
-    Route::post('reorder-requests', [InventoryDashboardController::class, 'reorderRequest']);
+    
+    // Dynamic routes with ID parameters
+    Route::get('items/{id}', [InventoryDashboardController::class, 'showItem']);
+    Route::put('items/{id}', [InventoryDashboardController::class, 'updateItem']);
+    Route::delete('items/{id}', [InventoryDashboardController::class, 'destroyItem']);
     Route::post('{id}/stock', [InventoryDashboardController::class, 'adjustStock']);
     Route::patch('{id}/stock', [InventoryDashboardController::class, 'adjustStock']);
 });
@@ -464,6 +478,8 @@ Route::middleware(['auth.api', 'throttle:api', 'role:manager'])->prefix('manager
     Route::get('dashboard', [ManagerDashboardController::class, 'overview']);
     Route::get('staff', [ManagerDashboardController::class, 'staff']);
     Route::get('executive-summary', [ManagerDashboardController::class, 'executiveSummary']);
+    
+    // IMPORTANT: Static routes must come before dynamic routes
     Route::get('reports/summary', [ReportsController::class, 'summary']);
     Route::get('reports/overview', [ReportsController::class, 'manager']);
     Route::get('reports/sales', [ReportsController::class, 'sales']);
@@ -566,11 +582,18 @@ Route::middleware(['auth.api', 'throttle:api', 'role:veterinary,vet'])->prefix('
     Route::get('dashboard', [VeterinaryDashboardController::class, 'overview']);
     Route::get('appointments', [VeterinaryDashboardController::class, 'appointments']);
     Route::post('appointments', [AppointmentController::class, 'store']);
-    Route::get('appointments/{id}', [VeterinaryDashboardController::class, 'appointment']);
-    Route::put('appointments/{id}', [AppointmentController::class, 'update']);
     Route::get('patients', [VeterinaryDashboardController::class, 'patients']);
     Route::get('history', [VeterinaryDashboardController::class, 'history']);
     Route::get('reports', [VeterinaryDashboardController::class, 'reports']);
+    Route::get('receipt/{id}', [VeterinaryDashboardController::class, 'receipt']);
+    
+    // IMPORTANT: Static routes must come before dynamic routes
+    Route::get('consultations', [ConsultationWorkflowController::class, 'index']);
+    Route::get('consultations/scheduled', [ConsultationWorkflowController::class, 'scheduled']);
+    Route::get('medical-confinements', [MedicalConfinementController::class, 'index']);
+    Route::get('inventory-items', [MedicalRecordController::class, 'getAvailableItems']);
+    
+    // Reports static routes
     Route::get('reports/live', [ReportsController::class, 'veterinary']);
     Route::get('reports/overview', [ReportsController::class, 'veterinary']);
     Route::get('reports/appointments', [ReportsController::class, 'veterinary']);
@@ -580,20 +603,23 @@ Route::middleware(['auth.api', 'throttle:api', 'role:veterinary,vet'])->prefix('
     Route::get('reports/confinements', [ReportsController::class, 'veterinary']);
     Route::get('reports/health-alerts', [ReportsController::class, 'veterinary']);
     Route::get('reports/completed-services', [ReportsController::class, 'veterinary']);
-    Route::get('receipt/{id}', [VeterinaryDashboardController::class, 'receipt']);
+    
+    // Dynamic routes with ID parameters
+    Route::get('appointments/{id}', [VeterinaryDashboardController::class, 'appointment']);
+    Route::put('appointments/{id}', [AppointmentController::class, 'update']);
     
     // Veterinarian appointment actions
     Route::post('appointments/{id}/start', [AppointmentController::class, 'start']);
     Route::post('appointments/{id}/complete', [AppointmentController::class, 'complete']);
     Route::put('appointments/{id}/medical', [AppointmentController::class, 'updateMedical']);
     Route::match(['put', 'patch'], 'appointments/{id}/status', [AppointmentController::class, 'updateStatus']);
-
-    Route::get('consultations', [ConsultationWorkflowController::class, 'index']);
-    Route::get('consultations/scheduled', [ConsultationWorkflowController::class, 'scheduled']);
+    
+    // Consultation actions
     Route::post('consultations/{id}/start', [ConsultationWorkflowController::class, 'start']);
     Route::post('consultations/{id}/complete', [ConsultationWorkflowController::class, 'complete']);
     Route::post('consultations/{id}/recommend-confinement', [ConsultationWorkflowController::class, 'recommendConfinement']);
-    Route::get('medical-confinements', [MedicalConfinementController::class, 'index']);
+    
+    // Medical Confinement actions
     Route::post('medical-confinements/{id}/progress-notes', [MedicalConfinementController::class, 'addProgressNote']);
     Route::get('medical-confinements/{id}/progress-notes', [MedicalConfinementController::class, 'progressNotes']);
     Route::post('medical-confinements/{id}/mark-under-observation', [MedicalConfinementController::class, 'markUnderObservation']);
@@ -611,7 +637,6 @@ Route::middleware(['auth.api', 'throttle:api', 'role:veterinary,vet'])->prefix('
     // Veterinary Inventory Usage Routes
     Route::post('appointments/{id}/inventory-usage', [MedicalRecordController::class, 'recordInventoryUsage']);
     Route::get('appointments/{id}/inventory-usage-history', [MedicalRecordController::class, 'getUsageHistory']);
-    Route::get('inventory-items', [MedicalRecordController::class, 'getAvailableItems']);
     
     // Pet-specific medical data
     Route::get('pets/{petId}/medical-records', [MedicalRecordController::class, 'forPet']);
@@ -699,7 +724,11 @@ Route::middleware(['auth.api', 'throttle:api', 'role:manager'])->prefix('manager
 Route::middleware(['auth.api', 'throttle:api', 'role:receptionist'])->prefix('boardings')->group(function () {
     Route::get('/', [BoardingController::class, 'index']);
     Route::post('/', [BoardingController::class, 'store']);
+    
+    // IMPORTANT: Static routes must come before dynamic routes
     Route::get('/available-rooms', [BoardingController::class, 'availableRooms']);
+    
+    // Dynamic routes with ID parameters
     Route::get('/{id}', [BoardingController::class, 'show']);
     Route::post('/{id}/check-in', [BoardingController::class, 'checkIn']);
     Route::post('/{id}/check-out', [BoardingController::class, 'checkOut']);
@@ -711,15 +740,28 @@ Route::middleware(['auth.api', 'throttle:api', 'role:receptionist'])->prefix('bo
 // Admin Boarding View-Only Routes
 Route::middleware(['auth.api', 'throttle:api', 'role:admin'])->prefix('admin/boardings')->group(function () {
     Route::get('/', [BoardingController::class, 'index']);
+    
+    // IMPORTANT: Static routes must come before dynamic routes
     Route::get('/available-rooms', [BoardingController::class, 'availableRooms']);
+    
+    // Dynamic routes with ID parameters
     Route::get('/{id}', [BoardingController::class, 'show']);
 });
 
 // Customer Boarding Routes (View own reservations, create new)
-Route::middleware(['auth.api', 'throttle:api', 'role:customer'])->prefix('customer/boardings')->group(function () {
+// Public GET endpoint for customer boardings (allows email parameter for unauthenticated access)
+Route::middleware('throttle:api')->prefix('customer/boardings')->group(function () {
     Route::get('/', [BoardingController::class, 'index']);
+});
+
+// Authenticated customer boarding routes
+Route::middleware(['auth.api', 'throttle:api', 'role:customer'])->prefix('customer/boardings')->group(function () {
     Route::post('/', [BoardingController::class, 'store']);
+    
+    // IMPORTANT: Static routes must come before dynamic routes
     Route::get('/available-rooms', [BoardingController::class, 'availableRooms']);
+    
+    // Dynamic routes with ID parameters
     Route::get('/{id}', [BoardingController::class, 'show']);
     Route::post('/{id}/cancel', [BoardingController::class, 'cancel']);
 });
@@ -734,6 +776,11 @@ Route::middleware(['auth.api', 'throttle:api', 'role:veterinary'])->prefix('vete
 Route::middleware(['auth.api', 'throttle:api', 'role:receptionist'])->prefix('grooming')->group(function () {
     Route::get('/', [\App\Http\Controllers\Api\GroomingController::class, 'index']);
     Route::post('/', [\App\Http\Controllers\Api\GroomingController::class, 'store']);
+    
+    // IMPORTANT: Static routes must come before dynamic routes
+    Route::get('/inventory-items', [\App\Http\Controllers\Api\GroomingController::class, 'getAvailableInventoryItems']);
+    
+    // Dynamic routes with ID parameters
     Route::put('/{grooming}/status', [\App\Http\Controllers\Api\GroomingController::class, 'updateStatus']);
     Route::get('/{id}', [\App\Http\Controllers\Api\GroomingController::class, 'show']);
     Route::put('/{id}', [\App\Http\Controllers\Api\GroomingController::class, 'update']);
@@ -742,7 +789,6 @@ Route::middleware(['auth.api', 'throttle:api', 'role:receptionist'])->prefix('gr
     // Grooming Inventory Usage Routes
     Route::post('/{id}/inventory-usage', [\App\Http\Controllers\Api\GroomingController::class, 'recordInventoryUsage']);
     Route::get('/{id}/inventory-usage-history', [\App\Http\Controllers\Api\GroomingController::class, 'getInventoryUsageHistory']);
-    Route::get('/inventory-items', [\App\Http\Controllers\Api\GroomingController::class, 'getAvailableInventoryItems']);
 });
 
 // Admin Grooming View-Only Routes
@@ -783,10 +829,15 @@ Route::middleware(['auth.api', 'throttle:api', 'role:manager'])->prefix('manager
 Route::middleware(['auth.api', 'throttle:api', 'role:customer'])->prefix('customer/pets')->group(function () {
     Route::get('/', [PetController::class, 'index']);
     Route::post('/', [PetController::class, 'store']);
-    Route::get('/{id}', [PetController::class, 'show']);
-    Route::put('/{id}', [PetController::class, 'update']);
-    Route::delete('/{id}', [PetController::class, 'destroy']);
-    Route::post('/{id}/archive', [PetController::class, 'archive']);
+    
+    // IMPORTANT: Static routes must come before dynamic routes
+    Route::get('/archived', [PetController::class, 'archived']);
+    
+    // Dynamic routes with ID parameters
+    Route::get('/{id}', [PetController::class, 'show'])->whereNumber('id');
+    Route::put('/{id}', [PetController::class, 'update'])->whereNumber('id');
+    Route::delete('/{id}', [PetController::class, 'destroy'])->whereNumber('id');
+    Route::post('/{id}/archive', [PetController::class, 'archive'])->whereNumber('id');
 });
 
 // Customer Vet Routes (View own appointments, create new)
@@ -800,14 +851,17 @@ Route::middleware(['auth.api', 'throttle:api', 'role:customer'])->prefix('custom
 Route::middleware(['auth.api', 'throttle:api', 'role:receptionist,admin,manager,customer'])->prefix('pets')->group(function () {
     Route::get('/', [PetController::class, 'index']);
     Route::post('/', [PetController::class, 'store']);
-    Route::get('/{id}', [PetController::class, 'show']);
-    Route::put('/{id}', [PetController::class, 'update']);
-    Route::delete('/{id}', [PetController::class, 'destroy']);
-    Route::post('/{id}/archive', [PetController::class, 'archive']);
+    
+    // IMPORTANT: Static routes must come before dynamic routes
     Route::get('/archived', [PetController::class, 'archived']);
     Route::get('/pets/archived', [PetController::class, 'archived']); // Frontend compatibility
-    Route::get('/pets/archived', [PetController::class, 'archived']); // Frontend compatibility
-    Route::post('/{id}/unarchive', [PetController::class, 'unarchive']);
+    
+    // Dynamic routes with ID parameters
+    Route::get('/{id}', [PetController::class, 'show'])->whereNumber('id');
+    Route::put('/{id}', [PetController::class, 'update'])->whereNumber('id');
+    Route::delete('/{id}', [PetController::class, 'destroy'])->whereNumber('id');
+    Route::post('/{id}/archive', [PetController::class, 'archive'])->whereNumber('id');
+    Route::post('/{id}/unarchive', [PetController::class, 'unarchive'])->whereNumber('id');
 });
 
 // Legacy Route Aliases (for backward compatibility with tests)
@@ -837,8 +891,24 @@ Route::middleware(['auth.api', 'throttle:api', 'role:receptionist,admin,manager,
     Route::get('/customers/{id}/pets', [CustomersController::class, 'pets']);
 });
 
+// Boarding/Hotel Room Management Routes
+Route::middleware(['throttle:api'])->group(function () {
+    Route::get('/boarding/rooms/available', [BoardingRoomController::class, 'getAvailableRooms']);
+    Route::get('/boarding/rooms/calculate-total', [BoardingRoomController::class, 'calculateTotal']);
+    Route::get('/boarding/rooms/types', [BoardingRoomController::class, 'getRoomTypes']);
+    Route::get('/boarding/add-ons', [BoardingController::class, 'getAddOns']);
+    Route::get('/boarding/rooms', [BoardingRoomController::class, 'index']);
+    Route::get('/boarding/rooms/{id}', [BoardingRoomController::class, 'show']);
+});
+
 // Telegram Bot Webhook (public - receives updates from Telegram, rate limited)
 Route::middleware('throttle:60,1')->post('/telegram/webhook', [TelegramBotController::class, 'webhook']);
+
+// Secure File Access Routes
+Route::middleware(['auth.api', 'throttle:api'])->prefix('files')->group(function () {
+    Route::get('/payment-proofs/{type}/{id}/view', [SecureFileController::class, 'viewPaymentProof']);
+    Route::get('/profile-photos/{userId}/view', [SecureFileController::class, 'viewProfilePhoto']);
+});
 
 // Telegram Admin Routes (setup webhooks)
 Route::middleware(['auth.api', 'throttle:api', 'role:admin'])->prefix('admin/telegram')->group(function () {

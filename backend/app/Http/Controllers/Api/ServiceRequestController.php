@@ -6,15 +6,29 @@ use App\Http\Controllers\Controller;
 use App\Models\ServiceRequest;
 use App\Models\ActivityLog;
 use App\Models\Pet;
+use App\Models\BoardingRoom;
 use App\Services\WorkflowNotifier;
 use App\Services\BookingAvailabilityService;
+use App\Services\PetServiceCompatibilityService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class ServiceRequestController extends Controller
 {
+    private function normalizeServiceType(string $requestType): string
+    {
+        return match (strtolower(trim($requestType))) {
+            'vet', 'veterinary', 'appointment', 'vet appointment' => 'veterinary',
+            'hotel', 'boarding', 'pet hotel', 'pet_hotel' => 'petHotel',
+            default => strtolower(trim($requestType)),
+        };
+    }
+
     private function formatRequest(ServiceRequest $item): array
     {
         return [
@@ -29,11 +43,12 @@ class ServiceRequestController extends Controller
             'pet_name' => $item->pet_name,
             'type' => $item->request_type,
             'request_type' => $item->request_type,
-            'service_type' => $item->request_type,
+            'service_type' => $item->service_name,
             'service' => $item->service_name,
             'service_name' => $item->service_name,
             'date' => $item->request_date,
             'request_date' => $item->request_date,
+            'requested_date' => $item->request_date,
             'time' => $item->request_time,
             'request_time' => $item->request_time,
             'notes' => $item->notes,
@@ -68,6 +83,8 @@ class ServiceRequestController extends Controller
             'notes' => 'nullable|string',
         ]);
 
+        $pet = null;
+
         if (Auth::check() && !empty($validated['pet_id'])) {
             $pet = Pet::with('customer')->find($validated['pet_id']);
             $customer = $pet?->customer;
@@ -83,6 +100,24 @@ class ServiceRequestController extends Controller
                 return response()->json([
                     'message' => 'You can only book services for your own pets.',
                 ], 403);
+            }
+
+            if ($pet->isArchived()) {
+                return response()->json([
+                    'message' => 'Archived pets cannot be used for new bookings. Please restore the pet first.',
+                    'errors' => ['pet_id' => ['Archived pets cannot be booked.']],
+                ], 422);
+            }
+
+            $serviceType = $this->normalizeServiceType($validated['request_type']);
+            $compatibility = PetServiceCompatibilityService::validateServiceCompatibility($pet->id, $serviceType);
+
+            if (!($compatibility['valid'] ?? false)) {
+                return response()->json([
+                    'message' => $compatibility['message'] ?? 'This service is not available for this pet species.',
+                    'errors' => ['pet_id' => [$compatibility['message'] ?? 'This service is not available for this pet species.']],
+                    'error_code' => $compatibility['error_code'] ?? 'service_not_allowed',
+                ], 422);
             }
         }
 
@@ -101,6 +136,23 @@ class ServiceRequestController extends Controller
                     'success' => false,
                     'message' => 'This grooming date is already reserved. Please choose another date.',
                     'errors' => ['requested_date' => ['Date already booked']]
+                ], 422);
+            }
+        }
+
+        if (!empty($validated['pet_id'])) {
+            $duplicateExists = ServiceRequest::where('pet_id', $validated['pet_id'])
+                ->where('request_type', $validated['request_type'])
+                ->where('request_date', $validated['requested_date'])
+                ->where('request_time', $validated['requested_time'])
+                ->whereNotIn('status', ['cancelled', 'rejected', 'completed'])
+                ->exists();
+
+            if ($duplicateExists) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'This pet already has a booking for the selected service, date, and time.',
+                    'errors' => ['requested_time' => ['Duplicate booking for this pet and time.']],
                 ], 422);
             }
         }
@@ -126,6 +178,31 @@ class ServiceRequestController extends Controller
 
         if (Schema::hasColumn('service_requests', 'pet_id') && !empty($validated['pet_id'])) {
             $createData['pet_id'] = $validated['pet_id'];
+        }
+
+        if (Schema::hasColumn('service_requests', 'pet_type') && $pet) {
+            $createData['pet_type'] = $pet->species ?? $pet->type;
+        }
+
+        // Add room data for hotel/boarding bookings
+        if ($validated['request_type'] === 'hotel' || $validated['request_type'] === 'boarding') {
+            if (!empty($validated['boarding_room_id'])) {
+                // Get room details from boarding_rooms table
+                $room = \App\Models\BoardingRoom::find($validated['boarding_room_id']);
+                if ($room) {
+                    $createData['boarding_room_id'] = $room->id;
+                    $createData['room_name'] = $room->room_name;
+                    $createData['room_type'] = $room->room_type;
+                    $createData['daily_rate'] = $room->daily_rate;
+                    
+                    // Calculate total days and amount
+                    $checkIn = Carbon::parse($validated['check_in_date']);
+                    $checkOut = Carbon::parse($validated['check_out_date']);
+                    $totalDays = $checkIn->diffInDays($checkOut);
+                    $createData['total_days'] = $totalDays;
+                    $createData['total_amount'] = $room->daily_rate * $totalDays;
+                }
+            }
         }
 
         // Add customer_id if user is authenticated
@@ -237,6 +314,14 @@ class ServiceRequestController extends Controller
             'payment_status' => 'unpaid',
         ]);
 
+        // Cancel related room reservation if this is a hotel/boarding request
+        if ($serviceRequest->request_type === 'hotel' || $serviceRequest->request_type === 'boarding') {
+            $reservation = \App\Models\BoardingRoomReservation::where('service_request_id', $serviceRequest->id)->first();
+            if ($reservation) {
+                $reservation->update(['status' => 'cancelled']);
+            }
+        }
+
         WorkflowNotifier::notifyRole(
             'receptionist',
             'Service Request Cancelled',
@@ -283,6 +368,57 @@ class ServiceRequestController extends Controller
             'status' => $validated['status'],
             'payment_status' => $paymentStatus,
         ]);
+
+        // Create room reservation if this is a hotel/boarding approval
+        if ($validated['status'] === 'approved' && ($serviceRequest->request_type === 'hotel' || $serviceRequest->request_type === 'boarding')) {
+            if (!empty($serviceRequest->boarding_room_id)) {
+                // Get room details and create reservation
+                $room = \App\Models\BoardingRoom::find($serviceRequest->boarding_room_id);
+                if ($room) {
+                    // Check availability one more time before creating reservation
+                    $existingReservations = \App\Models\BoardingRoomReservation::where('boarding_room_id', $room->id)
+                        ->where('check_in_date', '<', $serviceRequest->check_out_date ?? $serviceRequest->check_in_date)
+                        ->where('check_out_date', '>', $serviceRequest->check_in_date ?? $serviceRequest->check_in_date)
+                        ->whereIn('status', ['pending', 'approved', 'scheduled', 'checked_in'])
+                        ->count();
+                    
+                    $availableRooms = $room->total_rooms - $existingReservations;
+                    
+                    if ($availableRooms > 0) {
+                        // Create room reservation
+                        $reservation = \App\Models\BoardingRoomReservation::create([
+                            'boarding_room_id' => $room->id,
+                            'service_request_id' => $serviceRequest->id,
+                            'pet_id' => $serviceRequest->pet_id,
+                            'customer_id' => $serviceRequest->customer_id,
+                            'check_in_date' => $serviceRequest->check_in_date ?? $serviceRequest->check_in_date,
+                            'check_out_date' => $serviceRequest->check_out_date ?? $serviceRequest->check_in_date,
+                            'status' => 'approved',
+                        ]);
+                        
+                        // Create billing record for hotel stay
+                        $checkIn = Carbon::parse($serviceRequest->check_in_date ?? $serviceRequest->check_in_date);
+                        $checkOut = Carbon::parse($serviceRequest->check_out_date ?? $serviceRequest->check_in_date);
+                        $totalDays = $checkIn->diffInDays($checkOut);
+                        
+                        \App\Models\ServiceItemUsage::create([
+                            'service_type' => 'boarding',
+                            'service_id' => $serviceRequest->id,
+                            'item_type' => 'base_service',
+                            'description' => $room->room_name . ' - ' . $totalDays . ' days',
+                            'quantity_used' => $totalDays,
+                            'unit' => 'day',
+                            'unit_price' => $room->daily_rate,
+                            'total_price' => $room->daily_rate * $totalDays,
+                            'is_billable' => true,
+                            'is_paid' => false,
+                            'pet_id' => $serviceRequest->pet_id,
+                            'customer_id' => $serviceRequest->customer_id,
+                        ]);
+                    }
+                }
+            }
+        }
 
         WorkflowNotifier::notifyEmail(
             $serviceRequest->customer_email,
@@ -340,8 +476,11 @@ class ServiceRequestController extends Controller
             ], 422);
         }
 
-        // Store the uploaded file
-        $path = $request->file('payment_proof')->store('payment_proofs', 'public');
+        // Store the uploaded file in private storage
+        $originalName = $request->file('payment_proof')->getClientOriginalName();
+        $extension = $request->file('payment_proof')->getClientOriginalExtension();
+        $randomName = 'proof_' . time() . '_' . Str::random(10) . '.' . $extension;
+        $path = $request->file('payment_proof')->storeAs('payment-proofs', $randomName, 'private');
 
         $serviceRequest->update([
             'payment_method' => $validated['payment_method'] ?? 'Online Payment',
@@ -371,7 +510,7 @@ class ServiceRequestController extends Controller
             'message' => 'Payment proof uploaded successfully. Waiting for cashier verification.',
             'request' => $this->formatRequest($serviceRequest),
             'payment_status' => 'pending',
-            'proof_url' => $path ? asset('storage/' . $path) : null,
+            'proof_url' => $path ? "/api/files/payment-proofs/service-request/{$serviceRequest->id}/view" : null,
         ]);
     }
 
@@ -410,12 +549,16 @@ class ServiceRequestController extends Controller
                 'customer_email' => $serviceRequest->customer_email,
                 'pet_name' => $serviceRequest->pet_name,
                 'service_type' => $serviceRequest->request_type ?? $serviceRequest->service_type,
+                'service_name' => $serviceRequest->service_name,
+                'service_date' => $serviceRequest->request_date,
                 'total_amount' => $serviceRequest->total_amount ?? $serviceRequest->price ?? 500,
+                'payment_status' => $serviceRequest->payment_status,
                 'payment_method' => $serviceRequest->payment_method,
                 'payment_reference' => $serviceRequest->payment_reference,
                 'paid_at' => $serviceRequest->paid_at,
                 'verified_by' => $serviceRequest->verified_by,
                 'cashier_remarks' => $serviceRequest->cashier_remarks,
+                'created_at' => $serviceRequest->created_at,
             ],
         ]);
     }

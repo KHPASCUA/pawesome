@@ -1,0 +1,210 @@
+<?php
+
+namespace App\Http\Controllers\Api;
+
+use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+
+class SecureFileController extends Controller
+{
+    /**
+     * Securely view payment proof files
+     */
+    public function viewPaymentProof(Request $request, $type, $id)
+    {
+        $user = Auth::user();
+        
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated'], 401);
+        }
+
+        $record = null;
+        $isOwner = false;
+
+        // Determine record type and fetch data
+        switch ($type) {
+            case 'service-request':
+                $record = DB::table('service_requests')->where('id', $id)->first();
+                if ($record && $user->role === 'customer') {
+                    // Customer can only access their own requests
+                    $isOwner = ($record->customer_id == $user->id) || 
+                              ($record->customer_email === $user->email);
+                }
+                break;
+                
+            case 'customer-order':
+                $record = DB::table('customer_orders')->where('id', $id)->first();
+                if ($record && $user->role === 'customer') {
+                    // Customer can only access their own orders
+                    $isOwner = ($record->customer_id == $user->id);
+                }
+                break;
+                
+            case 'boarding':
+                $record = DB::table('boarding')->where('id', $id)->first();
+                if ($record && $user->role === 'customer') {
+                    // Customer can only access their own boarding records
+                    $isOwner = ($record->customer_id == $user->id);
+                }
+                break;
+                
+            default:
+                return response()->json(['message' => 'Invalid file type'], 400);
+        }
+
+        if (!$record) {
+            return response()->json(['message' => 'Record not found'], 404);
+        }
+
+        // Check authorization
+        $canAccess = false;
+        
+        if ($user->role === 'customer') {
+            $canAccess = $isOwner;
+        } elseif (in_array($user->role, ['admin', 'cashier'])) {
+            // Admin and cashier can access all payment proofs
+            $canAccess = true;
+        } elseif (in_array($user->role, ['receptionist', 'manager'])) {
+            // Receptionist and manager can view for business purposes
+            $canAccess = true;
+        }
+
+        if (!$canAccess) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+
+        // Check if payment proof exists
+        if (!$record->payment_proof) {
+            return response()->json(['message' => 'Payment proof not found'], 404);
+        }
+
+        // Determine file path and handle legacy files
+        $filePath = $record->payment_proof;
+        $disk = 'private';
+        
+        // Handle legacy public storage files
+        if (str_starts_with($filePath, 'payment_proofs/') || str_starts_with($filePath, 'payment-proofs/')) {
+            if (Storage::disk('public')->exists($filePath)) {
+                $disk = 'public';
+            } elseif (Storage::disk('private')->exists($filePath)) {
+                $disk = 'private';
+            } else {
+                return response()->json(['message' => 'File not found'], 404);
+            }
+        } else {
+            // New private storage format
+            if (!Storage::disk('private')->exists($filePath)) {
+                return response()->json(['message' => 'File not found'], 404);
+            }
+        }
+
+        // Get file information
+        $fileContents = Storage::disk($disk)->get($filePath);
+        
+        // Determine MIME type based on file extension
+        $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+        $mimeTypes = [
+            'jpg' => 'image/jpeg',
+            'jpeg' => 'image/jpeg',
+            'png' => 'image/png',
+            'webp' => 'image/webp',
+            'pdf' => 'application/pdf'
+        ];
+        
+        $mimeType = $mimeTypes[$extension] ?? 'application/octet-stream';
+        
+        if (!$fileContents) {
+            return response()->json(['message' => 'File not readable'], 404);
+        }
+
+        // Validate file type for security
+        $allowedMimeTypes = [
+            'image/jpeg',
+            'image/png', 
+            'image/webp',
+            'application/pdf'
+        ];
+        
+        if (!in_array($mimeType, $allowedMimeTypes)) {
+            return response()->json(['message' => 'Invalid file type'], 422);
+        }
+
+        // Return file response
+        return response($fileContents)
+            ->header('Content-Type', $mimeType)
+            ->header('Content-Disposition', 'inline; filename="payment_proof_' . $id . '.' . pathinfo($filePath, PATHINFO_EXTENSION))
+            ->header('Cache-Control', 'private, max-age=3600') // Cache for 1 hour
+            ->header('X-Content-Type-Options', 'nosniff'); // Prevent MIME type sniffing
+    }
+
+    /**
+     * Securely view profile photos
+     */
+    public function viewProfilePhoto(Request $request, $userId)
+    {
+        $user = Auth::user();
+        
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated'], 401);
+        }
+
+        // Users can view their own profile photo
+        // Admin can view any profile photo
+        $canAccess = ($user->id == $userId) || ($user->role === 'admin');
+
+        if (!$canAccess) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+
+        $targetUser = DB::table('users')->where('id', $userId)->first();
+        
+        if (!$targetUser) {
+            return response()->json(['message' => 'User not found'], 404);
+        }
+
+        if (!$targetUser->profile_photo) {
+            return response()->json(['message' => 'Profile photo not found'], 404);
+        }
+
+        $filePath = $targetUser->profile_photo;
+        $disk = 'public';
+        
+        if (!Storage::disk($disk)->exists($filePath)) {
+            return response()->json(['message' => 'File not found'], 404);
+        }
+
+        $fileContents = Storage::disk($disk)->get($filePath);
+        
+        // Determine MIME type based on file extension
+        $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+        $mimeTypes = [
+            'jpg' => 'image/jpeg',
+            'jpeg' => 'image/jpeg',
+            'png' => 'image/png',
+            'webp' => 'image/webp'
+        ];
+        
+        $mimeType = $mimeTypes[$extension] ?? 'image/jpeg';
+        
+        if (!$fileContents) {
+            return response()->json(['message' => 'File not readable'], 404);
+        }
+
+        // Profile photos should be images only
+        $allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp'];
+        
+        if (!in_array($mimeType, $allowedMimeTypes)) {
+            return response()->json(['message' => 'Invalid file type'], 422);
+        }
+
+        return response($fileContents)
+            ->header('Content-Type', $mimeType)
+            ->header('Content-Disposition', 'inline; filename="profile_' . $userId . '.' . pathinfo($filePath, PATHINFO_EXTENSION) . '"')
+            ->header('Cache-Control', 'public, max-age=86400') // Cache for 1 day
+            ->header('X-Content-Type-Options', 'nosniff');
+    }
+}

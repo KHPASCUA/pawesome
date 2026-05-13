@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use App\Services\WorkflowNotifier;
 use App\Models\ActivityLog;
 
@@ -351,8 +352,11 @@ class CustomerStoreController extends Controller
             ], 422);
         }
 
-        // Store uploaded file and set stored path
-        $path = $request->file('payment_proof')->store('payment_proofs', 'public');
+        // Store uploaded file in private storage
+        $originalName = $request->file('payment_proof')->getClientOriginalName();
+        $extension = $request->file('payment_proof')->getClientOriginalExtension();
+        $randomName = 'order_proof_' . time() . '_' . Str::random(10) . '.' . $extension;
+        $path = $request->file('payment_proof')->storeAs('payment-proofs/orders', $randomName, 'private');
 
         $update = [
             'payment_method' => $validated['payment_method'] ?? $order->payment_method,

@@ -23,6 +23,8 @@ class DatabaseSeeder extends Seeder
             CashierTestDataSeeder::class, // Test data for cashier features
             VeterinaryServicesSeeder::class,
             PawesomeLiveDemoSeeder::class,
+            AddOnsSeeder::class, // Seed add-ons with missing items
+            AddOnInventoryMappingSeeder::class, // Map add-ons to inventory items
         ]);
     }
 }

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { inventoryApi } from "../../api/inventory";
+import { normalizeList } from "../../api/client";
 import { apiRequest } from "../../api/client";
 import { formatCurrency } from "../../utils/currency";
 import { exportToCSV } from "../../utils/reportExport";
@@ -30,7 +31,7 @@ const InventoryStock = () => {
       try {
         setLoading(true);
         const response = await inventoryApi.getItems();
-        const apiItems = response.items || response.data || [];
+        const apiItems = normalizeList(response, ["items", "data"]);
         setItems(apiItems);
         setStockError("");
       } catch (err) {
@@ -49,7 +50,7 @@ const InventoryStock = () => {
     const interval = setInterval(async () => {
       try {
         const response = await inventoryApi.getItems();
-        const apiItems = response.items || response.data || [];
+        const apiItems = normalizeList(response, ["items", "data"]);
 
         setItems(apiItems);
         setStockError("");

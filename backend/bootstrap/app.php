@@ -14,7 +14,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->use([\App\Http\Middleware\Cors::class]);
+        $middleware->use([
+            \App\Http\Middleware\Cors::class,
+            \App\Http\Middleware\SecurityHeaders::class,
+        ]);
         $middleware->alias([
             'role' => \App\Http\Middleware\EnsureRole::class,
             'auth.api' => \App\Http\Middleware\ApiTokenAuth::class,

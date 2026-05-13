@@ -156,7 +156,7 @@ class BoardingInventoryService
             ->where('status', 'active')
             ->where('stock', '>', 0)
             ->whereIn('category', ['Food', 'Health', 'Grooming', 'Accessories']) // Boarding relevant categories
-            ->select('id', 'name', 'sku', 'stock', 'unit', 'category', 'brand')
+            ->select('id', 'name', 'sku', 'stock', 'category', 'brand', 'status')
             ->orderBy('name')
             ->get()
             ->map(function ($item) {
@@ -165,9 +165,12 @@ class BoardingInventoryService
                     'name' => $item->name,
                     'sku' => $item->sku,
                     'stock' => $item->stock,
-                    'unit' => $item->unit ?? 'pcs',
+                    'quantity' => $item->stock,
+                    'unit' => 'pcs',
                     'category' => $item->category,
+                    'type' => $item->category,
                     'brand' => $item->brand,
+                    'status' => $item->status,
                 ];
             })
             ->toArray();

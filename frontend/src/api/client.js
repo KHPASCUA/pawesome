@@ -89,11 +89,19 @@ export const apiRequest = async (endpoint, methodOrOptions = "GET", data = null,
 
     
     if (response.status === 401) {
-      clearAuthStorage();
-      if (typeof window !== "undefined" && window.location.pathname !== "/login") {
-        window.location.assign("/login");
+      // Check if this is a login request to show appropriate error message
+      const isLoginRequest = endpoint.includes('/auth/login');
+      
+      if (!isLoginRequest) {
+        clearAuthStorage();
+        if (typeof window !== "undefined" && window.location.pathname !== "/login") {
+          window.location.assign("/login");
+        }
+        throw new Error("Your session expired or you are not logged in. Please log in again.");
+      } else {
+        // For login requests, show invalid credentials message
+        throw new Error("Invalid email/username or password.");
       }
-      throw new Error("Your session expired or you are not logged in. Please log in again.");
     }
 
     if (response.status === 403) {
@@ -115,6 +123,31 @@ export const apiRequest = async (endpoint, methodOrOptions = "GET", data = null,
     console.error("Network/API error:", error);
     throw error;
   }
+};
+
+/**
+ * Normalizes API response to handle different response formats
+ * Prevents "data.map is not a function" errors
+ * @param {*} result - API response object
+ * @param {string[]} keys - Priority keys to check for arrays
+ * @returns {Array} Normalized array
+ */
+export const normalizeList = (result, keys = []) => {
+  if (Array.isArray(result)) return result;
+
+  for (const key of keys) {
+    if (Array.isArray(result?.[key])) return result[key];
+  }
+
+  if (Array.isArray(result?.data)) return result.data;
+  if (Array.isArray(result?.items)) return result.items;
+  if (Array.isArray(result?.orders)) return result.orders;
+  if (Array.isArray(result?.requests)) return result.requests;
+  if (Array.isArray(result?.appointments)) return result.appointments;
+  if (Array.isArray(result?.customers)) return result.customers;
+  if (Array.isArray(result?.pets)) return result.pets;
+
+  return [];
 };
 
 export const uploadProfilePhoto = async (endpoint, formData) => {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   FaPaw,
@@ -11,6 +11,10 @@ import {
 } from "react-icons/fa";
 import "./CustomerBookingForm.css";
 import { apiRequest } from "../../api/client";
+import {
+  validateServiceCompatibility,
+  getSpecialCareWarning,
+} from "../../config/petServiceRules";
 
 const CustomerBookingForm = () => {
   const navigate = useNavigate();
@@ -34,12 +38,34 @@ const CustomerBookingForm = () => {
     preferred_date: "",
     preferred_time: "",
     notes: "",
+    check_in_date: "",
+    check_out_date: "",
+    boarding_room_id: "",
   });
 
   const [pets, setPets] = useState([]);
   const [selectedPetId, setSelectedPetId] = useState("");
   const [loading, setLoading] = useState(false);
   const [petsLoading, setPetsLoading] = useState(false);
+  const [availableRooms, setAvailableRooms] = useState([]);
+  const [roomsLoading, setRoomsLoading] = useState(false);
+  const [selectedPet, setSelectedPet] = useState(null);
+
+  const compatibilityServiceType =
+    formData.service_type === "hotel"
+      ? "petHotel"
+      : formData.service_type === "vet"
+        ? "veterinary"
+        : "grooming";
+  const compatibility = selectedPet
+    ? validateServiceCompatibility(selectedPet.species || selectedPet.type, compatibilityServiceType)
+    : null;
+  const serviceEligibilityMessage = selectedPet
+    ? (
+        compatibility?.message ||
+        getSpecialCareWarning(selectedPet.species || selectedPet.type, compatibilityServiceType)
+      )
+    : "";
 
   // Business hours configuration
   const SHOP_OPEN = "09:00";
@@ -101,6 +127,36 @@ const CustomerBookingForm = () => {
     }
   };
 
+  // Load available rooms for selected pet and dates
+  const loadAvailableRooms = useCallback(async () => {
+    if (!selectedPetId || !formData.check_in_date || !formData.check_out_date) {
+      setAvailableRooms([]);
+      return;
+    }
+
+    try {
+      setRoomsLoading(true);
+      const params = new URLSearchParams({
+        pet_id: selectedPetId,
+        check_in_date: formData.check_in_date,
+        check_out_date: formData.check_out_date,
+      });
+
+      const result = await apiRequest(`/boarding/rooms/available?${params}`);
+      
+      if (result.success && result.rooms) {
+        setAvailableRooms(result.rooms);
+      } else {
+        setAvailableRooms([]);
+      }
+    } catch (error) {
+      console.error("Failed to load available rooms:", error);
+      setAvailableRooms([]);
+    } finally {
+      setRoomsLoading(false);
+    }
+  }, [selectedPetId, formData.check_in_date, formData.check_out_date]);
+
   useEffect(() => {
     // Check if user is authenticated
     if (!token) {
@@ -111,6 +167,13 @@ const CustomerBookingForm = () => {
 
     loadPets();
   }, [token, navigate]);
+
+  // Load available rooms when pet or dates change for hotel bookings
+  useEffect(() => {
+    if (formData.service_type === "hotel" && selectedPetId && formData.check_in_date && formData.check_out_date) {
+      loadAvailableRooms();
+    }
+  }, [selectedPetId, formData.check_in_date, formData.check_out_date, formData.service_type, loadAvailableRooms]);
 
   const serviceOptions = {
     grooming: "Grooming",
@@ -133,10 +196,20 @@ const CustomerBookingForm = () => {
     if (name === "pet_id") {
       setSelectedPetId(value);
       const selectedPet = pets.find((pet) => String(pet.id) === String(value));
+      setSelectedPet(selectedPet);
       setFormData((prev) => ({
         ...prev,
         pet_id: value,
         pet_name: selectedPet?.name || "",
+        boarding_room_id: "", // Reset room when pet changes
+      }));
+      return;
+    }
+
+    if (name === "boarding_room_id") {
+      setFormData((prev) => ({
+        ...prev,
+        boarding_room_id: value,
       }));
       return;
     }
@@ -153,6 +226,11 @@ const CustomerBookingForm = () => {
     // Ensure a pet is selected
     if (!formData.pet_id) {
       alert("Please select a pet for this service request.");
+      return;
+    }
+
+    if (compatibility && !compatibility.isValid) {
+      alert(serviceEligibilityMessage || "This service is not available for this pet species.");
       return;
     }
 
@@ -177,6 +255,18 @@ const CustomerBookingForm = () => {
         special_request: formData.notes || "",
       };
 
+      // Add room selection data for hotel bookings
+      if (formData.service_type === "hotel" && formData.boarding_room_id) {
+        const selectedRoom = availableRooms.find(room => String(room.id) === String(formData.boarding_room_id));
+        if (selectedRoom) {
+          payload.boarding_room_id = selectedRoom.id;
+          payload.room_name = selectedRoom.room_name;
+          payload.daily_rate = selectedRoom.daily_rate;
+        }
+        payload.check_in_date = formData.check_in_date;
+        payload.check_out_date = formData.check_out_date;
+      }
+
       console.log("BOOKING PAYLOAD:", payload);
 
       const data = await apiRequest("/customer/requests", {
@@ -197,6 +287,9 @@ const CustomerBookingForm = () => {
           preferred_date: "",
           preferred_time: "",
           notes: "",
+          check_in_date: "",
+          check_out_date: "",
+          boarding_room_id: "",
         });
         setSelectedPetId("");
       } else {
@@ -298,40 +391,114 @@ const CustomerBookingForm = () => {
               </div>
             </label>
 
-            <label>
-              Preferred Date
-              <div className="input-icon">
-                <FaCalendarAlt />
-                <input
-                  type="date"
-                  name="preferred_date"
-                  value={formData.preferred_date}
-                  min={new Date().toISOString().split("T")[0]}
-                  onChange={handleChange}
-                  required
-                />
+            {selectedPet && serviceEligibilityMessage && (
+              <div
+                className={`service-eligibility-message ${compatibility?.isValid ? "info" : "error"}`}
+              >
+                {serviceEligibilityMessage}
               </div>
-            </label>
+            )}
 
-            <label>
-              Preferred Time
-              <div className="select-wrapper">
-                <FaClock />
-                <select
-                  name="preferred_time"
-                  value={formData.preferred_time}
-                  onChange={handleChange}
-                  required
-                >
-                  <option value="">Select available time</option>
-                  {availableTimeSlots.map((slot) => (
-                    <option key={slot.value} value={slot.value}>
-                      {slot.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </label>
+            {formData.service_type === "hotel" && (
+              <>
+                <label>
+                  Check-in Date
+                  <div className="input-icon">
+                    <FaCalendarAlt />
+                    <input
+                      type="date"
+                      name="check_in_date"
+                      value={formData.check_in_date}
+                      min={new Date().toISOString().split("T")[0]}
+                      onChange={handleChange}
+                      required
+                    />
+                  </div>
+                </label>
+
+                <label>
+                  Check-out Date
+                  <div className="input-icon">
+                    <FaCalendarAlt />
+                    <input
+                      type="date"
+                      name="check_out_date"
+                      value={formData.check_out_date}
+                      min={formData.check_in_date || new Date().toISOString().split("T")[0]}
+                      onChange={handleChange}
+                      required
+                    />
+                  </div>
+                </label>
+
+                <label>
+                  Room Selection
+                  {roomsLoading ? (
+                    <div className="loading-rooms">Loading available rooms...</div>
+                  ) : availableRooms.length === 0 ? (
+                    <div className="no-rooms-message">
+                      <p>No specialized boarding room is available for this pet species. Please contact receptionist for manual assistance.</p>
+                    </div>
+                  ) : (
+                    <select
+                      name="boarding_room_id"
+                      value={formData.boarding_room_id}
+                      onChange={handleChange}
+                      required
+                    >
+                      <option value="">Select available room</option>
+                      {availableRooms.map((room) => (
+                        <option key={room.id} value={room.id}>
+                          {room.room_name} ({room.available_rooms} available) - ₱{room.daily_rate}/day
+                          {room.allowed_species && room.allowed_species.length > 0 && (
+                            <span> - For: {room.allowed_species.join(", ")}</span>
+                          )}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </label>
+              </>
+            )}
+
+            {formData.service_type !== "hotel" && (
+              <>
+                <label>
+                  Preferred Date
+                  <div className="input-icon">
+                    <FaCalendarAlt />
+                    <input
+                      type="date"
+                      name="preferred_date"
+                      value={formData.preferred_date}
+                      min={new Date().toISOString().split("T")[0]}
+                      onChange={handleChange}
+                      required
+                    />
+                  </div>
+                </label>
+
+                <label>
+                  Preferred Time
+                  <div className="select-wrapper">
+                    <FaClock />
+                    <select
+                      name="preferred_time"
+                      value={formData.preferred_time}
+                      onChange={handleChange}
+                      required
+                    >
+                      <option value="">Select available time</option>
+                      {availableTimeSlots.map((slot) => (
+                        <option key={slot.value} value={slot.value}>
+                          {slot.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </label>
+              </>
+            )}
 
             <label className="full-width">
               Notes / Special Request
@@ -348,7 +515,7 @@ const CustomerBookingForm = () => {
           <button 
             className="submit-booking-btn" 
             type="submit" 
-            disabled={loading || pets.length === 0}
+            disabled={loading || pets.length === 0 || (compatibility && !compatibility.isValid)}
           >
             <FaPaperPlane />
             {loading ? "Submitting..." : "Submit Booking Request"}

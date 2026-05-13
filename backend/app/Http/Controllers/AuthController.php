@@ -217,8 +217,8 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => 'Profile photo uploaded successfully',
-            'profile_photo' => asset('storage/' . $path),
-            'url' => asset('storage/' . $path),
+            'profile_photo' => "/api/files/profile-photos/{$user->id}/view",
+            'url' => "/api/files/profile-photos/{$user->id}/view",
             'user' => $user,
         ]);
     }

@@ -91,6 +91,7 @@ class NotificationService
                         "Check-in: {$boarding->check_in->format('M d, Y')}",
             'checked_in' => "Your pet has been checked in. Enjoy their stay!",
             'checked_out' => "Your pet has been checked out. Thank you for choosing us!",
+            'completed' => "Your pet's hotel stay has been completed. Thank you for choosing us!",
             'cancelled' => "Your hotel reservation has been cancelled.",
         ];
 
@@ -100,6 +101,7 @@ class NotificationService
             'confirmed' => 'success',
             'checked_in' => 'success',
             'checked_out' => 'success',
+            'completed' => 'success',
             'cancelled' => 'error',
             default => 'info',
         };

@@ -1,5 +1,6 @@
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { inventoryApi } from "../../api/inventory";
+import { normalizeList } from "../../api/client";
 import AddProductModal from "./AddProductModal";
 import PremiumToast from "../shared/PremiumToast";
 import DeleteConfirmModal from "../shared/DeleteConfirmModal";
@@ -50,7 +51,7 @@ const InventoryProducts = () => {
       if (showLoading) setLoading(true);
       
       const response = await inventoryApi.getItems();
-      const apiItems = response.items || response.data || [];
+      const apiItems = normalizeList(response, ["items", "data"]);
       
       setItems(apiItems);
       return true; // Success

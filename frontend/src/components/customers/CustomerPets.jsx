@@ -20,11 +20,21 @@ import {
 } from "react-icons/fa";
 import "./CustomerPets.css";
 import { apiRequest } from "../../api/client";
+import {
+  getSpeciesOptions,
+  getBreedOptions,
+  isManualSpeciesRequired,
+  isManualBreedRequired,
+  resolveFinalSpecies,
+  resolveFinalBreed
+} from "../../config/petSpeciesConfig";
 
 const initialForm = (customerEmail) => ({
   name: "",
   species: "",
   breed: "",
+  manualSpecies: "",
+  manualBreed: "",
   age: "",
   gender: "",
   notes: "",
@@ -178,7 +188,7 @@ const CustomerPets = () => {
 
   const fetchArchivedPets = useCallback(async () => {
     try {
-      const data = await apiRequest("/pets/archived");
+      const data = await apiRequest("/customer/pets/archived");
       setArchivedPets(safeArray(data));
     } catch (error) {
       console.error("Failed to load archived pets:", error);
@@ -214,11 +224,12 @@ const CustomerPets = () => {
   }, [pets]);
 
   const speciesOptions = useMemo(() => {
-    return pets
-      .map((pet) => getPetSpecies(pet))
-      .filter(Boolean)
-      .filter((value, index, array) => array.indexOf(value) === index);
-  }, [pets]);
+    return getSpeciesOptions();
+  }, []);
+
+  const breedOptions = useMemo(() => {
+    return getBreedOptions(formData.species);
+  }, [formData.species]);
 
   const filteredPets = useMemo(() => {
     const keyword = searchTerm.trim().toLowerCase();
@@ -255,6 +266,24 @@ const CustomerPets = () => {
     if (!formData.name.trim()) return "Pet name is required.";
     if (!formData.species) return "Please select pet species.";
 
+    // Validate manual species if required
+    if (isManualSpeciesRequired(formData.species) && !formData.manualSpecies?.trim()) {
+      return "Please specify the species when 'Other' is selected.";
+    }
+
+    // Validate breed selection
+    if (!formData.breed) return "Please select pet breed.";
+
+    // Validate manual breed if required
+    if (isManualBreedRequired(formData.breed) && !formData.manualBreed?.trim()) {
+      return "Please specify the breed when 'Mixed Breed' or 'Other / Not listed' is selected.";
+    }
+
+    // For custom species, manual breed is always required
+    if (isManualSpeciesRequired(formData.species) && !formData.manualBreed?.trim()) {
+      return "Please specify the breed for custom species.";
+    }
+
     if (formData.age && Number(formData.age) < 0) {
       return "Age cannot be negative.";
     }
@@ -265,10 +294,21 @@ const CustomerPets = () => {
   const handleChange = (event) => {
     const { name, value } = event.target;
 
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    // If species changes, reset breed and manual values
+    if (name === "species") {
+      setFormData((prev) => ({
+        ...prev,
+        [name]: value,
+        breed: "",
+        manualBreed: "",
+        manualSpecies: value === "Other" ? prev.manualSpecies : "",
+      }));
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        [name]: value,
+      }));
+    }
 
     if (message.text) setMessage({ type: "", text: "" });
   };
@@ -292,8 +332,8 @@ const CustomerPets = () => {
 
       const payload = {
         name: formData.name?.trim(),
-        species: formData.species,
-        breed: formData.breed?.trim() || null,
+        species: resolveFinalSpecies(formData.species, formData.manualSpecies),
+        breed: resolveFinalBreed(formData.breed, formData.manualBreed),
         age: formData.age ? Number(formData.age) : null,
         gender: formData.gender || null,
         notes: formData.notes?.trim() || null,
@@ -343,6 +383,7 @@ const CustomerPets = () => {
       });
 
       await fetchPets({ silent: true });
+      await fetchArchivedPets();
       showMessage("success", "Pet archived successfully.");
     } catch (error) {
       console.error("Failed to archive pet:", error);
@@ -514,23 +555,65 @@ const CustomerPets = () => {
                 required
               >
                 <option value="">Select Species</option>
-                <option value="Dog">Dog</option>
-                <option value="Cat">Cat</option>
-                <option value="Rabbit">Rabbit</option>
-                <option value="Bird">Bird</option>
-                <option value="Other">Other</option>
+                {speciesOptions.map((species) => (
+                  <option key={species} value={species}>
+                    {species}
+                  </option>
+                ))}
               </select>
             </label>
 
-            <label>
-              Breed
-              <input
-                name="breed"
-                placeholder="Example: Shih Tzu"
-                value={formData.breed}
-                onChange={handleChange}
-              />
-            </label>
+            {/* Manual species input for "Other" species */}
+            {isManualSpeciesRequired(formData.species) && (
+              <label>
+                Species Details <small>*</small>
+                <input
+                  name="manualSpecies"
+                  placeholder="Enter species (e.g., Ferret, Turtle, etc.)"
+                  value={formData.manualSpecies}
+                  onChange={handleChange}
+                  required
+                />
+              </label>
+            )}
+
+            {/* Breed selection */}
+            {formData.species && !isManualSpeciesRequired(formData.species) && (
+              <label>
+                Breed <small>*</small>
+                <select
+                  name="breed"
+                  value={formData.breed}
+                  onChange={handleChange}
+                  required
+                >
+                  <option value="">Select breed</option>
+                  {breedOptions.map((breed) => (
+                    <option key={breed} value={breed}>
+                      {breed}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+
+            {/* Manual breed input for "Others" breed or custom species */}
+            {(isManualBreedRequired(formData.breed) || isManualSpeciesRequired(formData.species)) && (
+              <label>
+                Breed Details <small>*</small>
+                <input
+                  name="manualBreed"
+                  placeholder={
+                    isManualSpeciesRequired(formData.species)
+                      ? "Enter breed or type"
+                      : "Enter breed (e.g., African Grey, Flowerhorn, etc.)"
+                  }
+                  value={formData.manualBreed}
+                  onChange={handleChange}
+                  required
+                />
+              </label>
+            )}
 
             <div className="pets-form-row">
               <label>

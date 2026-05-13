@@ -12,7 +12,7 @@ const VetCustomerProfiles = lazy(() => import("../components/veterinary/VetCusto
 const VetReports = lazy(() => import("../components/veterinary/VetReports"));
 const VetReceipt = lazy(() => import("../components/veterinary/VetReceipt"));
 const ProfileSettings = lazy(() => import("../components/shared/ProfileSettings"));
-const VetCurrentBoarders = lazy(() => import("../components/veterinary/VetCurrentBoarders"));
+const VetCurrentBoarders = lazy(() => import("../components/veterinary/VeterinaryCurrentBoarders"));
 const VetMedicalConfinements = lazy(() => import("../components/veterinary/VetMedicalConfinements"));
 
 const RouteLoading = () => (
