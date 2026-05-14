@@ -10,6 +10,7 @@ use App\Models\ActivityLog;
 use App\Models\User;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 class InventoryService
@@ -437,9 +438,8 @@ class InventoryService
 
             $item = $item->fresh();
             if (in_array($referenceType, ['vet_usage', 'grooming_usage', 'boarding_food_usage'], true)) {
-                InventoryLog::create([
+                $logData = [
                     'inventory_item_id' => $itemId,
-                    'batch_id' => $batch->id,
                     'delta' => $quantity,
                     'quantity' => $quantity,
                     'type' => 'restock',
@@ -454,7 +454,15 @@ class InventoryService
                     'performed_by' => auth()->user()?->name,
                     'role' => auth()->user()?->role,
                     'user_id' => auth()->id(),
-                ]);
+                ];
+
+                if (Schema::hasColumn('inventory_logs', 'batch_id')) {
+                    $logData['batch_id'] = $batch->id;
+                } else {
+                    $logData['details'] = json_encode(['batch_id' => $batch->id]);
+                }
+
+                InventoryLog::create($logData);
             }
             $this->notifyInventoryMovement($item, $quantity, $reason, $referenceType, $referenceId, $stockBefore, $item->stock);
 

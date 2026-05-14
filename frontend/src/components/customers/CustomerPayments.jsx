@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { apiRequest, clearAuthStorage } from "../../api/client";
+import { normalizeList } from "../../utils/normalizeList";
 import "./CustomerPayments.css";
 
 const formatCurrency = (value) =>
@@ -45,18 +46,6 @@ const CustomerPayments = () => {
   const [error, setError] = useState("");
 
   
-  const normalizeList = (data) => {
-    if (Array.isArray(data)) return data;
-    if (Array.isArray(data?.data)) return data.data;
-    if (Array.isArray(data?.data?.data)) return data.data.data;
-    if (Array.isArray(data?.requests)) return data.requests;
-    if (Array.isArray(data?.service_requests)) return data.service_requests;
-    if (Array.isArray(data?.grooming_requests)) return data.grooming_requests;
-    if (Array.isArray(data?.orders)) return data.orders;
-    if (Array.isArray(data?.records)) return data.records;
-    return [];
-  };
-
   const fetchPayments = async () => {
     try {
       setLoading(true);
@@ -76,8 +65,14 @@ const CustomerPayments = () => {
         "GET"
       );
 
-      const requests = normalizeList(requestsResult);
-      const orders = normalizeList(ordersResult);
+      const boardingsResult = await apiRequest(
+        "/customer/boarding-requests",
+        "GET"
+      );
+
+      const requests = normalizeList(requestsResult, ["requests", "service_requests"]);
+      const orders = normalizeList(ordersResult, ["orders"]);
+      const boardings = normalizeList(boardingsResult, ["boarding_requests", "boardings"]);
 
       // Process service requests
       const payableRequests = requests
@@ -148,7 +143,43 @@ const CustomerPayments = () => {
           items: order.items || [],
         }));
 
-      const allPayments = [...payableRequests, ...payableOrders];
+      const payableBoardings = boardings
+        .filter((boarding) => {
+          const status = String(boarding.status || "").toLowerCase();
+          const paymentStatus = String(boarding.payment_status || "unpaid").toLowerCase();
+
+          return (
+            ["approved", "scheduled"].includes(status) &&
+            ["unpaid", "pending", "rejected", "paid"].includes(paymentStatus)
+          );
+        })
+        .map((boarding) => ({
+          ...boarding,
+          payment_source: "boarding",
+          display_id: `BOARD-${boarding.id}`,
+          display_type: "Pet Hotel / Boarding",
+          display_name:
+            boarding.service_name ||
+            boarding.room?.name ||
+            boarding.hotel_room?.name ||
+            boarding.room_type ||
+            boarding.boarding_type ||
+            "Pet Hotel / Boarding",
+          total_amount: boarding.total_amount || boarding.amount || 0,
+          order_status: boarding.status || "approved",
+          payment_status: boarding.payment_status || "unpaid",
+          pet_name: boarding.pet?.name || boarding.pet_name,
+          customer_name: boarding.customer?.name || boarding.customer_name,
+          created_at: boarding.created_at || boarding.check_in || boarding.request_date,
+          items: [
+            {
+              product_name: "Pet Hotel / Boarding",
+              quantity: 1,
+            },
+          ],
+        }));
+
+      const allPayments = [...payableRequests, ...payableOrders, ...payableBoardings];
       setPayments(allPayments);
     } catch (err) {
       console.error("LOAD CUSTOMER PAYMENTS ERROR:", err);
@@ -196,6 +227,8 @@ const CustomerPayments = () => {
 
       if (payment.payment_source === "service_request") {
         await apiRequest(`/customer/requests/${payment.id}/payment-proof`, "POST", formData);
+      } else if (payment.payment_source === "boarding") {
+        await apiRequest(`/customer/boarding-requests/${payment.id}/payment-proof`, "POST", formData);
       } else {
         await apiRequest(`/customer/store/orders/${payment.id}/payment-proof`, "POST", formData);
       }
@@ -239,6 +272,24 @@ const CustomerPayments = () => {
             `Paid At: ${receipt.paid_at || payment.paid_at || "N/A"}\n` +
             `Verified By: ${receipt.verified_by || "Cashier"}\n` +
             `Remarks: ${receipt.cashier_remarks || payment.cashier_remarks || "None"}`
+        );
+
+        return;
+      }
+
+      if (payment.payment_source === "boarding") {
+        if (!payment.receipt_number) {
+          throw new Error("Boarding receipt is not available yet.");
+        }
+
+        alert(
+          `Receipt ${payment.receipt_number}\n` +
+            `Boarding #${payment.id}\n` +
+            `Pet: ${payment.pet_name || "N/A"}\n` +
+            `Amount: ${formatCurrency(payment.total_amount)}\n` +
+            `Paid At: ${payment.paid_at || "N/A"}\n` +
+            `Verified By: ${payment.verified_by || "Cashier"}\n` +
+            `Remarks: ${payment.cashier_remarks || "None"}`
         );
 
         return;
@@ -371,6 +422,8 @@ const CustomerPayments = () => {
                         <span className="payment-method-badge">
                           {payment.payment_source === "service_request"
                             ? "Service"
+                            : payment.payment_source === "boarding"
+                              ? "Boarding"
                             : "Store"}
                         </span>
                       </td>

@@ -205,13 +205,28 @@ class ServiceBillingService
     public static function markBaseServiceAsPaid(string $serviceType, int $serviceId, ?int $verifiedBy = null, ?string $receiptNumber = null): array
     {
         return DB::transaction(function () use ($serviceType, $serviceId, $verifiedBy, $receiptNumber) {
-            ServiceItemUsage::where('service_type', $serviceType)
+            $baseItems = ServiceItemUsage::where('service_type', $serviceType)
                 ->where('service_id', $serviceId)
                 ->where('item_type', ServiceItemUsage::ITEM_BASE_SERVICE)
-                ->where('is_billable', true)
-                ->update([
-                    'is_paid' => true,
-                ]);
+                ->where('is_billable', true);
+
+            if (!$baseItems->exists()) {
+                return [
+                    'items' => collect(),
+                    'total_bill' => null,
+                    'total_paid' => null,
+                    'balance_due' => null,
+                    'has_unpaid_balance' => null,
+                    'base_amount' => null,
+                    'additional_charges' => null,
+                    'payment_status' => null,
+                    'message' => 'No base service billing item exists; payment fields were verified without recalculating service totals.',
+                ];
+            }
+
+            $baseItems->update([
+                'is_paid' => true,
+            ]);
 
             return self::syncServicePaymentState($serviceType, $serviceId, [
                 'verified_by' => $verifiedBy,
