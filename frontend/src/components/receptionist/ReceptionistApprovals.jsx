@@ -48,6 +48,8 @@ const normalizeList = (result, keys = []) => {
 
   if (Array.isArray(result?.data)) return result.data;
   if (Array.isArray(result?.data?.data)) return result.data.data;
+  if (Array.isArray(result?.boardings)) return result.boardings;
+  if (Array.isArray(result?.boarding_requests)) return result.boarding_requests;
   if (Array.isArray(result?.requests)) return result.requests;
   if (Array.isArray(result?.service_requests)) return result.service_requests;
   if (Array.isArray(result?.pending_requests)) return result.pending_requests;
@@ -211,6 +213,27 @@ const getTypeIcon = (type) => {
   return <FaPaw />;
 };
 
+const normalizeBoardingApproval = (boarding) => ({
+  ...boarding,
+  approval_source: "boarding",
+  request_type: "hotel_boarding",
+  service_type: "hotel_boarding",
+  type: "hotel_boarding",
+  service_name: boarding.service_name || "Pet Hotel / Boarding",
+  request_date: boarding.check_in || boarding.check_in_date || boarding.created_at,
+  request_time: boarding.check_in_time,
+  date: boarding.check_in || boarding.check_in_date,
+  time: boarding.check_in_time,
+  pet_name: boarding.pet_name || boarding.pet?.name,
+  customer_name: boarding.customer_name || boarding.customer?.name,
+  customer_email: boarding.customer_email || boarding.customer?.email,
+  notes:
+    boarding.special_requests ||
+    boarding.feeding_instructions ||
+    boarding.medication_notes ||
+    boarding.notes,
+});
+
 const ReceptionistApprovals = () => {
   const [requests, setRequests] = useState([]);
   const [veterinarians, setVeterinarians] = useState([]);
@@ -262,9 +285,10 @@ const ReceptionistApprovals = () => {
         setLoading(true);
       }
 
-      const result = await apiRequest("/receptionist/requests/pending", {
-        method: "GET",
-      });
+      const [result, boardingResult] = await Promise.all([
+        apiRequest("/receptionist/requests/pending", { method: "GET" }),
+        apiRequest("/receptionist/boarding-requests/pending", { method: "GET" }),
+      ]);
 
       const list = normalizeList(result, [
         "requests",
@@ -272,8 +296,13 @@ const ReceptionistApprovals = () => {
         "pending_requests",
         "data",
       ]);
+      const boardings = normalizeList(boardingResult, [
+        "boarding_requests",
+        "boardings",
+        "data",
+      ]).map(normalizeBoardingApproval);
 
-      setRequests(Array.isArray(list) ? list : []);
+      setRequests([...(Array.isArray(list) ? list : []), ...boardings]);
       setLastUpdated(new Date().toLocaleString("en-PH"));
     } catch (err) {
       console.error("Failed to load approvals:", err);
@@ -404,6 +433,7 @@ const ReceptionistApprovals = () => {
 
     const requestId = getRequestId(selectedRequest);
     const vetRequest = isVetRequest(selectedRequest);
+    const hotelRequest = getRequestType(selectedRequest) === "hotel";
     const veterinarianId = actionForm.veterinarianId || vetAssignments[requestId];
 
     if (vetRequest && !veterinarianId) {
@@ -423,10 +453,15 @@ const ReceptionistApprovals = () => {
         payload.veterinarian_id = Number(veterinarianId);
       }
 
-      const response = await apiRequest(`/receptionist/requests/${requestId}/approve`, {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
+      await apiRequest(
+        hotelRequest
+          ? `/receptionist/boarding-requests/${requestId}/approve`
+          : `/receptionist/requests/${requestId}/approve`,
+        {
+          method: "POST",
+          body: JSON.stringify(payload),
+        }
+      );
 
       setVetAssignments((current) => {
         const next = { ...current };
@@ -460,6 +495,7 @@ const ReceptionistApprovals = () => {
 
     const requestId = getRequestId(selectedRequest);
     const reason = actionForm.rejectionReason.trim();
+    const hotelRequest = getRequestType(selectedRequest) === "hotel";
 
     if (!reason) {
       showMessage("error", "Rejection reason is required.");
@@ -469,13 +505,18 @@ const ReceptionistApprovals = () => {
     try {
       setProcessingId(requestId);
 
-      await apiRequest(`/receptionist/requests/${requestId}/reject`, {
-        method: "POST",
-        body: JSON.stringify({
-          rejection_reason: reason,
-          receptionist_remarks: actionForm.remarks.trim() || reason,
-        }),
-      });
+      await apiRequest(
+        hotelRequest
+          ? `/receptionist/boarding-requests/${requestId}/reject`
+          : `/receptionist/requests/${requestId}/reject`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            rejection_reason: reason,
+            receptionist_remarks: actionForm.remarks.trim() || reason,
+          }),
+        }
+      );
 
       showMessage("success", "Request rejected successfully.");
       closeActionModal();

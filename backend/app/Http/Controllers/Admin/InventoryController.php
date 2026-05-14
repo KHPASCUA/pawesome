@@ -192,6 +192,28 @@ class InventoryController extends Controller
                 'archive_reason' => null,
             ]);
 
+            InventoryLog::create([
+                'inventory_item_id' => $item->id,
+                'delta' => 0,
+                'quantity' => 0,
+                'type' => 'restore',
+                'movement_type' => 'restore',
+                'reason' => 'Item restored from archive',
+                'reference_type' => 'restore',
+                'stock_before' => $item->stock,
+                'stock_after' => $item->stock,
+                'previous_stock' => $item->stock,
+                'new_stock' => $item->stock,
+                'performed_by' => auth()->user()?->name,
+                'role' => auth()->user()?->role,
+                'user_id' => auth()->id(),
+                'details' => json_encode([
+                    'restored_at' => now()->toIso8601String(),
+                    'previous_status' => 'archived',
+                    'new_status' => 'active',
+                ]),
+            ]);
+
             // Log the unarchiving action
             ActivityLog::create([
                 'user_id' => auth()->id(),
@@ -223,18 +245,33 @@ class InventoryController extends Controller
      */
     public function adjustStock(Request $request, $id)
     {
+        $validated = $request->validate([
+            'type' => 'nullable|in:add,remove,set,increment,decrement',
+            'adjustment_type' => 'nullable|in:increment,decrement,set,add,remove',
+            'quantity' => 'required|integer|min:1',
+            'reason' => 'required|string|max:255',
+            'expiration_date' => 'nullable|date',
+        ]);
+
+        $type = $validated['adjustment_type'] ?? $validated['type'] ?? 'increment';
+        $type = match ($type) {
+            'add' => 'increment',
+            'remove' => 'decrement',
+            default => $type,
+        };
+
         try {
             $result = $this->inventoryService->adjustStock(
                 $id,
-                $request->quantity,
-                $request->reason,
+                (int) $validated['quantity'],
+                $validated['reason'],
                 [
-                    'type' => $request->type,
-                    'previous' => $request->previous,
-                    'new' => $request->new,
-                    'performed_by' => $request->performed_by,
-                    'role' => $request->role,
-                    'user_id' => $request->user_id,
+                    'adjustment_type' => $type,
+                    'type' => $type,
+                    'performed_by' => $request->user()?->name,
+                    'role' => $request->user()?->role,
+                    'user_id' => $request->user()?->id,
+                    'expiration_date' => $validated['expiration_date'] ?? null,
                 ]
             );
             return response()->json($result);

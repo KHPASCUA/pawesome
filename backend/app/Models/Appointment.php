@@ -12,14 +12,17 @@ class Appointment extends Model
     protected $fillable = [
         'customer_id', 'pet_id', 'service_id', 'veterinarian_id', 'status',
         'scheduled_at', 'started_at', 'completed_at', 'price', 'payment_status',
-        'consultation_fee', 'notes', 'diagnosis', 'treatment_notes', 'prescription',
-        'vet_remarks', 'cancellation_reason'
+        'consultation_fee', 'base_amount', 'additional_charges', 'total_amount',
+        'amount_paid', 'balance_due', 'receipt_number', 'paid_at', 'verified_by',
+        'notes', 'diagnosis', 'treatment_notes', 'prescription',
+        'vet_remarks', 'cashier_remarks', 'cancellation_reason'
     ];
 
     protected $casts = [
         'scheduled_at' => 'datetime',
         'started_at' => 'datetime',
         'completed_at' => 'datetime',
+        'paid_at' => 'datetime',
         'reminder_sent_at' => 'datetime',
     ];
 

@@ -8,10 +8,12 @@ use App\Models\InventoryLog;
 use App\Models\InventoryBatch;
 use App\Models\User;
 use App\Models\Appointment;
+use App\Models\Grooming;
 use App\Models\GroomingAppointment;
 use App\Models\Boarding;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
 
 class ServiceBillingService
 {
@@ -37,73 +39,13 @@ class ServiceBillingService
                 throw new \Exception('You are not authorized to add billing items to this service');
             }
 
-            // Apply critical billing integrity fix
             if ($itemType === 'inventory_usage') {
-                // Only inventory_usage type should use actual inventory references
-                $inventoryItemId = !empty($data['inventory_item_id']) ? (int) $data['inventory_item_id'] : null;
-                $batchId = !empty($data['batch_id']) ? (int) $data['batch_id'] : null;
-                
-                // This is actual inventory usage - validate stock and deduct
-                if (!$inventoryItemId) {
-                    throw new \Exception('Inventory item ID is required for inventory usage');
-                }
-
-                $inventoryItem = InventoryItem::find($inventoryItemId);
-                if (!$inventoryItem) {
-                    throw new \Exception('Inventory item not found');
-                }
-
-                if ($inventoryItem->stock < $quantity) {
-                    throw new \Exception("Insufficient stock for {$inventoryItem->name}. Available: {$inventoryItem->stock}, Required: {$quantity}");
-                }
-
-                // Find appropriate batch (FIFO)
-                $batch = InventoryBatch::where('inventory_item_id', $inventoryItemId)
-                    ->where('remaining_quantity', '>', 0)
-                    ->orderBy('created_at', 'asc')
-                    ->first();
-
-                if (!$batch || $batch->remaining_quantity < $quantity) {
-                    throw new \Exception("Insufficient stock in available batches for {$inventoryItem->name}");
-                }
-
-                $batchId = $batch->id;
-
-                // Deduct from batch
-                $batch->remaining_quantity -= $quantity;
-                $batch->save();
-
-                // Update inventory item stock
-                $inventoryItem->stock -= $quantity;
-                $inventoryItem->save();
-
-                // Create inventory log
-                $movementType = self::getInventoryMovementType($serviceType);
-                InventoryLog::create([
-                    'inventory_item_id' => $inventoryItemId,
-                    'delta' => -$quantity,
-                    'reason' => "Used for {$serviceType} service #{$serviceId}: {$description}",
-                    'reference_type' => 'service_item_usage',
-                    'movement_type' => $movementType,
-                    'quantity' => $quantity,
-                    'stock_before' => $inventoryItem->stock + $quantity,
-                    'stock_after' => $inventoryItem->stock,
-                    'performed_by' => $addedBy,
-                    'role' => Auth::user()?->role ?? 'unknown',
-                    'user_id' => $addedBy,
-                    'details' => json_encode([
-                        'service_type' => $serviceType,
-                        'service_id' => $serviceId,
-                        'batch_id' => $batch->id,
-                        'description' => $description
-                    ])
-                ]);
-            } else {
-                // For all billing fee types (base_service, add_on_service, professional_fee, service_fee)
-                // Force inventory_item_id and batch_id to NULL - no fake inventory references
-                $inventoryItemId = null;
-                $batchId = null;
+                throw new \Exception('Record inventory usage through the service inventory usage form. Billing items should not deduct stock directly.');
             }
+
+            // For all billing fee types (base_service, add_on_service, manual_charge, discount)
+            $inventoryItemId = null;
+            $batchId = null;
 
             // Create service billing item
             $billingItem = ServiceItemUsage::create([
@@ -125,9 +67,12 @@ class ServiceBillingService
                 'is_paid' => false,
             ]);
 
+            $summary = self::syncServicePaymentState($serviceType, $serviceId);
+
             return [
                 'success' => true,
                 'billing_item' => $billingItem,
+                'billing' => $summary,
                 'message' => 'Billing item added successfully'
             ];
         });
@@ -138,18 +83,7 @@ class ServiceBillingService
      */
     public static function getItemizedBilling(string $serviceType, int $serviceId): array
     {
-        $items = ServiceItemUsage::getItemizedBilling($serviceType, $serviceId);
-        $totalBill = ServiceItemUsage::calculateTotalBill($serviceType, $serviceId);
-        $totalPaid = ServiceItemUsage::calculateTotalPaid($serviceType, $serviceId);
-        $balanceDue = $totalBill - $totalPaid;
-
-        return [
-            'items' => $items,
-            'total_bill' => $totalBill,
-            'total_paid' => $totalPaid,
-            'balance_due' => $balanceDue,
-            'has_unpaid_balance' => $balanceDue > 0
-        ];
+        return self::syncServicePaymentState($serviceType, $serviceId);
     }
 
     /**
@@ -158,16 +92,131 @@ class ServiceBillingService
     public static function markItemsAsPaid(array $itemIds, int $verifiedBy): array
     {
         return DB::transaction(function () use ($itemIds, $verifiedBy) {
+            $items = ServiceItemUsage::whereIn('id', $itemIds)
+                ->where('is_billable', true)
+                ->where('is_paid', false)
+                ->get();
+
             $updated = ServiceItemUsage::whereIn('id', $itemIds)
                 ->where('is_billable', true)
                 ->where('is_paid', false)
                 ->update(['is_paid' => true]);
 
+            $summaries = [];
+            foreach ($items->groupBy(fn ($item) => $item->service_type . ':' . $item->service_id) as $groupedItems) {
+                $first = $groupedItems->first();
+                if ($first) {
+                    $summaries[] = self::syncServicePaymentState($first->service_type, (int) $first->service_id, [
+                        'verified_by' => $verifiedBy,
+                    ]);
+                }
+            }
+
             return [
                 'success' => true,
                 'items_updated' => $updated,
+                'services' => $summaries,
                 'message' => "Marked {$updated} items as paid"
             ];
+        });
+    }
+
+    public static function finalizeServiceBill(string $serviceType, int $serviceId): array
+    {
+        $billing = self::syncServicePaymentState($serviceType, $serviceId);
+        $completion = self::canCompleteService($serviceType, $serviceId);
+
+        return [
+            'success' => true,
+            'billing' => $billing,
+            'completion_status' => $completion,
+        ];
+    }
+
+    public static function syncServicePaymentState(string $serviceType, int $serviceId, array $metadata = []): array
+    {
+        $items = ServiceItemUsage::where('service_type', $serviceType)
+            ->where('service_id', $serviceId)
+            ->billable()
+            ->with(['inventoryItem', 'user'])
+            ->orderBy('created_at', 'asc')
+            ->get();
+
+        $baseAmount = (float) $items
+            ->where('item_type', ServiceItemUsage::ITEM_BASE_SERVICE)
+            ->sum('total_price');
+        $totalBill = (float) $items->sum('total_price');
+        $totalPaid = (float) $items->where('is_paid', true)->sum('total_price');
+        $balanceDue = max(0, round($totalBill - $totalPaid, 2));
+        $additionalCharges = max(0, round($totalBill - $baseAmount, 2));
+
+        $serviceRecord = self::resolveServiceRecord($serviceType, $serviceId);
+        $currentPaymentStatus = $serviceRecord?->payment_status;
+        $nextPaymentStatus = self::determinePaymentStatus($currentPaymentStatus, $totalBill, $totalPaid, $balanceDue);
+
+        if ($serviceRecord) {
+            $updates = [];
+
+            self::setColumnIfAvailable($serviceRecord, $updates, 'base_amount', $baseAmount);
+            self::setColumnIfAvailable($serviceRecord, $updates, 'additional_charges', $additionalCharges);
+            self::setColumnIfAvailable($serviceRecord, $updates, 'total_amount', $totalBill);
+            self::setColumnIfAvailable($serviceRecord, $updates, 'amount_paid', $totalPaid);
+            self::setColumnIfAvailable($serviceRecord, $updates, 'balance_due', $balanceDue);
+            self::setColumnIfAvailable($serviceRecord, $updates, 'payment_status', $nextPaymentStatus);
+
+            if ($serviceType === ServiceItemUsage::SERVICE_VETERINARY) {
+                self::setColumnIfAvailable($serviceRecord, $updates, 'consultation_fee', $baseAmount);
+                self::setColumnIfAvailable($serviceRecord, $updates, 'price', $totalBill > 0 ? $totalBill : ((float) ($serviceRecord->price ?? 0)));
+            }
+
+            if ($serviceType === ServiceItemUsage::SERVICE_GROOMING) {
+                self::setColumnIfAvailable($serviceRecord, $updates, 'amount', $baseAmount > 0 ? $baseAmount : ((float) ($serviceRecord->amount ?? 0)));
+            }
+
+            if (!empty($metadata['receipt_number'])) {
+                self::setColumnIfAvailable($serviceRecord, $updates, 'receipt_number', $metadata['receipt_number']);
+            }
+
+            if (!empty($metadata['verified_by'])) {
+                self::setColumnIfAvailable($serviceRecord, $updates, 'verified_by', $metadata['verified_by']);
+            }
+
+            if ($nextPaymentStatus === 'paid' && $totalPaid > 0) {
+                self::setColumnIfAvailable($serviceRecord, $updates, 'paid_at', now());
+            }
+
+            if (!empty($updates)) {
+                $serviceRecord->forceFill($updates)->save();
+            }
+        }
+
+        return [
+            'items' => $items->values(),
+            'total_bill' => $totalBill,
+            'total_paid' => $totalPaid,
+            'balance_due' => $balanceDue,
+            'has_unpaid_balance' => $balanceDue > 0,
+            'base_amount' => $baseAmount,
+            'additional_charges' => $additionalCharges,
+            'payment_status' => $nextPaymentStatus,
+        ];
+    }
+
+    public static function markBaseServiceAsPaid(string $serviceType, int $serviceId, ?int $verifiedBy = null, ?string $receiptNumber = null): array
+    {
+        return DB::transaction(function () use ($serviceType, $serviceId, $verifiedBy, $receiptNumber) {
+            ServiceItemUsage::where('service_type', $serviceType)
+                ->where('service_id', $serviceId)
+                ->where('item_type', ServiceItemUsage::ITEM_BASE_SERVICE)
+                ->where('is_billable', true)
+                ->update([
+                    'is_paid' => true,
+                ]);
+
+            return self::syncServicePaymentState($serviceType, $serviceId, [
+                'verified_by' => $verifiedBy,
+                'receipt_number' => $receiptNumber,
+            ]);
         });
     }
 
@@ -213,7 +262,7 @@ class ServiceBillingService
      */
     public static function createBaseServiceItem(string $serviceType, int $serviceId, string $description, float $price, int $petId = null): ServiceItemUsage
     {
-        return ServiceItemUsage::create([
+        $item = ServiceItemUsage::create([
             'service_type' => $serviceType,
             'service_id' => $serviceId,
             'pet_id' => $petId,
@@ -231,6 +280,10 @@ class ServiceBillingService
             'is_billable' => true,
             'is_paid' => false,
         ]);
+
+        self::syncServicePaymentState($serviceType, $serviceId);
+
+        return $item;
     }
 
     /**
@@ -258,14 +311,14 @@ class ServiceBillingService
             ->with(['pet', 'user'])
             ->orderBy('created_at', 'desc')
             ->get()
-            ->groupBy(['service_type', 'service_id']);
+            ->groupBy(fn ($item) => $item->service_type . ':' . $item->service_id);
 
         $services = [];
         foreach ($unpaidItems as $key => $items) {
-            [$serviceType, $serviceId] = explode('.', $key);
+            [$serviceType, $serviceId] = explode(':', $key);
             $serviceId = (int) $serviceId;
             
-            $billing = self::getItemizedBilling($serviceType, $serviceId);
+            $billing = self::syncServicePaymentState($serviceType, $serviceId);
             $service = self::getServiceDetails($serviceType, $serviceId);
             
             if ($service && $billing['balance_due'] > 0) {
@@ -318,13 +371,17 @@ class ServiceBillingService
      */
     private static function getGroomingServiceDetails(int $serviceId): ?array
     {
-        $appointment = GroomingAppointment::find($serviceId);
+        $appointment = Grooming::find($serviceId);
+        if (!$appointment) {
+            $appointment = GroomingAppointment::find($serviceId);
+        }
         if (!$appointment) return null;
 
         return [
             'id' => $appointment->id,
             'type' => 'Grooming Appointment',
-            'pet_name' => $appointment->pet_name,
+            'pet_name' => $appointment->pet?->name ?? $appointment->pet_name,
+            'customer_name' => $appointment->customer?->name,
             'service' => $appointment->service,
             'appointment_date' => $appointment->appointment_date,
             'status' => $appointment->status
@@ -343,10 +400,45 @@ class ServiceBillingService
             'id' => $boarding->id,
             'type' => 'Pet Hotel Boarding',
             'pet_name' => $boarding->pet_name,
+            'customer_name' => $boarding->customer_name ?? $boarding->customer?->name,
             'stay_type' => $boarding->stay_type,
             'check_in' => $boarding->check_in,
             'check_out' => $boarding->check_out,
             'status' => $boarding->status
         ];
+    }
+
+    private static function resolveServiceRecord(string $serviceType, int $serviceId): Appointment|Grooming|Boarding|null
+    {
+        return match ($serviceType) {
+            ServiceItemUsage::SERVICE_VETERINARY => Appointment::find($serviceId),
+            ServiceItemUsage::SERVICE_GROOMING => Grooming::find($serviceId),
+            ServiceItemUsage::SERVICE_BOARDING => Boarding::find($serviceId),
+            default => null,
+        };
+    }
+
+    private static function determinePaymentStatus(?string $currentStatus, float $totalBill, float $totalPaid, float $balanceDue): string
+    {
+        if ($totalBill > 0 && $balanceDue <= 0) {
+            return 'paid';
+        }
+
+        if ($balanceDue > 0 && $totalPaid > 0) {
+            return 'balance_due';
+        }
+
+        if (in_array($currentStatus, ['pending', 'rejected'], true) && $totalPaid <= 0) {
+            return $currentStatus;
+        }
+
+        return $totalBill > 0 ? 'unpaid' : ($currentStatus ?: 'unpaid');
+    }
+
+    private static function setColumnIfAvailable(object $model, array &$updates, string $column, mixed $value): void
+    {
+        if (Schema::hasColumn($model->getTable(), $column)) {
+            $updates[$column] = $value;
+        }
     }
 }

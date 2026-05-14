@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { inventoryApi } from "../../api/inventory";
 import { normalizeList } from "../../api/client";
-import { apiRequest } from "../../api/client";
 import { formatCurrency } from "../../utils/currency";
 import { exportToCSV } from "../../utils/reportExport";
 import StockAdjustmentModal from "./StockAdjustmentModal";
@@ -201,7 +200,7 @@ const InventoryStock = () => {
       { key: "brand", label: "Brand" },
       { key: "supplier", label: "Supplier" },
       { key: "category", label: "Category" },
-      { key: "quantity", label: "Stock Level" },
+      { key: "quantity", label: "Qty" },
       { key: "price", label: "Price" },
       { key: "status", label: "Status" },
       { key: "expiration", label: "Expiration" },
@@ -218,18 +217,6 @@ const InventoryStock = () => {
       return { class: "status-low", label: "Low Stock", icon: "🔔" };
     }
     return { class: "status-good", label: "In Stock", icon: "✅" };
-  };
-
-  // Smart stock color bar - percentage based
-  const getQuantityBar = (quantity) => {
-    const maxStock = 100; // Reference max stock
-    const percentage = Math.min((quantity / maxStock) * 100, 100);
-
-    if (quantity === 0) return { width: "0%", color: "#ef4444", percentage: 0 };
-    if (percentage <= 10) return { width: `${percentage}%`, color: "#ef4444", percentage };
-    if (percentage <= 30) return { width: `${percentage}%`, color: "#f59e0b", percentage };
-    if (percentage <= 60) return { width: `${percentage}%`, color: "#3b82f6", percentage };
-    return { width: `${percentage}%`, color: "#10b981", percentage };
   };
 
   // Top moving products
@@ -249,7 +236,7 @@ const InventoryStock = () => {
     // Refresh items after adjustment
     try {
       const response = await inventoryApi.getItems();
-      const apiItems = response.items || response.data || [];
+      const apiItems = normalizeList(response, ["items", "inventory", "inventory_items", "data"]);
       setItems(apiItems);
     } catch (err) {
       setStockError(err.message || "Failed to refresh live stock records.");
@@ -258,57 +245,6 @@ const InventoryStock = () => {
     setShowAdjustModal(false);
     setSelectedItem(null);
   };
-
-  // Notification helper function
-  const createInventoryNotification = async (item, type) => {
-    try {
-      await apiRequest("/notifications", "POST", {
-        title:
-          type === "out"
-            ? "Out of Stock Alert"
-            : "Low Stock Alert",
-        message:
-          type === "out"
-            ? `${item.name} is out of stock.`
-            : `${item.name} is running low. Current stock: ${getStock(item)}`,
-        module: "Inventory",
-        type,
-        priority: type === "out" ? "high" : "medium",
-        reference_id: item.id,
-      });
-    } catch (error) {
-      console.error("Failed to create inventory notification:", error);
-    }
-  };
-
-  // Auto-notification checker for low/out of stock
-  useEffect(() => {
-    if (!items.length) return;
-
-    const notified = JSON.parse(
-      localStorage.getItem("inventoryNotifiedItems") || "{}"
-    );
-
-    items.forEach((item) => {
-      const quantity = getStock(item);
-
-      if (quantity === 0 && notified[item.id] !== "out") {
-        createInventoryNotification(item, "out");
-        notified[item.id] = "out";
-      }
-
-      if (quantity > 0 && quantity <= 10 && notified[item.id] !== "low") {
-        createInventoryNotification(item, "low");
-        notified[item.id] = "low";
-      }
-
-      if (quantity > 10 && notified[item.id]) {
-        delete notified[item.id];
-      }
-    });
-
-    localStorage.setItem("inventoryNotifiedItems", JSON.stringify(notified));
-  }, [items]);
 
   return (
     <div className="inventory-stock-page polished">
@@ -429,7 +365,6 @@ const InventoryStock = () => {
                   <th></th>
                   <th>Product</th>
                   <th>SKU</th>
-                  <th>Stock Level</th>
                   <th className="numeric">Qty</th>
                   <th>Nearest Expiration</th>
                   <th>Status</th>
@@ -440,7 +375,6 @@ const InventoryStock = () => {
                 {filteredItems.map((item) => {
                   const stockValue = getStock(item);
                   const badge = getStatusBadge(stockValue);
-                  const bar = getQuantityBar(stockValue);
                   const isExpanded = expandedItems.has(item.id);
                   const batches = itemBatches[item.id] || [];
                   const loadingBatch = loadingBatches[item.id];
@@ -478,17 +412,6 @@ const InventoryStock = () => {
                         <td>
                           <code className="sku-code">{item.sku}</code>
                         </td>
-                        <td>
-                          <div className="stock-level">
-                            <div className="stock-bar-bg">
-                              <div 
-                                className="stock-bar-fill" 
-                                style={{ width: bar.width, backgroundColor: bar.color }}
-                              ></div>
-                            </div>
-                            <small className="stock-percentage">{Math.round(bar.percentage)}%</small>
-                          </div>
-                        </td>
                         <td className="numeric">
                           <span className="quantity-value">{stockValue}</span>
                           {batches.length > 0 && (
@@ -524,7 +447,7 @@ const InventoryStock = () => {
                       {/* Batch Details Row */}
                       {isExpanded && (
                         <tr className="batch-row">
-                          <td colSpan="8">
+                          <td colSpan="7">
                             <div className="batch-details">
                               <h4>📦 Batch Inventory (FEFO Order)</h4>
                               {loadingBatch ? (

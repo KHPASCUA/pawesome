@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import styled, { createGlobalStyle, keyframes, css } from "styled-components";
-import { apiRequest } from "../../api/client";
+import { apiRequest, normalizeList } from "../../api/client";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import inventorySync, { eventEmitter } from "../../services/inventorySync";
 import {
@@ -16,7 +16,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 
 /* ─── Constants ────────────────────────────────────────────────── */
-const PRODUCT_ENDPOINT  = "/inventory/sellable";
+const PRODUCT_ENDPOINT  = "/cashier/inventory/sellable";
 const CHECKOUT_ENDPOINT = "/cashier/pos/transaction";
 const TAX_RATE = 0.12;
 
@@ -34,11 +34,16 @@ const fmt = (amount) =>
 
 const normCat = (v) => String(v || "others").trim().toLowerCase();
 
+const toStockNumber = (value) => {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : 0;
+};
+
 const normProduct = (p, i) => ({
   id: p.id || p.product_id || p.item_id || i + 1,
   name: p.name || p.product_name || p.item_name || "Unnamed Product",
   price: Number(p.price || p.selling_price || p.unit_price || 0) || 0,
-  stock: Number(p.stock || p.quantity || p.available_stock || 0) || 0,
+  stock: toStockNumber(p.available_stock ?? p.stock_quantity ?? p.stock ?? p.quantity),
   category: normCat(p.category || p.product_category || p.type),
   image: p.image || p.image_url || p.photo || "",
   barcode: p.barcode || p.sku || p.item_code || "",
@@ -1401,38 +1406,11 @@ const CashierPOS = () => {
     try {
       setLoading(true);
       setError("");
-      console.log("Fetching products from:", PRODUCT_ENDPOINT);
       const response = await apiRequest(PRODUCT_ENDPOINT);
-      console.log("API response received:", response);
-      console.log("Response type:", typeof response, "Is array:", Array.isArray(response));
-      
-      const raw = Array.isArray(response)
-        ? response
-        : response?.products || response?.items || response?.data || [];
-      
-      console.log("Extracted raw products:", raw);
-      console.log("Raw products length:", raw.length);
-      
-      if (raw.length === 0) {
-        console.warn("No products found in API response!");
-      }
-      
-      const normalized = raw.map((p, i) => {
-        const norm = normProduct(p, i);
-        console.log(`Product ${i}:`, { 
-          original: p, 
-          normalized: norm,
-          hasName: !!norm.name,
-          hasImage: !!norm.image,
-          hasStock: norm.stock !== undefined
-        });
-        return norm;
-      });
-      
-      console.log("Setting products state:", normalized);
+      const raw = normalizeList(response, ["products", "items", "data"]);
+      const normalized = raw.map((p, i) => normProduct(p, i));
       setProducts(normalized);
     } catch (err) {
-      console.error("Fetch error details:", err);
       setError(err.message || "Failed to load products");
     } finally {
       setLoading(false);

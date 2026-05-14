@@ -32,7 +32,7 @@ class MedicalRecordController extends Controller
     private function vetCanUseAppointment(Request $request, Appointment $appointment): bool
     {
         return (int) $appointment->veterinarian_id === (int) $request->user()->id
-            && in_array($appointment->status, ['in_progress', 'treated'], true);
+            && in_array($appointment->status, ['in_consultation', 'in_progress', 'treated'], true);
     }
 
     /**
@@ -649,8 +649,30 @@ class MedicalRecordController extends Controller
             ], 403);
         }
 
-        $validator = Validator::make($request->all(), [
-            'items' => 'required|array',
+        $items = collect($request->input('items', []))
+            ->map(function ($item) {
+                if (!is_array($item)) {
+                    return $item;
+                }
+
+                if (!array_key_exists('quantity_used', $item) && array_key_exists('quantity', $item)) {
+                    $item['quantity_used'] = $item['quantity'];
+                }
+
+                if (!array_key_exists('notes', $item) && array_key_exists('reason', $item)) {
+                    $item['notes'] = $item['reason'];
+                }
+
+                return $item;
+            })
+            ->values()
+            ->all();
+
+        $validator = Validator::make([
+            'items' => $items,
+            'general_notes' => $request->input('general_notes'),
+        ], [
+            'items' => 'present|array',
             'items.*.inventory_item_id' => 'required|integer|exists:inventory_items,id',
             'items.*.quantity_used' => 'required|integer|min:1',
             'items.*.notes' => 'nullable|string|max:500',
@@ -666,10 +688,11 @@ class MedicalRecordController extends Controller
 
         try {
             $result = $this->veterinaryInventoryService->recordInventoryUsage(
-                $request->input('items'),
+                $items,
                 $appointmentId,
                 $appointment->pet_id,
-                'Veterinary appointment: ' . ($request->input('general_notes') ?? 'Medical supplies usage')
+                'Veterinary appointment: ' . ($request->input('general_notes') ?? 'Medical supplies usage'),
+                $request->user()?->id
             );
 
             if ($result['success']) {

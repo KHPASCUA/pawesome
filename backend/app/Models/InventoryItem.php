@@ -177,7 +177,7 @@ class InventoryItem extends Model
      * Deduct stock using FEFO logic from batches
      * Returns array of batch deductions
      */
-    public function deductStockFefo(int $amount, string $reason = ''): array
+    public function deductStockFefo(int $amount, string $reason = '', string $movementType = 'stock_deduction', string $referenceType = 'sale', ?int $referenceId = null): array
     {
         $deductions = [];
         $remainingToDeduct = $amount;
@@ -217,9 +217,10 @@ class InventoryItem extends Model
             'delta' => -$amount,
             'quantity' => $amount,
             'type' => 'sale',
-            'movement_type' => 'stock_deduction',
+            'movement_type' => $movementType,
             'reason' => $reason,
-            'reference_type' => 'sale',
+            'reference_type' => $referenceType,
+            'reference_id' => $referenceId,
             'stock_before' => $this->stock + $amount,
             'stock_after' => $this->stock,
             'previous_stock' => $this->stock + $amount,

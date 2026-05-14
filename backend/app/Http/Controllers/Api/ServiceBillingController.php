@@ -20,7 +20,7 @@ class ServiceBillingController extends Controller
                 'service_type' => 'required|in:veterinary,grooming,boarding',
                 'service_id' => 'required|integer',
                 'pet_id' => 'nullable|integer',
-                'item_type' => 'required|in:base_service,add_on_service,inventory_usage,manual_charge,discount',
+                'item_type' => 'required|in:base_service,add_on_service,manual_charge,discount',
                 'description' => 'required|string|max:255',
                 'quantity' => 'required|integer|min:1',
                 'unit' => 'nullable|string|max:50',
@@ -146,6 +146,7 @@ class ServiceBillingController extends Controller
     {
         try {
             $items = \App\Models\InventoryItem::where('stock', '>', 0)
+                ->where('status', '!=', 'archived')
                 ->orderBy('name')
                 ->get(['id', 'name', 'stock', 'unit_price', 'unit']);
 
@@ -188,6 +189,27 @@ class ServiceBillingController extends Controller
                 'success' => false,
                 'message' => $e->getMessage()
             ], 500);
+        }
+    }
+
+    public function finalizeBill(Request $request, string $serviceType, int $serviceId): JsonResponse
+    {
+        try {
+            if (!in_array($serviceType, ['veterinary', 'grooming', 'boarding'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid service type'
+                ], 422);
+            }
+
+            $summary = ServiceBillingService::finalizeServiceBill($serviceType, $serviceId);
+
+            return response()->json($summary);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 422);
         }
     }
 }

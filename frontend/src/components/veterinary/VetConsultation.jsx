@@ -16,6 +16,8 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import toast from "react-hot-toast";
 import { apiRequest } from "../../api/client";
+import ServiceBillingPanel from "../shared/ServiceBillingPanel";
+import VeterinaryInventoryUsage from "./VeterinaryInventoryUsage";
 import "./VetConsultation.css";
 
 const emptyForm = {
@@ -43,6 +45,17 @@ const VetConsultation = () => {
   const [form, setForm] = useState(emptyForm);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [billingSummary, setBillingSummary] = useState({
+    total_bill: 0,
+    total_paid: 0,
+    balance_due: 0,
+    payment_status: appointment?.payment_status || "unpaid",
+  });
+  const [completionStatus, setCompletionStatus] = useState({
+    can_complete: true,
+    balance_due: 0,
+    message: "",
+  });
   const [confinementForm, setConfinementForm] = useState({
     reason_for_confinement: "",
     urgency_level: "normal",
@@ -114,6 +127,20 @@ const VetConsultation = () => {
   const updateField = (field, value) => {
     setForm((current) => ({ ...current, [field]: value }));
   };
+
+  const handleBillingUpdate = useCallback((billing, completion) => {
+    setBillingSummary(billing || {
+      total_bill: 0,
+      total_paid: 0,
+      balance_due: 0,
+      payment_status: appointment?.payment_status || "unpaid",
+    });
+    setCompletionStatus(completion || {
+      can_complete: true,
+      balance_due: 0,
+      message: "",
+    });
+  }, [appointment?.payment_status]);
 
   const buildPayload = (status = "draft") => ({
     ...form,
@@ -299,6 +326,12 @@ const VetConsultation = () => {
           <strong>{appointmentStatus.replace(/_/g, " ")}</strong>
           <small>{record ? `Record: ${record.status}` : "No record yet"}</small>
         </article>
+        <article>
+          <FontAwesomeIcon icon={faCircleCheck} />
+          <span>Payment</span>
+          <strong>{String(appointment?.payment_status || billingSummary.payment_status || "unpaid").replace(/_/g, " ")}</strong>
+          <small>Balance: PHP {Number(billingSummary.balance_due || 0).toFixed(2)}</small>
+        </article>
       </div>
 
       {!isStarted && (
@@ -367,6 +400,55 @@ const VetConsultation = () => {
             <input value={form.body_condition_score} onChange={(e) => updateField("body_condition_score", e.target.value)} />
           </label>
         </div>
+      </div>
+
+      <div className="consult-form">
+        <h3>Payment Summary</h3>
+        <div className="consult-vitals">
+          <label>
+            Base Amount
+            <input value={Number((billingSummary.total_bill || 0) - (billingSummary.additional_charges || 0)).toFixed(2)} readOnly />
+          </label>
+          <label>
+            Additional Charges
+            <input value={Number(billingSummary.additional_charges || 0).toFixed(2)} readOnly />
+          </label>
+          <label>
+            Amount Paid
+            <input value={Number(billingSummary.total_paid || 0).toFixed(2)} readOnly />
+          </label>
+          <label>
+            Balance Due
+            <input value={Number(billingSummary.balance_due || 0).toFixed(2)} readOnly />
+          </label>
+          <label>
+            Payment Status
+            <input value={String(appointment?.payment_status || billingSummary.payment_status || "unpaid").replace(/_/g, " ")} readOnly />
+          </label>
+        </div>
+        {!completionStatus.can_complete && completionStatus.message ? (
+          <p>{completionStatus.message}</p>
+        ) : null}
+      </div>
+
+      <div className="consult-form">
+        <ServiceBillingPanel
+          serviceType="veterinary"
+          serviceId={appointment.id}
+          petId={appointment.pet_id}
+          onBillingUpdate={handleBillingUpdate}
+        />
+      </div>
+
+      <div className="consult-form">
+        <h3>Inventory Usage</h3>
+        <VeterinaryInventoryUsage
+          appointmentId={appointment.id}
+          petId={appointment.pet_id}
+          onUsageRecorded={() => {
+            loadConsultation();
+          }}
+        />
       </div>
 
       <div className="consult-form">

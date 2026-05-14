@@ -16,35 +16,50 @@ class Cors
      */
     public function handle(Request $request, Closure $next)
     {
+        if ($request->getMethod() === 'OPTIONS') {
+            $response = response('', 204);
+            $this->applyCorsHeaders($request, $response);
+
+            return $response;
+        }
+
         $response = $next($request);
 
+        $this->applyCorsHeaders($request, $response);
+
+        return $response;
+    }
+
+    private function applyCorsHeaders(Request $request, $response): void
+    {
         // Production-safe CORS configuration
         $allowedOrigins = $this->getAllowedOrigins();
         $origin = $request->header('Origin');
+        $supportsCredentials = (bool) config('cors.supports_credentials', false);
 
         // Set appropriate origin based on environment
         if (in_array($origin, $allowedOrigins) || in_array('*', $allowedOrigins)) {
-            $response->headers->set('Access-Control-Allow-Origin', $origin ?: '*');
+            $response->headers->set(
+                'Access-Control-Allow-Origin',
+                $supportsCredentials && $origin ? $origin : ($origin ?: '*')
+            );
         } elseif (app()->environment('local', 'testing')) {
-            // Allow all origins in local development
-            $response->headers->set('Access-Control-Allow-Origin', '*');
+            $response->headers->set('Access-Control-Allow-Origin', $origin ?: '*');
         }
 
         // Standard CORS headers
-        $response->headers->set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-        $response->headers->set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, X-CSRF-TOKEN');
-        
-        // Allow credentials for cookie-based auth (future migration)
-        if (app()->environment('local', 'testing')) {
+        $response->headers->set(
+            'Access-Control-Allow-Methods',
+            implode(', ', config('cors.allowed_methods', ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']))
+        );
+        $response->headers->set(
+            'Access-Control-Allow-Headers',
+            implode(', ', config('cors.allowed_headers', ['Authorization', 'Content-Type', 'Accept', 'Origin', 'X-Requested-With']))
+        );
+
+        if ($supportsCredentials) {
             $response->headers->set('Access-Control-Allow-Credentials', 'true');
         }
-
-        // Handle preflight requests
-        if ($request->getMethod() === 'OPTIONS') {
-            $response->setStatusCode(200);
-        }
-
-        return $response;
     }
 
     /**
@@ -55,17 +70,13 @@ class Cors
     private function getAllowedOrigins(): array
     {
         if (app()->environment('local', 'testing')) {
-            return ['*'];
+            return config('cors.allowed_origins', [
+                'http://localhost:3000',
+                'http://127.0.0.1:3000',
+                'http://localhost:5173',
+                'http://127.0.0.1:5173',
+            ]);
         }
-
-        // Production origins - should be configured via environment variables
-        $productionOrigins = [
-            // Add your production frontend domains here
-            'https://your-frontend-domain.com',
-            'https://your-app.vercel.app',
-            // Vercel preview URLs (wildcard for preview deployments)
-            'https://*.vercel.app',
-        ];
 
         // Allow override via environment variable
         $envOrigins = env('CORS_ALLOWED_ORIGINS');
@@ -73,6 +84,6 @@ class Cors
             return array_map('trim', explode(',', $envOrigins));
         }
 
-        return $productionOrigins;
+        return config('cors.allowed_origins', []);
     }
 }

@@ -1,4 +1,7 @@
-export const API_URL = process.env.REACT_APP_API_URL || "/api";
+export const API_URL =
+  process.env.VITE_API_BASE_URL ||
+  process.env.REACT_APP_API_URL ||
+  "/api";
 
 export const USE_MOCK_DATA = false;
 
@@ -144,8 +147,17 @@ export const normalizeList = (result, keys = []) => {
   if (Array.isArray(result?.orders)) return result.orders;
   if (Array.isArray(result?.requests)) return result.requests;
   if (Array.isArray(result?.appointments)) return result.appointments;
+  if (Array.isArray(result?.bookings)) return result.bookings;
+  if (Array.isArray(result?.payments)) return result.payments;
+  if (Array.isArray(result?.products)) return result.products;
   if (Array.isArray(result?.customers)) return result.customers;
   if (Array.isArray(result?.pets)) return result.pets;
+  if (Array.isArray(result?.inventory)) return result.inventory;
+  if (Array.isArray(result?.inventory_items)) return result.inventory_items;
+  if (Array.isArray(result?.logs)) return result.logs;
+  if (Array.isArray(result?.history)) return result.history;
+  if (Array.isArray(result?.batches)) return result.batches;
+  if (Array.isArray(result?.archived)) return result.archived;
 
   return [];
 };

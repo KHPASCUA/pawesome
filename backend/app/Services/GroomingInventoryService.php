@@ -67,12 +67,17 @@ class GroomingInventoryService
                     'service_id' => $groomingId,
                     'appointment_id' => null, // Grooming uses grooming_id not appointment_id
                     'pet_id' => $petId,
+                    'customer_id' => $grooming?->customer_id,
+                    'customer_email' => $grooming?->customer?->email,
                     'inventory_item_id' => $item['inventory_item_id'],
                     'batch_id' => $this->getUsedBatchId($deductionResult),
                     'quantity_used' => $item['quantity_used'],
                     'unit' => $item['unit'] ?? $inventoryItem->unit ?? 'pcs',
+                    'usage_type' => $item['usage_type'] ?? 'supply',
                     'used_by' => $userId ?? Auth::id(),
+                    'role' => Auth::user()?->role,
                     'notes' => $item['notes'] ?? $notes,
+                    'charge_amount' => (float) ($item['charge_amount'] ?? 0),
                     // Snapshot fields for historical data
                     'item_name_snapshot' => $inventoryItem->name,
                     'item_sku_snapshot' => $inventoryItem->sku,

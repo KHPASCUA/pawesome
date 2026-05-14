@@ -4,10 +4,9 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Grooming;
-use App\Models\Sale;
-use App\Models\Payment;
-use App\Models\SaleItem;
+use App\Models\ServiceItemUsage;
 use App\Services\GroomingInventoryService;
+use App\Services\ServiceBillingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
@@ -36,6 +35,11 @@ class GroomingController extends Controller
         ]);
 
         $validated['status'] = 'pending';
+        $validated['payment_status'] = 'unpaid';
+        $validated['base_amount'] = $validated['amount'] ?? 0;
+        $validated['total_amount'] = $validated['amount'] ?? 0;
+        $validated['amount_paid'] = 0;
+        $validated['balance_due'] = $validated['amount'] ?? 0;
 
         $grooming = Grooming::create($validated);
 
@@ -52,52 +56,38 @@ class GroomingController extends Controller
         ]);
 
         $oldStatus = $grooming->status;
-        $grooming->update([
-            'status' => $validated['status']
-        ]);
+        $newStatus = $validated['status'];
 
-        // Auto-create sale and payment when grooming is completed
-        if ($validated['status'] === 'completed' && $oldStatus !== 'completed') {
-            $cashierId = null;
-            if (Auth::check()) {
-                $cashierId = Auth::id();
+        if (in_array($newStatus, ['approved', 'in_progress'], true)) {
+            $this->ensureBaseBillingItem($grooming);
+        }
+
+        if ($newStatus === 'approved' && ($grooming->payment_status ?? 'unpaid') !== 'paid') {
+            $grooming->payment_status = 'unpaid';
+        }
+
+        if ($newStatus === 'completed') {
+            $billing = ServiceBillingService::canCompleteService(ServiceItemUsage::SERVICE_GROOMING, (int) $grooming->id);
+            $paymentStatus = strtolower((string) ($grooming->payment_status ?? 'unpaid'));
+
+            if ($paymentStatus !== 'paid' || !$billing['can_complete']) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $paymentStatus !== 'paid'
+                        ? 'Grooming cannot be completed until payment is fully verified.'
+                        : $billing['message'],
+                    'payment_status' => $grooming->payment_status,
+                    'billing' => $billing,
+                ], 422);
             }
 
-            $sale = Sale::create([
-                'customer_id' => $grooming->customer_id,
-                'cashier_id' => $cashierId,
-                'type' => 'service',
-                'status' => 'completed',
-                'payment_type' => 'cash',
-                'subtotal' => $grooming->amount,
-                'tax_amount' => 0,
-                'discount_amount' => 0,
-                'total_amount' => $grooming->amount,
-                'amount' => $grooming->amount,
-                'notes' => "Grooming service: {$grooming->service} for pet ID {$grooming->pet_id}",
-            ]);
+            $grooming->completed_at = now();
+        }
 
-            // Create sale item
-            SaleItem::create([
-                'sale_id' => $sale->id,
-                'product_id' => null,
-                'service_name' => $grooming->service,
-                'quantity' => 1,
-                'unit_price' => $grooming->amount,
-                'total_price' => $grooming->amount,
-            ]);
+        $grooming->status = $newStatus;
+        $grooming->save();
 
-            // Create payment
-            Payment::create([
-                'sale_id' => $sale->id,
-                'payment_method' => 'cash',
-                'amount' => $grooming->amount,
-                'status' => 'completed',
-                'paid_at' => now(),
-                'notes' => "Auto-generated payment for grooming service",
-            ]);
-            
-            // Send completion notification to customer
+        if ($newStatus === 'completed' && $oldStatus !== 'completed') {
             $this->sendGroomingCompletionNotification($grooming);
         }
 
@@ -105,6 +95,33 @@ class GroomingController extends Controller
             'message' => 'Grooming status updated',
             'appointment' => $grooming
         ]);
+    }
+
+    public function show(int $id)
+    {
+        $grooming = Grooming::with(['customer', 'pet'])->findOrFail($id);
+
+        return response()->json([
+            'success' => true,
+            'appointment' => $grooming,
+        ]);
+    }
+
+    public function finalizeBill(Request $request, int $id)
+    {
+        Grooming::findOrFail($id);
+
+        return response()->json(
+            ServiceBillingService::finalizeServiceBill(ServiceItemUsage::SERVICE_GROOMING, $id)
+        );
+    }
+
+    public function complete(Request $request, int $id)
+    {
+        $grooming = Grooming::findOrFail($id);
+        $request->merge(['status' => 'completed']);
+
+        return $this->updateStatus($request, $grooming);
     }
 
     /**
@@ -121,8 +138,29 @@ class GroomingController extends Controller
                 'message' => 'You do not have permission to record inventory usage'
             ], 403);
         }
-        
-        $validator = Validator::make($request->all(), [
+
+        $items = collect($request->input('items', []))
+            ->map(function ($item) {
+                if (!is_array($item)) {
+                    return $item;
+                }
+
+                if (!array_key_exists('quantity_used', $item) && array_key_exists('quantity', $item)) {
+                    $item['quantity_used'] = $item['quantity'];
+                }
+
+                if (!array_key_exists('notes', $item) && array_key_exists('reason', $item)) {
+                    $item['notes'] = $item['reason'];
+                }
+
+                return $item;
+            })
+            ->values()
+            ->all();
+
+        $validator = Validator::make([
+            'items' => $items,
+        ], [
             'items' => 'required|array',
             'items.*.inventory_item_id' => 'required|integer|exists:inventory_items,id',
             'items.*.quantity_used' => 'required|integer|min:1',
@@ -140,7 +178,7 @@ class GroomingController extends Controller
         try {
             $groomingInventoryService = new GroomingInventoryService();
             $result = $groomingInventoryService->recordInventoryUsage(
-                $request->input('items'),
+                $items,
                 $id,
                 $grooming->pet_id,
                 'Grooming supply usage',
@@ -151,10 +189,11 @@ class GroomingController extends Controller
                 return response()->json([
                     'success' => true,
                     'message' => $result['message'],
-                    'usages' => $result['usages'],
-                    'total_items' => $result['total_items'],
-                    'processed_items' => $result['processed_items']
-                ]);
+                'usages' => $result['usages'],
+                'updated_stock' => $result['usages'],
+                'total_items' => $result['total_items'],
+                'processed_items' => $result['processed_items']
+            ]);
             } else {
                 return response()->json([
                     'success' => false,
@@ -258,5 +297,30 @@ class GroomingController extends Controller
                 'error' => $e->getMessage()
             ]);
         }
+    }
+
+    private function ensureBaseBillingItem(Grooming $grooming): void
+    {
+        $basePrice = (float) ($grooming->base_amount ?? $grooming->amount ?? 0);
+        if ($basePrice <= 0) {
+            return;
+        }
+
+        $existing = ServiceItemUsage::where('service_type', ServiceItemUsage::SERVICE_GROOMING)
+            ->where('service_id', $grooming->id)
+            ->where('item_type', ServiceItemUsage::ITEM_BASE_SERVICE)
+            ->first();
+
+        if ($existing) {
+            return;
+        }
+
+        ServiceBillingService::createBaseServiceItem(
+            ServiceItemUsage::SERVICE_GROOMING,
+            (int) $grooming->id,
+            $grooming->service ?: 'Grooming package',
+            $basePrice,
+            $grooming->pet_id
+        );
     }
 }

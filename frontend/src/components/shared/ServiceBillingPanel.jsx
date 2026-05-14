@@ -16,7 +16,6 @@ import "./ServiceBillingPanel.css";
 
 const ServiceBillingPanel = ({ serviceType, serviceId, petId, onBillingUpdate }) => {
   const [billingItems, setBillingItems] = useState([]);
-  const [inventoryItems, setInventoryItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [formData, setFormData] = useState({
@@ -73,20 +72,8 @@ const ServiceBillingPanel = ({ serviceType, serviceId, petId, onBillingUpdate })
   useEffect(() => {
     if (serviceType && serviceId) {
       fetchBillingData();
-      fetchInventoryItems();
     }
   }, [serviceType, serviceId, fetchBillingData]);
-
-  const fetchInventoryItems = async () => {
-    try {
-      const response = await apiRequest("/billing/inventory-items");
-      if (response.success) {
-        setInventoryItems(response.items || []);
-      }
-    } catch (error) {
-      console.error("Failed to fetch inventory items:", error);
-    }
-  };
 
   const handleAddBillingItem = async (e) => {
     e.preventDefault();
@@ -131,19 +118,6 @@ const ServiceBillingPanel = ({ serviceType, serviceId, petId, onBillingUpdate })
       inventory_item_id: "",
       notes: ""
     });
-  };
-
-  const handleInventoryItemChange = (inventoryItemId) => {
-    const item = inventoryItems.find(item => item.id === parseInt(inventoryItemId));
-    if (item) {
-      setFormData(prev => ({
-        ...prev,
-        inventory_item_id: inventoryItemId,
-        description: item.name,
-        unit_price: item.unit_price || 0,
-        item_type: "inventory_usage"
-      }));
-    }
   };
 
   const getCommonServices = () => {
@@ -300,29 +274,10 @@ const ServiceBillingPanel = ({ serviceType, serviceId, petId, onBillingUpdate })
                   onChange={(e) => setFormData(prev => ({ ...prev, item_type: e.target.value }))}
                 >
                   <option value="add_on_service">Add-on Service</option>
-                  <option value="inventory_usage">Inventory Usage</option>
                   <option value="manual_charge">Manual Charge</option>
                   <option value="discount">Discount</option>
                 </select>
               </div>
-
-              {formData.item_type === "inventory_usage" && (
-                <div className="form-group">
-                  <label>Inventory Item</label>
-                  <select
-                    value={formData.inventory_item_id}
-                    onChange={(e) => handleInventoryItemChange(e.target.value)}
-                    required
-                  >
-                    <option value="">Select inventory item</option>
-                    {inventoryItems.map(item => (
-                      <option key={item.id} value={item.id}>
-                        {item.name} (Stock: {item.stock}) - ₱{item.unit_price}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
             </div>
 
             <div className="form-row">

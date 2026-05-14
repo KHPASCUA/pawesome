@@ -9,12 +9,13 @@
  * ║  - Real-time stock updates                                         ║
  * ║  - Event-driven updates across components                          ║
  * ║  - Automatic refresh every 30 seconds                             ║
- * ║  - Fallback to shared data when API is offline                   ║
+ * ║  - Returns empty inventory when API is unavailable               ║
  * ╚══════════════════════════════════════════════════════════════════╝
  */
 
 import { inventoryApi } from '../api/inventory';
-import { sharedProducts, sharedServices, categorizeProducts } from '../components/shared/inventorySync';
+import { normalizeList } from '../api/client';
+import { categorizeProducts } from '../components/shared/inventorySync';
 
 // Event system for real-time updates
 class InventoryEventEmitter {
@@ -66,7 +67,7 @@ class InventorySyncService {
     this.refreshInterval = 30000; // 30 seconds
     this.isRefreshing = false;
     this.subscribers = new Set();
-    this.fallbackData = categorizeProducts([...sharedProducts, ...sharedServices]);
+    this.fallbackData = categorizeProducts([]);
   }
 
   // Subscribe to inventory updates
@@ -89,10 +90,10 @@ class InventorySyncService {
   normalizeProduct(product, index) {
     // Safer stock extraction that handles multiple field names
     const stockValue =
-      product.stock ??
-      product.quantity ??
       product.available_stock ??
       product.stock_quantity ??
+      product.stock ??
+      product.quantity ??
       product.current_stock ??
       0;
 
@@ -142,17 +143,12 @@ class InventorySyncService {
 
     try {
       this.isRefreshing = true;
-      console.log("InventorySync: Fetching products from API...");
-      
-      const response = await inventoryApi.getSellable();
-      console.log("InventorySync: API response:", response);
-
-      // Extract products from different response formats
-      const rawProducts = Array.isArray(response)
-        ? response
-        : response?.products || response?.data || response?.items || [];
-
-      console.log("InventorySync: Extracted products:", rawProducts.length);
+      const role = String(localStorage.getItem("role") || "").toLowerCase();
+      const response =
+        role === "cashier"
+          ? await inventoryApi.getCashierSellableItems()
+          : await inventoryApi.getSellableItems();
+      const rawProducts = normalizeList(response, ['products', 'items', 'data']);
 
       if (rawProducts.length > 0) {
         // Normalize and categorize products
@@ -167,8 +163,6 @@ class InventorySyncService {
         this.cache.set('rawProducts', normalizedProducts);
         this.lastFetch = Date.now();
 
-        console.log("InventorySync: Products categorized successfully");
-        
         // Notify all subscribers
         this.notifySubscribers(categorizedData);
         
@@ -178,18 +172,19 @@ class InventorySyncService {
 
         return categorizedData;
       } else {
-        console.warn("InventorySync: No products found, using fallback data");
-        const fallback = this.fallbackData;
-        this.cache.set('products', fallback);
-        this.notifySubscribers(fallback);
-        return fallback;
+        const emptyData = categorizeProducts([]);
+        this.cache.set('products', emptyData);
+        this.cache.set('rawProducts', []);
+        this.notifySubscribers(emptyData);
+        return emptyData;
       }
     } catch (error) {
       console.error("InventorySync: Failed to fetch products:", error);
-      const fallback = this.fallbackData;
-      this.cache.set('products', fallback);
-      this.notifySubscribers(fallback);
-      return fallback;
+      const emptyData = categorizeProducts([]);
+      this.cache.set('products', emptyData);
+      this.cache.set('rawProducts', []);
+      this.notifySubscribers(emptyData);
+      return emptyData;
     } finally {
       this.isRefreshing = false;
     }

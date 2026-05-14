@@ -19,6 +19,71 @@ import { apiRequest } from "../../api/client";
 import { useTheme } from "../../utils/theme";
 import "./InventoryHistory.css";
 
+const normalizeMovement = (record = {}) => ({
+  id: record.id,
+  itemName:
+    record.item_name ||
+    record.item_name_snapshot ||
+    record.product_name ||
+    record.inventory_item?.name ||
+    record.item?.name ||
+    record.product ||
+    record.name ||
+    "Unknown Item",
+  sku:
+    record.sku ||
+    record.item_sku ||
+    record.item_sku_snapshot ||
+    record.inventory_item?.sku ||
+    record.item?.sku ||
+    "—",
+  movementType:
+    record.movement_type ||
+    record.type ||
+    record.action ||
+    record.event_type ||
+    record.reference_type ||
+    "movement",
+  quantity: Number(record.quantity ?? record.quantity_change ?? record.qty ?? record.amount ?? record.delta ?? 0),
+  previousStock: Number(
+    record.previous_stock ??
+      record.before_stock ??
+      record.old_stock ??
+      record.stock_before ??
+      0
+  ),
+  newStock: Number(
+    record.new_stock ??
+      record.after_stock ??
+      record.current_stock ??
+      record.stock_after ??
+      0
+  ),
+  reason:
+    record.reason ||
+    record.remarks ||
+    record.description ||
+    record.notes ||
+    "—",
+  performedBy:
+    record.performed_by ||
+    record.user_name ||
+    record.user?.name ||
+    record.created_by ||
+    record.staff_name ||
+    "System",
+  role:
+    record.role ||
+    record.user?.role ||
+    "—",
+  createdAt:
+    record.created_at ||
+    record.date ||
+    record.timestamp ||
+    null,
+  raw: record,
+});
+
 const InventoryHistory = () => {
   const { theme } = useTheme();
   const [activeTab, setActiveTab] = useState("stock");
@@ -74,16 +139,45 @@ const InventoryHistory = () => {
   const getActionBadgeClass = (action) => {
     const actionMap = {
       "stock in": "stock-in",
+      "stock_in": "stock-in",
       "stock_out": "stock-out",
       "stock out": "stock-out",
       "adjustment": "adjustment",
+      "manual_adjustment": "adjustment",
       "restock": "restock",
       "sale": "sale",
+      "pos_sale": "sale",
+      "pos_sale_deduction": "sale",
+      "customer_order_approval": "sale",
+      "customer_order_deduction": "sale",
       "return": "return",
       "damage": "damage",
       "expired": "expired",
+      "archive": "adjustment",
+      "restore": "restock",
+      "vet_usage": "stock-out",
+      "grooming_usage": "stock-out",
+      "boarding_food_usage": "stock-out",
+      "boarding_supply_usage": "stock-out",
     };
     return actionMap[action?.toLowerCase()] || "adjustment";
+  };
+
+  const getMovementLabel = (movementType) => {
+    switch (movementType) {
+      case "vet_usage":
+        return "Veterinary Usage";
+      case "grooming_usage":
+        return "Grooming Usage";
+      case "boarding_food_usage":
+        return "Boarding Food Usage";
+      case "boarding_supply_usage":
+        return "Boarding Supply Usage";
+      default:
+        return String(movementType || "movement")
+          .replaceAll("_", " ")
+          .replace(/\b\w/g, (letter) => letter.toUpperCase());
+    }
   };
 
   // Fetch stock movement history
@@ -113,7 +207,7 @@ const InventoryHistory = () => {
       if (!silent) setLoading(true);
       else setRefreshing(true);
 
-      const response = await apiRequest("/inventory/audit/history");
+      const response = await apiRequest("/inventory/monthly-audit-report");
       const auditData = normalizeList(response, ["data", "history", "audits"]);
       
       setAuditHistory(auditData);
@@ -134,7 +228,7 @@ const InventoryHistory = () => {
       if (!silent) setLoading(true);
       else setRefreshing(true);
 
-      const response = await apiRequest("/inventory/adjustments/history");
+      const response = await apiRequest("/inventory/logs?movement_type=manual_adjustment");
       const adjustmentData = normalizeList(response, ["data", "history", "adjustments"]);
       
       setAdjustmentHistory(adjustmentData);
@@ -155,7 +249,7 @@ const InventoryHistory = () => {
       if (!silent) setLoading(true);
       else setRefreshing(true);
 
-      const response = await apiRequest("/inventory/restock/history");
+      const response = await apiRequest("/inventory/logs?movement_type=stock_in");
       const restockData = normalizeList(response, ["data", "history", "restocks"]);
       
       setRestockHistory(restockData);
@@ -215,30 +309,31 @@ const InventoryHistory = () => {
 
     // Apply search filter
     const filtered = data.filter(item => {
+      const movement = normalizeMovement(item);
       const searchLower = searchTerm.toLowerCase();
       const searchableFields = [
-        item.id,
-        item.product_id,
-        item.product_name,
-        item.product,
-        item.action,
-        item.quantity,
-        item.stock_before,
-        item.stock_after,
-        item.reason,
-        item.performed_by,
-        item.supplier,
-        item.batch_number,
+        movement.id,
+        movement.itemName,
+        movement.sku,
+        movement.movementType,
+        movement.quantity,
+        movement.previousStock,
+        movement.newStock,
+        movement.reason,
+        movement.performedBy,
+        movement.role,
       ].filter(Boolean).join(' ').toLowerCase();
       
       return searchableFields.includes(searchLower);
     });
 
     // Apply sorting
-    return filtered.sort((a, b) => {
+    return filtered
+      .map(normalizeMovement)
+      .sort((a, b) => {
       if (sortBy === "date") {
-        const dateA = new Date(a.created_at || a.date || a.timestamp || 0);
-        const dateB = new Date(b.created_at || b.date || b.timestamp || 0);
+        const dateA = new Date(a.createdAt || 0);
+        const dateB = new Date(b.createdAt || 0);
         return dateB - dateA;
       }
       if (sortBy === "quantity") {
@@ -398,48 +493,56 @@ const InventoryHistory = () => {
                 <div className="card-header">
                   <div className="record-info">
                     <span className="record-id">#{record.id}</span>
-                    <span className={`action-badge ${getActionBadgeClass(record.action)}`}>
-                      <FontAwesomeIcon icon={getActionIcon(record.action)} />
-                      {record.action || "Unknown"}
+                    <span className={`action-badge ${getActionBadgeClass(record.movementType)}`}>
+                      <FontAwesomeIcon icon={getActionIcon(record.movementType)} />
+                      {getMovementLabel(record.movementType)}
                     </span>
                   </div>
                   <div className="record-date">
                     <FontAwesomeIcon icon={faCalendarAlt} />
-                    {formatDate(record.created_at || record.date)} {formatTime(record.created_at || record.date)}
+                    {formatDate(record.createdAt)} {formatTime(record.createdAt)}
                   </div>
                 </div>
                 <div className="card-body">
                   <div className="record-details">
                     <div className="detail-row">
                       <span>Product:</span>
-                      <strong>{record.product_name || record.product || "N/A"}</strong>
+                      <strong>{record.itemName}</strong>
+                    </div>
+                    <div className="detail-row">
+                      <span>SKU:</span>
+                      <strong>{record.sku}</strong>
+                    </div>
+                    <div className="detail-row">
+                      <span>Movement:</span>
+                      <strong>{getMovementLabel(record.movementType)}</strong>
                     </div>
                     <div className="detail-row">
                       <span>Quantity:</span>
-                      <strong className={`quantity ${getActionBadgeClass(record.action)}`}>
+                      <strong className={`quantity ${getActionBadgeClass(record.movementType)}`}>
                         {record.quantity > 0 ? '+' : ''}{record.quantity}
                       </strong>
                     </div>
-                    {(record.stock_before !== undefined || record.stock_after !== undefined) && (
+                    {(record.previousStock !== undefined || record.newStock !== undefined) && (
                       <div className="detail-row">
                         <span>Stock Change:</span>
                         <span>
-                          {record.stock_before} → {record.stock_after}
+                          {record.previousStock} → {record.newStock}
                         </span>
                       </div>
                     )}
-                    {record.reason && (
-                      <div className="detail-row">
-                        <span>Reason:</span>
-                        <span className="reason-text">{record.reason}</span>
-                      </div>
-                    )}
-                    {record.performed_by && (
-                      <div className="detail-row">
-                        <span>Performed By:</span>
-                        <strong>{record.performed_by}</strong>
-                      </div>
-                    )}
+                    <div className="detail-row">
+                      <span>Reason:</span>
+                      <span className="reason-text">{record.reason}</span>
+                    </div>
+                    <div className="detail-row">
+                      <span>Performed By:</span>
+                      <strong>{record.performedBy}</strong>
+                    </div>
+                    <div className="detail-row">
+                      <span>Role:</span>
+                      <strong>{record.role}</strong>
+                    </div>
                     {record.supplier && (
                       <div className="detail-row">
                         <span>Supplier:</span>
@@ -469,7 +572,7 @@ const InventoryHistory = () => {
                 <div className="card-footer">
                   <button 
                     className="view-btn"
-                    onClick={() => setSelectedRecord(record)}
+                    onClick={() => setSelectedRecord(record.raw)}
                   >
                     <FontAwesomeIcon icon={faEye} />
                     View Details

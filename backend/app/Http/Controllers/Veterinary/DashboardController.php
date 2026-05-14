@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Veterinary;
 use App\Http\Controllers\Controller;
 use App\Models\Appointment;
 use App\Models\Pet;
+use App\Services\ServiceBillingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 
@@ -233,6 +234,23 @@ class DashboardController extends Controller
         $appointment = $this->assignedAppointments()
             ->with(['customer', 'pet', 'service', 'veterinarian'])
             ->findOrFail($id);
+
+        $billing = ServiceBillingService::getItemizedBilling('veterinary', (int) $appointment->id);
+        $baseAmount = (float) ($billing['base_amount'] ?? ($appointment->price ?? 0));
+        $additionalServices = collect($billing['items'] ?? [])
+            ->filter(function ($item) {
+                return ($item->item_type ?? null) !== 'base_service';
+            })
+            ->map(function ($item) {
+                return [
+                    'id' => $item->id,
+                    'name' => $item->description,
+                    'cost' => (float) ($item->total_price ?? 0),
+                    'quantity' => (int) ($item->quantity ?? $item->quantity_used ?? 1),
+                ];
+            })
+            ->values()
+            ->all();
         
         return response()->json([
             'receipt' => [
@@ -243,8 +261,15 @@ class DashboardController extends Controller
                 'service_name' => $appointment->service?->name,
                 'service_category' => $appointment->service?->category,
                 'vet_name' => $appointment->veterinarian?->name ?? 'Unassigned',
-                'amount' => $appointment->price,
+                'amount' => $baseAmount,
+                'subtotal' => (float) ($billing['total_bill'] ?? $appointment->price ?? 0),
+                'total' => (float) ($billing['total_bill'] ?? $appointment->price ?? 0),
+                'additional_services' => $additionalServices,
+                'receipt_number' => $appointment->receipt_number,
+                'paid_date' => $appointment->paid_at,
+                'payment_method' => $appointment->payment_method ?? 'cash',
                 'status' => $appointment->payment_status ?? 'pending',
+                'balance_due' => (float) ($billing['balance_due'] ?? 0),
                 'notes' => $appointment->notes,
             ],
         ]);

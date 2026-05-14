@@ -12,20 +12,29 @@ class ServiceItemUsage extends Model
 
     protected $fillable = [
         'service_type',
+        'item_name_snapshot',
+        'item_sku_snapshot',
+        'pet_name_snapshot',
+        'service_name_snapshot',
         'service_id',
         'appointment_id',
         'pet_id',
+        'customer_id',
+        'customer_email',
         'inventory_item_id',
         'batch_id',
         'quantity_used',
         'unit',
+        'usage_type',
         'used_by',
+        'role',
         'notes',
         // Billing fields
         'item_type',
         'description',
         'unit_price',
         'total_price',
+        'charge_amount',
         'is_billable',
         'is_paid',
     ];
@@ -34,10 +43,15 @@ class ServiceItemUsage extends Model
         'quantity_used' => 'integer',
         'unit_price' => 'decimal:2',
         'total_price' => 'decimal:2',
+        'charge_amount' => 'decimal:2',
         'is_billable' => 'boolean',
         'is_paid' => 'boolean',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
+    ];
+
+    protected $appends = [
+        'quantity',
     ];
 
     // Service type constants
@@ -147,6 +161,11 @@ class ServiceItemUsage extends Model
     public function scopePaid($query)
     {
         return $query->where('is_paid', true);
+    }
+
+    public function getQuantityAttribute()
+    {
+        return $this->quantity_used;
     }
     
     /**

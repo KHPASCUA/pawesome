@@ -50,6 +50,8 @@ class BoardingInventoryService
                 }
                 
                 $stockBefore = $inventoryItem->stock;
+                $usageType = strtolower((string) ($item['usage_type'] ?? 'food'));
+                $movementType = $usageType === 'food' ? 'boarding_food_usage' : 'boarding_supply_usage';
                 
                 // Use InventoryService for stock deduction (supports FEFO/FIFO)
                 $inventoryService = new InventoryService();
@@ -57,7 +59,7 @@ class BoardingInventoryService
                     $item['inventory_item_id'],
                     $item['quantity_used'],
                     'Boarding food/supply usage: ' . ($notes ?: 'Boarding supplies'),
-                    'boarding_food_usage',
+                    $movementType,
                     $boardingId
                 );
                 
@@ -67,12 +69,17 @@ class BoardingInventoryService
                     'service_id' => $boardingId,
                     'appointment_id' => null, // Boarding doesn't use appointments
                     'pet_id' => $petId,
+                    'customer_id' => $boarding?->customer_id,
+                    'customer_email' => $boarding?->customer_email,
                     'inventory_item_id' => $item['inventory_item_id'],
                     'batch_id' => $this->getUsedBatchId($deductionResult),
                     'quantity_used' => $item['quantity_used'],
                     'unit' => $item['unit'] ?? $inventoryItem->unit ?? 'pcs',
+                    'usage_type' => $usageType,
                     'used_by' => $userId ?? Auth::id(),
+                    'role' => Auth::user()?->role,
                     'notes' => $item['notes'] ?? $notes,
+                    'charge_amount' => (float) ($item['charge_amount'] ?? 0),
                     // Snapshot fields for historical data
                     'item_name_snapshot' => $inventoryItem->name,
                     'item_sku_snapshot' => $inventoryItem->sku,
@@ -83,6 +90,8 @@ class BoardingInventoryService
                 $usages[] = [
                     'item' => $inventoryItem->name,
                     'quantity' => $item['quantity_used'],
+                    'usage_type' => $usageType,
+                    'movement_type' => $movementType,
                     'stock_before' => $stockBefore,
                     'stock_after' => $deductionResult['stock_after'],
                     'batch_deductions' => $deductionResult['batch_deductions'] ?? [],
@@ -193,6 +202,7 @@ class BoardingInventoryService
                     'item_sku' => $usage->item_sku_snapshot ?? $usage->inventoryItem->sku ?? 'N/A',
                     'quantity_used' => $usage->quantity_used,
                     'unit' => $usage->unit,
+                    'usage_type' => $usage->usage_type ?? 'food',
                     'notes' => $usage->notes,
                     'used_by' => $usage->user->name ?? 'Unknown',
                     'created_at' => $usage->created_at->toIso8601String(),

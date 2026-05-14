@@ -68,35 +68,6 @@ const StockAdjustmentModal = ({ isOpen, onClose, item, onSuccess }) => {
     return null;
   };
 
-  // Create stock notification for low/out of stock alerts
-  const createStockNotification = async (newStock) => {
-    const reorderLevel = item?.reorder_level || item?.reorderLevel || 10;
-
-    try {
-      if (newStock <= 0) {
-        await inventoryApi.createInventoryNotification?.({
-          title: "Out of Stock Alert",
-          message: `${item.name} is now out of stock.`,
-          type: "danger",
-          module: "inventory",
-          item_id: item.id,
-          priority: "high",
-        });
-      } else if (newStock <= reorderLevel) {
-        await inventoryApi.createInventoryNotification?.({
-          title: "Low Stock Alert",
-          message: `${item.name} is running low. Current stock: ${newStock}.`,
-          type: "warning",
-          module: "inventory",
-          item_id: item.id,
-          priority: "medium",
-        });
-      }
-    } catch (error) {
-      console.error("Failed to create stock notification:", error);
-    }
-  };
-
   const handleSubmit = async () => {
     if (Number(quantity) <= 0) {
       alert("Please enter quantity greater than 0.");
@@ -127,10 +98,9 @@ const StockAdjustmentModal = ({ isOpen, onClose, item, onSuccess }) => {
         reason: finalReason,
       });
 
-      const result = await inventoryApi.adjustStock(item.id, adjustmentType, Number(quantity), finalReason, {
+      await inventoryApi.adjustStock(item.id, adjustmentType, Number(quantity), finalReason, {
         expiration_date: needsExpiration(item) ? expirationDate : null
       });
-      console.log("[StockAdjustment] Success:", result);
 
       await onSuccess?.();
       onClose?.();

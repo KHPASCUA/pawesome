@@ -736,18 +736,21 @@ const ReceptionistBookings = () => {
       let payload = {};
 
       if (selectedBooking.type === "hotel") {
-        endpoint = `/boardings/${selectedBooking.id}`;
-        method = "PUT";
-
         if (actionType === "approve") {
-          payload = { status: "confirmed", notes: actionNote };
+          endpoint = `/receptionist/boarding-requests/${selectedBooking.id}/approve`;
+          method = "POST";
+          payload = { notes: actionNote };
         }
 
         if (actionType === "reject") {
-          payload = { status: "rejected", reason: actionNote };
+          endpoint = `/receptionist/boarding-requests/${selectedBooking.id}/reject`;
+          method = "POST";
+          payload = { reason: actionNote };
         }
 
         if (actionType === "reschedule") {
+          endpoint = `/receptionist/boarding-requests/${selectedBooking.id}/schedule`;
+          method = "POST";
           payload = {
             check_in: newDate,
             check_out: newDate,

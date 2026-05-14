@@ -241,53 +241,91 @@ class InventoryService
      */
     public function adjustStock(int $id, int $quantity, string $reason, ?array $auditData = null): array
     {
-        $item = InventoryItem::findOrFail($id);
+        return DB::transaction(function () use ($id, $quantity, $reason, $auditData) {
+            $item = InventoryItem::lockForUpdate()->findOrFail($id);
+            $adjustmentType = $auditData['adjustment_type'] ?? $auditData['type'] ?? 'increment';
+            $adjustmentType = match ($adjustmentType) {
+                'add' => 'increment',
+                'remove' => 'decrement',
+                default => $adjustmentType,
+            };
 
-        // Check if adjustment would result in negative stock
-        if ($item->stock + $quantity < 0) {
-            throw new \Exception('Adjustment would result in negative stock');
-        }
+            if (!in_array($adjustmentType, ['increment', 'decrement', 'set'], true)) {
+                throw new \Exception('Invalid adjustment type.');
+            }
 
-        $previousStock = $item->stock;
-        $item->increment('stock', $quantity);
-        $newStock = $item->fresh()->stock;
+            if ($quantity <= 0) {
+                throw new \Exception('Quantity must be greater than zero.');
+            }
 
-        // Log the adjustment with audit data
-        InventoryLog::create([
-            'inventory_item_id' => $item->id,
-            'delta' => $quantity,
-            'quantity' => abs($quantity),
-            'type' => $quantity >= 0 ? 'add' : 'remove',
-            'movement_type' => $quantity >= 0 ? 'adjustment_in' : 'adjustment_out',
-            'reason' => $reason,
-            'reference_type' => $auditData['type'] ?? 'adjustment',
-            'reference_id' => $auditData['reference_id'] ?? null,
-            'stock_before' => $previousStock,
-            'stock_after' => $newStock,
-            'previous_stock' => $auditData['previous'] ?? $previousStock,
-            'new_stock' => $auditData['new'] ?? $newStock,
-            'performed_by' => $auditData['performed_by'] ?? null,
-            'role' => $auditData['role'] ?? null,
-            'user_id' => $auditData['user_id'] ?? null,
-        ]);
+            $previousStock = (int) ($item->stock ?? 0);
+            $newStock = match ($adjustmentType) {
+                'increment' => $previousStock + $quantity,
+                'decrement' => $previousStock - $quantity,
+                'set' => $quantity,
+            };
 
-        ActivityLog::log($auditData['user_id'] ?? auth()->id(), 'inventory_adjusted', "Adjusted {$item->name} stock by {$quantity}", [
-            'category' => 'inventory',
-            'reference_type' => 'inventory_item',
-            'reference_id' => $item->id,
-            'metadata' => ['previous_stock' => $previousStock, 'new_stock' => $newStock, 'reason' => $reason],
-        ]);
+            if ($newStock < 0) {
+                throw new \Exception('Adjustment would result in negative stock');
+            }
 
-        // Check for low/out of stock and create notifications
-        $this->checkAndCreateStockNotifications($item->fresh());
+            $delta = $newStock - $previousStock;
+            $update = ['stock' => $newStock];
 
-        return [
-            'message' => 'Stock adjusted successfully',
-            'item' => $item->fresh(),
-            'previous_stock' => $previousStock,
-            'new_stock' => $newStock,
-            'adjustment' => $quantity,
-        ];
+            if (\Illuminate\Support\Facades\Schema::hasColumn($item->getTable(), 'quantity')) {
+                $update['quantity'] = $newStock;
+            }
+
+            $item->update($update);
+
+            // Log the adjustment with audit data
+            InventoryLog::create([
+                'inventory_item_id' => $item->id,
+                'delta' => $delta,
+                'quantity' => $quantity,
+                'type' => $adjustmentType,
+                'movement_type' => 'stock_adjustment_' . $adjustmentType,
+                'reason' => $reason,
+                'reference_type' => 'stock_adjustment',
+                'reference_id' => $auditData['reference_id'] ?? null,
+                'stock_before' => $previousStock,
+                'stock_after' => $newStock,
+                'previous_stock' => $previousStock,
+                'new_stock' => $newStock,
+                'performed_by' => $auditData['performed_by'] ?? auth()->user()?->name,
+                'role' => $auditData['role'] ?? auth()->user()?->role,
+                'user_id' => $auditData['user_id'] ?? auth()->id(),
+                'details' => json_encode([
+                    'adjustment_type' => $adjustmentType,
+                    'reason' => $reason,
+                ]),
+            ]);
+
+            ActivityLog::log($auditData['user_id'] ?? auth()->id(), 'inventory_adjusted', "Adjusted {$item->name} stock by {$delta}", [
+                'category' => 'inventory',
+                'reference_type' => 'inventory_item',
+                'reference_id' => $item->id,
+                'metadata' => [
+                    'adjustment_type' => $adjustmentType,
+                    'previous_stock' => $previousStock,
+                    'new_stock' => $newStock,
+                    'reason' => $reason,
+                ],
+            ]);
+
+            // Check for low/out of stock and create notifications
+            $this->checkAndCreateStockNotifications($item->fresh());
+
+            return [
+                'success' => true,
+                'message' => 'Stock adjusted successfully',
+                'item' => $item->fresh(),
+                'previous_stock' => $previousStock,
+                'new_stock' => $newStock,
+                'adjustment' => $delta,
+                'adjustment_type' => $adjustmentType,
+            ];
+        });
     }
 
     /**
@@ -314,7 +352,10 @@ class InventoryService
         // Use FEFO batch deduction for items that need expiration tracking
         // OR if item has active batches
         if ($item->needsFefo() || $item->batches()->exists()) {
-            $batchDeductions = $item->deductStockFefo($quantity, $reason);
+            $movementType = in_array($referenceType, ['vet_usage', 'grooming_usage', 'boarding_food_usage'], true)
+                ? $referenceType
+                : 'stock_deduction';
+            $batchDeductions = $item->deductStockFefo($quantity, $reason, $movementType, $referenceType, $referenceId);
 
             // Refresh item to get updated stock
             $item = $item->fresh();
@@ -338,13 +379,17 @@ class InventoryService
         $item->decrement('stock', $quantity);
         $item = $item->fresh();
 
+        $movementType = in_array($referenceType, ['vet_usage', 'grooming_usage', 'boarding_food_usage'], true)
+            ? $referenceType
+            : ($referenceType === 'customer_order' ? 'customer_order_deduction' : 'pos_sale_deduction');
+
         // Log the stock deduction
         InventoryLog::create([
             'inventory_item_id' => $itemId,
             'delta' => -$quantity,
             'quantity' => $quantity,
             'type' => 'sale',
-            'movement_type' => $referenceType === 'customer_order' ? 'customer_order_deduction' : 'pos_sale_deduction',
+            'movement_type' => $movementType,
             'reason' => $reason,
             'reference_type' => $referenceType,
             'reference_id' => $referenceId,
@@ -391,6 +436,26 @@ class InventoryService
             );
 
             $item = $item->fresh();
+            if (in_array($referenceType, ['vet_usage', 'grooming_usage', 'boarding_food_usage'], true)) {
+                InventoryLog::create([
+                    'inventory_item_id' => $itemId,
+                    'batch_id' => $batch->id,
+                    'delta' => $quantity,
+                    'quantity' => $quantity,
+                    'type' => 'restock',
+                    'movement_type' => $referenceType,
+                    'reason' => $reason,
+                    'reference_type' => $referenceType,
+                    'reference_id' => $referenceId,
+                    'stock_before' => $stockBefore,
+                    'stock_after' => $item->stock,
+                    'previous_stock' => $stockBefore,
+                    'new_stock' => $item->stock,
+                    'performed_by' => auth()->user()?->name,
+                    'role' => auth()->user()?->role,
+                    'user_id' => auth()->id(),
+                ]);
+            }
             $this->notifyInventoryMovement($item, $quantity, $reason, $referenceType, $referenceId, $stockBefore, $item->stock);
 
             return [
@@ -408,13 +473,17 @@ class InventoryService
         $item->increment('stock', $quantity);
         $item = $item->fresh();
 
+        $movementType = in_array($referenceType, ['vet_usage', 'grooming_usage', 'boarding_food_usage'], true)
+            ? $referenceType
+            : ($referenceType === 'customer_order' ? 'customer_order_restore' : 'stock_in');
+
         // Log the stock addition
         InventoryLog::create([
             'inventory_item_id' => $itemId,
             'delta' => $quantity,
             'quantity' => $quantity,
             'type' => 'restock',
-            'movement_type' => $referenceType === 'customer_order' ? 'customer_order_restore' : 'stock_in',
+            'movement_type' => $movementType,
             'reason' => $reason,
             'reference_type' => $referenceType,
             'reference_id' => $referenceId,

@@ -14,12 +14,33 @@ class Grooming extends Model
         'appointment_time',
         'notes',
         'amount',
+        'payment_status',
+        'base_amount',
+        'additional_charges',
+        'total_amount',
+        'amount_paid',
+        'balance_due',
+        'payment_method',
+        'payment_reference',
+        'payment_proof',
+        'paid_at',
+        'verified_by',
+        'cashier_remarks',
+        'receipt_number',
+        'completed_at',
         'status',
     ];
 
     protected $casts = [
         'appointment_date' => 'date',
         'amount' => 'decimal:2',
+        'base_amount' => 'decimal:2',
+        'additional_charges' => 'decimal:2',
+        'total_amount' => 'decimal:2',
+        'amount_paid' => 'decimal:2',
+        'balance_due' => 'decimal:2',
+        'paid_at' => 'datetime',
+        'completed_at' => 'datetime',
     ];
 
     public function customer()

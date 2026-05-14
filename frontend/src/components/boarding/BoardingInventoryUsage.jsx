@@ -46,6 +46,7 @@ const BoardingInventoryUsage = ({ boardingId, petId }) => {
       {
         inventory_item_id: '',
         quantity_used: 1,
+        usage_type: 'food',
         notes: '',
         unit: 'pcs'
       }
@@ -205,6 +206,20 @@ const BoardingInventoryUsage = ({ boardingId, petId }) => {
                   </div>
 
                   <div className="field-group">
+                    <label>Usage Type</label>
+                    <select
+                      value={item.usage_type || 'food'}
+                      onChange={(e) => updateItem(index, 'usage_type', e.target.value)}
+                      className="item-select"
+                    >
+                      <option value="food">Food</option>
+                      <option value="supply">Supply</option>
+                      <option value="cleaning">Cleaning</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+
+                  <div className="field-group">
                     <label>Notes</label>
                     <input
                       type="text"
@@ -252,6 +267,9 @@ const BoardingInventoryUsage = ({ boardingId, petId }) => {
                   <span className="item-name">{usage.item_name}</span>
                   <span className="quantity">
                     {usage.quantity_used} {usage.unit}
+                  </span>
+                  <span className="batch-info">
+                    {String(usage.usage_type || 'food').toUpperCase()}
                   </span>
                   {usage.batch_info && (
                     <span className="batch-info">

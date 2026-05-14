@@ -11,6 +11,8 @@ export const normalizeList = (result, keys = []) => {
   if (Array.isArray(result?.requests)) return result.requests;
   if (Array.isArray(result?.service_requests)) return result.service_requests;
   if (Array.isArray(result?.appointments)) return result.appointments;
+  if (Array.isArray(result?.bookings)) return result.bookings;
+  if (Array.isArray(result?.boardings)) return result.boardings;
   if (Array.isArray(result?.payments)) return result.payments;
   if (Array.isArray(result?.transactions)) return result.transactions;
   if (Array.isArray(result?.logs)) return result.logs;
@@ -31,6 +33,9 @@ export const normalizeList = (result, keys = []) => {
   if (Array.isArray(result?.medical_records)) return result.medical_records;
   if (Array.isArray(result?.veterinary_records)) return result.veterinary_records;
   if (Array.isArray(result?.boarding_requests)) return result.boarding_requests;
+  if (Array.isArray(result?.addons)) return result.addons;
+  if (Array.isArray(result?.add_ons)) return result.add_ons;
+  if (Array.isArray(result?.service_addons)) return result.service_addons;
   if (Array.isArray(result?.medical_confinements)) return result.medical_confinements;
   if (Array.isArray(result?.inventory_logs)) return result.inventory_logs;
 

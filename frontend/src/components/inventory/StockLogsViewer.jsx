@@ -1,7 +1,59 @@
 import React, { useState, useEffect } from "react";
 import { inventoryApi } from "../../api/inventory";
+import { normalizeList } from "../../api/client";
 import { generateInventoryAuditPdf } from "../../utils/inventoryAuditPdf";
 import "./StockLogsViewer.css";
+
+const normalizeMovement = (log = {}) => ({
+  id: log.id,
+  itemName:
+    log.item_name ||
+    log.item_name_snapshot ||
+    log.inventory_item?.name ||
+    log.inventoryItem?.name ||
+    log.product_name ||
+    log.name ||
+    `Item #${log.inventory_item_id || log.item_id || "?"}`,
+  sku:
+    log.item_sku ||
+    log.item_sku_snapshot ||
+    log.sku ||
+    log.inventory_item?.sku ||
+    log.inventoryItem?.sku ||
+    "No SKU",
+  movementType:
+    log.movement_type ||
+    log.action ||
+    log.reference_type ||
+    log.type ||
+    "activity",
+  quantityChange: Number(log.quantity_change ?? log.delta ?? log.quantity ?? 0),
+  stockBefore: log.previous_stock ?? log.stock_before ?? log.quantity_before ?? "N/A",
+  stockAfter: log.new_stock ?? log.stock_after ?? log.quantity_after ?? "N/A",
+  reason: log.reason || "No reason provided",
+  performedBy: log.user_name || log.user?.name || log.performed_by || "System",
+  role: log.role || log.user?.role || "—",
+  image: log.item_image || log.image || log.inventory_item?.image || log.inventoryItem?.image || null,
+  createdAt: log.created_at,
+  raw: log,
+});
+
+const getMovementLabel = (movementType) => {
+  switch (movementType) {
+    case "vet_usage":
+      return "Veterinary Usage";
+    case "grooming_usage":
+      return "Grooming Usage";
+    case "boarding_food_usage":
+      return "Boarding Food Usage";
+    case "boarding_supply_usage":
+      return "Boarding Supply Usage";
+    default:
+      return String(movementType || "activity")
+        .replaceAll("_", " ")
+        .replace(/\b\w/g, (letter) => letter.toUpperCase());
+  }
+};
 
 const StockLogsViewer = ({ itemId = null, filterAction = null, search = null }) => {
   const [logs, setLogs] = useState([]);
@@ -20,36 +72,11 @@ const StockLogsViewer = ({ itemId = null, filterAction = null, search = null }) 
       try {
         const params = itemId ? { itemId } : {};
         const response = await inventoryApi.getStockHistory(params);
-        const logsData = response.history || response.data || response.logs || response || [];
+        const logsData = normalizeList(response, ["logs", "history", "data"]);
         setLogs(logsData);
       } catch (err) {
         console.error("Failed to fetch stock logs:", err);
-        setLogs([
-          {
-            id: 1,
-            inventory_item_id: 1,
-            item_name: "Premium Dog Food",
-            action: "restock",
-            quantity_change: 50,
-            quantity_before: 0,
-            quantity_after: 50,
-            reason: "Initial stock",
-            created_at: new Date().toISOString(),
-            user_name: "Admin",
-          },
-          {
-            id: 2,
-            inventory_item_id: 2,
-            item_name: "Cat Shampoo",
-            action: "adjustment",
-            quantity_change: -2,
-            quantity_before: 10,
-            quantity_after: 8,
-            reason: "Damaged items",
-            created_at: new Date(Date.now() - 86400000).toISOString(),
-            user_name: "Inventory Manager",
-          },
-        ]);
+        setLogs([]);
       } finally {
         setLoading(false);
       }
@@ -58,48 +85,12 @@ const StockLogsViewer = ({ itemId = null, filterAction = null, search = null }) 
     fetchLogs();
   }, [itemId]);
 
-  // Auto reorder trigger for low stock items
-  const checkAutoReorder = async () => {
-    try {
-      const response = await inventoryApi.getLowStockAlerts();
-      const lowStockItems = response.data || response.items || [];
-
-      for (const item of lowStockItems) {
-        const stock = Number(item.stock || item.quantity || 0);
-        const reorderLevel = Number(item.reorder_level || 10);
-
-        if (stock <= reorderLevel && stock > 0) {
-          await inventoryApi.createReorderRequest({
-            item_id: item.id,
-            item_name: item.name,
-            sku: item.sku,
-            suggested_quantity: reorderLevel * 2,
-            current_stock: stock,
-            reorder_level: reorderLevel,
-            priority: stock === 0 ? "critical" : "high",
-            status: "pending",
-          });
-          console.log(`Auto reorder triggered for ${item.name}`);
-        }
-      }
-    } catch (err) {
-      console.error("Auto reorder failed:", err);
-    }
-  };
-
-  // Run auto reorder when logs load
-  useEffect(() => {
-    if (!loading && logs.length > 0) {
-      checkAutoReorder();
-    }
-  }, [logs, loading]);
-
   const refreshLogs = async () => {
     setLoading(true);
     try {
       const params = itemId ? { itemId } : {};
       const response = await inventoryApi.getStockHistory(params);
-      const logsData = response.history || response.data || response.logs || response || [];
+      const logsData = normalizeList(response, ["logs", "history", "data"]);
       setLogs(logsData);
     } catch (err) {
       console.error("Failed to refresh stock logs:", err);
@@ -109,21 +100,23 @@ const StockLogsViewer = ({ itemId = null, filterAction = null, search = null }) 
   };
 
   const getFilteredLogs = () => {
-    return logs.filter((log) => {
+    return logs
+      .map(normalizeMovement)
+      .filter((log) => {
       // Filter by action type (use external prop if provided)
-      const action = getMovement(log);
+      const action = log.movementType;
       if (activeFilter !== "all" && action !== activeFilter) return false;
 
       // Filter by search term (use external prop if provided)
       if (activeSearch) {
         const searchLower = activeSearch.toLowerCase();
         const searchable = [
-          log.item_name,
+          log.itemName,
+          log.sku,
           log.reason,
-          log.user_name,
-          log.movement_type,
-          log.reference_type,
-          log.action,
+          log.performedBy,
+          log.movementType,
+          log.role,
         ]
           .filter(Boolean)
           .join(" ")
@@ -195,50 +188,6 @@ const StockLogsViewer = ({ itemId = null, filterAction = null, search = null }) 
     return { additions, removals, adjustments, total: filtered.length };
   };
 
-  const getItemName = (log) =>
-  log.item_name ||
-  log.inventory_item?.name ||
-  log.inventoryItem?.name ||
-  log.product_name ||
-  log.name ||
-  `Item #${log.inventory_item_id || log.item_id}`;
-
-const getItemSku = (log) =>
-  log.item_sku ||
-  log.inventory_item?.sku ||
-  log.inventoryItem?.sku ||
-  log.sku ||
-  "No SKU";
-
-const getItemImage = (log) =>
-  log.item_image ||
-  log.image ||
-  log.inventory_item?.image ||
-  log.inventoryItem?.image ||
-  null;
-
-const getUserName = (log) =>
-  log.user_name ||
-  log.user?.name ||
-  log.performed_by ||
-  "System";
-
-const getMovement = (log) =>
-  log.movement_type ||
-  log.action ||
-  log.reference_type ||
-  log.type ||
-  "activity";
-
-const getQuantityChange = (log) =>
-  Number(log.quantity_change ?? log.delta ?? log.quantity ?? 0);
-
-const getStockBefore = (log) =>
-  log.previous_stock ?? log.stock_before ?? log.quantity_before ?? "N/A";
-
-const getStockAfter = (log) =>
-  log.new_stock ?? log.stock_after ?? log.quantity_after ?? "N/A";
-
 const getInitials = (name) =>
   String(name || "S")
     .split(" ")
@@ -301,14 +250,14 @@ const getInitials = (name) =>
         <div className="analytics-row">
           <div>
             <strong>Most Active Item:</strong>{" "}
-            {filteredLogs[0]?.item_name || filteredLogs[0]?.product_name || filteredLogs[0]?.name || filteredLogs[0]?.inventory_name || "N/A"}
+            {filteredLogs[0]?.itemName || "N/A"}
           </div>
           <div>
             <strong>Top User:</strong>{" "}
             {
               Object.entries(
                 filteredLogs.reduce((acc, log) => {
-                  acc[log.user_name || "System"] = (acc[log.user_name || "System"] || 0) + 1;
+                  acc[log.performedBy || "System"] = (acc[log.performedBy || "System"] || 0) + 1;
                   return acc;
                 }, {})
               ).sort((a, b) => b[1] - a[1])[0]?.[0] || "N/A"
@@ -402,12 +351,12 @@ const getInitials = (name) =>
         ) : (
           <div className="logs-list">
             {filteredLogs.map((log) => (
-              <div key={log.id} className={`log-item ${getMovement(log)}`}>
+              <div key={log.id} className={`log-item ${log.movementType}`}>
               <div className="log-product-media">
-                {getItemImage(log) ? (
-                  <img src={getItemImage(log)} alt={getItemName(log)} />
+                {log.image ? (
+                  <img src={log.image} alt={log.itemName} />
                 ) : (
-                  <span>{getActionIcon(getMovement(log))}</span>
+                  <span>{getActionIcon(log.movementType)}</span>
                 )}
               </div>
 
@@ -415,34 +364,34 @@ const getInitials = (name) =>
                 <div className="log-header">
                   <div>
                     <span className="log-item-name">
-                      {getItemName(log)}
+                      {log.itemName}
                       <span className="audit-badge">AUDIT LOG</span>
                     </span>
-                    <div className="log-sku">{getItemSku(log)}</div>
+                    <div className="log-sku">{log.sku}</div>
                   </div>
 
-                  <span className="log-time">{formatDate(log.created_at)}</span>
+                  <span className="log-time">{formatDate(log.createdAt)}</span>
                 </div>
 
                 <div className="log-details">
-                  <span className={`log-quantity ${getActionColor(getMovement(log), getQuantityChange(log))}`}>
-                    {getQuantityChange(log) > 0 ? "+" : ""}
-                    {getQuantityChange(log)} units
+                  <span className={`log-quantity ${getActionColor(log.movementType, log.quantityChange)}`}>
+                    {log.quantityChange > 0 ? "+" : ""}
+                    {log.quantityChange} units
                   </span>
                   <span className="log-arrow">→</span>
-                  <span className="log-after">{getStockBefore(log)} to {getStockAfter(log)}</span>
-                  <span className="log-action">{getMovement(log)}</span>
+                  <span className="log-after">{log.stockBefore} to {log.stockAfter}</span>
+                  <span className="log-action">{getMovementLabel(log.movementType)}</span>
                 </div>
 
                 <div className="log-bottom-row">
                   <div className="log-reason">
                     <span className="reason-label">Reason:</span>
-                    <span className="reason-text">{log.reason || "No reason provided"}</span>
+                    <span className="reason-text">{log.reason}</span>
                   </div>
 
                   <div className="log-user-pill">
-                    <span className="log-user-avatar">{getInitials(getUserName(log))}</span>
-                    <span>{getUserName(log)}</span>
+                    <span className="log-user-avatar">{getInitials(log.performedBy)}</span>
+                    <span>{log.performedBy}</span>
                   </div>
                 </div>
               </div>

@@ -7,6 +7,7 @@ use App\Models\BoardingCareLog;
 use App\Models\HotelRoom;
 use App\Models\Pet;
 use App\Models\Customer;
+use App\Models\ServiceItemUsage;
 use App\Services\NotificationService;
 use App\Services\WorkflowNotifier;
 use App\Services\BookingAvailabilityService;
@@ -78,8 +79,14 @@ class BoardingController extends Controller
             $user = $request->user();
 
             if ($user && isset($user->id)) {
-                if (Schema::hasColumn('boardings', 'customer_id')) {
-                    $query->where('customer_id', $user->id);
+                if ($user->role === 'customer' && Schema::hasColumn('boardings', 'customer_id')) {
+                    $customerId = $this->currentCustomerId($request);
+
+                    if ($customerId) {
+                        $query->where('customer_id', $customerId);
+                    } else {
+                        $query->whereRaw('1 = 0');
+                    }
                 }
             } elseif ($email) {
                 if (Schema::hasColumn('boardings', 'customer_email')) {
@@ -607,9 +614,7 @@ class BoardingController extends Controller
                 'status' => 'approved',
                 'approved_by' => request()->user()?->id,
                 'approved_at' => now(),
-                'payment_status' => DB::getDriverName() === 'sqlite'
-                    ? $boarding->payment_status
-                    : ($boarding->payment_status === 'pending' ? 'unpaid' : $boarding->payment_status),
+                'payment_status' => $boarding->payment_status === 'paid' ? 'paid' : 'unpaid',
             ]);
 
             // Create base service billing item when boarding is approved
@@ -668,11 +673,22 @@ class BoardingController extends Controller
     {
         $boardings = Boarding::with(['pet', 'customer', 'hotelRoom'])
             ->where('status', 'pending')
-            ->where('stay_type', 'hotel_boarding')
+            ->where(function ($query) {
+                $query->where('stay_type', 'hotel_boarding')
+                    ->orWhere('boarding_type', 'like', '%hotel%')
+                    ->orWhere('boarding_type', 'like', '%boarding%')
+                    ->orWhereNotNull('check_in')
+                    ->orWhereNotNull('check_out');
+            })
             ->latest()
             ->get();
 
-        return response()->json(['boarding_requests' => $boardings]);
+        return response()->json([
+            'success' => true,
+            'boarding_requests' => $boardings,
+            'boardings' => $boardings,
+            'data' => $boardings,
+        ]);
     }
 
     public function schedule(Request $request, $id): JsonResponse
@@ -742,6 +758,7 @@ class BoardingController extends Controller
             'boarding_type' => $request->input('boarding_type', $boarding->boarding_type),
             'total_amount' => $request->input('total_amount', $days * $room->daily_rate),
             'status' => 'scheduled',
+            'payment_status' => $boarding->payment_status === 'paid' ? 'paid' : 'unpaid',
             'approved_by' => $boarding->approved_by ?: $request->user()?->id,
             'approved_at' => $boarding->approved_at ?: now(),
             'notes' => $request->input('notes', $boarding->notes),
@@ -823,12 +840,22 @@ class BoardingController extends Controller
             return response()->json(['error' => 'Payment must be settled before checkout'], 422);
         }
 
+        $billing = ServiceBillingService::canCompleteService(ServiceItemUsage::SERVICE_BOARDING, (int) $boarding->id);
+        if (!$billing['can_complete']) {
+            return response()->json([
+                'error' => $billing['message'],
+                'payment_status' => $boarding->payment_status,
+                'billing' => $billing,
+            ], 422);
+        }
+
         $oldStatus = $boarding->status;
         $boarding->update([
             'status' => 'completed',
             'actual_check_out' => now(),
             'checked_out_at' => now(),
             'checked_out_by' => request()->user()?->id,
+            'balance_due' => 0,
         ]);
         $boarding->hotelRoom?->update(['status' => 'available']);
 
@@ -839,6 +866,20 @@ class BoardingController extends Controller
             'message' => 'Guest checked out successfully',
             'boarding' => $boarding->fresh(['pet', 'customer', 'hotelRoom']),
         ]);
+    }
+
+    public function finalizeBill($id): JsonResponse
+    {
+        Boarding::findOrFail($id);
+
+        return response()->json(
+            ServiceBillingService::finalizeServiceBill(ServiceItemUsage::SERVICE_BOARDING, (int) $id)
+        );
+    }
+
+    public function complete($id): JsonResponse
+    {
+        return $this->checkOut($id);
     }
 
     public function readyForPickup($id): JsonResponse
@@ -1233,11 +1274,33 @@ class BoardingController extends Controller
                 'message' => 'You do not have permission to record inventory usage'
             ], 403);
         }
-        
-        $validator = Validator::make($request->all(), [
+
+        $items = collect($request->input('items', []))
+            ->map(function ($item) {
+                if (!is_array($item)) {
+                    return $item;
+                }
+
+                if (!array_key_exists('quantity_used', $item) && array_key_exists('quantity', $item)) {
+                    $item['quantity_used'] = $item['quantity'];
+                }
+
+                if (!array_key_exists('notes', $item) && array_key_exists('reason', $item)) {
+                    $item['notes'] = $item['reason'];
+                }
+
+                return $item;
+            })
+            ->values()
+            ->all();
+
+        $validator = Validator::make([
+            'items' => $items,
+        ], [
             'items' => 'required|array',
             'items.*.inventory_item_id' => 'required|integer|exists:inventory_items,id',
             'items.*.quantity_used' => 'required|integer|min:1',
+            'items.*.usage_type' => 'nullable|in:food,supply,cleaning,other',
             'items.*.notes' => 'nullable|string|max:500',
         ]);
         
@@ -1252,7 +1315,7 @@ class BoardingController extends Controller
         try {
             $boardingInventoryService = new BoardingInventoryService();
             $result = $boardingInventoryService->recordInventoryUsage(
-                $request->input('items'),
+                $items,
                 $id,
                 $boarding->pet_id,
                 'Boarding food/supply usage',

@@ -33,8 +33,11 @@ class Boarding extends Model
         'check_out_time',
         'boarding_type',
         'status',
+        'base_amount',
+        'additional_charges',
         'total_amount',
         'amount_paid',
+        'balance_due',
         'payment_status',
         'payment_method',
         'payment_reference',
@@ -79,7 +82,11 @@ class Boarding extends Model
         'rejected_at' => 'datetime',
         'paid_at' => 'datetime',
         'reminder_sent_at' => 'datetime',
+        'base_amount' => 'decimal:2',
+        'additional_charges' => 'decimal:2',
         'total_amount' => 'decimal:2',
+        'amount_paid' => 'decimal:2',
+        'balance_due' => 'decimal:2',
     ];
 
     /**
@@ -102,7 +109,7 @@ class Boarding extends Model
     /**
      * Valid payment statuses
      */
-    public const VALID_PAYMENT_STATUSES = ['unpaid', 'pending', 'partial', 'paid', 'rejected', 'refunded'];
+    public const VALID_PAYMENT_STATUSES = ['unpaid', 'pending', 'partial', 'balance_due', 'paid', 'rejected', 'refunded'];
 
     /**
      * Boot method for model-level validation

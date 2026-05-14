@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Veterinary;
 use App\Http\Controllers\Controller;
 use App\Models\Appointment;
 use App\Models\MedicalConfinement;
+use App\Models\ServiceItemUsage;
+use App\Services\ServiceBillingService;
 use App\Services\WorkflowNotifier;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -82,6 +84,19 @@ class ConsultationWorkflowController extends Controller
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $billingStatus = ServiceBillingService::canCompleteService(ServiceItemUsage::SERVICE_VETERINARY, (int) $appointment->id);
+        $paymentStatus = strtolower((string) ($appointment->payment_status ?? 'unpaid'));
+
+        if ($paymentStatus !== 'paid' || !$billingStatus['can_complete']) {
+            return response()->json([
+                'error' => $paymentStatus !== 'paid'
+                    ? 'Consultation cannot be completed until payment is fully verified.'
+                    : $billingStatus['message'],
+                'payment_status' => $appointment->payment_status,
+                'billing' => $billingStatus,
+            ], 422);
         }
 
         $appointment->update([

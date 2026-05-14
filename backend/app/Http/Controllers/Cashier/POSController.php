@@ -207,9 +207,10 @@ class POSController extends Controller
     public function getProducts()
     {
         $products = InventoryItem::where('stock', '>', 0)
-            ->where('status', 'active')  // Exclude archived items
-            ->where('is_sellable', true)  // Only sellable items
-            ->select('id', 'sku', 'name', 'price', 'stock', 'description')
+            ->where('status', 'active')
+            ->whereNull('archived_at')
+            ->where('is_sellable', true)
+            ->select('id', 'sku', 'name', 'category', 'price', 'stock', 'description', 'status')
             ->orderBy('name')
             ->get()
             ->map(function ($item) {
@@ -218,15 +219,22 @@ class POSController extends Controller
                     'sku' => $item->sku,
                     'name' => $item->name,
                     'price' => (float) $item->price,
+                    'selling_price' => (float) $item->price,
                     'stock' => $item->stock,
-                    'category' => $this->getCategoryFromSku($item->sku),
+                    'stock_quantity' => (int) $item->stock,
+                    'available_stock' => (int) $item->stock,
+                    'category' => $item->category ?: $this->getCategoryFromSku($item->sku),
                     'description' => $item->description,
+                    'status' => $item->status,
                     'type' => 'product',
                     'inStock' => $item->stock > 0,
                 ];
             });
 
-        return response()->json(['products' => $products]);
+        return response()->json([
+            'success' => true,
+            'products' => $products,
+        ]);
     }
 
     /**

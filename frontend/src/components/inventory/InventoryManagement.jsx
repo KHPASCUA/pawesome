@@ -19,6 +19,7 @@ import {
   faArchive,
 } from '@fortawesome/free-solid-svg-icons';
 import { inventoryApi } from '../../api/inventory';
+import { normalizeList } from '../../api/client';
 import PremiumToast from '../shared/PremiumToast';
 import DeleteConfirmModal from '../shared/DeleteConfirmModal';
 import './InventoryManagement.css';
@@ -133,8 +134,8 @@ const InventoryManagement = () => {
         inventoryApi.getArchivedItems().catch(() => [])
       ]);
       
-      const fetchedItems = Array.isArray(itemsResponse) ? itemsResponse : (itemsResponse.items || itemsResponse.data || []);
-      const fetchedArchivedItems = Array.isArray(archivedResponse) ? archivedResponse : (archivedResponse.items || archivedResponse.data || []);
+      const fetchedItems = normalizeList(itemsResponse, ['items', 'inventory', 'inventory_items', 'data']);
+      const fetchedArchivedItems = normalizeList(archivedResponse, ['archived', 'items', 'inventory', 'data']);
       
       setItems(fetchedItems);
       setArchivedItems(fetchedArchivedItems);
@@ -368,7 +369,7 @@ const InventoryManagement = () => {
 
     try {
       setLoading(true);
-      await inventoryApi.unarchiveItem(id);
+      await inventoryApi.restoreItem(id);
       await fetchInventory();
 
       addActivityLog('unarchive', `Unarchived "${item.name}"`);

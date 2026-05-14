@@ -41,6 +41,20 @@ const validateData = (data, operation = "operation") => {
   }
 };
 
+const ACTIVE_ITEMS_ENDPOINT = "/inventory/items";
+const ARCHIVED_ITEMS_ENDPOINT = "/inventory/items/archived";
+const PUBLIC_ITEMS_ENDPOINT = "/inventory/public/items";
+const STOCK_HISTORY_ENDPOINT = "/inventory/stock/history";
+const STOCK_LOGS_ENDPOINT = "/inventory/logs";
+
+const buildQueryInput = (params = {}) => {
+  if (typeof params === "string") {
+    return params.startsWith("?") ? params : params ? `?${params}` : "";
+  }
+
+  return buildQueryString(params);
+};
+
 /**
  * Inventory API service for managing inventory items, stock levels, and reports.
  * @namespace inventoryApi
@@ -62,10 +76,27 @@ export const inventoryApi = {
    */
   getItems: async (params = {}) => {
     try {
+      if (params?.status === "archived") {
+        const archivedParams = { ...params };
+        delete archivedParams.status;
+        const queryString = buildQueryInput(archivedParams);
+        return await apiRequest(`${ARCHIVED_ITEMS_ENDPOINT}${queryString}`);
+      }
+
       const queryString = buildQueryString(params);
-      return await apiRequest(`/inventory/items${queryString}`);
+      return await apiRequest(`${ACTIVE_ITEMS_ENDPOINT}${queryString}`);
     } catch (error) {
       console.error("[InventoryAPI] Failed to fetch items:", error.message);
+      throw error;
+    }
+  },
+
+  getActiveItems: async (params = {}) => {
+    try {
+      const queryString = buildQueryInput(params);
+      return await apiRequest(`${ACTIVE_ITEMS_ENDPOINT}${queryString}`);
+    } catch (error) {
+      console.error("[InventoryAPI] Failed to fetch active items:", error.message);
       throw error;
     }
   },
@@ -84,7 +115,7 @@ export const inventoryApi = {
   getPublicItems: async (params = {}) => {
     try {
       const queryString = buildQueryString(params);
-      return await apiRequest(`/inventory/public/items${queryString}`);
+      return await apiRequest(`${PUBLIC_ITEMS_ENDPOINT}${queryString}`);
     } catch (error) {
       console.error("[InventoryAPI] Failed to fetch public items:", error.message);
       throw error;
@@ -103,6 +134,24 @@ export const inventoryApi = {
       return await apiRequest("/inventory/sellable");
     } catch (error) {
       console.error("[InventoryAPI] Failed to fetch sellable items:", error.message);
+      throw error;
+    }
+  },
+
+  getSellableItems: async () => {
+    try {
+      return await apiRequest("/inventory/sellable");
+    } catch (error) {
+      console.error("[InventoryAPI] Failed to fetch sellable items:", error.message);
+      throw error;
+    }
+  },
+
+  getCashierSellableItems: async () => {
+    try {
+      return await apiRequest("/cashier/inventory/sellable");
+    } catch (error) {
+      console.error("[InventoryAPI] Failed to fetch cashier sellable items:", error.message);
       throw error;
     }
   },
@@ -222,8 +271,8 @@ export const inventoryApi = {
   archiveItem: async (id, reason = "Archived via inventory management") => {
     validateId(id, "Item ID");
     try {
-      return await apiRequest(`/inventory/items/${id}`, {
-        method: "DELETE",
+      return await apiRequest(`/inventory/items/${id}/archive`, {
+        method: "PATCH",
         body: JSON.stringify({ reason }),
       });
     } catch (error) {
@@ -243,8 +292,18 @@ export const inventoryApi = {
    */
   getArchived: async (params = {}) => {
     try {
-      const queryString = buildQueryString(params);
-      return await apiRequest(`/inventory/archived${queryString}`);
+      const queryString = buildQueryInput(params);
+      return await apiRequest(`${ARCHIVED_ITEMS_ENDPOINT}${queryString}`);
+    } catch (error) {
+      console.error("[InventoryAPI] Failed to fetch archived items:", error.message);
+      throw error;
+    }
+  },
+
+  getArchivedItems: async (params = {}) => {
+    try {
+      const queryString = buildQueryInput(params);
+      return await apiRequest(`${ARCHIVED_ITEMS_ENDPOINT}${queryString}`);
     } catch (error) {
       console.error("[InventoryAPI] Failed to fetch archived items:", error.message);
       throw error;
@@ -261,11 +320,23 @@ export const inventoryApi = {
   unarchiveItem: async (id) => {
     validateId(id, "Item ID");
     try {
-      return await apiRequest(`/inventory/items/${id}/unarchive`, {
-        method: "POST",
+      return await apiRequest(`/inventory/items/${id}/restore`, {
+        method: "PATCH",
       });
     } catch (error) {
       console.error(`[InventoryAPI] Failed to unarchive item ${id}:`, error.message);
+      throw error;
+    }
+  },
+
+  restoreItem: async (id) => {
+    validateId(id, "Item ID");
+    try {
+      return await apiRequest(`/inventory/items/${id}/restore`, {
+        method: "PATCH",
+      });
+    } catch (error) {
+      console.error(`[InventoryAPI] Failed to restore item ${id}:`, error.message);
       throw error;
     }
   },
@@ -280,11 +351,23 @@ export const inventoryApi = {
   deleteItem: async (id) => {
     validateId(id, "Item ID");
     try {
-      return await apiRequest(`/inventory/items/${id}/force-delete`, {
+      return await apiRequest(`/inventory/items/${id}`, {
         method: "DELETE",
       });
     } catch (error) {
       console.error(`[InventoryAPI] Failed to delete item ${id}:`, error.message);
+      throw error;
+    }
+  },
+
+  forceDeleteItem: async (id) => {
+    validateId(id, "Item ID");
+    try {
+      return await apiRequest(`/inventory/items/${id}`, {
+        method: "DELETE",
+      });
+    } catch (error) {
+      console.error(`[InventoryAPI] Failed to force delete item ${id}:`, error.message);
       throw error;
     }
   },
@@ -353,10 +436,20 @@ export const inventoryApi = {
    */
   getStockHistory: async (params = {}) => {
     try {
-      const queryString = buildQueryString(params);
-      return await apiRequest(`/inventory/history${queryString}`);
+      const queryString = buildQueryInput(params);
+      return await apiRequest(`${STOCK_HISTORY_ENDPOINT}${queryString}`);
     } catch (error) {
       console.error("[InventoryAPI] Failed to fetch stock history:", error.message);
+      throw error;
+    }
+  },
+
+  getStockLogs: async (params = {}) => {
+    try {
+      const queryString = buildQueryInput(params);
+      return await apiRequest(`${STOCK_LOGS_ENDPOINT}${queryString}`);
+    } catch (error) {
+      console.error("[InventoryAPI] Failed to fetch stock logs:", error.message);
       throw error;
     }
   },
@@ -371,26 +464,46 @@ export const inventoryApi = {
    * @returns {Promise<Object>} Updated item with adjustment record
    * @throws {Error} When validation fails or request fails
    */
-  adjustStock: async (id, type, quantity, reason = "Manual stock adjustment", options = {}) => {
+  adjustStock: async (id, typeOrPayload, quantity, reason = "Manual stock adjustment", options = {}) => {
     validateId(id, "Item ID");
 
-    if (!["add", "remove", "set"].includes(type)) {
-      throw new Error("Type must be 'add', 'remove', or 'set'");
-    }
+    let payload = null;
 
-    if (typeof quantity !== "number" || isNaN(quantity) || quantity < 0) {
-      throw new Error("Quantity must be a valid positive number");
+    if (typeof typeOrPayload === "object" && typeOrPayload !== null && !Array.isArray(typeOrPayload)) {
+      payload = {
+        type: typeOrPayload.type,
+        quantity: Number(typeOrPayload.quantity),
+        reason: typeOrPayload.reason || reason,
+        expiration_date: typeOrPayload.expiration_date || null,
+      };
+    } else {
+      if (!["add", "remove", "set"].includes(typeOrPayload)) {
+        throw new Error("Type must be 'add', 'remove', or 'set'");
+      }
+
+      if (typeof quantity !== "number" || isNaN(quantity) || quantity < 0) {
+        throw new Error("Quantity must be a valid positive number");
+      }
+
+      const adjustmentType = typeOrPayload === "add"
+        ? "increment"
+        : typeOrPayload === "remove"
+          ? "decrement"
+          : "set";
+
+      payload = {
+        type: typeOrPayload,
+        adjustment_type: adjustmentType,
+        quantity: Number(quantity),
+        reason,
+        expiration_date: options.expiration_date || null,
+      };
     }
 
     try {
-      return await apiRequest(`/inventory/${id}/stock`, {
+      return await apiRequest(`/inventory/items/${id}/adjust-stock`, {
         method: "POST",
-        body: JSON.stringify({
-          type,
-          quantity: Number(quantity),
-          reason,
-          expiration_date: options.expiration_date || null,
-        }),
+        body: JSON.stringify(payload),
       });
     } catch (error) {
       console.error(`[InventoryAPI] Failed to adjust stock for item ${id}:`, error.message);
@@ -409,6 +522,15 @@ export const inventoryApi = {
       return await apiRequest("/inventory/low-stock");
     } catch (error) {
       console.error("[InventoryAPI] Failed to fetch low stock alerts:", error.message);
+      throw error;
+    }
+  },
+
+  getLowStockItems: async () => {
+    try {
+      return await apiRequest("/inventory/low-stock");
+    } catch (error) {
+      console.error("[InventoryAPI] Failed to fetch low stock items:", error.message);
       throw error;
     }
   },
@@ -453,22 +575,6 @@ export const inventoryApi = {
    * @returns {Promise<Object>} Created notification
    * @throws {Error} When notification creation fails
    */
-  createInventoryNotification: async (payload) => {
-    try {
-      return await apiRequest("/notifications", {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
-    } catch (error) {
-      console.error("[InventoryAPI] Failed to create notification:", error.message);
-      throw error;
-    }
-  },
-
-  // ==========================================
-  // BATCH MANAGEMENT API
-  // ==========================================
-
   /**
    * Get all batches for an inventory item.
    * @async
@@ -477,6 +583,16 @@ export const inventoryApi = {
    * @throws {Error} When request fails
    */
   getItemBatches: async (itemId) => {
+    validateId(itemId, "Item ID");
+    try {
+      return await apiRequest(`/inventory/items/${itemId}/batches`);
+    } catch (error) {
+      console.error(`[InventoryAPI] Failed to get batches for item ${itemId}:`, error.message);
+      throw error;
+    }
+  },
+
+  getBatches: async (itemId) => {
     validateId(itemId, "Item ID");
     try {
       return await apiRequest(`/inventory/items/${itemId}/batches`);
@@ -509,6 +625,34 @@ export const inventoryApi = {
       });
     } catch (error) {
       console.error(`[InventoryAPI] Failed to add batch for item ${itemId}:`, error.message);
+      throw error;
+    }
+  },
+
+  createBatch: async (itemId, batchData) => {
+    validateId(itemId, "Item ID");
+    validateData(batchData, "create batch");
+    try {
+      return await apiRequest(`/inventory/items/${itemId}/batches`, {
+        method: "POST",
+        body: JSON.stringify(batchData),
+      });
+    } catch (error) {
+      console.error(`[InventoryAPI] Failed to create batch for item ${itemId}:`, error.message);
+      throw error;
+    }
+  },
+
+  updateBatch: async (batchId, payload) => {
+    validateId(batchId, "Batch ID");
+    validateData(payload, "update batch");
+    try {
+      return await apiRequest(`/inventory/batches/${batchId}`, {
+        method: "PUT",
+        body: JSON.stringify(payload),
+      });
+    } catch (error) {
+      console.error(`[InventoryAPI] Failed to update batch ${batchId}:`, error.message);
       throw error;
     }
   },
@@ -664,4 +808,6 @@ export const inventoryApi = {
     }
   },
 };
+
+export default inventoryApi;
 

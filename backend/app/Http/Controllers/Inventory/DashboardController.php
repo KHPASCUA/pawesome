@@ -93,18 +93,43 @@ class DashboardController extends Controller
         return response()->json(['data' => $logs]);
     }
 
-    public function items()
+    public function items(Request $request)
     {
+        $status = $request->query('status');
+        $query = InventoryItem::query()->orderBy('name');
+
+        if ($status === 'archived') {
+            $query->where('status', 'archived');
+        } else {
+            $query->where('status', '!=', 'archived')
+                ->whereNull('archived_at');
+        }
+
         return response()->json([
-            'items' => InventoryItem::orderBy('name')->get(),
+            'success' => true,
+            'items' => $query->get(),
         ]);
     }
 
-    public function logs()
+    public function logs(Request $request)
     {
+        $query = InventoryLog::with('inventoryItem', 'user')->latest();
+
+        if ($request->filled('movement_type')) {
+            $query->where('movement_type', $request->movement_type);
+        }
+
+        if ($request->filled('itemId')) {
+            $query->where('inventory_item_id', $request->itemId);
+        }
+
+        if ($request->filled('item_id')) {
+            $query->where('inventory_item_id', $request->item_id);
+        }
+
         return response()->json([
-            'logs' => InventoryLog::with('inventoryItem', 'user')
-                ->latest()
+            'success' => true,
+            'logs' => $query
                 ->get()
                 ->map(fn ($log) => $this->formatLog($log)),
         ]);
@@ -168,9 +193,12 @@ class DashboardController extends Controller
 
     public function lowStock()
     {
+        $result = $this->inventoryService->getLowStockItems();
+
         return response()->json([
-            'data' => $this->inventoryService->getLowStockItems(),
-            'count' => count($this->inventoryService->getLowStockItems()),
+            'success' => true,
+            'items' => $result['items'] ?? [],
+            'count' => $result['count'] ?? 0,
         ]);
     }
 
@@ -485,7 +513,10 @@ class DashboardController extends Controller
     public function showItem($id)
     {
         $item = InventoryItem::findOrFail($id);
-        return response()->json($item);
+        return response()->json([
+            'success' => true,
+            'item' => $item,
+        ]);
     }
 
     public function storeItem(Request $request)

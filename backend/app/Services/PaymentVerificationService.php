@@ -19,6 +19,14 @@ class PaymentVerificationService
                 return $this->verifyTablePayment('boardings', 'BD-REC-', $id, $request, 'Boarding payment verified successfully.');
             }
 
+            if ($type === 'appointment' || $type === 'veterinary') {
+                return $this->verifyTablePayment('appointments', 'VT-REC-', $id, $request, 'Veterinary payment verified successfully.');
+            }
+
+            if ($type === 'grooming') {
+                return $this->verifyTablePayment('groomings', 'GR-REC-', $id, $request, 'Grooming payment verified successfully.');
+            }
+
             if ($type === 'medical_confinement' || $type === 'confinement') {
                 return $this->verifyTablePayment('medical_confinements', 'MC-REC-', $id, $request, 'Medical confinement payment verified successfully.');
             }
@@ -74,6 +82,14 @@ class PaymentVerificationService
         try {
             if ($type === 'boarding') {
                 return $this->rejectTablePayment('boardings', $id, $request, 'Boarding payment rejected');
+            }
+
+            if ($type === 'appointment' || $type === 'veterinary') {
+                return $this->rejectTablePayment('appointments', $id, $request, 'Veterinary payment rejected');
+            }
+
+            if ($type === 'grooming') {
+                return $this->rejectTablePayment('groomings', $id, $request, 'Grooming payment rejected');
             }
 
             if ($type === 'medical_confinement' || $type === 'confinement') {
@@ -140,6 +156,8 @@ class PaymentVerificationService
             'updated_at' => now(),
         ]);
 
+        $this->syncServiceBillingForVerifiedPayment($table, $id, auth()->id(), $receiptNumber);
+
         WorkflowNotifier::notifyEmail($record->customer_email ?? null, 'Payment verified', 'Your payment proof was verified by cashier.', 'success', $table, $id);
 
         return ['success' => true, 'message' => $message, 'payment_status' => 'paid', 'receipt_number' => $receiptNumber];
@@ -168,5 +186,21 @@ class PaymentVerificationService
         WorkflowNotifier::notifyEmail($record->customer_email ?? null, 'Payment rejected', 'Your payment proof was rejected. Please upload a corrected proof.', 'warning', $table, $id);
 
         return ['success' => true, 'message' => $message, 'payment_status' => 'rejected'];
+    }
+
+    private function syncServiceBillingForVerifiedPayment(string $table, int $id, ?int $verifiedBy, ?string $receiptNumber): void
+    {
+        $serviceType = match ($table) {
+            'appointments' => 'veterinary',
+            'groomings' => 'grooming',
+            'boardings' => 'boarding',
+            default => null,
+        };
+
+        if (!$serviceType) {
+            return;
+        }
+
+        ServiceBillingService::markBaseServiceAsPaid($serviceType, $id, $verifiedBy, $receiptNumber);
     }
 }

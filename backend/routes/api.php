@@ -46,6 +46,7 @@ use App\Http\Controllers\PetController;
 use App\Http\Controllers\VetController;
 use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\CashierPaymentController;
+use App\Http\Controllers\Api\ServiceBillingController;
 use App\Http\Controllers\Api\ServiceRequestController;
 use App\Http\Controllers\Api\ReceptionistCustomerController;
 use App\Http\Controllers\Api\SecureFileController;
@@ -67,6 +68,22 @@ Route::get('/health', function () {
 Route::middleware(['auth.api', 'throttle:api', 'role:receptionist,admin'])->group(function () {
     Route::get('/receptionist/requests', [ServiceRequestController::class, 'receptionistRequests']);
     Route::patch('/receptionist/requests/{id}/status', [ServiceRequestController::class, 'updateStatus']);
+});
+
+Route::middleware(['auth.api', 'throttle:api', 'role:cashier,veterinary,receptionist,admin,inventory'])->prefix('billing')->group(function () {
+    Route::get('/inventory-items', [ServiceBillingController::class, 'getInventoryItems']);
+    Route::get('/{serviceType}/{serviceId}/summary', [ServiceBillingController::class, 'getServiceSummary']);
+    Route::get('/{serviceType}/{serviceId}/completion-status', [ServiceBillingController::class, 'checkCompletionStatus']);
+    Route::post('/{serviceType}/{serviceId}/finalize-bill', [ServiceBillingController::class, 'finalizeBill']);
+});
+
+Route::middleware(['auth.api', 'throttle:api', 'role:veterinary,receptionist,admin'])->prefix('billing')->group(function () {
+    Route::post('/items', [ServiceBillingController::class, 'addBillingItem']);
+});
+
+Route::middleware(['auth.api', 'throttle:api', 'role:cashier,admin'])->prefix('billing')->group(function () {
+    Route::get('/unpaid-services', [ServiceBillingController::class, 'getUnpaidServices']);
+    Route::patch('/items/mark-paid', [ServiceBillingController::class, 'markItemsAsPaid']);
 });
 
 Route::prefix('auth')->group(function () {
@@ -299,6 +316,7 @@ Route::middleware(['auth.api', 'throttle:api', 'role:cashier'])->prefix('cashier
     Route::get('confinement-payments/pending', [CashierDashboardController::class, 'getPaymentRequests']);
     
     // POS static routes
+    Route::get('inventory/sellable', [POSController::class, 'getProducts']);
     Route::get('pos/products', [POSController::class, 'getProducts']);
     Route::get('pos/services', [POSController::class, 'getServices']);
     Route::get('pos/transactions', [POSController::class, 'getTransactions']);
@@ -430,7 +448,7 @@ Route::middleware(['auth.api', 'throttle:api', 'role:receptionist'])->prefix('re
     Route::post('medical-confinements/{id}/release', [MedicalConfinementController::class, 'release']);
 });
 
-Route::middleware(['auth.api', 'throttle:api'])->get('inventory/items', [InventoryDashboardController::class, 'publicItems']);
+Route::middleware(['auth.api', 'throttle:api'])->get('inventory/public/items', [InventoryDashboardController::class, 'publicItems']);
 
 Route::middleware(['auth.api', 'throttle:api', 'role:admin,inventory'])->prefix('inventory')->group(function () {
     // IMPORTANT: Static routes must come before dynamic routes
@@ -440,6 +458,7 @@ Route::middleware(['auth.api', 'throttle:api', 'role:admin,inventory'])->prefix(
     Route::get('dashboard/recent-activity', [InventoryDashboardController::class, 'recentActivity']);
     Route::get('logs', [InventoryDashboardController::class, 'logs']);
     Route::get('history', [InventoryDashboardController::class, 'history']);
+    Route::get('stock/history', [InventoryDashboardController::class, 'history']);
     Route::get('low-stock', [InventoryDashboardController::class, 'lowStock']);
     Route::get('expiry-alerts', [InventoryDashboardController::class, 'expiryAlerts']);
     Route::get('monthly-audit', [InventoryDashboardController::class, 'monthlyAudit']);
@@ -463,6 +482,7 @@ Route::middleware(['auth.api', 'throttle:api', 'role:admin,inventory'])->prefix(
     
     // Items collection routes
     Route::get('items', [InventoryDashboardController::class, 'items']);
+    Route::get('items/archived', [InventoryController::class, 'archived']);
     Route::post('items', [InventoryDashboardController::class, 'storeItem']);
     Route::post('monthly-audit', [InventoryDashboardController::class, 'saveMonthlyAudit']);
     
@@ -470,6 +490,12 @@ Route::middleware(['auth.api', 'throttle:api', 'role:admin,inventory'])->prefix(
     Route::get('items/{id}', [InventoryDashboardController::class, 'showItem']);
     Route::put('items/{id}', [InventoryDashboardController::class, 'updateItem']);
     Route::delete('items/{id}', [InventoryDashboardController::class, 'destroyItem']);
+    Route::patch('items/{id}/archive', [InventoryController::class, 'archive']);
+    Route::patch('items/{id}/restore', [InventoryController::class, 'unarchive']);
+    Route::post('items/{id}/adjust-stock', [InventoryController::class, 'adjustStock']);
+    Route::get('items/{id}/batches', [InventoryController::class, 'getItemBatches']);
+    Route::post('items/{id}/batches', [InventoryController::class, 'addBatch']);
+    Route::put('batches/{batchId}', [InventoryController::class, 'adjustBatch']);
     Route::post('{id}/stock', [InventoryDashboardController::class, 'adjustStock']);
     Route::patch('{id}/stock', [InventoryDashboardController::class, 'adjustStock']);
 });
@@ -636,7 +662,10 @@ Route::middleware(['auth.api', 'throttle:api', 'role:veterinary,vet'])->prefix('
     
     // Veterinary Inventory Usage Routes
     Route::post('appointments/{id}/inventory-usage', [MedicalRecordController::class, 'recordInventoryUsage']);
+    Route::get('appointments/{id}/inventory-usage', [MedicalRecordController::class, 'getUsageHistory']);
     Route::get('appointments/{id}/inventory-usage-history', [MedicalRecordController::class, 'getUsageHistory']);
+    Route::post('appointments/{serviceId}/finalize-bill', [ServiceBillingController::class, 'finalizeBill'])
+        ->defaults('serviceType', 'veterinary');
     
     // Pet-specific medical data
     Route::get('pets/{petId}/medical-records', [MedicalRecordController::class, 'forPet']);
@@ -730,11 +759,26 @@ Route::middleware(['auth.api', 'throttle:api', 'role:receptionist'])->prefix('bo
     
     // Dynamic routes with ID parameters
     Route::get('/{id}', [BoardingController::class, 'show']);
+    Route::put('/{id}', [BoardingController::class, 'update']);
     Route::post('/{id}/check-in', [BoardingController::class, 'checkIn']);
     Route::post('/{id}/check-out', [BoardingController::class, 'checkOut']);
+    Route::post('/{id}/checkout', [BoardingController::class, 'checkOut']);
+    Route::post('/{id}/complete', [BoardingController::class, 'complete']);
+    Route::post('/{id}/finalize-bill', [BoardingController::class, 'finalizeBill']);
     Route::post('/{id}/cancel', [BoardingController::class, 'cancel']);
     Route::post('/{id}/pay', [BoardingController::class, 'markAsPaid']);
     Route::post('/{boarding}/payment', [PaymentController::class, 'storeBoardingPayment']);
+});
+
+Route::middleware(['auth.api', 'throttle:api', 'role:receptionist,admin'])->prefix('boarding')->group(function () {
+    Route::post('/{id}/check-in', [BoardingController::class, 'checkIn']);
+    Route::post('/{id}/checkout', [BoardingController::class, 'checkOut']);
+    Route::post('/{id}/check-out', [BoardingController::class, 'checkOut']);
+    Route::post('/{id}/complete', [BoardingController::class, 'complete']);
+    Route::post('/{id}/finalize-bill', [BoardingController::class, 'finalizeBill']);
+    Route::post('/{id}/inventory-usage', [BoardingController::class, 'recordInventoryUsage']);
+    Route::get('/{id}/inventory-usage-history', [BoardingController::class, 'getInventoryUsageHistory']);
+    Route::get('/inventory-items', [BoardingController::class, 'getAvailableInventoryItems']);
 });
 
 // Admin Boarding View-Only Routes
@@ -789,6 +833,8 @@ Route::middleware(['auth.api', 'throttle:api', 'role:receptionist'])->prefix('gr
     // Grooming Inventory Usage Routes
     Route::post('/{id}/inventory-usage', [\App\Http\Controllers\Api\GroomingController::class, 'recordInventoryUsage']);
     Route::get('/{id}/inventory-usage-history', [\App\Http\Controllers\Api\GroomingController::class, 'getInventoryUsageHistory']);
+    Route::post('/{id}/finalize-bill', [\App\Http\Controllers\Api\GroomingController::class, 'finalizeBill']);
+    Route::post('/{id}/complete', [\App\Http\Controllers\Api\GroomingController::class, 'complete']);
 });
 
 // Admin Grooming View-Only Routes

@@ -10,9 +10,11 @@ use App\Models\User;
 use App\Models\Grooming;
 use App\Models\Service;
 use App\Models\MedicalRecord;
+use App\Models\ServiceItemUsage;
 use App\Services\NotificationService;
 use App\Services\WorkflowNotifier;
 use App\Services\BookingAvailabilityService;
+use App\Services\ServiceBillingService;
 use App\Models\ActivityLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -258,7 +260,10 @@ class AppointmentController extends Controller
         $appointment->update([
             'status' => 'approved',
             'veterinarian_id' => $request->veterinarian_id,
+            'payment_status' => $appointment->payment_status === 'paid' ? 'paid' : 'unpaid',
         ]);
+
+        $this->ensureBaseBillingItem($appointment);
 
         WorkflowNotifier::notifyUser(
             $appointment->veterinarian_id,
@@ -564,6 +569,19 @@ class AppointmentController extends Controller
             ], 422);
         }
 
+        $billingStatus = ServiceBillingService::canCompleteService(ServiceItemUsage::SERVICE_VETERINARY, (int) $appointment->id);
+        $paymentStatus = strtolower((string) ($appointment->payment_status ?? 'unpaid'));
+
+        if ($paymentStatus !== 'paid' || !$billingStatus['can_complete']) {
+            return response()->json([
+                'message' => $paymentStatus !== 'paid'
+                    ? 'Appointment cannot be completed until payment is fully verified.'
+                    : $billingStatus['message'],
+                'payment_status' => $appointment->payment_status,
+                'billing' => $billingStatus,
+            ], 422);
+        }
+
         $validator = Validator::make($request->all(), [
             'notes' => 'nullable|string|max:1000',
         ]);
@@ -662,6 +680,28 @@ class AppointmentController extends Controller
                 'current_status' => $oldStatus,
                 'requested_status' => $newStatus
             ], 422);
+        }
+
+        if ($newStatus === 'completed') {
+            $billingStatus = ServiceBillingService::canCompleteService(ServiceItemUsage::SERVICE_VETERINARY, (int) $appointment->id);
+            $paymentStatus = strtolower((string) ($appointment->payment_status ?? 'unpaid'));
+
+            if ($paymentStatus !== 'paid' || !$billingStatus['can_complete']) {
+                return response()->json([
+                    'message' => $paymentStatus !== 'paid'
+                        ? 'Appointment cannot be completed until payment is fully verified.'
+                        : $billingStatus['message'],
+                    'payment_status' => $appointment->payment_status,
+                    'billing' => $billingStatus,
+                ], 422);
+            }
+        }
+
+        if (in_array($newStatus, ['approved', 'scheduled'], true)) {
+            $this->ensureBaseBillingItem($appointment);
+            if (($appointment->payment_status ?? 'unpaid') !== 'paid') {
+                $appointment->payment_status = 'unpaid';
+            }
         }
 
         $appointment->status = $newStatus;
@@ -831,5 +871,30 @@ class AppointmentController extends Controller
             'appointments' => $appointments,
             'total_appointments' => $appointments->count(),
         ]);
+    }
+
+    private function ensureBaseBillingItem(Appointment $appointment): void
+    {
+        $basePrice = (float) ($appointment->consultation_fee ?? $appointment->price ?? 0);
+        if ($basePrice <= 0) {
+            return;
+        }
+
+        $existing = ServiceItemUsage::where('service_type', ServiceItemUsage::SERVICE_VETERINARY)
+            ->where('service_id', $appointment->id)
+            ->where('item_type', ServiceItemUsage::ITEM_BASE_SERVICE)
+            ->first();
+
+        if ($existing) {
+            return;
+        }
+
+        ServiceBillingService::createBaseServiceItem(
+            ServiceItemUsage::SERVICE_VETERINARY,
+            (int) $appointment->id,
+            $appointment->service?->name ?? 'Veterinary consultation',
+            $basePrice,
+            $appointment->pet_id
+        );
     }
 }
