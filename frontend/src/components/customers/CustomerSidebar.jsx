@@ -34,14 +34,14 @@ const CustomerSidebar = () => {
       label: "My Pets",
       icon: faPaw,
     },
-        {
-      to: "/customer/bookings",
+    {
+      to: "/customer/requests",
       label: "My Requests",
       icon: faCalendarAlt,
     },
     {
       to: "/customer/payments",
-      label: "Payments",
+      label: "Payment History",
       icon: faCreditCard,
     },
     {

@@ -35,6 +35,7 @@ class ChatbotController extends Controller
         $data = $request->validate([
             'message' => 'required|string|max:2000',
             'channel' => 'nullable|string|max:50',
+            'context' => 'nullable|array',
         ]);
 
         return response()->json(
@@ -42,6 +43,7 @@ class ChatbotController extends Controller
                 $request->user(),
                 $data['message'],
                 $data['channel'] ?? 'web',
+                $data['context'] ?? [],
             )
         );
     }

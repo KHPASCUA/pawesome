@@ -13,7 +13,6 @@ const CreateUser = () => {
     middleName: "",
     lastName: "",
     dateOfBirth: "",
-    gender: "",
     contactNumber: "",
     emailAddress: "",
     residentialAddress: "",
@@ -57,7 +56,6 @@ const CreateUser = () => {
     if (!formData.firstName.trim()) newErrors.firstName = "First name is required";
     if (!formData.lastName.trim()) newErrors.lastName = "Last name is required";
     if (!formData.dateOfBirth) newErrors.dateOfBirth = "Date of birth is required";
-    if (!formData.gender) newErrors.gender = "Gender is required";
 
     if (!formData.contactNumber.trim()) {
       newErrors.contactNumber = "Contact number is required";
@@ -141,7 +139,6 @@ const CreateUser = () => {
         zip_code: formData.zipCode,
         country: formData.country,
         date_of_birth: formData.dateOfBirth,
-        gender: formData.gender,
         emergency_contact_person: formData.emergencyContactPerson,
         emergency_contact_number: formData.emergencyContactNumber,
         role: formData.role,
@@ -253,25 +250,6 @@ const CreateUser = () => {
                   />
                   {errors.dateOfBirth && (
                     <span className="error-message">{errors.dateOfBirth}</span>
-                  )}
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="gender">Gender *</label>
-                  <select
-                    id="gender"
-                    name="gender"
-                    value={formData.gender}
-                    onChange={handleChange}
-                    className={errors.gender ? "error" : ""}
-                  >
-                    <option value="">Select Gender</option>
-                    <option value="male">Male</option>
-                    <option value="female">Female</option>
-                    <option value="other">Other</option>
-                  </select>
-                  {errors.gender && (
-                    <span className="error-message">{errors.gender}</span>
                   )}
                 </div>
 

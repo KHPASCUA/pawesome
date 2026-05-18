@@ -7,7 +7,6 @@ use App\Models\User;
 use App\Models\Boarding;
 use App\Models\Appointment;
 use App\Models\Customer;
-use Illuminate\Support\Facades\Log;
 
 class NotificationService
 {
@@ -74,8 +73,7 @@ class NotificationService
             );
         }
 
-        // Send Telegram if configured
-        self::sendTelegramNotification($customer, $message);
+        self::sendFutureChannelNotification($customer, $message);
     }
 
     /**
@@ -116,7 +114,7 @@ class NotificationService
             ['boarding_id' => $boarding->id, 'status' => $boarding->status]
         );
 
-        self::sendTelegramNotification($customer, $messages[$boarding->status]);
+        self::sendFutureChannelNotification($customer, $messages[$boarding->status]);
     }
 
     /**
@@ -155,7 +153,7 @@ class NotificationService
             );
         }
 
-        self::sendTelegramNotification($customer, $message);
+        self::sendFutureChannelNotification($customer, $message);
     }
 
     /**
@@ -196,7 +194,7 @@ class NotificationService
             ['appointment_id' => $appointment->id, 'status' => $appointment->status]
         );
 
-        self::sendTelegramNotification($customer, $messages[$appointment->status]);
+        self::sendFutureChannelNotification($customer, $messages[$appointment->status]);
     }
 
     /**
@@ -233,7 +231,7 @@ class NotificationService
             ['reminder' => true, 'hours_before' => $hoursBefore]
         );
 
-        self::sendTelegramNotification($customer, $message);
+        self::sendFutureChannelNotification($customer, $message);
     }
 
     /**
@@ -260,20 +258,11 @@ class NotificationService
     }
 
     /**
-     * Send Telegram notification if chat ID exists
+     * Reserved for future external notification channels.
      */
-    private static function sendTelegramNotification(Customer $customer, string $message): void
+    private static function sendFutureChannelNotification(Customer $customer, string $message): void
     {
-        if (empty($customer->telegram_chat_id)) {
-            return;
-        }
-
-        try {
-            $telegramService = app(TelegramService::class);
-            $telegramService->sendMessage($customer->telegram_chat_id, $message);
-        } catch (\Exception $e) {
-            Log::error('Failed to send Telegram notification: ' . $e->getMessage());
-        }
+        return;
     }
 
     /**

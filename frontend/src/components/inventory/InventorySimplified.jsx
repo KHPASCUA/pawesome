@@ -32,13 +32,12 @@ import './InventorySimplified.css';
  * - Current Stock
  * - Unit
  * - Reorder Level
- * - Expiry Alert
  * - Status
  * - Actions
  * 
  * Advanced details moved to modal:
  * - SKU, Supplier, Cost price, Batch list, Movement history
- * - FEFO/FIFO settings, Archive information
+ * - Archive information
  */
 
 const CATEGORIES = [
@@ -236,17 +235,6 @@ const InventorySimplified = () => {
     );
   };
 
-  // Get expiry alert
-  const getExpiryAlert = (item) => {
-    if (!item.has_expiring_soon) return null;
-    
-    return (
-      <span className="expiry-alert">
-        <FontAwesomeIcon icon={faExclamationTriangle} /> Expiring Soon
-      </span>
-    );
-  };
-
   return (
     <div className="inventory-simplified">
       {/* Header */}
@@ -400,7 +388,6 @@ const InventorySimplified = () => {
                 <th>Current Stock</th>
                 <th>Unit</th>
                 <th>Reorder Level</th>
-                <th>Expiry Alert</th>
                 <th>Status</th>
                 <th>Actions</th>
               </tr>
@@ -422,9 +409,6 @@ const InventorySimplified = () => {
                   </td>
                   <td className="unit-cell">{item.unit || 'pcs'}</td>
                   <td className="reorder-cell">{item.reorder_level || 10}</td>
-                  <td className="expiry-cell">
-                    {getExpiryAlert(item)}
-                  </td>
                   <td className="status-cell">
                     {getStatusBadge(item)}
                   </td>
@@ -489,10 +473,6 @@ const InventorySimplified = () => {
                     <span className="label">Cost Price:</span>
                     <span className="value">₱{(selectedItem.cost_price || 0).toFixed(2)}</span>
                   </div>
-                  <div className="detail-row">
-                    <span className="label">Issue Method:</span>
-                    <span className="value">{selectedItem.issue_method || 'FEFO'}</span>
-                  </div>
                 </div>
 
                 {/* Flags */}
@@ -508,12 +488,6 @@ const InventorySimplified = () => {
                     <span className="label">Service Consumable:</span>
                     <span className={`value ${selectedItem.is_service_consumable ? 'yes' : 'no'}`}>
                       {selectedItem.is_service_consumable ? '✓ Yes' : '✗ No'}
-                    </span>
-                  </div>
-                  <div className="detail-row">
-                    <span className="label">Expiry Tracking:</span>
-                    <span className={`value ${selectedItem.requires_expiry_tracking ? 'yes' : 'no'}`}>
-                      {selectedItem.requires_expiry_tracking ? '✓ Yes' : '✗ No'}
                     </span>
                   </div>
                 </div>

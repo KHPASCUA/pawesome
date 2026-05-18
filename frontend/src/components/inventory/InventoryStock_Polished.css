@@ -381,17 +381,6 @@
   font-size: 16px;
 }
 
-/* Expiration */
-.expiration {
-  font-size: 13px;
-  color: #64748b;
-}
-
-.expiration.expiring-soon {
-  color: #f59e0b;
-  font-weight: 600;
-}
-
 /* Status Badge */
 .status-badge {
   display: inline-flex;
@@ -1051,28 +1040,6 @@
   margin-top: 2px;
 }
 
-.expiration-badge {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.expiration-badge .exp-date {
-  font-weight: 600;
-  font-size: 13px;
-}
-
-.expiration-badge .exp-label {
-  font-size: 11px;
-  font-weight: 500;
-}
-
-.expiration-none {
-  color: #94a3b8;
-  font-size: 13px;
-  font-style: italic;
-}
-
 /* Batch Row */
 .batch-row {
   background: #fafafa;
@@ -1206,7 +1173,6 @@
 .stock-header,
 .realtime-indicator,
 .stock-stats,
-.expiry-alerts-card,
 .stock-filters,
 .stock-table-container,
 .top-moving-section {

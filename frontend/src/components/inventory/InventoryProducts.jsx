@@ -240,10 +240,10 @@ const InventoryProducts = () => {
   };
 
   const exportToCSV = () => {
-    const headers = ["Name", "SKU", "Brand", "Supplier", "Category", "Quantity", "Price", "Status", "Expiration"];
+    const headers = ["Name", "SKU", "Brand", "Supplier", "Category", "Quantity", "Price", "Status"];
     const rows = filteredItems.map(item => [
       item.name, item.sku, item.brand, item.supplier, item.category,
-      item.quantity, item.price, item.status, item.expiration
+      item.quantity, item.price, item.status
     ]);
     
     const csv = [headers, ...rows].map(row => row.join(",")).join("\n");
@@ -535,14 +535,8 @@ const InventoryProducts = () => {
               <th onClick={() => handleSort("price")} className="sortable numeric price-col">
                 Price {renderSortIcon("price")}
               </th>
-              <th className="numeric value-col">
-                Value
-              </th>
               <th onClick={() => handleSort("status")} className="sortable status-col">
                 Status {renderSortIcon("status")}
-              </th>
-              <th onClick={() => handleSort("expiration")} className="sortable expiration-col">
-                Expiration {renderSortIcon("expiration")}
               </th>
               <th className="actions-col">Actions</th>
             </tr>
@@ -577,15 +571,11 @@ const InventoryProducts = () => {
                   </span>
                 </td>
                 <td className="numeric price-col">{formatCurrency(item.price)}</td>
-                <td className="numeric value-col">
-                  {formatCurrency(item.quantity * item.price)}
-                </td>
                 <td className="status-col">
                   <span className={`status-badge ${(item.status || "").toLowerCase().replace(/\s/g, "-")}`}>
                     {item.status || "Unknown"}
                   </span>
                 </td>
-                <td className="expiration-col">{item.expiration || "-"}</td>
                 <td className="actions-col">
                   <button className="btn-icon" onClick={() => handleEdit(item)} title="Edit">
                     ✏️

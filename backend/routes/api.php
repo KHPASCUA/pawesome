@@ -32,7 +32,6 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\BoardingController;
 use App\Http\Controllers\BoardingRoomController;
 use App\Http\Controllers\HotelRoomController;
-use App\Http\Controllers\TelegramBotController;
 use App\Http\Controllers\AppointmentController;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\AttendanceRecordController;
@@ -100,7 +99,6 @@ Route::prefix('auth')->group(function () {
         Route::post('profile-photo', [AuthController::class, 'uploadProfilePhoto']);
         Route::post('change-password', [AuthController::class, 'changePassword']);
         Route::post('logout', [AuthController::class, 'logout']);
-        Route::post('telegram/unlink', [AuthController::class, 'unlinkTelegram']);
     });
 });
 
@@ -947,18 +945,8 @@ Route::middleware(['throttle:api'])->group(function () {
     Route::get('/boarding/rooms/{id}', [BoardingRoomController::class, 'show']);
 });
 
-// Telegram Bot Webhook (public - receives updates from Telegram, rate limited)
-Route::middleware('throttle:60,1')->post('/telegram/webhook', [TelegramBotController::class, 'webhook']);
-
 // Secure File Access Routes
 Route::middleware(['auth.api', 'throttle:api'])->prefix('files')->group(function () {
     Route::get('/payment-proofs/{type}/{id}/view', [SecureFileController::class, 'viewPaymentProof']);
     Route::get('/profile-photos/{userId}/view', [SecureFileController::class, 'viewProfilePhoto']);
-});
-
-// Telegram Admin Routes (setup webhooks)
-Route::middleware(['auth.api', 'throttle:api', 'role:admin'])->prefix('admin/telegram')->group(function () {
-    Route::post('/set-webhook', [TelegramBotController::class, 'setWebhook']);
-    Route::post('/remove-webhook', [TelegramBotController::class, 'removeWebhook']);
-    Route::get('/webhook-info', [TelegramBotController::class, 'getWebhookInfo']);
 });

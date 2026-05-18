@@ -361,7 +361,7 @@ const FilterButton = styled.button`
   cursor: pointer;
   transition: all 0.3s ease;
   
-  ${props => props.active ? `
+  ${props => props.$active ? `
     background: ${THEME.primary};
     color: white;
     border-color: ${THEME.primary};
@@ -1170,7 +1170,7 @@ const VetAppointments = () => {
               {statusOptions.map((status) => (
                 <FilterButton
                   key={status.key}
-                  active={filter === status.key}
+                  $active={filter === status.key}
                   type="button"
                   onClick={() => setFilter(status.key)}
                 >

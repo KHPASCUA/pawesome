@@ -12,9 +12,33 @@ import "./CustomerRequestStatus.css";
 import { apiRequest } from "../../api/client";
 import { normalizeList } from "../../utils/normalizeList";
 
+const safeLower = (value) => {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "string") return value.toLowerCase();
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value).toLowerCase();
+  }
+  return "";
+};
+
+const safeText = (value, fallback = "N/A") => {
+  if (value === null || value === undefined || value === "") return fallback;
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  return fallback;
+};
+
+const getCustomerName = (item) =>
+  safeText(item?.customer_name || item?.customer?.name || item?.customer?.email || item?.customer, "N/A");
+
+const getPetName = (item) =>
+  safeText(item?.pet_name || item?.pet?.name || item?.pet, "N/A");
+
 const CustomerRequestStatus = () => {
   const [requests, setRequests] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [uploadingId, setUploadingId] = useState(null);
 
   useEffect(() => {
     fetchRequests();
@@ -30,29 +54,103 @@ const CustomerRequestStatus = () => {
         return;
       }
 
-      const data = await apiRequest(`/customer/my-requests?email=${email}`);
+      const [requestsData, ordersData, boardingsData] = await Promise.all([
+        apiRequest(`/customer/my-requests?email=${encodeURIComponent(email)}`),
+        apiRequest("/customer/store/orders"),
+        apiRequest("/customer/boarding-requests"),
+      ]);
 
-      setRequests(normalizeList(data, ["requests", "service_requests", "grooming_requests"]));
+      const serviceRequests = normalizeList(requestsData, ["requests", "service_requests", "grooming_requests"]).map((item) => ({
+        ...item,
+        source: "service_request",
+        type_label: item.service_name || item.service || item.request_type || "Service Request",
+      }));
+      const orders = normalizeList(ordersData, ["orders", "data"]).map((item) => ({
+        ...item,
+        source: "store_order",
+        type_label: item.order_number || "Store Order",
+        service_name: item.order_name || "Store Order",
+      }));
+      const boardings = normalizeList(boardingsData, ["boarding_requests", "boardings", "data"]).map((item) => ({
+        ...item,
+        source: "boarding",
+        type_label: item.room?.name || item.hotel_room?.name || "Pet Hotel / Boarding",
+        service_name: item.room?.name || item.hotel_room?.name || "Pet Hotel / Boarding",
+      }));
+
+      setRequests(normalizeList([...serviceRequests, ...orders, ...boardings]));
     } catch (error) {
       console.error("Failed to fetch customer requests:", error);
+      setRequests([]);
     }
   };
 
-  const filteredRequests = requests.filter((item) => {
-    const keyword = searchTerm.toLowerCase();
+  const filteredRequests = Array.isArray(requests)
+    ? requests.filter((item) => {
+        const search = safeLower(searchTerm);
+        const status = safeLower(item?.status || item?.order_status);
 
-    return (
-      (item.customer || item.customer_name || "")?.toLowerCase().includes(keyword) ||
-      (item.pet || item.pet_name || "")?.toLowerCase().includes(keyword) ||
-      (item.service || item.service_name || "")?.toLowerCase().includes(keyword) ||
-      String(item.id).toLowerCase().includes(keyword)
-    );
-  });
+        const searchableText = [
+          item?.service_type,
+          item?.type,
+          item?.type_label,
+          getCustomerName(item),
+          item?.customer_email,
+          getPetName(item),
+          item?.pet_type,
+          item?.service,
+          item?.service_name,
+          item?.preferred_date,
+          item?.scheduled_date,
+          item?.date,
+          item?.request_date,
+          item?.id,
+          status,
+        ]
+          .map(safeLower)
+          .join(" ");
+
+        return !search || searchableText.includes(search);
+      })
+    : [];
 
   const getStatusIcon = (status) => {
-    if (status === "approved") return <FaCheckCircle />;
-    if (status === "rejected") return <FaTimesCircle />;
+    const normalizedStatus = safeLower(status);
+    if (normalizedStatus === "approved") return <FaCheckCircle />;
+    if (normalizedStatus === "rejected") return <FaTimesCircle />;
     return <FaClock />;
+  };
+
+  const canPay = (item) => {
+    const status = safeLower(item?.status || item?.order_status);
+    const paymentStatus = safeLower(item?.payment_status || item?.payment || "unpaid");
+    return ["approved", "scheduled"].includes(status) && ["unpaid", "rejected"].includes(paymentStatus);
+  };
+
+  const uploadPaymentProof = async (item, file) => {
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append("payment_method", "Online Payment");
+    formData.append("payment_reference", `REF-${Date.now()}`);
+    formData.append("payment_proof", file);
+
+    try {
+      setUploadingId(`${item.source}-${item.id}`);
+      if (item.source === "store_order") {
+        await apiRequest(`/customer/store/orders/${item.id}/payment-proof`, "POST", formData);
+      } else if (item.source === "boarding") {
+        await apiRequest(`/customer/boarding-requests/${item.id}/payment-proof`, "POST", formData);
+      } else {
+        await apiRequest(`/customer/requests/${item.id}/payment-proof`, "POST", formData);
+      }
+      await fetchRequests();
+      alert("Payment proof uploaded. Your payment is pending cashier verification.");
+    } catch (error) {
+      alert(error.message || "Failed to upload payment proof.");
+    } finally {
+      setUploadingId(null);
+    }
   };
 
   return (
@@ -79,25 +177,29 @@ const CustomerRequestStatus = () => {
       </section>
 
       <section className="customer-status-grid">
-        {filteredRequests.map((item) => (
-          <div className="customer-status-card" key={item.id}>
+        {filteredRequests.map((item) => {
+          const status = safeText(item.status || item.order_status, "pending");
+          const paymentStatus = safeText(item.payment_status || item.payment, "unpaid");
+
+          return (
+          <div className="customer-status-card" key={`${item.source || "request"}-${item.id}`}>
             <div className="status-card-top">
               <div className="status-card-icon">
                 <FaPaw />
               </div>
 
               <div>
-                <h3>{item.service || item.service_name}</h3>
+                <h3>{safeText(item.service || item.service_name || item.type_label, "Service Request")}</h3>
                 <p>Request #{item.id}</p>
               </div>
             </div>
 
             <div className="status-card-details">
               <p>
-                <strong>Customer:</strong> {item.customer || item.customer_name}
+                <strong>Customer:</strong> {getCustomerName(item)}
               </p>
               <p>
-                <strong>Pet:</strong> {item.pet || item.pet_name || "N/A"}
+                <strong>Pet:</strong> {getPetName(item)}
               </p>
               <p>
                 <strong>Date:</strong>{" "}
@@ -109,18 +211,34 @@ const CustomerRequestStatus = () => {
             </div>
 
             <div className="status-card-footer">
-              <span className={`customer-status-pill ${item.status}`}>
-                {getStatusIcon(item.status)}
-                {item.status}
+              <span className={`customer-status-pill ${safeLower(status)}`}>
+                {getStatusIcon(status)}
+                {status}
               </span>
 
-              <span className={`customer-payment-pill ${item.payment || item.payment_status || "unpaid"}`}>
+              <span className={`customer-payment-pill ${safeLower(paymentStatus)}`}>
                 <FaCashRegister />
-                {item.payment || item.payment_status || "unpaid"}
+                {paymentStatus}
               </span>
             </div>
+
+            {canPay(item) && (
+              <div className="status-card-footer">
+                <input
+                  id={`pay-${item.source}-${item.id}`}
+                  type="file"
+                  accept="image/*,.pdf"
+                  style={{ display: "none" }}
+                  onChange={(event) => uploadPaymentProof(item, event.target.files?.[0])}
+                />
+                <label className="customer-pay-btn" htmlFor={`pay-${item.source}-${item.id}`}>
+                  {uploadingId === `${item.source}-${item.id}` ? "Uploading..." : "Pay"}
+                </label>
+              </div>
+            )}
           </div>
-        ))}
+        );
+        })}
 
         {filteredRequests.length === 0 && (
           <div className="customer-status-empty">

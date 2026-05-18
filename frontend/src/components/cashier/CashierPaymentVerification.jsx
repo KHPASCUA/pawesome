@@ -33,6 +33,7 @@ const CashierPaymentVerification = () => {
       });
 
       if (data && data.success) {
+        printReceipt(data, payment);
         alert(data.message || `Payment verified. Receipt: ${data.receipt_number || "Generated"}`);
         fetchRequests();
       } else {
@@ -42,6 +43,53 @@ const CashierPaymentVerification = () => {
       console.error("Failed to verify payment:", err);
       alert(err.message || "Failed to verify payment.");
     }
+  };
+
+  const printReceipt = (data, payment) => {
+    const receiptNumber = data.receipt_number || data.receipt?.receipt_number || `REC-${payment.id}`;
+    const amount = Number(data.amount || data.receipt?.total_amount || payment.amount || payment.total_amount || 0);
+    const date = new Date().toLocaleString("en-PH");
+    const cashier = localStorage.getItem("name") || localStorage.getItem("user_id") || "Cashier";
+    const customer = payment.customer_name || payment.customer?.name || "Customer";
+    const service = payment.service_name || payment.service?.name || payment.order_name || payment.request_type || payment.type || "Payment";
+    const method = payment.payment_method || data.payment_method || "Online Payment";
+
+    const w = window.open("", "_blank", "width=420,height=700");
+    if (!w) return;
+
+    w.document.write(`<!doctype html><html><head><title>${receiptNumber}</title>
+      <style>
+        body{font-family:'Courier New',monospace;max-width:360px;margin:auto;padding:20px;color:#111}
+        h2{text-align:center;font-size:18px;margin:0 0 4px}
+        .center{text-align:center;font-size:12px;color:#555;margin-bottom:12px}
+        table{width:100%;border-collapse:collapse;font-size:12px}
+        td{padding:4px 0;vertical-align:top}
+        hr{border:0;border-top:1px dashed #bbb;margin:10px 0}
+        .total td{font-size:14px;font-weight:bold;border-top:1px dashed #bbb;padding-top:8px}
+        @media print{button{display:none}}
+      </style></head><body>
+      <h2>Pawesome Retreat Inc.</h2>
+      <div class="center">Official Cashier Receipt<br>${date}</div>
+      <hr>
+      <table>
+        <tr><td>Receipt</td><td style="text-align:right">${receiptNumber}</td></tr>
+        <tr><td>Cashier</td><td style="text-align:right">${cashier}</td></tr>
+        <tr><td>Customer</td><td style="text-align:right">${customer}</td></tr>
+        <tr><td>Payment</td><td style="text-align:right">${method}</td></tr>
+        <tr><td>Status</td><td style="text-align:right">paid</td></tr>
+      </table>
+      <hr>
+      <table>
+        <tr><td>${service}<br><small>Qty 1 x ₱${amount.toFixed(2)}</small></td><td style="text-align:right">₱${amount.toFixed(2)}</td></tr>
+        <tr class="total"><td>Total</td><td style="text-align:right">₱${amount.toFixed(2)}</td></tr>
+      </table>
+      <hr>
+      <div class="center">Please keep this receipt.</div>
+      <button onclick="window.print()">Print</button>
+      </body></html>`);
+    w.document.close();
+    w.focus();
+    w.print();
   };
 
   const rejectPayment = async (payment) => {

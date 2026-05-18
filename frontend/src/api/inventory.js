@@ -184,7 +184,6 @@ export const inventoryApi = {
    * @param {number} data.price - Unit price
    * @param {string} [data.brand] - Product brand
    * @param {string} [data.supplier] - Supplier name
-   * @param {string} [data.expiration_date] - Expiration date (ISO format)
    * @param {boolean} [data.add_stock] - Optional, for API consistency with update method
    * @returns {Promise<Object>} Created inventory item with stock_action info
    * @throws {Error} When validation fails or request fails
@@ -207,11 +206,10 @@ export const inventoryApi = {
    * @async
    * @param {string|number} id - Inventory item ID
    * @param {Object} data - Updated item data
-   * @param {number} [data.stock] - New stock value (replaces by default)
+   * @param {number} [data.stock] - New stock quantity (replaces by default)
    * @param {number} [data.quantity] - Alternative to stock field
    * @param {boolean} [data.add_stock] - If true, ADDS to existing stock (50 + 25 = 75).
-   *                                     Only replaces automatically if item HAS expiry date AND is expired.
-   *                                     Items without expiry always add when this flag is true.
+   *                                     Adds to current quantity when this flag is true.
    * @returns {Promise<Object>} Updated inventory item with stock_action info
    * @throws {Error} When item not found, validation fails, or request fails
    */
@@ -231,8 +229,7 @@ export const inventoryApi = {
 
   /**
    * Adds stock to an existing item (50 + 25 = 75).
-   * Only replaces if item HAS expiry date AND is expired.
-   * Items without expiry dates always add stock.
+   * Adds the provided amount to the current stock quantity.
    * @async
    * @param {string|number} id - Inventory item ID
    * @param {number} quantity - Amount to add
@@ -388,21 +385,6 @@ export const inventoryApi = {
   },
 
   /**
-   * Retrieves expiry alerts for batches expiring within 30 days or already expired
-   * @async
-   * @returns {Promise<Object>} Expiry alerts data
-   * @throws {Error} When the request fails
-   */
-  getExpiryAlerts: async () => {
-    try {
-      return await apiRequest("/inventory/expiry-alerts");
-    } catch (error) {
-      console.error("[InventoryAPI] Failed to fetch expiry alerts:", error.message);
-      throw error;
-    }
-  },
-
-  /**
    * Generates inventory reports with filtering and date ranges.
    * @async
    * @param {Object} [params={}] - Report parameters
@@ -474,7 +456,6 @@ export const inventoryApi = {
         type: typeOrPayload.type,
         quantity: Number(typeOrPayload.quantity),
         reason: typeOrPayload.reason || reason,
-        expiration_date: typeOrPayload.expiration_date || null,
       };
     } else {
       if (!["add", "remove", "set"].includes(typeOrPayload)) {
@@ -496,7 +477,6 @@ export const inventoryApi = {
         adjustment_type: adjustmentType,
         quantity: Number(quantity),
         reason,
-        expiration_date: options.expiration_date || null,
       };
     }
 
@@ -579,7 +559,7 @@ export const inventoryApi = {
    * Get all batches for an inventory item.
    * @async
    * @param {string|number} itemId - Inventory item ID
-   * @returns {Promise<Object>} Item batches with expiration info
+   * @returns {Promise<Object>} Item batches
    * @throws {Error} When request fails
    */
   getItemBatches: async (itemId) => {
@@ -609,7 +589,6 @@ export const inventoryApi = {
    * @param {Object} batchData - Batch data
    * @param {string} batchData.batch_no - Batch number
    * @param {string} batchData.received_date - Received date (YYYY-MM-DD)
-   * @param {string} [batchData.expiration_date] - Expiration date (YYYY-MM-DD)
    * @param {number} batchData.quantity - Batch quantity
    * @param {string} [batchData.notes] - Batch notes
    * @returns {Promise<Object>} Created batch

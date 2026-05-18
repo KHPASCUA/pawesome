@@ -44,8 +44,6 @@ const HotelForm = () => {
   const [availabilityLoading, setAvailabilityLoading] = useState(false);
   const [boardingAvailability, setBoardingAvailability] = useState(null);
   const [selectedRoom, setSelectedRoom] = useState(null);
-  const [availableAddOns, setAvailableAddOns] = useState([]);
-  const [selectedAddOns, setSelectedAddOns] = useState({});
 
   const [bookingForm, setBookingForm] = useState({
     pet_id: "",
@@ -133,7 +131,6 @@ const HotelForm = () => {
         medication_notes: bookingForm.medication_notes,
         emergency_contact: bookingForm.emergency_contact,
         notes: bookingForm.notes,
-        add_ons: Object.values(selectedAddOns).filter(addOn => addOn.quantity > 0),
       };
 
       await apiRequest("/customer/boarding-requests", {
@@ -282,64 +279,27 @@ const HotelForm = () => {
       const updatedForm = { ...bookingForm, [name]: value };
       if (updatedForm.pet_id && updatedForm.check_in_date && updatedForm.check_out_date) {
         fetchBoardingAvailability(updatedForm.room_type);
-        fetchAddOns(); // Fetch available add-ons for the pet
       }
-    }
-  };
-
-  const handleAddOnChange = (addOnId, field, value) => {
-    setSelectedAddOns(prev => {
-      const updated = { ...prev };
-      if (value === '' || value === 0) {
-        delete updated[addOnId];
-      } else {
-        updated[addOnId] = { ...updated[addOnId], [field]: value };
-      }
-      return updated;
-    });
-  };
-
-  const fetchAddOns = async () => {
-    try {
-      const data = await apiRequest("/boarding/add-ons");
-      setAvailableAddOns(data.add_ons || []);
-    } catch (err) {
-      console.error("Failed to fetch add-ons:", err);
-      setAvailableAddOns([]);
     }
   };
 
   // Calculate total amount when room is selected
   const calculateTotal = () => {
     if (!selectedRoom || !bookingForm.check_in_date || !bookingForm.check_out_date) {
-      return { total: 0, days: 0, dailyRate: 0, addOnSubtotal: 0 };
+      return { total: 0, days: 0, dailyRate: 0 };
     }
 
     const checkIn = new Date(bookingForm.check_in_date);
     const checkOut = new Date(bookingForm.check_out_date);
     const days = Math.max(1, Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24)));
     const roomSubtotal = selectedRoom.daily_rate * days;
-
-    // Calculate add-on subtotal
-    const addOnSubtotal = Object.values(selectedAddOns).reduce((total, addOn) => {
-      if (!addOn.quantity || !addOn.unit_price) return total;
-      
-      const subtotal = addOn.charge_type === 'per_day' 
-        ? addOn.unit_price * addOn.quantity * days
-        : addOn.unit_price * addOn.quantity;
-      
-      return total + subtotal;
-    }, 0);
-
-    const total = roomSubtotal + addOnSubtotal;
+    const total = roomSubtotal;
 
     return {
       total,
       days,
       dailyRate: selectedRoom.daily_rate,
       roomSubtotal,
-      addOnSubtotal,
-      selectedAddOns: Object.values(selectedAddOns)
     };
   };
 
@@ -492,55 +452,10 @@ const HotelForm = () => {
                       <span>Room Subtotal:</span>
                       <span>₱{pricing.roomSubtotal}</span>
                     </div>
-                    {pricing.addOnSubtotal > 0 && (
-                      <div className="pricing-row">
-                        <span>Add-ons:</span>
-                        <span>₱{pricing.addOnSubtotal}</span>
-                      </div>
-                    )}
                     <div className="pricing-row total">
                       <span>Total Amount:</span>
                       <span>₱{pricing.total}</span>
                     </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Add-ons Selection */}
-              {availableAddOns.length > 0 && (
-                <div className="add-ons-section">
-                  <h4><FontAwesomeIcon icon={faPlus} /> Optional Add-ons</h4>
-                  <div className="add-ons-grid">
-                    {availableAddOns.map((addOn) => (
-                      <div key={addOn.id} className="add-on-card">
-                        <div className="add-on-header">
-                          <span className="add-on-name">{addOn.name}</span>
-                          <span className="add-on-price">
-                            {addOn.charge_type === 'per_day' 
-                              ? `₱${addOn.unit_price}/day` 
-                              : `₱${addOn.unit_price} (one-time)`
-                            }
-                          </span>
-                        </div>
-                        <div className="add-on-details">
-                          <div className="add-on-quantity">
-                            <label>Quantity:</label>
-                            <input
-                              type="number"
-                              min="1"
-                              value={selectedAddOns[addOn.id]?.quantity || 0}
-                              onChange={(e) => handleAddOnChange(addOn.id, 'quantity', parseInt(e.target.value) || 0)}
-                            />
-                          </div>
-                          {addOn.charge_type === 'per_day' && (
-                            <div className="add-on-quantity">
-                              <label>Days:</label>
-                              <span>{pricing.days}</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
                   </div>
                 </div>
               )}

@@ -14,19 +14,13 @@ const AddProductModal = ({ isOpen, onClose, onSuccess, editItem = null }) => {
     quantity: "",
     reorder_level: "10",
     price: "",
-    expiration: "",
     status: "In stock",
     description: "",
     // Batch fields
     batch_no: "",
     batch_quantity: "",
     received_date: new Date().toISOString().split('T')[0],
-    expiration_date: "",
   });
-
-  // Categories that need batch tracking (FEFO)
-  const fefoCategories = ['Pet Food', 'Health', 'Grooming'];
-  const needsBatchTracking = fefoCategories.includes(formData.category);
 
   const [errors, setErrors] = useState({});
 
@@ -41,7 +35,6 @@ const AddProductModal = ({ isOpen, onClose, onSuccess, editItem = null }) => {
         quantity: editItem.quantity?.toString() || "",
         reorder_level: editItem.reorder_level?.toString() || "10",
         price: editItem.price?.toString() || "",
-        expiration: editItem.expiration || "",
         status: editItem.status || "In stock",
         description: editItem.description || "",
       });
@@ -55,13 +48,11 @@ const AddProductModal = ({ isOpen, onClose, onSuccess, editItem = null }) => {
         quantity: "",
         reorder_level: "10",
         price: "",
-        expiration: "",
         status: "In stock",
         description: "",
         batch_no: "",
         batch_quantity: "",
         received_date: new Date().toISOString().split('T')[0],
-        expiration_date: "",
       });
     }
     setErrors({});
@@ -104,21 +95,6 @@ const AddProductModal = ({ isOpen, onClose, onSuccess, editItem = null }) => {
       reorder_level: parseInt(formData.reorder_level) || 10,
       price: parseFloat(formData.price),
     };
-
-    // Add batch data for FEFO categories
-    if (needsBatchTracking && !editItem) {
-      const batchQty = parseInt(formData.batch_quantity) || stock;
-      data.batchData = {
-        batch_no: formData.batch_no || `BATCH-${Date.now()}`,
-        received_date: formData.received_date,
-        expiration_date: formData.expiration_date || null,
-        quantity: batchQty,
-        notes: 'Initial stock batch',
-      };
-      // Use batch quantity as the stock quantity
-      data.quantity = batchQty;
-      data.stock = batchQty;
-    }
 
     try {
       if (editItem) {
@@ -274,22 +250,12 @@ const AddProductModal = ({ isOpen, onClose, onSuccess, editItem = null }) => {
                   {errors.price && <span className="error-text">{errors.price}</span>}
                 </div>
 
-                <div className="form-group">
-                  <label>Expiration Date</label>
-                  <input
-                    type="date"
-                    name="expiration"
-                    value={formData.expiration}
-                    onChange={handleChange}
-                  />
-                </div>
               </div>
             </div>
 
-            {/* Batch Information - Only for FEFO categories */}
-            {needsBatchTracking && !editItem && (
+            {!editItem && (
               <div className="form-section batch-section">
-                <h4>📦 Batch Information (FEFO Tracking)</h4>
+                <h4>📦 Batch Information</h4>
                 <div className="form-grid">
                   <div className="form-group">
                     <label>Batch Number</label>
@@ -326,21 +292,7 @@ const AddProductModal = ({ isOpen, onClose, onSuccess, editItem = null }) => {
                     />
                   </div>
 
-                  <div className="form-group">
-                    <label>
-                      Expiration Date <span className="required">*</span>
-                    </label>
-                    <input
-                      type="date"
-                      name="expiration_date"
-                      value={formData.expiration_date}
-                      onChange={handleChange}
-                    />
-                  </div>
                 </div>
-                <small className="batch-hint">
-                  ℹ️ This batch will be tracked using FEFO (First Expired, First Out). Items with nearest expiration will be sold first.
-                </small>
               </div>
             )}
 

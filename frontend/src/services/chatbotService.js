@@ -10,6 +10,7 @@ export async function sendChatbotMessage(message, options = {}) {
     body: JSON.stringify({
       message,
       channel: options.channel || "web",
+      context: options.context || {},
     }),
   });
 }

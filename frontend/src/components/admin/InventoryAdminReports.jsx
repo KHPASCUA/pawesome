@@ -4,7 +4,7 @@ import AdminLiveReport from "./AdminLiveReport";
 const InventoryAdminReports = () => (
   <AdminLiveReport
     title="Inventory Monitoring Reports"
-    subtitle="Read-only stock levels, low-stock alerts, valuation, and movement logs."
+    subtitle="Read-only stock levels, low-stock alerts, and movement logs."
     endpoint="/admin/reports/inventory"
     dataKey="items"
     exportName="admin-inventory-monitoring-reports"
@@ -37,14 +37,6 @@ const InventoryAdminReports = () => (
         value: summary.out_of_stock_items,
         icon: "faTimesCircle",
         color: "danger",
-      },
-      {
-        id: "stock-value",
-        label: "Inventory Value",
-        value: summary.stock_value,
-        currency: true,
-        icon: "faChartLine",
-        color: "success",
       },
       {
         id: "adjustments",

@@ -140,7 +140,6 @@ const CashierDashboard = () => {
   const [showNotesModal, setShowNotesModal] = useState(false);
   const [cashierNotes, setCashierNotes] = useState("");
   const [pendingOrders, setPendingOrders] = useState([]);
-  const [heldTransaction, setHeldTransaction] = useState(null);
   const [showPriceOverrideModal, setShowPriceOverrideModal] = useState(false);
   const [priceOverrideProductId, setPriceOverrideProductId] = useState("");
   const [priceOverrideOriginal, setPriceOverrideOriginal] = useState("");
@@ -697,28 +696,6 @@ Thank you for choosing Pawesome!
     setShowNotesModal(false);
   };
 
-  const handleHoldTransaction = () => {
-    if (heldTransaction) {
-      alert("A transaction is already on hold. Resume it first.");
-      return;
-    }
-    setHeldTransaction({
-      timestamp: new Date().toISOString(),
-      items: [],
-      total: 0,
-    });
-    alert("Transaction held successfully.");
-  };
-
-  const handleResumeTransaction = () => {
-    if (!heldTransaction) {
-      alert("No held transaction to resume.");
-      return;
-    }
-    alert("Transaction resumed.");
-    setHeldTransaction(null);
-  };
-
   const handlePriceOverride = () => {
     if (!priceOverrideNew || toNumber(priceOverrideNew) <= 0) {
       alert("Please enter a valid price.");
@@ -915,7 +892,7 @@ Thank you for choosing Pawesome!
   }, [theme, showOverview, fetchDashboardData]);
 
   return (
-    <div className={`app-dashboard ${theme}`}>
+    <div className="app-dashboard cashier-dashboard">
       <CashierSidebar />
 
       <main className="app-main">

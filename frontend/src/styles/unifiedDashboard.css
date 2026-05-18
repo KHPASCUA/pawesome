@@ -65,7 +65,7 @@ body {
 .premium-title {
   color: var(--color-primary) !important;
   -webkit-text-fill-color: unset !important;
-  background: var(--color-surface-solid) !important;
+  background: none !important;
   font-weight: 950 !important;
 }
 
@@ -99,7 +99,7 @@ body {
 .inventory-profile-btn,
 .manager-profile-btn,
 .vet-profile-btn {
-  background: rgba(255, 255, 255, 0.86) !important;
+  background: var(--color-surface-solid) !important;
   color: var(--color-heading) !important;
   border: 1px solid var(--color-border) !important;
   border-radius: var(--radius-pill) !important;
@@ -108,7 +108,7 @@ body {
 
 .profile-avatar-icon {
   background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light)) !important;
-  color: var(--color-text) !important;
+  color: #ffffff !important;
 }
 
 .profile-action-name {
@@ -123,7 +123,7 @@ body {
 /* ICON BUTTONS */
 .icon-btn,
 .theme-toggle-btn {
-  background: rgba(255, 255, 255, 0.86) !important;
+  background: var(--color-surface-solid) !important;
   color: var(--color-primary) !important;
   border: 1px solid var(--color-border) !important;
   border-radius: 16px !important;
@@ -193,7 +193,7 @@ body {
 .secondary-btn,
 .retry-btn {
   background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light)) !important;
-  color: var(--color-text) !important;
+  color: #ffffff !important;
   border: none !important;
   border-radius: var(--radius-pill) !important;
 }

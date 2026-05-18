@@ -16,7 +16,6 @@ import {
   FaSyncAlt,
   FaTimes,
   FaUserAlt,
-  FaVenusMars,
 } from "react-icons/fa";
 import "./CustomerPets.css";
 import { apiRequest } from "../../api/client";
@@ -36,7 +35,6 @@ const initialForm = (customerEmail) => ({
   manualSpecies: "",
   manualBreed: "",
   age: "",
-  gender: "",
   notes: "",
   customer_email: customerEmail || "",
 });
@@ -91,7 +89,6 @@ const CustomerPets = () => {
   const getPetSpecies = (pet) => pet?.species || pet?.type || pet?.pet_species || "Pet";
   const getPetBreed = (pet) => pet?.breed || pet?.pet_breed || "No breed";
   const getPetAge = (pet) => pet?.age || pet?.pet_age || "N/A";
-  const getPetGender = (pet) => pet?.gender || pet?.sex || pet?.pet_gender || "N/A";
   const getPetNotes = (pet) =>
     pet?.notes ||
     pet?.medical_notes ||
@@ -247,7 +244,6 @@ const CustomerPets = () => {
         getPetSpecies(pet),
         getPetBreed(pet),
         getPetAge(pet),
-        getPetGender(pet),
         getPetNotes(pet),
         pet.archived_at ? formatDate(pet.archived_at) : "",
         pet.archived_reason || "",
@@ -335,7 +331,6 @@ const CustomerPets = () => {
         species: resolveFinalSpecies(formData.species, formData.manualSpecies),
         breed: resolveFinalBreed(formData.breed, formData.manualBreed),
         age: formData.age ? Number(formData.age) : null,
-        gender: formData.gender || null,
         notes: formData.notes?.trim() || null,
         customer_email: customerEmail,
       };
@@ -627,19 +622,6 @@ const CustomerPets = () => {
                   onChange={handleChange}
                 />
               </label>
-
-              <label>
-                Gender
-                <select
-                  name="gender"
-                  value={formData.gender}
-                  onChange={handleChange}
-                >
-                  <option value="">Select Gender</option>
-                  <option value="Male">Male</option>
-                  <option value="Female">Female</option>
-                </select>
-              </label>
             </div>
 
             <label>
@@ -758,11 +740,6 @@ const CustomerPets = () => {
                       <span>
                         <FaUserAlt />
                         Age: {getPetAge(pet)}
-                      </span>
-
-                      <span>
-                        <FaVenusMars />
-                        Gender: {getPetGender(pet)}
                       </span>
 
                       {activeTab === "archived" && pet.archived_at && (

@@ -9,7 +9,7 @@ import {
   faShoppingCart, faCreditCard, faMoneyBillWave, faMobileScreen,
   faGlobe, faTag, faReceipt, faTriangleExclamation, faPlus,
   faMinus, faXmark, faPrint, faClock, faBox, faCheckCircle,
-  faPause, faFolderOpen, faBarcode, faPercent, faKeyboard,
+  faBarcode, faPercent, faKeyboard,
   faBolt, faUser, faChevronDown, faChevronUp, faList,
   faStore, faHistory, faBan, faCalculator, faExpand, faCompress,
   faBars, faChartLine, faUserCircle, faClipboardList, faWallet,
@@ -77,18 +77,8 @@ const GlobalStyle = createGlobalStyle`
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
 
-  /* Dark mode via parent class — matches .cashier-dashboard.dark in CSS */
-  .cashier-dashboard.dark {
-    --pos-glass-bg:   rgba(255,255,255,0.06);
-    --pos-glass-bdr:  rgba(255,141,181,0.22);
-    --pos-glass-shd:  0 18px 45px rgba(0,0,0,0.28);
-    --pos-text:       #f8fafc;
-    --pos-muted:      #cbd5e1;
-    --pos-surface:    rgba(255,255,255,0.06);
-    --pos-input-bg:   rgba(15,23,42,0.38);
-    --pos-heading:    #f8fafc;
-  }
-  .cashier-dashboard:not(.dark) {
+  :root,
+  [data-theme="light"] {
     --pos-glass-bg:   rgba(255,255,255,0.82);
     --pos-glass-bdr:  rgba(255,95,147,0.18);
     --pos-glass-shd:  0 18px 45px rgba(255,95,147,0.14);
@@ -97,6 +87,17 @@ const GlobalStyle = createGlobalStyle`
     --pos-surface:    rgba(255,255,255,0.62);
     --pos-input-bg:   rgba(255,255,255,0.8);
     --pos-heading:    #191919;
+  }
+  /* Dark mode uses the centralized documentElement data-theme selector. */
+  [data-theme="dark"] {
+    --pos-glass-bg:   rgba(255,255,255,0.06);
+    --pos-glass-bdr:  rgba(255,141,181,0.22);
+    --pos-glass-shd:  0 18px 45px rgba(0,0,0,0.28);
+    --pos-text:       #f8fafc;
+    --pos-muted:      #cbd5e1;
+    --pos-surface:    rgba(255,255,255,0.06);
+    --pos-input-bg:   rgba(15,23,42,0.38);
+    --pos-heading:    #f8fafc;
   }
 `;
 
@@ -114,21 +115,37 @@ const POSPage = styled.div`
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background: #F1F5F9;
+  background: var(--color-bg);
+  color: var(--pos-text);
   overflow: hidden;
+
+  @media (max-width: 768px) {
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+  }
 `;
 
 /* Top Bar */
 const TopBar = styled.header`
   height: 60px;
-  background: #fff;
-  border-bottom: 1px solid #E5E7EB;
+  background: var(--color-surface-solid);
+  border-bottom: 1px solid var(--color-border);
   display: flex;
   align-items: center;
   padding: 0 20px;
   gap: 16px;
   flex-shrink: 0;
   z-index: 50;
+
+  @media (max-width: 768px) {
+    height: auto;
+    min-height: 60px;
+    align-items: stretch;
+    flex-wrap: wrap;
+    padding: 10px;
+    gap: 10px;
+  }
 `;
 
 const TopBarBrand = styled.div`
@@ -137,7 +154,7 @@ const TopBarBrand = styled.div`
   gap: 10px;
   font-size: 15px;
   font-weight: 700;
-  color: #111827;
+  color: var(--pos-heading);
   letter-spacing: -0.3px;
 `;
 
@@ -158,6 +175,11 @@ const TopBarCenter = styled.div`
   flex: 1;
   display: flex;
   justify-content: center;
+
+  @media (max-width: 768px) {
+    order: 3;
+    flex: 0 0 100%;
+  }
 `;
 
 const SearchBar = styled.div`
@@ -165,15 +187,19 @@ const SearchBar = styled.div`
   align-items: center;
   gap: 10px;
   height: 38px;
-  background: #F9FAFB;
-  border: 1.5px solid #E5E7EB;
+  background: var(--pos-input-bg);
+  border: 1.5px solid var(--color-border);
   border-radius: 10px;
   padding: 0 14px;
   width: 100%;
   max-width: 480px;
   transition: border-color 0.15s;
-  &:focus-within { border-color: #E91E63; background: #fff; }
+  &:focus-within { border-color: #E91E63; background: var(--color-surface-solid); }
   svg { color: #9CA3AF; font-size: 13px; flex-shrink: 0; }
+
+  @media (max-width: 768px) {
+    max-width: none;
+  }
 `;
 
 const SearchInput = styled.input`
@@ -181,7 +207,7 @@ const SearchInput = styled.input`
   border: none;
   background: transparent;
   font-size: 13px;
-  color: #111827;
+  color: var(--pos-text);
   outline: none;
   &::placeholder { color: #9CA3AF; }
 `;
@@ -190,6 +216,10 @@ const ShortcutPills = styled.div`
   display: flex;
   align-items: center;
   gap: 6px;
+
+  @media (max-width: 768px) {
+    display: none;
+  }
 `;
 
 const Pill = styled.span`
@@ -199,8 +229,8 @@ const Pill = styled.span`
   height: 24px;
   padding: 0 8px;
   border-radius: 6px;
-  background: #F3F4F6;
-  color: #6B7280;
+  background: var(--pos-surface);
+  color: var(--pos-muted);
   font-size: 11px;
   font-weight: 600;
   white-space: nowrap;
@@ -219,6 +249,13 @@ const TopBarRight = styled.div`
   align-items: center;
   gap: 8px;
   margin-left: auto;
+
+  @media (max-width: 768px) {
+    margin-left: 0;
+    flex: 1;
+    justify-content: flex-end;
+    min-width: 0;
+  }
 `;
 
 const IconBtn = styled.button`
@@ -255,6 +292,17 @@ const IconBtn = styled.button`
     background: #FFFBEB;
     &:hover { background: #FEF3C7; }
   `}
+
+  @media (max-width: 768px) {
+    width: 38px;
+    padding: 0;
+    justify-content: center;
+    font-size: 0;
+
+    svg {
+      font-size: 14px;
+    }
+  }
 `;
 
 const Badge = styled.span`
@@ -283,20 +331,37 @@ const POSBody = styled.div`
   grid-template-columns: 220px 1fr 360px;
   flex: 1;
   overflow: hidden;
+
+  @media (max-width: 1024px) {
+    grid-template-columns: 180px minmax(0, 1fr) 320px;
+  }
+
+  @media (max-width: 768px) {
+    display: flex;
+    flex-direction: column;
+    flex: none;
+    overflow: visible;
+  }
 `;
 
 /* Left: Categories */
 const CategoriesPane = styled.aside`
-  background: #fff;
-  border-right: 1px solid #E5E7EB;
+  background: var(--color-surface-solid);
+  border-right: 1px solid var(--color-border);
   display: flex;
   flex-direction: column;
   overflow: hidden;
+
+  @media (max-width: 768px) {
+    border-right: 0;
+    border-bottom: 1px solid var(--color-border);
+    overflow: visible;
+  }
 `;
 
 const PaneHeader = styled.div`
   padding: 16px 16px 12px;
-  border-bottom: 1px solid #F3F4F6;
+  border-bottom: 1px solid var(--color-border);
 `;
 
 const PaneLabel = styled.div`
@@ -311,7 +376,7 @@ const PaneLabel = styled.div`
 const PaneTitle = styled.div`
   font-size: 14px;
   font-weight: 700;
-  color: #111827;
+  color: var(--pos-heading);
 `;
 
 const CategoryList = styled.div`
@@ -324,6 +389,13 @@ const CategoryList = styled.div`
   &::-webkit-scrollbar { width: 4px; }
   &::-webkit-scrollbar-track { background: transparent; }
   &::-webkit-scrollbar-thumb { background: #E5E7EB; border-radius: 4px; }
+
+  @media (max-width: 768px) {
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 8px 10px 12px;
+  }
 `;
 
 const CategoryBtn = styled.button`
@@ -351,6 +423,12 @@ const CategoryBtn = styled.button`
     background: ${({ $active }) => $active ? "#E91E63" : "#E5E7EB"};
     color: ${({ $active }) => $active ? "#fff" : "#6B7280"};
     border-radius: 999px; padding: 1px 7px; }
+
+  @media (max-width: 768px) {
+    width: auto;
+    min-width: 150px;
+    flex: 0 0 auto;
+  }
 `;
 
 /* Center: Products */
@@ -358,7 +436,12 @@ const ProductsPane = styled.main`
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: #F1F5F9;
+  background: var(--color-bg);
+
+  @media (max-width: 768px) {
+    min-height: 420px;
+    overflow: visible;
+  }
 `;
 
 const ProductsPaneHeader = styled.div`
@@ -366,15 +449,15 @@ const ProductsPaneHeader = styled.div`
   align-items: center;
   justify-content: space-between;
   padding: 14px 20px;
-  background: #fff;
-  border-bottom: 1px solid #E5E7EB;
+  background: var(--color-surface-solid);
+  border-bottom: 1px solid var(--color-border);
   flex-shrink: 0;
 `;
 
 const SectionTitle = styled.div`
   font-size: 14px;
   font-weight: 700;
-  color: #111827;
+  color: var(--pos-heading);
 `;
 
 const CountPill = styled.span`
@@ -384,8 +467,8 @@ const CountPill = styled.span`
   height: 26px;
   padding: 0 10px;
   border-radius: 999px;
-  background: #F3F4F6;
-  color: #6B7280;
+  background: var(--pos-surface);
+  color: var(--pos-muted);
   font-size: 12px;
   font-weight: 600;
 `;
@@ -400,10 +483,18 @@ const ProductGrid = styled.div`
   align-content: start;
   &::-webkit-scrollbar { width: 4px; }
   &::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 4px; }
+
+  @media (max-width: 768px) {
+    flex: none;
+    overflow: visible;
+    padding: 14px;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 12px;
+  }
 `;
 
 const ProductCard = styled.article`
-  background: #fff;
+  background: var(--color-surface-solid);
   border-radius: 12px;
   border: 1.5px solid ${({ $inCart }) => $inCart ? "#FECDD3" : "#F3F4F6"};
   overflow: hidden;
@@ -424,7 +515,7 @@ const ProductCard = styled.article`
 
 const ProductThumb = styled.div`
   height: 120px;
-  background: #F9FAFB;
+  background: var(--pos-surface);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -474,7 +565,7 @@ const ProductBody = styled.div`
 const ProductName = styled.div`
   font-size: 14px;
   font-weight: 700;
-  color: #111827;
+  color: var(--pos-heading);
   line-height: 1.4;
   margin-bottom: 6px;
   display: -webkit-box;
@@ -500,7 +591,7 @@ const PriceRow = styled.div`
 const PriceMain = styled.span`
   font-size: 15px;
   font-weight: 800;
-  color: #111827;
+  color: var(--pos-heading);
 `;
 
 const PriceOld = styled.span`
@@ -559,7 +650,7 @@ const StateIcon = styled.div`
   width: 64px;
   height: 64px;
   border-radius: 16px;
-  background: #F3F4F6;
+  background: var(--pos-surface);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -570,12 +661,12 @@ const StateIcon = styled.div`
 const StateTitle = styled.div`
   font-size: 16px;
   font-weight: 700;
-  color: #374151;
+  color: var(--pos-heading);
 `;
 
 const StateText = styled.div`
   font-size: 13px;
-  color: #9CA3AF;
+  color: var(--pos-muted);
   max-width: 260px;
   line-height: 1.6;
 `;
@@ -591,16 +682,22 @@ const Spinner = styled.div`
 
 /* Right: Order Panel */
 const OrderPane = styled.aside`
-  background: #fff;
-  border-left: 1px solid #E5E7EB;
+  background: var(--color-surface-solid);
+  border-left: 1px solid var(--color-border);
   display: flex;
   flex-direction: column;
   overflow: hidden;
+
+  @media (max-width: 768px) {
+    border-left: 0;
+    border-top: 1px solid var(--color-border);
+    overflow: visible;
+  }
 `;
 
 const OrderHeader = styled.div`
   padding: 14px 16px 12px;
-  border-bottom: 1px solid #F3F4F6;
+  border-bottom: 1px solid var(--color-border);
   flex-shrink: 0;
 `;
 
@@ -625,14 +722,14 @@ const MetaBtn = styled.button`
 
 const CustomerField = styled.div`
   padding: 10px 16px;
-  border-bottom: 1px solid #F3F4F6;
+  border-bottom: 1px solid var(--color-border);
   flex-shrink: 0;
 `;
 
 const FieldLabel = styled.label`
   font-size: 11px;
   font-weight: 600;
-  color: #6B7280;
+  color: var(--pos-muted);
   display: flex;
   align-items: center;
   gap: 5px;
@@ -642,15 +739,15 @@ const FieldLabel = styled.label`
 const FieldInput = styled.input`
   width: 100%;
   height: 34px;
-  border: 1.5px solid #E5E7EB;
+  border: 1.5px solid var(--color-border);
   border-radius: 8px;
   padding: 0 10px;
   font-size: 13px;
-  color: #111827;
+  color: var(--pos-text);
   outline: none;
-  background: #F9FAFB;
+  background: var(--pos-input-bg);
   transition: border-color 0.15s;
-  &:focus { border-color: #E91E63; background: #fff; }
+  &:focus { border-color: #E91E63; background: var(--color-surface-solid); }
   &::placeholder { color: #9CA3AF; }
 `;
 
@@ -664,6 +761,10 @@ const CartList = styled.div`
   gap: 6px;
   &::-webkit-scrollbar { width: 4px; }
   &::-webkit-scrollbar-thumb { background: #E5E7EB; border-radius: 4px; }
+
+  @media (max-width: 768px) {
+    max-height: 320px;
+  }
 `;
 
 const EmptyCart = styled.div`
@@ -687,6 +788,11 @@ const CartItem = styled.div`
   border: 1px solid #F3F4F6;
   border-radius: 10px;
   animation: ${slideIn} 0.18s ease both;
+
+  @media (max-width: 480px) {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
 `;
 
 const CartItemInfo = styled.div`
@@ -867,6 +973,10 @@ const PaymentMethodGrid = styled.div`
   grid-template-columns: repeat(5, 1fr);
   gap: 6px;
   margin-bottom: 10px;
+
+  @media (max-width: 480px) {
+    grid-template-columns: repeat(3, 1fr);
+  }
 `;
 
 const PayMethodBtn = styled.button`
@@ -1111,55 +1221,6 @@ const ReceiptTotal = styled.div`
   margin-top: 4px;
 `;
 
-/* Held Orders */
-const HeldOrderCard = styled.div`
-  border: 1.5px solid #E5E7EB;
-  border-radius: 12px;
-  padding: 14px;
-  margin-bottom: 10px;
-  animation: ${fadeIn} 0.2s ease;
-  &:last-child { margin-bottom: 0; }
-`;
-
-const HeldOrderTop = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 6px;
-  .name { font-size: 14px; font-weight: 700; color: #111827; }
-  .id   { font-size: 11px; color: #9CA3AF; margin-top: 1px; }
-  .total { font-size: 15px; font-weight: 900; color: #111827; }
-`;
-
-const HeldOrderMeta = styled.div`
-  display: flex;
-  gap: 8px;
-  margin-bottom: 8px;
-  span {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 11px;
-    color: #6B7280;
-    background: #F3F4F6;
-    padding: 2px 8px;
-    border-radius: 999px;
-    font-weight: 500;
-  }
-`;
-
-const HeldOrderItems = styled.div`
-  font-size: 12px;
-  color: #6B7280;
-  margin-bottom: 10px;
-  line-height: 1.6;
-`;
-
-const HeldOrderActions = styled.div`
-  display: flex;
-  gap: 8px;
-`;
-
 /* Toast */
 const ToastWrap = styled.div`
   position: fixed;
@@ -1266,11 +1327,6 @@ const CashierPOS = () => {
   const [completedReceipt, setCompletedReceipt] = useState(null);
   const [recentSale, setRecentSale]       = useState(null);
   const [toasts, setToasts]               = useState([]);
-  const [heldOrders, setHeldOrders]       = useState(() => {
-    try { return JSON.parse(localStorage.getItem("cashierHeldOrders")) || []; }
-    catch { return []; }
-  });
-  const [showHeldOrders, setShowHeldOrders] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showNavMenu, setShowNavMenu] = useState(false);
 
@@ -1418,10 +1474,6 @@ const CashierPOS = () => {
   }, []);
 
   useEffect(() => { fetchProducts(); }, [fetchProducts]);
-  useEffect(() => {
-    localStorage.setItem("cashierHeldOrders", JSON.stringify(heldOrders));
-  }, [heldOrders]);
-
   /* Fullscreen state tracking */
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -1590,7 +1642,6 @@ const CashierPOS = () => {
       if (e.key === "Escape") {
         if (searchQuery) { setSearchQuery(""); return; }
         if (showPaymentSection) { setShowPaymentSection(false); return; }
-        if (showHeldOrders) { setShowHeldOrders(false); return; }
         if (completedReceipt) { setCompletedReceipt(null); return; }
       }
       if (e.key === "Enter" && e.target === searchRef.current) {
@@ -1600,7 +1651,7 @@ const CashierPOS = () => {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [cart.length, searchQuery, showPaymentSection, showHeldOrders, completedReceipt, handleSearchEnter]);
+  }, [cart.length, searchQuery, showPaymentSection, completedReceipt, handleSearchEnter]);
 
   /* Voucher validate */
   const handleValidateVoucher = async () => {
@@ -1608,30 +1659,6 @@ const CashierPOS = () => {
     if (!code) { setVoucherMessage("Please enter a voucher code."); return; }
     setValidatedVoucher(null);
     setVoucherMessage("Voucher validation is not available yet.");
-  };
-
-  /* Hold order */
-  const handleHoldOrder = () => {
-    if (!cart.length) return;
-    const held = {
-      id: `HOLD-${Date.now()}`,
-      customerName: customerName || "Walk-in Customer",
-      orderType, voucher, cart, subtotal, tax, discount: discountAmt, total,
-      createdAt: new Date().toISOString(),
-    };
-    setHeldOrders(prev => [held, ...prev]);
-    addToast("Order held successfully", "info");
-    clearOrder();
-  };
-
-  const handleRestoreHeld = (order) => {
-    setCart(order.cart || []);
-    setCustomerName(order.customerName === "Walk-in Customer" ? "" : order.customerName);
-    setOrderType(order.orderType || "walk-in");
-    setVoucher(order.voucher || "");
-    setHeldOrders(prev => prev.filter(o => o.id !== order.id));
-    setShowHeldOrders(false);
-    addToast("Order restored", "success");
   };
 
   /* Checkout */
@@ -1673,9 +1700,11 @@ const CashierPOS = () => {
         date: new Date().toLocaleString("en-PH", { month: "short", day: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }),
       };
       setRecentSale(receipt);
+      setCompletedReceipt(receipt);
       addToast("Payment successful!", "success");
       clearOrder();
       fetchProducts();
+      window.setTimeout(() => handlePrint(receipt), 250);
     } catch (err) {
       addToast(err.message || "Checkout failed. Please try again.", "error");
     } finally {
@@ -1684,11 +1713,12 @@ const CashierPOS = () => {
   };
 
   /* Print receipt */
-  const handlePrint = () => {
-    if (!completedReceipt) return;
+  const handlePrint = (receiptOverride = null) => {
+    const receiptToPrint = receiptOverride || completedReceipt;
+    if (!receiptToPrint) return;
     const w = window.open("", "_blank", "width=420,height=700");
     if (!w) { addToast("Allow pop-ups to print receipt", "warn"); return; }
-    const itemsHtml = completedReceipt.items.map(i => `
+    const itemsHtml = receiptToPrint.items.map(i => `
       <tr>
         <td>${i.item_name} × ${i.quantity}</td>
         <td style="text-align:right">${fmt(i.unit_price * i.quantity)}</td>
@@ -1706,29 +1736,32 @@ const CashierPOS = () => {
         @media print{button{display:none}}
       </style></head><body>
       <h2>Pawesome Retreat Inc.</h2>
-      <div class="center">Official Cashier Receipt<br>${completedReceipt.date}</div>
+      <div class="center">Official Cashier Receipt<br>${receiptToPrint.date}</div>
       <hr>
       <table class="meta">
-        <tr><td>Transaction</td><td style="text-align:right">${completedReceipt.transaction_id}</td></tr>
-        <tr><td>Customer</td><td style="text-align:right">${completedReceipt.customer_name}</td></tr>
-        <tr><td>Payment</td><td style="text-align:right">${completedReceipt.payment_method}</td></tr>
+        <tr><td>Receipt</td><td style="text-align:right">${receiptToPrint.receipt_number || receiptToPrint.transaction_id}</td></tr>
+        <tr><td>Cashier</td><td style="text-align:right">${receiptToPrint.cashier_name || localStorage.getItem("name") || "Cashier"}</td></tr>
+        <tr><td>Customer</td><td style="text-align:right">${receiptToPrint.customer_name}</td></tr>
+        <tr><td>Payment</td><td style="text-align:right">${receiptToPrint.payment_method}</td></tr>
+        <tr><td>Status</td><td style="text-align:right">${receiptToPrint.payment_status || "paid"}</td></tr>
       </table>
       <hr>
       <table>${itemsHtml}</table>
       <hr>
       <table>
-        <tr><td>Subtotal</td><td style="text-align:right">${fmt(completedReceipt.subtotal)}</td></tr>
-        <tr><td>VAT 12%</td><td style="text-align:right">${fmt(completedReceipt.tax)}</td></tr>
-        <tr><td>Discount</td><td style="text-align:right">-${fmt(completedReceipt.discount)}</td></tr>
-        <tr class="total-row"><td>TOTAL</td><td style="text-align:right">${fmt(completedReceipt.total)}</td></tr>
-        <tr><td>Received</td><td style="text-align:right">${fmt(completedReceipt.amount_received)}</td></tr>
-        <tr><td>Change</td><td style="text-align:right">${fmt(completedReceipt.change)}</td></tr>
+        <tr><td>Subtotal</td><td style="text-align:right">${fmt(receiptToPrint.subtotal)}</td></tr>
+        <tr><td>VAT 12%</td><td style="text-align:right">${fmt(receiptToPrint.tax)}</td></tr>
+        <tr><td>Discount</td><td style="text-align:right">-${fmt(receiptToPrint.discount)}</td></tr>
+        <tr class="total-row"><td>TOTAL</td><td style="text-align:right">${fmt(receiptToPrint.total)}</td></tr>
+        <tr><td>Received</td><td style="text-align:right">${fmt(receiptToPrint.amount_received)}</td></tr>
+        <tr><td>Change</td><td style="text-align:right">${fmt(receiptToPrint.change)}</td></tr>
       </table>
       <div class="footer">Thank you for shopping with us!<br>Please keep this receipt.</div>
       <br><button onclick="window.print()">Print</button>
     </body></html>`);
     w.document.close();
     w.focus();
+    w.print();
   };
 
   /* ─── Render ──────────────────────────────────────────────────── */
@@ -1807,17 +1840,6 @@ const CashierPOS = () => {
 
             <IconBtn onClick={fetchProducts}>
               <FontAwesomeIcon icon={faRotateRight} /> Refresh
-            </IconBtn>
-
-            <IconBtn $warning onClick={() => setShowHeldOrders(true)}>
-              <FontAwesomeIcon icon={faFolderOpen} /> Held
-              {heldOrders.length > 0 && (
-                <Badge $type="info">{heldOrders.length}</Badge>
-              )}
-            </IconBtn>
-
-            <IconBtn $warning onClick={handleHoldOrder} disabled={cart.length === 0}>
-              <FontAwesomeIcon icon={faPause} /> Hold
             </IconBtn>
 
             <IconBtn $danger onClick={clearOrder} disabled={cart.length === 0}>
@@ -2157,15 +2179,6 @@ const CashierPOS = () => {
 
               <SecondaryBtnsRow>
                 <SecBtn
-                  $color="#D97706"
-                  $bg="#FFFBEB"
-                  onClick={handleHoldOrder}
-                  disabled={cart.length === 0}
-                >
-                  <FontAwesomeIcon icon={faPause} />
-                  Hold Order
-                </SecBtn>
-                <SecBtn
                   $color="#DC2626"
                   $bg="#FEF2F2"
                   onClick={clearOrder}
@@ -2274,80 +2287,6 @@ const CashierPOS = () => {
                 <FontAwesomeIcon icon={faPrint} /> Print Receipt
               </CheckoutBtn>
             </ModalFooter>
-          </Modal>
-        </Overlay>
-      )}
-
-      {/* ── Held Orders Modal ─────────────────────────────────── */}
-      {showHeldOrders && (
-        <Overlay onClick={() => setShowHeldOrders(false)}>
-          <Modal $width="520px" onClick={e => e.stopPropagation()}>
-            <ModalHeader>
-              <div>
-                <ModalTitle>Held Orders</ModalTitle>
-                <ModalSub>Restore or remove temporarily saved orders.</ModalSub>
-              </div>
-              <RemoveBtn onClick={() => setShowHeldOrders(false)} style={{ width: 30, height: 30 }}>
-                <FontAwesomeIcon icon={faXmark} />
-              </RemoveBtn>
-            </ModalHeader>
-
-            <ModalBody>
-              {heldOrders.length === 0 ? (
-                <StateCard style={{ height: 200 }}>
-                  <StateIcon><FontAwesomeIcon icon={faShoppingCart} /></StateIcon>
-                  <StateTitle>No held orders</StateTitle>
-                  <StateText>Held orders appear here after you park a cart.</StateText>
-                </StateCard>
-              ) : (
-                heldOrders.map(order => (
-                  <HeldOrderCard key={order.id}>
-                    <HeldOrderTop>
-                      <div>
-                        <div className="name">{order.customerName}</div>
-                        <div className="id">{order.id}</div>
-                      </div>
-                      <div className="total">{fmt(order.total)}</div>
-                    </HeldOrderTop>
-
-                    <HeldOrderMeta>
-                      <span><FontAwesomeIcon icon={faList} /> {order.cart?.length || 0} item type(s)</span>
-                      <span style={{ textTransform: "capitalize" }}>{order.orderType}</span>
-                      <span>
-                        <FontAwesomeIcon icon={faClock} />
-                        {new Date(order.createdAt).toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit" })}
-                      </span>
-                    </HeldOrderMeta>
-
-                    <HeldOrderItems>
-                      {(order.cart || []).slice(0, 4).map(i => (
-                        <span key={i.id} style={{ display: "inline-block", marginRight: 8 }}>
-                          {i.quantity}× {i.name}
-                        </span>
-                      ))}
-                      {(order.cart || []).length > 4 && <span>+{order.cart.length - 4} more</span>}
-                    </HeldOrderItems>
-
-                    <HeldOrderActions>
-                      <CheckoutBtn
-                        style={{ flex: 2, height: 36, fontSize: 13 }}
-                        onClick={() => handleRestoreHeld(order)}
-                      >
-                        <FontAwesomeIcon icon={faRotateRight} /> Restore Order
-                      </CheckoutBtn>
-                      <SecBtn
-                        style={{ flex: 1, height: 36 }}
-                        $color="#DC2626"
-                        $bg="#FEF2F2"
-                        onClick={() => setHeldOrders(prev => prev.filter(o => o.id !== order.id))}
-                      >
-                        <FontAwesomeIcon icon={faTrash} /> Remove
-                      </SecBtn>
-                    </HeldOrderActions>
-                  </HeldOrderCard>
-                ))
-              )}
-            </ModalBody>
           </Modal>
         </Overlay>
       )}

@@ -337,10 +337,6 @@
   font-size: 14px;
 }
 
-.expiry-cell {
-  text-align: center;
-}
-
 .stock-badge {
   display: inline-flex;
   align-items: center;
@@ -350,11 +346,6 @@
   font-size: 12px;
   font-weight: 500;
   white-space: nowrap;
-}
-
-.expiry-alert {
-  color: var(--color-warning);
-  font-weight: 600;
 }
 
 /* Actions */

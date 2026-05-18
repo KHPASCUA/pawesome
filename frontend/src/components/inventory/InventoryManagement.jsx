@@ -12,7 +12,6 @@ import {
   faSave,
   faBarcode,
   faWarehouse,
-  faDollarSign,
   faBoxes,
   faBell,
   faSync,
@@ -57,7 +56,6 @@ const INITIAL_FORM_DATA = {
   brand: '',
   supplier: '',
   description: '',
-  expiration_date: '',
   location: ''
 };
 
@@ -85,8 +83,7 @@ const InventoryManagement = () => {
   const [stats, setStats] = useState({
     totalItems: 0,
     lowStock: 0,
-    outOfStock: 0,
-    totalValue: 0
+    outOfStock: 0
   });
 
   // Toast state
@@ -146,8 +143,7 @@ const InventoryManagement = () => {
           setStats({
             totalItems: dashboardResponse.total_items || fetchedItems.length,
             lowStock: dashboardResponse.low_stock_count || 0,
-            outOfStock: dashboardResponse.out_of_stock_count || 0,
-            totalValue: dashboardResponse.total_value || 0
+            outOfStock: dashboardResponse.out_of_stock_count || 0
           });
         }
       } else {
@@ -155,8 +151,7 @@ const InventoryManagement = () => {
         setStats({
           totalItems: 0,
           lowStock: 0,
-          outOfStock: 0,
-          totalValue: 0
+          outOfStock: 0
         });
       }
     } catch (err) {
@@ -165,8 +160,7 @@ const InventoryManagement = () => {
       setStats({
         totalItems: 0,
         lowStock: 0,
-        outOfStock: 0,
-        totalValue: 0
+        outOfStock: 0
       });
     } finally {
       setLoading(false);
@@ -237,7 +231,6 @@ const InventoryManagement = () => {
       brand: item.brand || '',
       supplier: item.supplier || '',
       description: item.description || '',
-      expiration_date: item.expiration_date || item.expiration || '',
       location: item.location || ''
     });
     setFormTouched({});
@@ -470,13 +463,6 @@ const InventoryManagement = () => {
           <div className="stat-info">
             <span className="stat-value">{stats.outOfStock}</span>
             <span className="stat-label">Out of Stock</span>
-          </div>
-        </div>
-        <div className="stat-card value">
-          <div className="stat-icon"><FontAwesomeIcon icon={faDollarSign} /></div>
-          <div className="stat-info">
-            <span className="stat-value">₱{stats.totalValue.toLocaleString()}</span>
-            <span className="stat-label">Total Value</span>
           </div>
         </div>
       </div>
@@ -780,15 +766,6 @@ const InventoryManagement = () => {
                     onChange={handleInputChange}
                     min="0"
                     placeholder="10"
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Expiration Date</label>
-                  <input
-                    type="date"
-                    name="expiration_date"
-                    value={formData.expiration_date}
-                    onChange={handleInputChange}
                   />
                 </div>
               </div>

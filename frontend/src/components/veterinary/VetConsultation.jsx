@@ -17,7 +17,6 @@ import {
 import toast from "react-hot-toast";
 import { apiRequest } from "../../api/client";
 import ServiceBillingPanel from "../shared/ServiceBillingPanel";
-import VeterinaryInventoryUsage from "./VeterinaryInventoryUsage";
 import "./VetConsultation.css";
 
 const emptyForm = {
@@ -437,17 +436,6 @@ const VetConsultation = () => {
           serviceId={appointment.id}
           petId={appointment.pet_id}
           onBillingUpdate={handleBillingUpdate}
-        />
-      </div>
-
-      <div className="consult-form">
-        <h3>Inventory Usage</h3>
-        <VeterinaryInventoryUsage
-          appointmentId={appointment.id}
-          petId={appointment.pet_id}
-          onUsageRecorded={() => {
-            loadConsultation();
-          }}
         />
       </div>
 

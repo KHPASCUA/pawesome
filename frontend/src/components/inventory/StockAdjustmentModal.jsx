@@ -1,33 +1,16 @@
 import React, { useState, useEffect } from "react";
 import { inventoryApi } from "../../api/inventory";
-import { formatCurrency } from "../../utils/currency";
 import "./StockAdjustmentModal.css";
 
 const StockAdjustmentModal = ({ isOpen, onClose, item, onSuccess }) => {
-  // Category-based expiry rule
-  const expiryRequiredCategories = [
-    "food",
-    "medicine", 
-    "vitamins",
-    "health",
-    "grooming",
-    "shampoo",
-    "treats",
-  ];
-
-  const needsExpiration = (itm) => {
-    const category = String(itm?.category || "").toLowerCase();
-    return expiryRequiredCategories.some((key) => category.includes(key));
-  };
   const [adjustmentType, setAdjustmentType] = useState("add"); // 'add', 'remove'
   const [quantity, setQuantity] = useState("");
   const [reason, setReason] = useState("");
   const [customReason, setCustomReason] = useState("");
-  const [expirationDate, setExpirationDate] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Helper to get stock value from multiple possible field names
+  // Helper to get stock quantity from multiple possible field names
   const getStock = (itm) => Number(itm?.stock ?? itm?.quantity ?? itm?.stock_quantity ?? itm?.current_stock ?? 0);
   const currentStock = getStock(item);
 
@@ -36,7 +19,6 @@ const StockAdjustmentModal = ({ isOpen, onClose, item, onSuccess }) => {
     setQuantity("");
     setReason("");
     setCustomReason("");
-    setExpirationDate("");
     setError(null);
   };
 
@@ -79,12 +61,6 @@ const StockAdjustmentModal = ({ isOpen, onClose, item, onSuccess }) => {
       return;
     }
 
-    // Category-based expiration validation
-    if (adjustmentType === "add" && needsExpiration(item) && !expirationDate) {
-      alert("Expiration date is required for this item category.");
-      return;
-    }
-
     setLoading(true);
     setError(null);
 
@@ -98,9 +74,7 @@ const StockAdjustmentModal = ({ isOpen, onClose, item, onSuccess }) => {
         reason: finalReason,
       });
 
-      await inventoryApi.adjustStock(item.id, adjustmentType, Number(quantity), finalReason, {
-        expiration_date: needsExpiration(item) ? expirationDate : null
-      });
+      await inventoryApi.adjustStock(item.id, adjustmentType, Number(quantity), finalReason);
 
       await onSuccess?.();
       onClose?.();
@@ -294,32 +268,6 @@ const StockAdjustmentModal = ({ isOpen, onClose, item, onSuccess }) => {
               </div>
             )}
 
-            {/* Expiration Date - Category-based requirement */}
-            {adjustmentType === "add" && needsExpiration(item) && (
-              <div className="form-group">
-                <label>
-                  Expiration Date <span className="required">*</span>
-                </label>
-                <input
-                  type="date"
-                  value={expirationDate}
-                  onChange={(e) => setExpirationDate(e.target.value)}
-                  min={new Date().toISOString().split('T')[0]}
-                  required
-                />
-                <small className="field-hint required">
-                  This category requires an expiration date.
-                </small>
-              </div>
-            )}
-
-            {adjustmentType === "add" && !needsExpiration(item) && (
-              <div className="form-note">
-                <span className="note-icon">ℹ️</span>
-                <span>This item category does not require expiration tracking.</span>
-              </div>
-            )}
-
             {/* Smart Alert Warnings */}
             {quantity && getNewStockPreview() <= 0 && (
               <div className="alert-danger">
@@ -355,12 +303,6 @@ const StockAdjustmentModal = ({ isOpen, onClose, item, onSuccess }) => {
                     {getNewStockPreview()} units
                   </strong>
                 </div>
-                {item.price && (
-                  <div className="preview-row value">
-                    <span>Stock Value:</span>
-                    <strong>{formatCurrency(getNewStockPreview() * item.price)}</strong>
-                  </div>
-                )}
               </div>
             )}
 

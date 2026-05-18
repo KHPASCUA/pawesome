@@ -3,17 +3,22 @@
 namespace App\Services\Chatbot;
 
 use App\Models\Appointment;
+use App\Models\Boarding;
 use App\Models\ChatbotFaq;
 use App\Models\ChatbotLog;
 use App\Models\Customer;
+use App\Models\CustomerOrder;
 use App\Models\HotelRoom;
 use App\Models\InventoryItem;
 use App\Models\Pet;
 use App\Models\Sale;
 use App\Models\Service;
+use App\Models\ServiceRequest;
 use App\Models\User;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Premium Chatbot Service - Professional Grade
@@ -76,10 +81,20 @@ class PremiumChatbotService
     /**
      * Premium Response Handler
      */
-    public function respond(?User $user, string $message, string $channel = 'web'): array
+    public function respond(?User $user, string $message, string $channel = 'web', array $sessionContext = []): array
     {
         $role = $this->roleScopeService->normalizeRole($user?->role);
         $config = $this->roleScopeService->getRoleConfig($user);
+        $intent = $this->detectSystemIntent($message, $sessionContext);
+
+        if ($intent !== 'legacy_general') {
+            $response = $this->systemAssistantResponse($user, $role, $intent, $message, $sessionContext);
+            $formattedResponse = $this->formatResponse($response, $role, $channel, $intent);
+            $this->storeContext($user?->id, $intent, $message, $formattedResponse);
+
+            return $formattedResponse;
+        }
+
         $intent = $this->detectIntentAdvanced($message);
         
         // Check FAQ first for precise answers
@@ -211,6 +226,592 @@ class PremiumChatbotService
         }
         
         return 'general';
+    }
+
+    private function detectSystemIntent(string $message, array $context = []): string
+    {
+        $text = strtolower(trim($message));
+
+        if (preg_match('/^(hi|hello|hey|yo|good\s+(morning|afternoon|evening)|kumusta|kamusta)\b/i', $text)) {
+            return 'greeting';
+        }
+
+        if (preg_match('/\b(payment history|history ng payment|paid history|payments)\b/i', $text)) {
+            return 'payment_history';
+        }
+
+        if (preg_match('/\b(pending payment|payment proof|proofs|verify payment|verification|bayad.*pending)\b/i', $text)) {
+            return 'pending_payments';
+        }
+
+        if (preg_match('/\b(help|tulong|paano|how|what can you do|guide)\b/i', $text)) {
+            if (preg_match('/\b(upload|proof|pay|payment|bayad|magbayad)\b/i', $text)) {
+                return 'upload_payment_help';
+            }
+
+            return 'help';
+        }
+
+        if (preg_match('/\b(upload|proof|resibo|receipt|pay|payment|bayad|paid na ba|bayad na)\b/i', $text)) {
+            return 'check_payment_status';
+        }
+
+        if (preg_match('/\b(low stock|reorder|kulang.*stock|critical stock)\b/i', $text)) {
+            return 'low_stock_check';
+        }
+
+        if (preg_match('/\b(stock|inventory|available|availability|may stock|meron.*stock|shampoo|food|item)\b/i', $text)) {
+            return 'inventory_stock_check';
+        }
+
+        if (preg_match('/\b(today.*appointment|appointments today|appointment.*today|schedule today|patients today|scheduled appointments|approved appointments|appointment queue)\b/i', $text)) {
+            return 'today_appointments';
+        }
+
+        if (preg_match('/\b(pending approval|pending approvals|approve|approval|pending requests|pending bookings)\b/i', $text)) {
+            return 'pending_approvals';
+        }
+
+        if (preg_match('/\b(request|booking|appointment|status|status ng request|grooming request|vet request)\b/i', $text)) {
+            return str_contains($text, 'booking') || str_contains($text, 'appointment')
+                ? 'check_booking_status'
+                : 'check_request_status';
+        }
+
+        if (preg_match('/\b(receipt|print receipt|resibo|invoice)\b/i', $text)) {
+            return 'receipt_help';
+        }
+
+        if (preg_match('/\b(workflow|role|permission|who can|process|flow|gawain)\b/i', $text)) {
+            return 'role_workflow_explanation';
+        }
+
+        if (preg_match('/\b(contact|staff|reception|cashier|vet|manager|call|email)\b/i', $text)) {
+            return 'contact_staff';
+        }
+
+        if (preg_match('/\b(summary|report|reports|system summary|overview|sales|revenue)\b/i', $text)) {
+            return 'system_summary';
+        }
+
+        return 'legacy_general';
+    }
+
+    private function systemAssistantResponse(?User $user, string $role, string $intent, string $message, array $context): array
+    {
+        return match ($intent) {
+            'greeting' => $this->assistantGreeting($role),
+            'help' => $this->assistantHelp($role),
+            'check_request_status', 'check_booking_status' => $this->requestStatusResponse($user, $role),
+            'check_payment_status' => $this->paymentStatusResponse($user, $role),
+            'upload_payment_help' => $this->uploadPaymentHelpResponse($role, $context),
+            'payment_history' => $this->paymentHistoryResponse($user, $role),
+            'pending_approvals' => $this->pendingApprovalsResponse($role),
+            'pending_payments' => $this->pendingPaymentsResponse($role),
+            'inventory_stock_check' => $this->inventoryStockResponse($role, $message),
+            'low_stock_check' => $this->lowStockResponse($role),
+            'today_appointments' => $this->todayAppointmentsResponse($user, $role),
+            'receipt_help' => $this->receiptHelpResponse($role),
+            'system_summary' => $this->systemSummaryResponse($role),
+            'role_workflow_explanation' => $this->workflowExplanationResponse($role),
+            'contact_staff' => $this->contactStaffResponse($role),
+            default => $this->defaultResponse($role, $message),
+        };
+    }
+
+    private function assistantGreeting(string $role): array
+    {
+        return [
+            'message' => "Hi. I'm your Pawesome System Assistant. I can answer using your {$role} access and live system data.",
+            'suggestions' => $this->roleSuggestions($role),
+            'actions' => $this->roleQuickActions($role),
+            'source' => 'role_live_assistant',
+        ];
+    }
+
+    private function assistantHelp(string $role): array
+    {
+        $help = match ($role) {
+            'customer' => 'I can check your requests, bookings, payment status, payment history, pets, and guide proof uploads.',
+            'receptionist' => 'I can summarize pending approvals, bookings, schedule flow, and customer lookup guidance.',
+            'cashier' => 'I can check pending payment proofs, receipt flow, POS guidance, and recent transaction direction.',
+            'inventory' => 'I can check stock, low-stock items, item availability, movement guidance, and reorder alerts.',
+            'veterinary' => 'I can check today appointments, scheduled consults, and medical workflow guidance.',
+            'manager' => 'I can summarize sales, payments, inventory, services, and customer activity.',
+            'admin' => 'I can explain user management, roles, reports, chatbot logs, and system health.',
+            default => 'I can guide you through the Pawesome workflow available to your role.',
+        };
+
+        return [
+            'message' => $help,
+            'suggestions' => $this->roleSuggestions($role),
+            'actions' => $this->roleQuickActions($role),
+            'source' => 'role_live_assistant',
+        ];
+    }
+
+    private function requestStatusResponse(?User $user, string $role): array
+    {
+        if ($role !== 'customer') {
+            return $this->unauthorizedRoleResponse($role, 'Customer request status is only available to the logged-in customer.');
+        }
+
+        $requests = $this->customerServiceRequests($user)->take(5);
+        $orders = $this->customerOrders($user)->take(3);
+        $boardings = $this->customerBoardings($user)->take(3);
+        $total = $requests->count() + $orders->count() + $boardings->count();
+
+        if ($total === 0) {
+            return [
+                'message' => "I couldn't find active requests, bookings, or orders under your account.",
+                'actions' => $this->roleQuickActions($role),
+                'source' => 'live_database',
+            ];
+        }
+
+        $lines = $requests->map(fn ($item) => "{$item->service_name} request is {$item->status}; payment is {$item->payment_status}.")
+            ->concat($orders->map(fn ($item) => "Store order #{$item->id} is {$item->status}; payment is {$item->payment_status}."))
+            ->concat($boardings->map(fn ($item) => "Boarding #{$item->id} is {$item->status}; payment is {$item->payment_status}."))
+            ->values();
+
+        return [
+            'message' => "You have {$total} tracked item(s). " . $lines->implode(' '),
+            'suggestions' => ['paid na ba ako', 'paano mag upload ng payment', 'payment history'],
+            'actions' => $this->roleQuickActions($role),
+            'rich_content' => [
+                'last_entity_type' => 'request',
+                'last_payment_status' => $requests->first()?->payment_status ?? $orders->first()?->payment_status ?? $boardings->first()?->payment_status,
+                'last_request_id' => $requests->first()?->id ?? $orders->first()?->id ?? $boardings->first()?->id,
+            ],
+            'source' => 'live_database',
+        ];
+    }
+
+    private function paymentStatusResponse(?User $user, string $role): array
+    {
+        if ($role !== 'customer') {
+            return $this->unauthorizedRoleResponse($role, 'Payment status for a customer account is private.');
+        }
+
+        $items = $this->customerPayableItems($user);
+
+        if ($items->isEmpty()) {
+            return [
+                'message' => "I couldn't find payment records under your account yet.",
+                'actions' => $this->roleQuickActions($role),
+                'source' => 'live_database',
+            ];
+        }
+
+        $pending = $items->where('payment_status', 'pending')->count();
+        $paid = $items->where('payment_status', 'paid')->count();
+        $unpaid = $items->whereIn('payment_status', ['unpaid', 'rejected'])->count();
+        $latest = $items->first();
+
+        return [
+            'message' => "Payment summary: {$paid} paid, {$pending} pending cashier verification, {$unpaid} unpaid or rejected. Latest: {$latest['label']} is {$latest['payment_status']}.",
+            'suggestions' => ['payment history', 'paano mag upload ng payment', 'my requests'],
+            'actions' => $this->roleQuickActions($role),
+            'rich_content' => [
+                'last_entity_type' => $latest['type'] ?? 'payment',
+                'last_request_id' => $latest['id'] ?? null,
+                'last_payment_status' => $latest['payment_status'] ?? null,
+            ],
+            'source' => 'live_database',
+        ];
+    }
+
+    private function uploadPaymentHelpResponse(string $role, array $context): array
+    {
+        if ($role !== 'customer') {
+            return [
+                'message' => 'Only customers upload payment proof. Cashiers verify payment proofs after upload; they should not upload proofs for customers.',
+                'actions' => $this->roleQuickActions($role),
+                'source' => 'guardrail',
+            ];
+        }
+
+        $status = $context['lastPaymentStatus'] ?? $context['last_payment_status'] ?? null;
+        $prefix = $status ? "Your last tracked payment status was {$status}. " : '';
+
+        return [
+            'message' => $prefix . 'Open My Requests, choose a request or order that is approved/scheduled and unpaid/rejected, then click Pay and upload your proof. After upload, payment_status becomes pending until the cashier verifies it.',
+            'actions' => $this->roleQuickActions($role),
+            'source' => 'workflow_guardrail',
+        ];
+    }
+
+    private function paymentHistoryResponse(?User $user, string $role): array
+    {
+        if ($role !== 'customer') {
+            return $this->unauthorizedRoleResponse($role, 'Customer payment history is private to each customer.');
+        }
+
+        $items = $this->customerPayableItems($user)->take(5);
+        if ($items->isEmpty()) {
+            return [
+                'message' => 'No payment history is available under your account yet.',
+                'actions' => $this->roleQuickActions($role),
+                'source' => 'live_database',
+            ];
+        }
+
+        $lines = $items->map(fn ($item) => "{$item['reference']} - {$item['label']} - ₱" . number_format((float) $item['amount'], 2) . " - {$item['payment_status']}");
+
+        return [
+            'message' => "Here are your latest payment records: " . $lines->implode('; ') . '.',
+            'actions' => $this->roleQuickActions($role),
+            'source' => 'live_database',
+        ];
+    }
+
+    private function pendingApprovalsResponse(string $role): array
+    {
+        if (!in_array($role, ['receptionist', 'manager', 'admin'], true)) {
+            return $this->unauthorizedRoleResponse($role, 'Pending approvals are for receptionist, manager, or admin workflows.');
+        }
+
+        $serviceRequests = ServiceRequest::where('status', 'pending')->count();
+        $orders = Schema::hasTable('customer_orders') ? CustomerOrder::where('status', 'pending')->count() : 0;
+        $boardings = Schema::hasTable('boardings') ? Boarding::where('status', 'pending')->count() : 0;
+
+        return [
+            'message' => "Pending approvals: {$serviceRequests} service request(s), {$orders} store order(s), and {$boardings} boarding request(s). Receptionist should approve, reject, or schedule them from the approval screens.",
+            'actions' => $this->roleQuickActions($role),
+            'source' => 'live_database',
+        ];
+    }
+
+    private function pendingPaymentsResponse(string $role): array
+    {
+        if (!in_array($role, ['cashier', 'manager', 'admin'], true)) {
+            return $this->unauthorizedRoleResponse($role, 'Pending payment proof counts are for cashier, manager, or admin roles.');
+        }
+
+        $requests = ServiceRequest::where('payment_status', 'pending')->count();
+        $orders = Schema::hasTable('customer_orders') ? CustomerOrder::where('payment_status', 'pending')->count() : 0;
+        $boardings = Schema::hasTable('boardings') ? Boarding::where('payment_status', 'pending')->count() : 0;
+
+        return [
+            'message' => "There are {$requests} service payment(s), {$orders} order payment(s), and {$boardings} boarding payment(s) waiting for cashier verification.",
+            'actions' => $this->roleQuickActions($role),
+            'source' => 'live_database',
+        ];
+    }
+
+    private function inventoryStockResponse(string $role, string $message): array
+    {
+        if (!in_array($role, ['inventory', 'cashier', 'manager', 'admin', 'customer', 'veterinary', 'receptionist'], true)) {
+            return $this->unauthorizedRoleResponse($role, 'Inventory lookup is not available for this role.');
+        }
+
+        $query = trim(preg_replace('/\b(stock|inventory|available|availability|may|pa|ba|item|product|do you have|meron)\b/i', ' ', $message));
+        $query = $query !== '' ? $query : $message;
+
+        $items = InventoryItem::query()
+            ->where('status', '!=', 'archived')
+            ->where(function ($builder) use ($query) {
+                $builder->where('name', 'like', "%{$query}%")
+                    ->orWhere('category', 'like', "%{$query}%")
+                    ->orWhere('sku', 'like', "%{$query}%");
+            })
+            ->orderBy('name')
+            ->limit(5)
+            ->get(['id', 'name', 'sku', 'category', 'stock', 'reorder_level', 'status', 'price']);
+
+        if ($items->isEmpty()) {
+            return [
+                'message' => "I couldn't find a matching inventory item for that search.",
+                'actions' => $this->roleQuickActions($role),
+                'source' => 'live_database',
+            ];
+        }
+
+        $lines = $items->map(fn ($item) => "{$item->name}: {$item->stock} in stock, status {$item->status}");
+
+        return [
+            'message' => "Inventory match: " . $lines->implode('; ') . '.',
+            'actions' => $this->roleQuickActions($role),
+            'source' => 'live_database',
+        ];
+    }
+
+    private function lowStockResponse(string $role): array
+    {
+        if (!in_array($role, ['inventory', 'manager', 'admin'], true)) {
+            return $this->unauthorizedRoleResponse($role, 'Low-stock monitoring is for inventory, manager, and admin roles.');
+        }
+
+        $items = InventoryItem::where('status', '!=', 'archived')
+            ->where('stock', '>', 0)
+            ->whereColumn('stock', '<=', 'reorder_level')
+            ->orderBy('stock')
+            ->limit(6)
+            ->get(['name', 'stock', 'reorder_level']);
+
+        if ($items->isEmpty()) {
+            return [
+                'message' => 'No low-stock items are currently flagged.',
+                'actions' => $this->roleQuickActions($role),
+                'source' => 'live_database',
+            ];
+        }
+
+        $lines = $items->map(fn ($item) => "{$item->name}: {$item->stock} left, reorder level {$item->reorder_level}");
+
+        return [
+            'message' => "Low-stock items: " . $lines->implode('; ') . '.',
+            'actions' => $this->roleQuickActions($role),
+            'source' => 'live_database',
+        ];
+    }
+
+    private function todayAppointmentsResponse(?User $user, string $role): array
+    {
+        if (!in_array($role, ['veterinary', 'receptionist', 'manager', 'admin'], true)) {
+            return $this->unauthorizedRoleResponse($role, 'Today appointment queues are for staff roles.');
+        }
+
+        $query = Appointment::with(['pet', 'service', 'customer'])
+            ->whereDate('scheduled_at', Carbon::today())
+            ->orderBy('scheduled_at');
+
+        if ($role === 'veterinary') {
+            $query->where(function ($builder) use ($user) {
+                $builder->whereNull('veterinarian_id')
+                    ->orWhere('veterinarian_id', $user?->id);
+            });
+        }
+
+        $appointments = $query->limit(8)->get();
+
+        if ($appointments->isEmpty()) {
+            return [
+                'message' => 'No appointments are scheduled for today in your queue.',
+                'actions' => $this->roleQuickActions($role),
+                'source' => 'live_database',
+            ];
+        }
+
+        $lines = $appointments->map(fn ($appointment) => optional($appointment->scheduled_at)->format('g:i A') . ' - ' . ($appointment->pet?->name ?? 'Pet') . ' - ' . ($appointment->service?->name ?? 'Service') . " ({$appointment->status})");
+
+        return [
+            'message' => "Today's appointments: " . $lines->implode('; ') . '.',
+            'actions' => $this->roleQuickActions($role),
+            'source' => 'live_database',
+        ];
+    }
+
+    private function receiptHelpResponse(string $role): array
+    {
+        $message = match ($role) {
+            'cashier' => 'After a POS transaction or payment verification succeeds, the system generates a receipt and opens the print-ready receipt view. Do not print before backend success.',
+            'customer' => 'Receipts appear in Payment History after cashier verification. Uploading proof only sets payment_status to pending; it does not mark the payment paid.',
+            default => 'Receipts are generated by cashier payment workflows after successful verification or checkout.',
+        };
+
+        return [
+            'message' => $message,
+            'actions' => $this->roleQuickActions($role),
+            'source' => 'workflow_guardrail',
+        ];
+    }
+
+    private function workflowExplanationResponse(string $role): array
+    {
+        $message = match ($role) {
+            'customer' => 'Customer workflow: submit requests or orders, wait for receptionist approval/scheduling, upload payment proof when payable, then cashier verifies payment.',
+            'receptionist' => 'Receptionist workflow: review customer requests/orders, approve/reject/schedule, and keep customers updated. Cashier handles payment verification.',
+            'cashier' => 'Cashier workflow: process direct POS sales, verify pending payment proofs, generate receipts, and keep payment_status accurate.',
+            'inventory' => 'Inventory workflow: maintain item quantities, low stock, reorder levels, stock logs, and item availability for sales/service usage.',
+            'veterinary' => 'Veterinary workflow: handle approved/scheduled appointments, consults, patient notes, and medical records. Receptionist owns scheduling approvals.',
+            'manager' => 'Manager workflow: monitor sales, payments, inventory, services, customers, and staff reports without taking operational actions from staff roles.',
+            'admin' => 'Admin workflow: manage users, roles, services, system settings, logs, reports, and high-level system health.',
+            default => 'Pawesome workflow: Customer submits, Receptionist approves/schedules, Cashier verifies payments, Inventory manages stock, Veterinary handles appointments, Manager monitors, Admin manages the system.',
+        };
+
+        return [
+            'message' => $message,
+            'actions' => $this->roleQuickActions($role),
+            'source' => 'workflow_guardrail',
+        ];
+    }
+
+    private function systemSummaryResponse(string $role): array
+    {
+        if (!in_array($role, ['manager', 'admin'], true)) {
+            return $this->workflowExplanationResponse($role);
+        }
+
+        $today = Carbon::today();
+        $salesToday = Sale::whereDate('created_at', $today)->sum('amount');
+        $paymentsPending = ServiceRequest::where('payment_status', 'pending')->count()
+            + (Schema::hasTable('customer_orders') ? CustomerOrder::where('payment_status', 'pending')->count() : 0)
+            + (Schema::hasTable('boardings') ? Boarding::where('payment_status', 'pending')->count() : 0);
+        $lowStock = InventoryItem::where('status', '!=', 'archived')
+            ->where('stock', '>', 0)
+            ->whereColumn('stock', '<=', 'reorder_level')
+            ->count();
+        $servicePending = ServiceRequest::where('status', 'pending')->count();
+
+        return [
+            'message' => "System summary today: sales ₱" . number_format((float) $salesToday, 2) . ", {$paymentsPending} pending payment proof(s), {$lowStock} low-stock item(s), and {$servicePending} pending service request(s).",
+            'actions' => $this->roleQuickActions($role),
+            'source' => 'live_database',
+        ];
+    }
+
+    private function contactStaffResponse(string $role): array
+    {
+        return [
+            'message' => 'For booking or approval concerns, contact the receptionist. For payment proof or receipts, contact the cashier. For medical appointment care, contact veterinary staff. The assistant will not approve bookings, mark payments paid, or deduct inventory directly.',
+            'actions' => $this->roleQuickActions($role),
+            'source' => 'workflow_guardrail',
+        ];
+    }
+
+    private function unauthorizedRoleResponse(string $role, string $message): array
+    {
+        return [
+            'message' => $message . " I can still help with {$role} workflow guidance.",
+            'actions' => $this->roleQuickActions($role),
+            'source' => 'role_guardrail',
+            'confidence' => 1.0,
+        ];
+    }
+
+    private function customerServiceRequests(?User $user)
+    {
+        if (!$user) {
+            return collect();
+        }
+
+        return ServiceRequest::query()
+            ->where(function ($query) use ($user) {
+                $query->where('customer_id', $user->id)
+                    ->orWhere('customer_email', $user->email);
+            })
+            ->latest()
+            ->get();
+    }
+
+    private function customerOrders(?User $user)
+    {
+        if (!$user || !Schema::hasTable('customer_orders')) {
+            return collect();
+        }
+
+        return CustomerOrder::query()
+            ->where(function ($query) use ($user) {
+                $query->where('customer_id', $user->id)
+                    ->orWhere('customer_email', $user->email);
+            })
+            ->latest()
+            ->get();
+    }
+
+    private function customerBoardings(?User $user)
+    {
+        if (!$user || !Schema::hasTable('boardings')) {
+            return collect();
+        }
+
+        return Boarding::query()
+            ->where(function ($query) use ($user) {
+                $query->where('customer_id', $user->id)
+                    ->orWhere('customer_email', $user->email);
+            })
+            ->latest()
+            ->get();
+    }
+
+    private function customerPayableItems(?User $user)
+    {
+        return $this->customerServiceRequests($user)->map(fn ($item) => [
+            'id' => $item->id,
+            'type' => 'service_request',
+            'label' => $item->service_name ?? $item->request_type ?? 'Service request',
+            'amount' => $item->total_amount ?? $item->base_amount ?? 0,
+            'payment_status' => $item->payment_status ?? 'unpaid',
+            'reference' => $item->receipt_number ?? $item->payment_reference ?? "REQ-{$item->id}",
+            'date' => $item->created_at,
+        ])
+            ->concat($this->customerOrders($user)->map(fn ($item) => [
+                'id' => $item->id,
+                'type' => 'order',
+                'label' => 'Store order #' . $item->id,
+                'amount' => $item->total_amount ?? 0,
+                'payment_status' => $item->payment_status ?? 'unpaid',
+                'reference' => $item->receipt_number ?? $item->payment_reference ?? "ORD-{$item->id}",
+                'date' => $item->created_at,
+            ]))
+            ->concat($this->customerBoardings($user)->map(fn ($item) => [
+                'id' => $item->id,
+                'type' => 'boarding',
+                'label' => 'Boarding #' . $item->id,
+                'amount' => $item->total_amount ?? 0,
+                'payment_status' => $item->payment_status ?? 'unpaid',
+                'reference' => $item->receipt_number ?? $item->payment_reference ?? "BRD-{$item->id}",
+                'date' => $item->created_at,
+            ]))
+            ->sortByDesc('date')
+            ->values();
+    }
+
+    private function roleSuggestions(string $role): array
+    {
+        return match ($role) {
+            'customer' => ['status ng request ko', 'paid na ba ako', 'paano mag upload ng payment'],
+            'cashier' => ['may pending payments ba', 'print receipt', 'POS help'],
+            'inventory' => ['low stock items', 'may stock pa ba shampoo', 'stock logs'],
+            'veterinary' => ['appointments today', 'scheduled appointments', 'pet records'],
+            'receptionist' => ['pending approvals', 'booking schedule', 'customer lookup'],
+            'manager', 'admin' => ['system summary', 'reports', 'payment summary'],
+            default => ['help', 'workflow', 'contact staff'],
+        };
+    }
+
+    private function roleQuickActions(string $role): array
+    {
+        return match ($role) {
+            'customer' => [
+                ['label' => 'My Requests', 'path' => '/customer/requests'],
+                ['label' => 'Payment History', 'path' => '/customer/payments'],
+                ['label' => 'Upload Payment Proof', 'path' => '/customer/requests'],
+                ['label' => 'My Pets', 'path' => '/customer/pets'],
+            ],
+            'receptionist' => [
+                ['label' => 'Pending Approvals', 'path' => '/receptionist/approvals'],
+                ['label' => 'Booking Schedule', 'path' => '/receptionist/bookings'],
+                ['label' => 'Customer Records', 'path' => '/receptionist/customers'],
+            ],
+            'cashier' => [
+                ['label' => 'Pending Payments', 'path' => '/cashier/payment-verification'],
+                ['label' => 'POS', 'path' => '/cashier/pos'],
+                ['label' => 'Receipts', 'path' => '/cashier/history'],
+                ['label' => 'Transaction History', 'path' => '/cashier/transactions'],
+            ],
+            'inventory' => [
+                ['label' => 'Inventory Items', 'path' => '/inventory/stock'],
+                ['label' => 'Low Stock', 'path' => '/inventory/stock'],
+                ['label' => 'Stock Logs', 'path' => '/inventory/logs'],
+            ],
+            'veterinary' => [
+                ['label' => "Today's Appointments", 'path' => '/veterinary/appointments'],
+                ['label' => 'Pet Records', 'path' => '/veterinary/records'],
+            ],
+            'manager' => [
+                ['label' => 'Reports', 'path' => '/manager/reports'],
+                ['label' => 'Logs', 'path' => '/manager/history'],
+                ['label' => 'Users', 'path' => '/manager/staff'],
+            ],
+            'admin' => [
+                ['label' => 'Reports', 'path' => '/admin/reports'],
+                ['label' => 'Logs', 'path' => '/admin/chatbot'],
+                ['label' => 'Users', 'path' => '/admin/users'],
+            ],
+            default => [],
+        };
     }
 
     /**
@@ -972,18 +1573,19 @@ class PremiumChatbotService
                     'user_id' => $userId,
                     'role' => $user?->role ?? 'guest',
                     'channel' => 'web',
-                    'type' => 'conversation',
+                    'type' => 'general',
                     'intent' => $intent,
                     'scope' => $this->roleScopeService->normalizeRole($user?->role),
                     'message' => $message,
                     'user_message' => $message,
-                    'response' => $response['message'] ?? null,
-                    'bot_response' => $response['message'] ?? null,
+                    'response' => $response['reply'] ?? $response['message'] ?? null,
+                    'bot_response' => $response['reply'] ?? $response['message'] ?? null,
                     'metadata' => [
                         'timestamp' => now()->toIso8601String(),
                         'session_id' => uniqid('chat_', true),
                         'confidence' => $response['confidence'] ?? null,
                         'source' => $response['source'] ?? null,
+                        'status' => 'success',
                     ],
                 ]);
             } catch (\Exception $e) {

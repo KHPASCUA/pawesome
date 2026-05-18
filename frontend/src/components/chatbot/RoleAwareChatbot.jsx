@@ -14,7 +14,6 @@ import {
   faUsers,
   faCalendarPlus,
   faTriangleExclamation,
-  faPercent,
   faReceipt,
 } from "@fortawesome/free-solid-svg-icons";
 import {
@@ -27,7 +26,7 @@ import {
   searchChatbotInventory,
   sendChatbotMessage,
 } from "../../services/chatbotService";
-import { apiRequest } from "../../api/client";
+import { apiRequest, normalizeList } from "../../api/client";
 import botIcon from "../../assets/pawesome-icon.png";
 import "./RoleAwareChatbot.css";
 
@@ -78,6 +77,12 @@ const RoleAwareChatbot = ({
   const [isBootstrapping, setIsBootstrapping] = useState(true);
   const [error, setError] = useState("");
   const [workflow, setWorkflow] = useState(null);
+  const [sessionContext, setSessionContext] = useState({
+    lastIntent: null,
+    lastEntityType: null,
+    lastRequestId: null,
+    lastPaymentStatus: null,
+  });
   const [workflowState, setWorkflowState] = useState({
     loading: false,
     error: "",
@@ -107,8 +112,9 @@ const RoleAwareChatbot = ({
         setMessages([
           {
             sender: "bot",
-            text: data.message,
-            suggestions: data.suggestions || [],
+            text: data.reply || data.message || "Hi. I can help with your Pawesome workflow.",
+            suggestions: normalizeList(data.suggestions),
+            actions: normalizeList(data.actions),
           },
         ]);
       } catch (err) {
@@ -141,11 +147,19 @@ const RoleAwareChatbot = ({
     setIsLoading(true);
 
     try {
-      const data = await sendChatbotMessage(trimmed);
+      const data = await sendChatbotMessage(trimmed, { context: sessionContext });
 
       // Customer-side safety rule:
       // customers can request bookings, but only receptionist can approve/reject/reschedule.
       const replyText = normalizeCustomerBotReply(data.reply, role);
+      const richContext = data.rich_content || {};
+      setSessionContext((prev) => ({
+        ...prev,
+        lastIntent: data.intent || prev.lastIntent,
+        lastEntityType: richContext.last_entity_type || prev.lastEntityType,
+        lastRequestId: richContext.last_request_id || prev.lastRequestId,
+        lastPaymentStatus: richContext.last_payment_status || prev.lastPaymentStatus,
+      }));
 
       // Simulate typing effect for more natural feel
       setIsTyping(true);
@@ -166,8 +180,8 @@ const RoleAwareChatbot = ({
         {
           sender: "bot",
           text: replyText,
-          suggestions: data.suggestions || [],
-          actions: data.actions || [],
+          suggestions: normalizeList(data.suggestions),
+          actions: normalizeList(data.actions),
           source: data.source || "rule_based",
           timestamp: new Date().toISOString(),
         },
@@ -212,13 +226,13 @@ const RoleAwareChatbot = ({
           ...prev,
           loading: false,
           options: {
-            pets: data.pets || [],
-            services: data.services || [],
+            pets: normalizeList(data.pets || data, ["pets"]),
+            services: normalizeList(data.services || data, ["services"]),
           },
           form: {
             ...prev.form,
-            pet_id: data.pets?.[0]?.id?.toString() || "",
-            service_id: data.services?.[0]?.id?.toString() || "",
+            pet_id: normalizeList(data.pets || data, ["pets"])?.[0]?.id?.toString() || "",
+            service_id: normalizeList(data.services || data, ["services"])?.[0]?.id?.toString() || "",
           },
         }));
       } catch (err) {
@@ -237,12 +251,12 @@ const RoleAwareChatbot = ({
           ...prev,
           loading: false,
           options: {
-            pets: data.pets || [],
-            rooms: data.rooms || [],
+            pets: normalizeList(data.pets || data, ["pets"]),
+            rooms: normalizeList(data.rooms || data, ["rooms"]),
           },
           form: {
             ...prev.form,
-            hotel_pet_id: data.pets?.[0]?.id?.toString() || "",
+            hotel_pet_id: normalizeList(data.pets || data, ["pets"])?.[0]?.id?.toString() || "",
             hotel_room_id: "",
             check_in: "",
             check_out: "",
@@ -316,7 +330,7 @@ const RoleAwareChatbot = ({
       setWorkflowState((prev) => ({
         ...prev,
         loading: false,
-        results: data || [],
+        results: normalizeList(data, ["appointments", "results"]),
       }));
     } catch (err) {
       setWorkflowState((prev) => ({
@@ -336,7 +350,7 @@ const RoleAwareChatbot = ({
       setWorkflowState((prev) => ({
         ...prev,
         loading: false,
-        results: data || [],
+        results: normalizeList(data, ["items", "inventory", "products", "results"]),
       }));
     } catch (err) {
       setWorkflowState((prev) => ({
@@ -356,7 +370,7 @@ const RoleAwareChatbot = ({
       setWorkflowState((prev) => ({
         ...prev,
         loading: false,
-        results: data || [],
+        results: normalizeList(data, ["transactions", "sales", "results"]),
       }));
     } catch (err) {
       setWorkflowState((prev) => ({
@@ -400,139 +414,40 @@ const RoleAwareChatbot = ({
 
   const quickActionsByRole = {
     customer: [
-      {
-        label: "Book Service",
-        icon: faCalendarPlus,
-        workflow: "create_booking",
-      },
-      {
-        label: "Hotel Stay",
-        icon: faCalendarPlus,
-        workflow: "hotel_booking",
-      },
-      {
-        label: "Booking Status",
-        icon: faCalendarCheck,
-        message:
-          "Check my booking status. Explain that the receptionist approves, rejects, or reschedules booking requests.",
-      },
-      {
-        label: "Payment Receipt",
-        icon: faReceipt,
-        message:
-          "How do I upload a payment receipt and who verifies it?",
-      },
-      {
-        label: "Reschedule",
-        icon: faRotateRight,
-        message:
-          "Can I request to reschedule my booking? Explain that the receptionist must approve the new schedule.",
-      },
-      {
-        label: "Cancel Booking",
-        icon: faXmark,
-        message:
-          "Can I cancel my booking? Explain the rule for pending, approved, and completed bookings.",
-      },
-      {
-        label: "Receptionist",
-        icon: faUsers,
-        message:
-          "How can I contact the receptionist about my booking request?",
-      },
+      { label: "My Requests", icon: faCalendarCheck, path: "/customer/requests" },
+      { label: "Payment History", icon: faReceipt, path: "/customer/payments" },
+      { label: "Upload Payment Proof", icon: faPaperPlane, path: "/customer/requests" },
+      { label: "My Pets", icon: faUsers, path: "/customer/pets" },
     ],
     cashier: [
-      {
-        label: "POS Help",
-        icon: faCashRegister,
-        message: "How do I process a cashier POS transaction?",
-      },
-      {
-        label: "Payment Verification",
-        icon: faCalendarCheck,
-        message: "How do I verify and confirm payments for approved bookings?",
-      },
-      {
-        label: "Transaction Lookup",
-        icon: faCalendarCheck,
-        workflow: "transaction_lookup",
-      },
-      {
-        label: "Refund Help",
-        icon: faRotateRight,
-        message: "How do I process a refund?",
-      },
-      {
-        label: "Discount Help",
-        icon: faPercent,
-        message: "How do I apply discount codes?",
-      },
-      {
-        label: "Multi-Payment Help",
-        icon: faCashRegister,
-        message: "How do I process split payments?",
-      },
-      {
-        label: "Receipt Help",
-        icon: faReceipt,
-        message: "How do I generate receipts?",
-      },
-      {
-        label: "Inventory Search",
-        icon: faBoxOpen,
-        workflow: "inventory_search",
-      },
+      { label: "Pending Payments", icon: faCalendarCheck, path: "/cashier/payment-verification" },
+      { label: "POS", icon: faCashRegister, path: "/cashier/pos" },
+      { label: "Receipts", icon: faReceipt, message: "print receipt" },
+      { label: "Transaction History", icon: faChartLine, path: "/cashier/transactions" },
     ],
     admin: [
-      {
-        label: "Dashboard Help",
-        icon: faChartLine,
-        message: "Explain the admin dashboard summary.",
-      },
-      {
-        label: "User Management",
-        icon: faUsers,
-        message: "How do I manage system users?",
-      },
-      {
-        label: "Reports Help",
-        icon: faChartLine,
-        message: "How do I generate admin reports?",
-      },
+      { label: "Reports", icon: faChartLine, path: "/admin/reports" },
+      { label: "Logs", icon: faRobot, path: "/admin/chatbot" },
+      { label: "Users", icon: faUsers, path: "/admin/users" },
     ],
     receptionist: [
-      {
-        label: "Booking Lookup",
-        icon: faCalendarCheck,
-        workflow: "appointment_lookup",
-      },
-      {
-        label: "Approve/Reject",
-        icon: faCalendarPlus,
-        message: "How do I approve or reject booking requests from customers?",
-      },
-      {
-        label: "Create Booking",
-        icon: faCalendarPlus,
-        workflow: "create_booking",
-      },
-      {
-        label: "Customer Help",
-        icon: faUsers,
-        message: "How do I manage customer records?",
-      },
+      { label: "Pending Approvals", icon: faCalendarCheck, path: "/receptionist/approvals" },
+      { label: "Booking Schedule", icon: faCalendarPlus, path: "/receptionist/bookings" },
+      { label: "Customer Records", icon: faUsers, path: "/receptionist/customers" },
     ],
     inventory: [
-      {
-        label: "Inventory Search",
-        icon: faBoxOpen,
-        workflow: "inventory_search",
-      },
-      {
-        label: "Low Stock Help",
-        icon: faTriangleExclamation,
-        message: "How do I monitor low stock items?",
-      },
+      { label: "Inventory Items", icon: faBoxOpen, path: "/inventory/stock" },
+      { label: "Low Stock", icon: faTriangleExclamation, message: "low stock items" },
+      { label: "Stock Logs", icon: faChartLine, path: "/inventory/logs" },
+    ],
+    veterinary: [
+      { label: "Today's Appointments", icon: faCalendarCheck, path: "/veterinary/appointments" },
+      { label: "Pet Records", icon: faUsers, path: "/veterinary/records" },
+    ],
+    manager: [
+      { label: "Reports", icon: faChartLine, path: "/manager/reports" },
+      { label: "Logs", icon: faRobot, path: "/manager/history" },
+      { label: "Users", icon: faUsers, path: "/manager/staff" },
     ],
   };
 
@@ -550,6 +465,12 @@ const RoleAwareChatbot = ({
     setError("");
     setTypingMessage("");
     setIsTyping(false);
+    setSessionContext({
+      lastIntent: null,
+      lastEntityType: null,
+      lastRequestId: null,
+      lastPaymentStatus: null,
+    });
 
     try {
       setIsBootstrapping(true);
@@ -558,8 +479,9 @@ const RoleAwareChatbot = ({
       setMessages([
         {
           sender: "bot",
-          text: data.message,
-          suggestions: data.suggestions || [],
+          text: data.reply || data.message || "Hi. I can help with your Pawesome workflow.",
+          suggestions: normalizeList(data.suggestions),
+          actions: normalizeList(data.actions),
           timestamp: new Date().toISOString(),
         },
       ]);
@@ -641,6 +563,8 @@ const RoleAwareChatbot = ({
                     onClick={() => {
                       if (action.workflow) {
                         openWorkflow(action.workflow);
+                      } else if (action.path) {
+                        onAction(action.path);
                       } else {
                         submitMessage(action.message);
                       }
@@ -671,7 +595,7 @@ const RoleAwareChatbot = ({
                       )}
                       {message.suggestions?.length > 0 && (
                         <div className="rbac-chat-actions">
-                          {message.suggestions.map((suggestion) => (
+                          {normalizeList(message.suggestions).map((suggestion) => (
                             <button
                               key={suggestion}
                               type="button"
@@ -685,7 +609,7 @@ const RoleAwareChatbot = ({
                       )}
                       {message.actions?.length > 0 && (
                         <div className="rbac-chat-actions">
-                          {message.actions.map((action) => (
+                          {normalizeList(message.actions).map((action) => (
                             <button
                               key={`${action.label}-${action.path}`}
                               type="button"
@@ -767,7 +691,7 @@ const RoleAwareChatbot = ({
                     value={workflowState.form.pet_id}
                     onChange={(event) => updateWorkflowForm("pet_id", event.target.value)}
                   >
-                    {workflowState.options.pets.map((pet) => (
+                    {normalizeList(workflowState.options.pets).map((pet) => (
                       <option key={pet.id} value={pet.id}>
                         {pet.name} {pet.species ? `(${pet.species})` : ""}
                       </option>
@@ -780,7 +704,7 @@ const RoleAwareChatbot = ({
                     value={workflowState.form.service_id}
                     onChange={(event) => updateWorkflowForm("service_id", event.target.value)}
                   >
-                    {workflowState.options.services.map((service) => (
+                    {normalizeList(workflowState.options.services).map((service) => (
                       <option key={service.id} value={service.id}>
                         {service.name} (₱{Number(service.price || 0).toFixed(2)})
                       </option>
@@ -863,7 +787,7 @@ const RoleAwareChatbot = ({
                     value={workflowState.form.hotel_pet_id}
                     onChange={(event) => updateWorkflowForm("hotel_pet_id", event.target.value)}
                   >
-                    {workflowState.options.pets.map((pet) => (
+                    {normalizeList(workflowState.options.pets).map((pet) => (
                       <option key={pet.id} value={pet.id}>
                         {pet.name} {pet.species ? `(${pet.species})` : ""}
                       </option>
@@ -895,7 +819,7 @@ const RoleAwareChatbot = ({
                     onChange={(event) => updateWorkflowForm("hotel_room_id", event.target.value)}
                   >
                     <option value="">Auto-assign available room</option>
-                    {workflowState.options.rooms.map((room) => (
+                    {normalizeList(workflowState.options.rooms).map((room) => (
                       <option key={room.id} value={room.id}>
                         {room.room_number} - {room.type} (₱{room.daily_rate}/night)
                       </option>
@@ -924,7 +848,7 @@ const RoleAwareChatbot = ({
 
             {workflowState.results.length > 0 && (
               <div className="rbac-workflow-results">
-                {workflowState.results.map((item) => (
+                {normalizeList(workflowState.results).map((item) => (
                   <div key={`${workflow}-${item.id}`} className="rbac-result-card">
                     {workflow === "appointment_lookup" ? (
                       <>

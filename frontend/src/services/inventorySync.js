@@ -112,7 +112,6 @@ class InventorySyncService {
       discount: Number(product.discount || product.discount_percent || 0),
       brand: product.brand || "",
       supplier: product.supplier || "",
-      expiration: product.expiration_date || product.expiration || null,
       receivedDate: product.received_date || product.receivedDate || new Date().toISOString(),
       batchNumber: product.batch_number || product.batchNumber || "",
       location: product.location || "",

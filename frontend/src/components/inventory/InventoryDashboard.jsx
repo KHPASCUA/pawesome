@@ -23,7 +23,6 @@ import RoleAwareChatbot from "../chatbot/RoleAwareChatbot";
 import NotificationDropdown from "../shared/NotificationDropdown";
 import DashboardProfile from "../shared/DashboardProfile";
 import { apiRequest, uploadProfilePhoto } from "../../api/client";
-import { formatCurrency } from "../../utils/currency";
 import { useTheme } from "../../utils/theme";
 import "./InventoryDashboard.css";
 
@@ -101,12 +100,6 @@ const InventoryDashboard = () => {
       title: "Out of Stock",
       value: dashboardData.out_of_stock_items || 0,
       subtitle: "Items",
-      change: "",
-    },
-    {
-      title: "Stock Value",
-      value: formatCurrency(dashboardData.total_stock_value || 0),
-      subtitle: "Total value",
       change: "",
     },
   ] : [];
@@ -361,9 +354,6 @@ const InventoryDashboard = () => {
                   </div>
                 </div>
 
-                <div className="inventory-summary">
-                  <p>Total stock value: {formatCurrency(dashboardData?.total_stock_value || 0)}</p>
-                </div>
               </div>
             </section>
           </>

@@ -48,7 +48,6 @@ export const useInventory = (options = {}) => {
     discount: item.discount || 0,
     brand: item.brand || 'Unknown',
     supplier: item.supplier || 'Unknown',
-    expiration: item.expiration || item.expiration_date || null,
     receivedDate: item.receivedDate || new Date().toISOString().split('T')[0],
     batchNumber: item.batchNumber || 'N/A',
     location: item.location || 'N/A',
@@ -146,11 +145,6 @@ export const useInventory = (options = {}) => {
   // Get out of stock items
   const outOfStockItems = items.filter(item => (item.stock || item.quantity || 0) === 0);
 
-  // Calculate total inventory value
-  const totalValue = items.reduce((sum, item) => {
-    return sum + ((item.price || 0) * (item.stock || item.quantity || 0));
-  }, 0);
-
   // Refresh function (manual)
   const refresh = () => fetchInventory();
 
@@ -168,7 +162,6 @@ export const useInventory = (options = {}) => {
     // Computed
     lowStockItems,
     outOfStockItems,
-    totalValue,
     
     // Helpers
     getItemsByCategory,

@@ -15,7 +15,6 @@ import {
 } from "recharts";
 import { inventoryApi } from "../../api/inventory";
 import { apiRequest } from "../../api/client";
-import { formatCurrency } from "../../utils/currency";
 import StandardReportLayout from "../shared/StandardReportLayout";
 import StandardSummaryCards from "../shared/StandardSummaryCards";
 import StandardTable from "../shared/StandardTable";
@@ -96,7 +95,6 @@ const InventoryReports = () => {
 
   // Helper functions
   const getQuantity = useCallback((item) => Number(item.quantity ?? item.stock ?? 0), []);
-  const getPrice = useCallback((item) => Number(item.price ?? item.unit_price ?? 0), []);
 
   const getItemStatus = useCallback((item) => {
     const quantity = getQuantity(item);
@@ -155,16 +153,13 @@ const InventoryReports = () => {
       return quantity > 0 && quantity <= minimum;
     }).length;
     const outOfStockItems = backendSummary.out_of_stock_items ?? inventoryItems.filter(item => getQuantity(item) <= 0).length;
-    const totalValue = backendSummary.stock_value ?? inventoryItems.reduce((sum, item) => sum + (getQuantity(item) * getPrice(item)), 0);
-
     return {
       totalItems,
       inStockItems,
       lowStockItems,
       outOfStockItems,
-      totalValue,
     };
-  }, [inventoryItems, backendSummary, getQuantity, getPrice]);
+  }, [inventoryItems, backendSummary, getQuantity]);
 
   const handleDateChange = (key, value) => {
     if (key === "startDate") setStartDate(value);
@@ -182,14 +177,12 @@ const InventoryReports = () => {
     { key: "category", label: "Category" },
     { key: "quantity", label: "Quantity" },
     { key: "price", label: "Unit Price", format: "currency" },
-    { key: "total_value", label: "Total Value", format: "currency" },
     { key: "status", label: "Status" },
   ];
 
   const handleExportCSV = () => {
     const exportData = filteredItems.map(item => ({
       ...item,
-      total_value: getQuantity(item) * getPrice(item),
       status: getItemStatus(item),
     }));
     exportToCSV(exportData, exportColumns, "inventory-report");
@@ -198,7 +191,6 @@ const InventoryReports = () => {
   const handleExportPDF = () => {
     const exportData = filteredItems.map(item => ({
       ...item,
-      total_value: getQuantity(item) * getPrice(item),
       status: getItemStatus(item),
     }));
     exportToPDF(exportData, exportColumns, "Inventory Report", "inventory-report");
@@ -207,7 +199,6 @@ const InventoryReports = () => {
   const handleExportExcel = () => {
     const exportData = filteredItems.map(item => ({
       ...item,
-      total_value: getQuantity(item) * getPrice(item),
       status: getItemStatus(item),
     }));
     exportToExcel(exportData, exportColumns, "inventory-report");
@@ -250,15 +241,6 @@ const InventoryReports = () => {
       color: "danger",
       trend: "down",
       change: "-1.2%"
-    },
-    {
-      id: "total-value",
-      label: "Total Value",
-      value: formatCurrency(summaryStats.totalValue),
-      icon: "faMoneyBillWave",
-      color: "secondary",
-      trend: "up",
-      change: "+8.7%"
     }
   ];
 
@@ -268,7 +250,6 @@ const InventoryReports = () => {
     { key: "category", label: "Category", sortable: true },
     { key: "quantity", label: "Quantity", sortable: true },
     { key: "price", label: "Unit Price", format: "currency", sortable: true },
-    { key: "total_value", label: "Total Value", format: "currency", sortable: true },
     { key: "status", label: "Status", sortable: true },
   ];
 
@@ -347,7 +328,6 @@ const InventoryReports = () => {
           columns={tableColumns}
           data={filteredItems.map(item => ({
             ...item,
-            total_value: getQuantity(item) * getPrice(item),
             status: getItemStatus(item),
           }))}
           emptyMessage="No inventory items found"

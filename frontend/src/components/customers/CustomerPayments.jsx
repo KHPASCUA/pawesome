@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { apiRequest, clearAuthStorage } from "../../api/client";
-import { normalizeList } from "../../utils/normalizeList";
 import "./CustomerPayments.css";
 
 const formatCurrency = (value) =>
@@ -10,26 +9,8 @@ const formatCurrency = (value) =>
   })}`;
 
 
-const getStatus = (item) =>
-  String(item.order_status || item.status || item.request_status || "pending").toLowerCase();
-
 const getPaymentStatus = (item) =>
   String(item.payment_status || "unpaid").toLowerCase();
-
-const canUploadProof = (item) => {
-  const status = getStatus(item);
-  const paymentStatus = getPaymentStatus(item);
-
-  return status === "approved" && ["unpaid", "rejected"].includes(paymentStatus);
-};
-
-const orderLabels = {
-  pending: "Waiting for approval",
-  approved: "Approved, ready for payment",
-  rejected: "Rejected",
-  cancelled: "Cancelled",
-  completed: "Completed",
-};
 
 const paymentLabels = {
   unpaid: "Not yet paid",
@@ -42,7 +23,6 @@ const paymentLabels = {
 const CustomerPayments = () => {
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [uploadingId, setUploadingId] = useState(null);
   const [error, setError] = useState("");
 
   
@@ -70,9 +50,15 @@ const CustomerPayments = () => {
         "GET"
       );
 
-      const requests = normalizeList(requestsResult, ["requests", "service_requests"]);
-      const orders = normalizeList(ordersResult, ["orders"]);
-      const boardings = normalizeList(boardingsResult, ["boarding_requests", "boardings"]);
+      const requests = Array.isArray(requestsResult)
+        ? requestsResult
+        : requestsResult.data || requestsResult.payments || requestsResult.orders || requestsResult.requests || requestsResult.service_requests || [];
+      const orders = Array.isArray(ordersResult)
+        ? ordersResult
+        : ordersResult.data || ordersResult.payments || ordersResult.orders || ordersResult.requests || [];
+      const boardings = Array.isArray(boardingsResult)
+        ? boardingsResult
+        : boardingsResult.data || boardingsResult.payments || boardingsResult.orders || boardingsResult.requests || boardingsResult.boarding_requests || boardingsResult.boardings || [];
 
       // Process service requests
       const payableRequests = requests
@@ -179,7 +165,25 @@ const CustomerPayments = () => {
           ],
         }));
 
-      const allPayments = [...payableRequests, ...payableOrders, ...payableBoardings];
+      const historyResult = await apiRequest("/customer/payments/history", "GET");
+      const historyList = Array.isArray(historyResult)
+        ? historyResult
+        : historyResult.data || historyResult.payments || historyResult.orders || historyResult.requests || [];
+
+      const historyPayments = historyList.map((payment) => ({
+        ...payment,
+        payment_source: payment.payment_source || payment.type || "payment",
+        display_id: payment.receipt_number || payment.reference_number || payment.reference_id || `PAY-${payment.id}`,
+        display_type: payment.service_type || payment.order_type || payment.type || "Payment",
+        display_name: payment.description || payment.service_name || payment.order_name || payment.type || "Payment record",
+        total_amount: payment.amount || payment.total_amount || payment.total || 0,
+        order_status: payment.status || payment.request_status || "recorded",
+        payment_status: payment.payment_status || payment.status || "pending",
+        created_at: payment.created_at || payment.date_submitted || payment.submitted_at,
+        verified_at: payment.verified_at || payment.paid_at || payment.date_verified,
+      }));
+
+      const allPayments = [...payableRequests, ...payableOrders, ...payableBoardings, ...historyPayments];
       setPayments(allPayments);
     } catch (err) {
       console.error("LOAD CUSTOMER PAYMENTS ERROR:", err);
@@ -213,44 +217,6 @@ const CustomerPayments = () => {
       pendingCount: pending.length,
     };
   }, [payments]);
-
-  const uploadProof = async (payment, file) => {
-    if (!file) return;
-
-    try {
-      setUploadingId(`${payment.payment_source}-${payment.id}`);
-
-      const formData = new FormData();
-      formData.append("payment_method", "Online Payment");
-      formData.append("payment_reference", `REF-${Date.now()}`);
-      formData.append("payment_proof", file);
-
-      if (payment.payment_source === "service_request") {
-        await apiRequest(`/customer/requests/${payment.id}/payment-proof`, "POST", formData);
-      } else if (payment.payment_source === "boarding") {
-        await apiRequest(`/customer/boarding-requests/${payment.id}/payment-proof`, "POST", formData);
-      } else {
-        await apiRequest(`/customer/store/orders/${payment.id}/payment-proof`, "POST", formData);
-      }
-
-      alert("Payment proof uploaded. Waiting for cashier verification.");
-      await fetchPayments();
-    } catch (err) {
-      console.error("UPLOAD PAYMENT PROOF ERROR:", err);
-      alert(err.message || "Failed to upload payment proof.");
-    } finally {
-      setUploadingId(null);
-    }
-  };
-
-  const handleFileSelect = (payment, event) => {
-    const file = event.target.files[0];
-    if (file) {
-      uploadProof(payment, file);
-    }
-    // Reset file input
-    event.target.value = '';
-  };
 
   const viewReceipt = async (payment) => {
     try {
@@ -320,10 +286,10 @@ const CustomerPayments = () => {
       <header className="customer-payments-header">
         <div>
           <span className="customer-payments-kicker">Customer Portal</span>
-          <h3>Payment Center</h3>
+          <h3>Payment History</h3>
           <p>
-            Track approved store orders and service requests. Upload proof only after
-            receptionist approval.
+            Review payment records across orders and service requests. Cashier verification
+            is required before any payment is marked paid.
           </p>
         </div>
 
@@ -343,7 +309,7 @@ const CustomerPayments = () => {
           <div className="summary-icon">#</div>
           <div>
             <h4>{summary.totalTransactions}</h4>
-            <p>Total Payables</p>
+            <p>Total Records</p>
           </div>
         </article>
 
@@ -368,8 +334,8 @@ const CustomerPayments = () => {
         <div className="customer-payments-panel-header">
           <div>
             <span className="customer-payments-kicker">Payments</span>
-            <h4>Approved Orders & Service Requests</h4>
-            <p>Cashier verification is required before payment becomes paid.</p>
+            <h4>Orders, Services, and Receipts</h4>
+            <p>Receipt and proof links appear when available.</p>
           </div>
         </div>
 
@@ -377,15 +343,14 @@ const CustomerPayments = () => {
           <table className="customer-payments-table">
             <thead>
               <tr>
-                <th>ID</th>
-                <th>Date</th>
-                <th>Type</th>
-                <th>Details</th>
+                <th>Reference / Receipt</th>
+                <th>Date Submitted</th>
+                <th>Service / Order Type</th>
                 <th>Amount</th>
-                <th>Status</th>
+                <th>Method</th>
                 <th>Payment</th>
-                <th>Proof</th>
-                <th>Receipt / Remarks</th>
+                <th>Date Verified</th>
+                <th>Receipt / Proof</th>
               </tr>
             </thead>
 
@@ -403,32 +368,25 @@ const CustomerPayments = () => {
               ) : (
                 payments.map((payment) => {
                   const rowKey = `${payment.payment_source}-${payment.id}`;
-                  const status = getStatus(payment);
                   const paymentStatus = getPaymentStatus(payment);
+                  const proofUrl = payment.proof_url || payment.payment_proof_url || payment.receipt_url;
 
                   return (
                     <tr key={rowKey}>
                       <td>
-                        <strong>{payment.display_id}</strong>
+                          <strong>{payment.display_id || payment.receipt_number || payment.reference_number || "N/A"}</strong>
                       </td>
 
                       <td>
-                        {payment.created_at
-                          ? new Date(payment.created_at).toLocaleDateString("en-PH")
+                          {payment.created_at
+                          ? new Date(payment.created_at).toLocaleString("en-PH")
                           : "N/A"}
                       </td>
 
                       <td>
                         <span className="payment-method-badge">
-                          {payment.payment_source === "service_request"
-                            ? "Service"
-                            : payment.payment_source === "boarding"
-                              ? "Boarding"
-                            : "Store"}
+                          {payment.display_type || payment.payment_source || "Payment"}
                         </span>
-                      </td>
-
-                      <td>
                         <strong>{payment.display_name}</strong>
                         {payment.pet_name && <div>Pet: {payment.pet_name}</div>}
                         {payment.customer_name && <div>Customer: {payment.customer_name}</div>}
@@ -438,12 +396,7 @@ const CustomerPayments = () => {
                         {formatCurrency(payment.total_amount)}
                       </td>
 
-                      <td>
-                        <span className={`payment-status ${status}`}>
-                          {status}
-                          {orderLabels[status] ? ` - ${orderLabels[status]}` : ""}
-                        </span>
-                      </td>
+                      <td>{payment.payment_method || "N/A"}</td>
 
                       <td>
                         <span className={`payment-status ${paymentStatus}`}>
@@ -452,37 +405,7 @@ const CustomerPayments = () => {
                       </td>
 
                       <td>
-                        {canUploadProof(payment) ? (
-                          <div>
-                            <input
-                              type="file"
-                              accept="image/*,.pdf"
-                              onChange={(e) => handleFileSelect(payment, e)}
-                              disabled={uploadingId === rowKey}
-                              style={{ display: 'none' }}
-                              id={`file-upload-${rowKey}`}
-                            />
-                            <label
-                              htmlFor={`file-upload-${rowKey}`}
-                              className="receipt-btn"
-                              style={{
-                                display: 'inline-block',
-                                cursor: uploadingId === rowKey ? 'not-allowed' : 'pointer',
-                                opacity: uploadingId === rowKey ? 0.6 : 1
-                              }}
-                            >
-                              {uploadingId === rowKey ? "Uploading..." : "Upload Proof"}
-                            </label>
-                          </div>
-                        ) : (
-                          payment.payment_proof ? (
-                            <span style={{ color: '#16a34a', fontSize: '0.85rem' }}>
-                              ✓ Proof uploaded
-                            </span>
-                          ) : (
-                            "Not allowed yet"
-                          )
-                        )}
+                        {payment.verified_at ? new Date(payment.verified_at).toLocaleString("en-PH") : "N/A"}
                       </td>
 
                       <td>
@@ -494,6 +417,14 @@ const CustomerPayments = () => {
                           >
                             {payment.receipt_number || "View Receipt"}
                           </button>
+                        ) : proofUrl ? (
+                          <a className="receipt-btn" href={proofUrl} target="_blank" rel="noreferrer">
+                            View Proof
+                          </a>
+                        ) : payment.payment_proof ? (
+                          <span style={{ color: '#16a34a', fontSize: '0.85rem' }}>
+                            Proof uploaded
+                          </span>
                         ) : (
                           <>
                             {payment.rejection_reason && (

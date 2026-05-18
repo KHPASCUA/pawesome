@@ -105,9 +105,6 @@ const VetCustomerProfiles = () => {
 
   const getPetAge = useCallback((pet) => pet?.age || pet?.pet_age || "", []);
 
-  const getPetGender = useCallback((pet) =>
-    pet?.gender || pet?.sex || pet?.pet_gender || "Not specified", []);
-
   const getPetStatus = useCallback((pet) =>
     pet?.status || pet?.health_status || pet?.pet_status || "Active", []);
 
@@ -149,7 +146,6 @@ const VetCustomerProfiles = () => {
     species: getPetSpecies(pet),
     breed: getPetBreed(pet),
     age: getPetAge(pet),
-    gender: getPetGender(pet),
     status: getPetStatus(pet),
     notes: getPetNotes(pet),
     createdAt: pet?.created_at || pet?.registered_at || "",
@@ -160,7 +156,7 @@ const VetCustomerProfiles = () => {
       pet?.updated_at ||
       "",
     raw: pet,
-  }), [getPetName, getPetSpecies, getPetBreed, getPetAge, getPetGender, getPetStatus, getPetNotes]);
+  }), [getPetName, getPetSpecies, getPetBreed, getPetAge, getPetStatus, getPetNotes]);
 
   const groupPatientsByCustomer = useCallback((patients) => {
     const grouped = new Map();
@@ -244,7 +240,7 @@ const VetCustomerProfiles = () => {
     return customers.filter((customer) => {
       const petSearchText = customer.pets
         .map((pet) =>
-          [pet.name, pet.species, pet.breed, pet.age, pet.gender, pet.status]
+          [pet.name, pet.species, pet.breed, pet.age, pet.status]
             .filter(Boolean)
             .join(" ")
         )
@@ -646,11 +642,6 @@ const VetCustomerProfiles = () => {
                         <div>
                           <small>Age</small>
                           <strong>{pet.age || "Not specified"}</strong>
-                        </div>
-
-                        <div>
-                          <small>Gender</small>
-                          <strong>{pet.gender || "Not specified"}</strong>
                         </div>
 
                         <div>

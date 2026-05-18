@@ -4,7 +4,7 @@ import AdminLiveReport from "./AdminLiveReport";
 const ManagerAdminReports = () => (
   <AdminLiveReport
     title="Management Summary Reports"
-    subtitle="Read-only executive analytics for revenue, operations, inventory health, and staff activity."
+    subtitle="Read-only executive analytics for revenue, operations, stock health, and staff activity."
     endpoint="/admin/reports/manager"
     dataKey="transactions"
     exportName="admin-management-summary-reports"
@@ -46,14 +46,6 @@ const ManagerAdminReports = () => (
         value: summary.pending_approvals,
         icon: "faClock",
         color: "warning",
-      },
-      {
-        id: "inventory",
-        label: "Inventory Value",
-        value: summary.inventory_value,
-        currency: true,
-        icon: "faBoxes",
-        color: "info",
       },
     ]}
     columns={[

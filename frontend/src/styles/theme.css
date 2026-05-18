@@ -19,7 +19,7 @@
 
   /* Text Colors */
   --color-text: #1f2937;
-  --color-heading: #111827;
+  --color-heading: #191919;
   --color-muted: #64748b;
   --color-subtle: #94a3b8;
 
@@ -58,6 +58,59 @@
   --shadow-card: 0 20px 50px rgba(255, 95, 147, 0.15);
   --shadow-soft: 0 12px 28px rgba(15, 23, 42, 0.08);
   --shadow-primary: 0 14px 34px rgba(255, 95, 147, 0.32);
+
+  /* Role/page aliases point back to the shared theme tokens. */
+  --admin-primary: var(--color-primary);
+  --admin-primary-light: var(--color-primary-light);
+  --admin-bg-gradient: var(--color-bg-gradient);
+  --admin-surface: var(--color-surface);
+  --admin-surface-solid: var(--color-surface-solid);
+  --admin-border: var(--color-border);
+  --admin-text: var(--color-text);
+  --admin-heading: var(--color-heading);
+  --admin-muted: var(--color-muted);
+  --admin-shadow: var(--shadow-card);
+  --report-primary: var(--color-primary);
+  --report-primary-light: var(--color-primary-light);
+  --report-surface: var(--color-surface);
+  --report-surface-solid: var(--color-surface-solid);
+  --report-border: var(--color-border);
+  --report-text: var(--color-text);
+  --report-heading: var(--color-heading);
+  --report-muted: var(--color-muted);
+  --rr-primary: var(--color-primary);
+  --rr-primary-light: var(--color-primary-light);
+  --rr-surface: var(--color-surface);
+  --rr-surface-solid: var(--color-surface-solid);
+  --rr-border: var(--color-border);
+  --rr-text: var(--color-text);
+  --rr-heading: var(--color-heading);
+  --rr-muted: var(--color-muted);
+  --rh-primary: var(--color-primary);
+  --rh-primary-light: var(--color-primary-light);
+  --rh-surface: var(--color-surface);
+  --rh-surface-solid: var(--color-surface-solid);
+  --rh-border: var(--color-border);
+  --rh-text: var(--color-text);
+  --rh-heading: var(--color-heading);
+  --rh-muted: var(--color-muted);
+  --hotel-primary: var(--color-primary);
+  --hotel-primary-light: var(--color-primary-light);
+  --hotel-surface: var(--color-surface);
+  --hotel-surface-solid: var(--color-surface-solid);
+  --hotel-border: var(--color-border);
+  --hotel-text: var(--color-text);
+  --hotel-heading: var(--color-heading);
+  --hotel-muted: var(--color-muted);
+  --reg-primary: var(--color-primary);
+  --reg-primary-light: var(--color-primary-light);
+  --reg-bg-gradient: var(--color-bg-gradient);
+  --reg-surface: var(--color-surface);
+  --reg-surface-solid: var(--color-surface-solid);
+  --reg-border: var(--color-border);
+  --reg-text: var(--color-text);
+  --reg-heading: var(--color-heading);
+  --reg-muted: var(--color-muted);
 
   /* Border Radius */
   --radius-sm: 10px;
@@ -374,5 +427,257 @@ tr:hover td {
   /* Shadows */
   --shadow-card: 0 22px 55px rgba(0, 0, 0, 0.42);
   --shadow-soft: 0 14px 34px rgba(0, 0, 0, 0.32);
+}
+
+/* ===== CENTRAL THEME SURFACE OVERRIDES ===== */
+.admin-dashboard,
+.cashier-dashboard,
+.customer-dashboard,
+.inventory-dashboard,
+.manager-dashboard,
+.receptionist-dashboard,
+.app-dashboard,
+.vet-dashboard,
+.receptionist-layout,
+.admin-main,
+.cashier-main,
+.customer-main,
+.inventory-main,
+.manager-main,
+.receptionist-main,
+.app-main,
+.vet-main {
+  background: var(--color-bg-gradient) !important;
+  color: var(--color-text) !important;
+}
+
+.admin-navbar,
+.cashier-navbar,
+.customer-navbar,
+.inventory-navbar,
+.manager-navbar,
+.receptionist-navbar,
+.receptionist-topbar,
+.app-topbar,
+.vet-navbar,
+.top-navbar {
+  background: var(--color-surface) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+  box-shadow: var(--shadow-soft) !important;
+}
+
+.glass-card,
+.premium-card,
+.card,
+.panel,
+.overview-card,
+.metric-card,
+.status-card,
+.quick-action-card,
+.request-table-card,
+.table-card,
+.report-table-card,
+.app-table-card,
+.modal-content,
+.app-modal,
+.dialog-content,
+.dropdown-menu,
+.profile-dropdown,
+.notification-dropdown,
+.filter-dropdown,
+.receipt-modal,
+.receipt-paper,
+.rbac-chatbot-panel,
+.rbac-workflow-modal,
+.rbac-result-card,
+.rbac-quick-actions-bar {
+  background: var(--color-surface) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+}
+
+.navbar-left h1,
+.topbar-title h1,
+.panel-header h2,
+.card h1,
+.card h2,
+.card h3,
+.modal-content h1,
+.modal-content h2,
+.modal-content h3,
+.app-modal h1,
+.app-modal h2,
+.app-modal h3,
+.profile-action-name,
+.topbar-user strong,
+.rbac-workflow-header h4 {
+  background: none !important;
+  -webkit-text-fill-color: currentColor !important;
+  color: var(--color-heading) !important;
+}
+
+.premium-title,
+.customer-title,
+.hero-title,
+.page-title {
+  color: var(--color-primary) !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+
+.profile-avatar-icon,
+.topbar-avatar {
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light)) !important;
+  color: #ffffff !important;
+}
+
+.navbar-left p,
+.topbar-title p,
+.panel-header p,
+.card p,
+.profile-action-role,
+.topbar-user small,
+.table-empty,
+.empty-state,
+.rbac-chatbot-state,
+.rbac-result-card span {
+  color: var(--color-muted) !important;
+}
+
+input,
+select,
+textarea,
+.search-group input,
+.search-input-wrapper input,
+.receptionist-search,
+.receptionist-filter,
+.booking-filter,
+.approvals-filter-box,
+.approvals-search-box,
+.orders-filter-box,
+.orders-search-box,
+.customer-search-box,
+.customer-filter-box,
+.rbac-chatbot-form,
+.rbac-chatbot-form input,
+.rbac-workflow-form input,
+.rbac-workflow-form select,
+.rbac-workflow-form textarea {
+  background: var(--color-input-bg) !important;
+  color: var(--color-input-text) !important;
+  border-color: var(--color-border) !important;
+}
+
+input::placeholder,
+textarea::placeholder,
+.search-group input::placeholder,
+.rbac-chatbot-form input::placeholder {
+  color: var(--color-input-placeholder) !important;
+}
+
+table,
+.app-table,
+.report-table,
+.request-table,
+.customers-table,
+.orders-table,
+.bookings-table {
+  color: var(--color-text) !important;
+}
+
+thead,
+th,
+.app-table th,
+.report-table th,
+.request-table th,
+.customers-table th,
+.orders-table th,
+.bookings-table th {
+  background: var(--color-table-header) !important;
+  color: var(--color-heading) !important;
+  border-color: var(--color-border) !important;
+}
+
+td,
+.app-table td,
+.report-table td,
+.request-table td,
+.customers-table td,
+.orders-table td,
+.bookings-table td {
+  background: var(--color-table-row) !important;
+  color: var(--color-text) !important;
+  border-color: var(--color-border) !important;
+}
+
+tr:hover td,
+.app-table tr:hover td,
+.report-table tr:hover td,
+.request-table tr:hover td,
+.customers-table tr:hover td,
+.orders-table tr:hover td,
+.bookings-table tr:hover td {
+  background: var(--color-table-row-hover) !important;
+}
+
+.btn-secondary,
+.secondary-btn,
+.icon-btn,
+.theme-toggle-btn,
+.topbar-icon,
+.admin-profile-btn,
+.cashier-profile-btn,
+.customer-profile-btn,
+.inventory-profile-btn,
+.manager-profile-btn,
+.vet-profile-btn,
+.topbar-user {
+  background: var(--color-surface-solid) !important;
+  color: var(--color-text) !important;
+  border-color: var(--color-border) !important;
+}
+
+.btn-primary,
+.primary-btn,
+.action-btn-primary,
+.export-btn {
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light)) !important;
+  color: #ffffff !important;
+  border-color: transparent !important;
+}
+
+.badge,
+.status-badge {
+  border-color: var(--color-border) !important;
+}
+
+.modal-overlay,
+.app-modal-overlay,
+.dialog-overlay {
+  background: rgba(15, 23, 42, 0.52) !important;
+}
+
+.Toastify__toast,
+[data-sonner-toast],
+.go2072408551,
+.rbac-message-text,
+.rbac-chat-message.bot .rbac-chat-bubble {
+  background: var(--color-surface-solid) !important;
+  color: var(--color-text) !important;
+  border-color: var(--color-border) !important;
+}
+
+.receipt-paper,
+.receipt-paper * {
+  color: var(--color-text);
+}
+
+[data-theme="dark"] .receipt-paper {
+  background: #ffffff !important;
+  color: #111827 !important;
+}
+
+[data-theme="dark"] .receipt-paper * {
+  color: #111827 !important;
 }
 

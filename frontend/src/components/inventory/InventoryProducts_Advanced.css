@@ -453,17 +453,9 @@
   text-align: center;
 }
 
-/* Column 12: Expiration */
+/* Actions */
 .products-table.advanced-table th:nth-child(12),
 .products-table.advanced-table td:nth-child(12) {
-  width: 95px;
-  min-width: 95px;
-  text-align: center;
-}
-
-/* Column 13: Actions */
-.products-table.advanced-table th:nth-child(13),
-.products-table.advanced-table td:nth-child(13) {
   width: 75px;
   min-width: 75px;
   text-align: center;
@@ -554,13 +546,6 @@
 .product-meta {
   font-size: 12px;
   color: #9ca3af;
-}
-
-/* Expiration Date styling */
-.expiration-col {
-  font-size: 12px;
-  color: #6b7280;
-  font-weight: 500;
 }
 
 /* ID Code */

@@ -137,10 +137,6 @@ const CustomerBookings = () => {
   const [selectedRoom, setSelectedRoom] = useState(null);
   const [selectedRoomType, setSelectedRoomType] = useState("");
 
-  // Hotel add-ons state
-  const [hotelAddOns, setHotelAddOns] = useState([]);
-  const [selectedAddOns, setSelectedAddOns] = useState([]);
-
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
@@ -178,7 +174,6 @@ const CustomerBookings = () => {
   const getPetSpecies = (pet) => pet?.species || pet?.type || pet?.pet_type || "Pet";
   const getPetBreed = (pet) => pet?.breed || "Unknown breed";
   const getPetAge = (pet) => pet?.age || pet?.pet_age || "N/A";
-  const getPetGender = (pet) => pet?.gender || pet?.sex || "N/A";
   const getPetWeight = (pet) => pet?.weight || pet?.pet_weight || "N/A";
 
   // Helper functions for hotel booking data
@@ -231,49 +226,6 @@ const CustomerBookings = () => {
       .replace(/\s+/g, "_");
   }
 
-  const getAddOnPrice = useCallback((item) => {
-    const rawPrice =
-      item?.price ??
-      item?.amount ??
-      item?.fee ??
-      item?.cost ??
-      item?.unit_price ??
-      item?.add_on_price ??
-      item?.addon_price ??
-      item?.service_price ??
-      item?.daily_rate ??
-      item?.rate ??
-      item?.base_price ??
-      0;
-
-    const parsed = Number(rawPrice);
-
-    return Number.isFinite(parsed) ? parsed : 0;
-  }, []);
-
-  const getFallbackAddOnPriceByName = useCallback((name) => {
-    const key = normalizeText(name);
-
-    const fallbackPrices = {
-      premium_dog_food: 180,
-      premium_cat_food: 160,
-      extra_walk: 120,
-      playtime: 150,
-      bath_before_checkout: 300,
-      daily_photo_update: 80,
-      pee_pad_pack: 100,
-      treats_pack: 120,
-      standard_meal: 120,
-      premium_food: 200,
-      medication_assistance: 100,
-      bird_seed_mix: 90,
-      cage_liner_pack: 70,
-      small_pet_food: 100,
-    };
-
-    return fallbackPrices[key] || 0;
-  }, []);
-
   // Helper function for species-based room type options
   const getSpeciesRoomTypeOptions = useCallback((pet) => {
     const species = normalizeText(getPetSpecies(pet));
@@ -311,27 +263,6 @@ const CustomerBookings = () => {
   const activeRoomTypeOptions = useMemo(() => {
     return getSpeciesRoomTypeOptions(selectedPet);
   }, [selectedPet, getSpeciesRoomTypeOptions]);
-
-  const isAddOnCompatibleWithPet = useCallback((addOn, pet) => {
-    if (!pet || !addOn) return false;
-
-    const species = normalizeText(getPetSpecies(pet));
-    const allowedSpecies = Array.isArray(addOn.species)
-      ? addOn.species.map((item) => normalizeText(item))
-      : [];
-
-    if (allowedSpecies.length === 0) return true;
-
-    return allowedSpecies.includes(species);
-  }, []);
-
-  const compatibleHotelAddOns = useMemo(() => {
-    if (!selectedPet) return [];
-
-    return hotelAddOns.filter((addOn) =>
-      isAddOnCompatibleWithPet(addOn, selectedPet)
-    );
-  }, [hotelAddOns, selectedPet, isAddOnCompatibleWithPet]);
 
   const formatCurrency = (value) => {
     const number = Number(value || 0);
@@ -515,159 +446,14 @@ const CustomerBookings = () => {
     });
   };
 
-  // Add-on toggle logic
-  const handleAddOnToggle = (addOn) => {
-    if (!isAddOnCompatibleWithPet(addOn, selectedPet)) return;
-
-    setSelectedAddOns((prev) => {
-      const exists = prev.some((item) => String(item.id) === String(addOn.id));
-
-      if (exists) {
-        return prev.filter((item) => String(item.id) !== String(addOn.id));
-      }
-
-      return [
-        ...prev,
-        {
-          ...addOn,
-          quantity: Number(addOn.quantity || 1),
-        },
-      ];
-    });
-  };
-
-  const getAddOnQuantity = (item) => {
-  const quantity = Number(item?.quantity || 1);
-  return Number.isFinite(quantity) && quantity > 0 ? quantity : 1;
-};
-
-  const getSelectedAddOnsSubtotal = () => {
-    return selectedAddOns.reduce((sum, item) => {
-      const price = Number(item.price || 0);
-      const quantity = getAddOnQuantity(item);
-
-      return sum + price * quantity;
-    }, 0);
-  };
-
   // Calculate total for Pet Hotel bookings
   const calculateHotelTotal = () => {
     if (!selectedRoom) return 0;
 
     const numberOfDays = calculateBoardingDays();
     const roomSubtotal = getDailyRate(selectedRoom) * numberOfDays;
-    const addOnsSubtotal = getSelectedAddOnsSubtotal();
-
-    return roomSubtotal + addOnsSubtotal;
+    return roomSubtotal;
   };
-
-  // Default hotel add-ons fallback
-  const defaultHotelAddOns = useMemo(() => [
-    {
-      id: "premium_dog_food",
-      name: "Premium Dog Food",
-      type: "food",
-      species: ["dog"],
-      price: 180,
-      description: "High-quality premium dog food for all breeds.",
-    },
-    {
-      id: "extra_walk",
-      name: "Extra Walk",
-      type: "service",
-      species: ["dog"],
-      price: 120,
-      description: "Additional 15-minute walk with staff.",
-    },
-    {
-      id: "premium_cat_food",
-      name: "Premium Cat Food",
-      type: "food",
-      species: ["cat"],
-      price: 160,
-      description: "Nutritious premium cat food for all breeds.",
-    },
-    {
-      id: "cat_litter_care",
-      name: "Cat Litter Care",
-      type: "care",
-      species: ["cat"],
-      price: 90,
-      description: "Extra litter box cleaning and care.",
-    },
-    {
-      id: "bird_seed_mix",
-      name: "Bird Seed Mix",
-      type: "food",
-      species: ["bird"],
-      price: 90,
-      description: "Daily bird seed and feeding support.",
-    },
-    {
-      id: "cage_liner_pack",
-      name: "Cage Liner Pack",
-      type: "item",
-      species: ["bird"],
-      price: 70,
-      description: "Clean cage liner replacement pack.",
-    },
-    {
-      id: "small_pet_food",
-      name: "Small Pet Food",
-      type: "food",
-      species: ["bird", "small_pet"],
-      price: 100,
-      description: "Food option for small accommodated pets.",
-    },
-    {
-      id: "playtime",
-      name: "Playtime",
-      type: "service",
-      species: ["dog", "cat"],
-      price: 150,
-      description: "30 minutes of supervised playtime.",
-    },
-    {
-      id: "bath_before_checkout",
-      name: "Bath Before Checkout",
-      type: "grooming",
-      species: ["dog", "cat"],
-      price: 300,
-      description: "Bath service before pet checkout.",
-    },
-    {
-      id: "daily_photo_update",
-      name: "Daily Photo Update",
-      type: "care",
-      species: ["dog", "cat", "bird"],
-      price: 80,
-      description: "Daily photo update sent to owner.",
-    },
-    {
-      id: "medication_assistance",
-      name: "Medication Assistance",
-      type: "care",
-      species: ["dog", "cat", "bird"],
-      price: 100,
-      description: "Staff-assisted medication schedule.",
-    },
-    {
-      id: "pee_pad_pack",
-      name: "Pee Pad Pack",
-      type: "item",
-      species: ["dog"],
-      price: 100,
-      description: "Pack of 10 pee pads.",
-    },
-    {
-      id: "treats_pack",
-      name: "Treats Pack",
-      type: "item",
-      species: ["dog", "cat"],
-      price: 120,
-      description: "Assorted treats for pets.",
-    },
-  ], []);
 
   const fetchCustomerPets = useCallback(async () => {
     try {
@@ -733,54 +519,6 @@ const CustomerBookings = () => {
       setServicesLoading(false);
     }
   }, []);
-
-  const fetchHotelAddOns = useCallback(async () => {
-    try {
-      const data = await apiRequest("/boarding/add-ons");
-      const addOns = safeArray(data.add_ons || data.data || data.items || data);
-
-      const normalized = addOns
-        .map((item) => {
-          const itemName =
-            item.name ||
-            item.item_name ||
-            item.service_name ||
-            item.add_on_name ||
-            "Add-on";
-
-          const mappedPrice = getAddOnPrice(item);
-
-          const rawSpecies =
-            item.species ||
-            item.species_allowed ||
-            item.allowed_species ||
-            item.pet_species ||
-            item.compatible_species ||
-            "";
-
-          const speciesList = Array.isArray(rawSpecies)
-            ? rawSpecies.map((species) => normalizeText(species))
-            : String(rawSpecies || "")
-                .split(",")
-                .map((species) => normalizeText(species))
-                .filter(Boolean);
-
-          return {
-            id: item.id || item.addon_id || item.add_on_id || itemName,
-            name: itemName,
-            type: item.type || item.category || item.add_on_type || "add-on",
-            species: speciesList.length > 0 ? speciesList : ["dog", "cat", "bird"],
-            price: mappedPrice > 0 ? mappedPrice : getFallbackAddOnPriceByName(itemName),
-            description: item.description || item.notes || item.details || "",
-          };
-        })
-        .filter((item) => item.name);
-
-      setHotelAddOns(normalized.length > 0 ? normalized : defaultHotelAddOns);
-    } catch (error) {
-      setHotelAddOns(defaultHotelAddOns);
-    }
-  }, [defaultHotelAddOns, getAddOnPrice, getFallbackAddOnPriceByName]);
 
   const fetchBookings = useCallback(
     async ({ silent = false } = {}) => {
@@ -899,8 +637,7 @@ const CustomerBookings = () => {
     fetchBookings();
     fetchVetServices();
     fetchCustomerPets();
-    fetchHotelAddOns();
-  }, [fetchBookings, fetchVetServices, fetchCustomerPets, fetchHotelAddOns]);
+  }, [fetchBookings, fetchVetServices, fetchCustomerPets]);
 
   useEffect(() => {
     if (
@@ -1027,7 +764,6 @@ const CustomerBookings = () => {
     setSelectedTimeSlot("");
     setSelectedRoom(null);
     setSelectedRoomType("");
-    setSelectedAddOns([]);
 
     setFormData({
       customer_name: customerName,
@@ -1048,7 +784,6 @@ const CustomerBookings = () => {
     setSelectedBooking(null);
     setReceipt(null);
     setShowVetHealthInfo(false);
-    setSelectedAddOns([]);
 
     if (previewUrl) {
       URL.revokeObjectURL(previewUrl);
@@ -1146,7 +881,6 @@ const CustomerBookings = () => {
 
     setSelectedRoom(null);
     setSelectedRoomType("");
-    setSelectedAddOns([]);
     setBoardingAvailability(null);
 
     setFormData((prev) => ({
@@ -1466,23 +1200,6 @@ const fetchVeterinaryAvailability = async (date, serviceName) => {
           notes: formData.notes,
           room_daily_rate: getDailyRate(selectedRoom),
           number_of_days: calculateBoardingDays(),
-          add_ons: selectedAddOns.map((item) => {
-          const quantity = getAddOnQuantity(item);
-          const price = Number(item.price || 0);
-
-          return {
-            id: item.id,
-            add_on_id: item.id,
-            boarding_add_on_id: item.id,
-            name: item.name,
-            type: item.type,
-            species: item.species,
-            price,
-            quantity,
-            subtotal: price * quantity,
-          };
-        }),
-          add_ons_total: getSelectedAddOnsSubtotal(),
           total_amount: calculateHotelTotal(),
         };
 
@@ -1889,10 +1606,6 @@ const fetchVeterinaryAvailability = async (date, serviceName) => {
                         <strong>{getPetAge(selectedPet)}</strong>
                       </div>
                       <div>
-                        <small>Gender</small>
-                        <strong>{getPetGender(selectedPet)}</strong>
-                      </div>
-                      <div>
                         <small>Weight</small>
                         <strong>{getPetWeight(selectedPet)}</strong>
                       </div>
@@ -2112,45 +1825,6 @@ const fetchVeterinaryAvailability = async (date, serviceName) => {
                                 })}
                               </div>
 
-                              {selectedBooking === "Hotel" && (
-                                <div className="form-group full-width hotel-addons-section">
-                                  <div className="availability-header">
-                                    <span className="availability-title">Optional Add-ons</span>
-                                  </div>
-
-                                  {compatibleHotelAddOns.length > 0 ? (
-                                    <div className="hotel-addons-grid">
-                                      {compatibleHotelAddOns.map((addOn) => {
-                                        const selected = selectedAddOns.some(
-                                          (item) => String(item.id) === String(addOn.id)
-                                        );
-
-                                        return (
-                                          <button
-                                            key={addOn.id}
-                                            type="button"
-                                            className={`hotel-addon-card ${selected ? "selected" : ""}`}
-                                            onClick={() => handleAddOnToggle(addOn)}
-                                          >
-                                            <div>
-                                              <strong>{addOn.name}</strong>
-                                              <small>{addOn.type}</small>
-                                              {addOn.description && <p>{addOn.description}</p>}
-                                            </div>
-
-                                            <span>{formatCurrency(addOn.price)}</span>
-                                          </button>
-                                        );
-                                      })}
-                                    </div>
-                                  ) : (
-                                    <div className="availability-prompt">
-                                      <p>No compatible add-ons available for this pet.</p>
-                                    </div>
-                                  )}
-                                </div>
-                              )}
-
                               {selectedRoom && (
                                 <div className="hotel-total-card">
                                   <strong>Total Estimate</strong>
@@ -2159,10 +1833,6 @@ const fetchVeterinaryAvailability = async (date, serviceName) => {
                                     Room: {formatCurrency(getDailyRate(selectedRoom))} × {calculateBoardingDays()} day
                                     {calculateBoardingDays() > 1 ? "s" : ""} ={" "}
                                     <b>{formatCurrency(getDailyRate(selectedRoom) * calculateBoardingDays())}</b>
-                                  </p>
-
-                                  <p>
-                                    Add-ons: <b>{formatCurrency(getSelectedAddOnsSubtotal())}</b>
                                   </p>
 
                                   <h4>

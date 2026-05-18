@@ -180,7 +180,8 @@
 }
 
 .customer-status-pill,
-.customer-payment-pill {
+.customer-payment-pill,
+.customer-pay-btn {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
@@ -189,6 +190,14 @@
   font-size: 0.78rem;
   font-weight: 950;
   text-transform: capitalize;
+}
+
+.customer-pay-btn {
+  border: 0;
+  cursor: pointer;
+  color: white;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+  box-shadow: var(--shadow-primary);
 }
 
 .customer-status-pill.pending {

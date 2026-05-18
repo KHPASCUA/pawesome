@@ -1,10 +1,8 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { inventoryApi } from "../../api/inventory";
 import { normalizeList } from "../../api/client";
-import { formatCurrency } from "../../utils/currency";
 import { exportToCSV } from "../../utils/reportExport";
 import StockAdjustmentModal from "./StockAdjustmentModal";
-import ExpiryAlerts from "./ExpiryAlerts";
 import { useNavigate } from "react-router-dom";
 import "./InventoryStock_Polished.css";
 
@@ -61,7 +59,7 @@ const InventoryStock = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Helper to get stock value from multiple possible field names
+  // Helper to get stock quantity from multiple possible field names
   const getStock = (item) => {
     const val = item?.stock ?? item?.quantity ?? item?.stock_quantity ?? item?.current_stock ?? 0;
     const num = Number(val);
@@ -97,25 +95,6 @@ const InventoryStock = () => {
     setExpandedItems(newExpanded);
   };
 
-  // Get expiration status for a date
-  const getExpirationStatus = (date) => {
-    if (!date) return { label: "No Expiry", color: "#64748b", status: "none" };
-    
-    const today = new Date();
-    const expDate = new Date(date);
-    const daysUntilExpiry = Math.ceil((expDate - today) / (1000 * 60 * 60 * 24));
-    
-    if (daysUntilExpiry <= 0) {
-      return { label: "Expired", color: "#ef4444", status: "expired" };
-    } else if (daysUntilExpiry <= 7) {
-      return { label: "Expires Soon", color: "#f59e0b", status: "critical" };
-    } else if (daysUntilExpiry <= 30) {
-      return { label: "Expiring", color: "#eab308", status: "warning" };
-    } else {
-      return { label: "Good", color: "#10b981", status: "safe" };
-    }
-  };
-
   
   // Filter out service items from stock management
   const physicalItems = useMemo(() => {
@@ -135,11 +114,6 @@ const InventoryStock = () => {
   const stats = useMemo(() => {
     const totalItems = physicalItems.length;
     const totalQuantity = physicalItems.reduce((sum, item) => sum + getStock(item), 0);
-    const totalValue = physicalItems.reduce(
-      (sum, item) => sum + getStock(item) * Number(item.price || item.unit_price || 0),
-      0
-    );
-
     const lowStock = physicalItems.filter(
       (item) => getStock(item) <= 10 && getStock(item) > 0
     ).length;
@@ -148,29 +122,11 @@ const InventoryStock = () => {
       (item) => getStock(item) === 0
     ).length;
 
-    const expiringSoon = physicalItems.filter((item) => {
-      const expiry =
-        item.nearest_expiration ||
-        item.expiration_date ||
-        item.expiration ||
-        null;
-
-      if (!expiry) return false;
-
-      const exp = new Date(expiry);
-      const today = new Date();
-      const diffDays = Math.ceil((exp - today) / (1000 * 60 * 60 * 24));
-
-      return diffDays <= 30 && diffDays > 0;
-    }).length;
-
     return {
       totalItems,
       totalQuantity,
-      totalValue,
       lowStock,
       outOfStock,
-      expiringSoon,
     };
   }, [physicalItems]);
 
@@ -203,7 +159,6 @@ const InventoryStock = () => {
       { key: "quantity", label: "Qty" },
       { key: "price", label: "Price" },
       { key: "status", label: "Status" },
-      { key: "expiration", label: "Expiration" },
     ];
     exportToCSV(filteredItems, columns, "stock-management");
   };
@@ -252,7 +207,7 @@ const InventoryStock = () => {
       <div className="stock-header">
         <div className="header-title">
           <h2>Stock Management</h2>
-          <p>Monitor inventory levels, track expirations, and adjust stock</p>
+          <p>Monitor inventory levels, stock status, and adjustments</p>
           {stockError && <span className="demo-badge">No live records</span>}
         </div>
         <div className="header-actions">
@@ -297,13 +252,6 @@ const InventoryStock = () => {
             <span className="stat-label">Total Units</span>
           </div>
         </div>
-        <div className="stat-card value">
-          <div className="stat-icon">💰</div>
-          <div className="stat-info">
-            <span className="stat-value">{formatCurrency(stats.totalValue)}</span>
-            <span className="stat-label">Stock Value</span>
-          </div>
-        </div>
         <div className="stat-card low">
           <div className="stat-icon">🔔</div>
           <div className="stat-info">
@@ -318,17 +266,7 @@ const InventoryStock = () => {
             <span className="stat-label">Out of Stock</span>
           </div>
         </div>
-        <div className="stat-card expiring">
-          <div className="stat-icon">⏰</div>
-          <div className="stat-info">
-            <span className="stat-value">{stats.expiringSoon}</span>
-            <span className="stat-label">Expiring Soon</span>
-          </div>
-        </div>
       </div>
-
-      {/* Expiry Alerts Section */}
-      <ExpiryAlerts />
 
       {/* Filters */}
       <div className="stock-filters">
@@ -366,7 +304,6 @@ const InventoryStock = () => {
                   <th>Product</th>
                   <th>SKU</th>
                   <th className="numeric">Qty</th>
-                  <th>Nearest Expiration</th>
                   <th>Status</th>
                   <th>Actions</th>
                 </tr>
@@ -378,15 +315,6 @@ const InventoryStock = () => {
                   const isExpanded = expandedItems.has(item.id);
                   const batches = itemBatches[item.id] || [];
                   const loadingBatch = loadingBatches[item.id];
-                  
-                  // Get nearest expiration from backend field or fallback to batches
-                  const nearestExp = item.nearest_expiration 
-                    ? item.nearest_expiration
-                    : batches.length > 0 
-                      ? batches.filter(b => b.status === 'active' && b.remaining_quantity > 0)
-                          .sort((a, b) => new Date(a.expiration_date || '9999-12-31') - new Date(b.expiration_date || '9999-12-31'))[0]?.expiration_date
-                      : null;
-                  const expStatus = getExpirationStatus(nearestExp);
                   
                   return (
                     <React.Fragment key={item.id}>
@@ -419,16 +347,6 @@ const InventoryStock = () => {
                           )}
                         </td>
                         <td>
-                          {nearestExp ? (
-                            <span className="expiration-badge" style={{ color: expStatus.color }}>
-                              <span className="exp-date">{new Date(nearestExp).toLocaleDateString()}</span>
-                              <span className="exp-label">{expStatus.label}</span>
-                            </span>
-                          ) : (
-                            <span className="expiration-none">No Expiry</span>
-                          )}
-                        </td>
-                        <td>
                           <span className={`status-badge ${badge.class}`}>
                             <span className="badge-icon">{badge.icon}</span>
                             {badge.label}
@@ -447,9 +365,9 @@ const InventoryStock = () => {
                       {/* Batch Details Row */}
                       {isExpanded && (
                         <tr className="batch-row">
-                          <td colSpan="7">
+                          <td colSpan="6">
                             <div className="batch-details">
-                              <h4>📦 Batch Inventory (FEFO Order)</h4>
+                              <h4>📦 Batch Inventory</h4>
                               {loadingBatch ? (
                                 <div className="batch-loading">Loading batches...</div>
                               ) : batches.length > 0 ? (
@@ -458,30 +376,23 @@ const InventoryStock = () => {
                                     <tr>
                                       <th>Batch No</th>
                                       <th>Received</th>
-                                      <th>Expiration</th>
                                       <th>Quantity</th>
                                       <th>Remaining</th>
                                       <th>Status</th>
-                                      <th>Expiry Status</th>
                                     </tr>
                                   </thead>
                                   <tbody>
                                     {batches.map((batch) => {
-                                      const batchExpStatus = getExpirationStatus(batch.expiration_date);
                                       return (
                                         <tr key={batch.id} className={`batch-${batch.status}`}>
                                           <td><code>{batch.batch_no}</code></td>
                                           <td>{new Date(batch.received_date).toLocaleDateString()}</td>
-                                          <td>{batch.expiration_date ? new Date(batch.expiration_date).toLocaleDateString() : 'N/A'}</td>
                                           <td>{batch.quantity}</td>
                                           <td className={batch.remaining_quantity === 0 ? 'depleted' : ''}>
                                             {batch.remaining_quantity}
                                           </td>
                                           <td>
                                             <span className={`batch-status ${batch.status}`}>{batch.status}</span>
-                                          </td>
-                                          <td>
-                                            <span style={{ color: batchExpStatus.color }}>{batchExpStatus.label}</span>
                                           </td>
                                         </tr>
                                       );
@@ -491,7 +402,6 @@ const InventoryStock = () => {
                               ) : (
                                 <div className="no-batches">
                                   <p>No batch tracking for this item. Stock is managed as total quantity only.</p>
-                                  <small>FEFO batch tracking is available for Food, Health, and Grooming items.</small>
                                 </div>
                               )}
                             </div>

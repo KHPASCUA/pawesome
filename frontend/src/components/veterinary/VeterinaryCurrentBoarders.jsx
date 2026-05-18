@@ -239,19 +239,6 @@ const VeterinaryCurrentBoarders = () => {
                     </div>
                   )}
 
-                  {boarder.booking_addons && boarder.booking_addons.length > 0 && (
-                    <div className="addons-section">
-                      <strong>Add-ons:</strong>
-                      <div className="addons-list">
-                        {boarder.booking_addons.map((addon, idx) => (
-                          <span key={idx} className="addon-tag">
-                            {addon.add_on?.name || addon.name}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
                   {boarder.medication_notes && (
                     <div className="medication-notes">
                       <FontAwesomeIcon icon={faNotesMedical} />

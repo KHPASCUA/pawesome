@@ -4,19 +4,16 @@ import React from "react";
 
 // Apply theme to the document
 export const applyTheme = (theme) => {
+  const normalizedTheme = theme === "dark" ? "dark" : "light";
   const root = document.documentElement;
 
   // Clean up any existing dark mode classes
   document.body.classList.remove("dark", "dark-mode", "dark-theme", "night-mode");
   document.documentElement.classList.remove("dark", "dark-mode", "dark-theme", "night-mode");
+  document.body.removeAttribute("data-theme");
 
-  if (theme === "dark") {
-    root.setAttribute("data-theme", "dark");
-    localStorage.setItem("theme", "dark");
-  } else {
-    root.setAttribute("data-theme", "light");
-    localStorage.setItem("theme", "light");
-  }
+  root.setAttribute("data-theme", normalizedTheme);
+  localStorage.setItem("theme", normalizedTheme);
 };
 
 // Get current theme from localStorage or default to light
@@ -44,6 +41,10 @@ export const useTheme = () => {
   const [theme, setTheme] = React.useState(getCurrentTheme());
 
   React.useEffect(() => {
+    applyTheme(theme);
+  }, [theme]);
+
+  React.useEffect(() => {
     // Listen for storage changes (for cross-tab sync)
     const handleStorageChange = (e) => {
       if (e.key === "theme") {
@@ -58,9 +59,15 @@ export const useTheme = () => {
   }, []);
 
   const toggle = () => {
-    const newTheme = toggleTheme();
+    const newTheme = theme === "dark" ? "light" : "dark";
     setTheme(newTheme);
     return newTheme;
+  };
+
+  const updateTheme = (nextTheme) => {
+    const normalizedTheme = nextTheme === "dark" ? "dark" : "light";
+    setTheme(normalizedTheme);
+    return normalizedTheme;
   };
 
   return {
@@ -68,6 +75,6 @@ export const useTheme = () => {
     isDark: theme === "dark",
     isLight: theme === "light",
     toggle,
-    setTheme: applyTheme,
+    setTheme: updateTheme,
   };
 };

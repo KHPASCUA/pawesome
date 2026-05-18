@@ -389,11 +389,7 @@ const AdminDashboard = () => {
   };
 
   return (
-    <div
-      className={`admin-dashboard ${mobileMenuOpen ? "mobile-open" : ""} ${
-        theme === "dark" ? "dark" : ""
-      }`}
-    >
+    <div className={`admin-dashboard ${mobileMenuOpen ? "mobile-open" : ""}`}>
       <AdminSidebar
         mobileOpen={mobileMenuOpen}
         onMobileMenuToggle={() => setMobileMenuOpen((prev) => !prev)}

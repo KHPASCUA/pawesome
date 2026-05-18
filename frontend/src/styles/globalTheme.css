@@ -37,7 +37,7 @@
 .top-navbar,
 .manager-navbar,
 .vet-navbar {
-  background: rgba(255, 255, 255, 0.85);
+  background: var(--color-surface);
   backdrop-filter: blur(18px);
 
   border-bottom: 1px solid var(--color-border);
@@ -74,7 +74,7 @@
 }
 
 .btn-secondary {
-  background: rgba(255,255,255,0.7);
+  background: var(--color-surface-solid);
   border: 1px solid var(--color-border);
   border-radius: 14px;
 }
@@ -85,8 +85,9 @@ input,
 select,
 textarea {
   border-radius: 999px;
-  border: 1px solid rgba(255, 95, 147, 0.25);
-  background: white;
+  border: 1px solid var(--color-border);
+  background: var(--color-input-bg);
+  color: var(--color-input-text);
 }
 
 input:focus,
@@ -109,7 +110,7 @@ select:focus {
   align-items: center;
   justify-content: center;
 
-  background: rgba(255,255,255,0.9);
+  background: var(--color-surface-solid);
   color: var(--color-primary);
 
   box-shadow: 0 10px 24px rgba(255, 95, 147, 0.12);

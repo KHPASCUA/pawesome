@@ -21,7 +21,7 @@ const ServiceBillingPanel = ({ serviceType, serviceId, petId, onBillingUpdate })
   const [loading, setLoading] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [formData, setFormData] = useState({
-    item_type: "add_on_service",
+    item_type: "manual_charge",
     description: "",
     quantity: 1,
     unit_price: 0,
@@ -44,7 +44,6 @@ const ServiceBillingPanel = ({ serviceType, serviceId, petId, onBillingUpdate })
   const getServiceIcon = (itemType) => {
     const icons = {
       "base_service": faStethoscope,
-      "add_on_service": faPlus,
       "inventory_usage": faBoxOpen,
       "manual_charge": faMoneyBillWave,
       "discount": faReceipt
@@ -113,7 +112,7 @@ const ServiceBillingPanel = ({ serviceType, serviceId, petId, onBillingUpdate })
 
   const resetForm = () => {
     setFormData({
-      item_type: "add_on_service",
+      item_type: "manual_charge",
       description: "",
       quantity: 1,
       unit_price: 0,
@@ -275,7 +274,6 @@ const ServiceBillingPanel = ({ serviceType, serviceId, petId, onBillingUpdate })
                   value={formData.item_type}
                   onChange={(e) => setFormData(prev => ({ ...prev, item_type: e.target.value }))}
                 >
-                  <option value="add_on_service">Add-on Service</option>
                   <option value="manual_charge">Manual Charge</option>
                   <option value="discount">Discount</option>
                 </select>
@@ -285,20 +283,6 @@ const ServiceBillingPanel = ({ serviceType, serviceId, petId, onBillingUpdate })
             <div className="form-row">
               <div className="form-group flex-1">
                 <label>Description</label>
-                {formData.item_type === "add_on_service" && (
-                  <div className="quick-services">
-                    {getCommonServices().map((service, idx) => (
-                      <button
-                        key={idx}
-                        type="button"
-                        className="quick-service-btn"
-                        onClick={() => handleQuickServiceSelect(service)}
-                      >
-                        {service.name} - ₱{service.price}
-                      </button>
-                    ))}
-                  </div>
-                )}
                 <input
                   type="text"
                   value={formData.description}

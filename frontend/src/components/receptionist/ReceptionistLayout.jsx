@@ -1,25 +1,14 @@
-import React, { useEffect } from "react";
+import React from "react";
 import { Outlet, useNavigate } from "react-router-dom";
 import ReceptionistSidebar from "./ReceptionistSidebar";
 import { FaRedoAlt, FaMoon, FaUserTie } from "react-icons/fa";
 import NotificationDropdown from "../shared/NotificationDropdown";
+import { useTheme } from "../../utils/theme";
 import "./ReceptionistLayout.css";
 
 const ReceptionistLayout = () => {
   const navigate = useNavigate();
-
-  const toggleTheme = () => {
-    const currentTheme = document.body.getAttribute("data-theme");
-    const nextTheme = currentTheme === "dark" ? "light" : "dark";
-
-    document.body.setAttribute("data-theme", nextTheme);
-    localStorage.setItem("theme", nextTheme);
-  };
-
-  useEffect(() => {
-    const savedTheme = localStorage.getItem("theme") || "light";
-    document.body.setAttribute("data-theme", savedTheme);
-  }, []);
+  const { toggle } = useTheme();
 
   return (
     <div className="app-dashboard receptionist-layout">
@@ -62,7 +51,7 @@ const ReceptionistLayout = () => {
               className="topbar-icon"
               type="button"
               title="Dark Mode"
-              onClick={toggleTheme}
+              onClick={toggle}
             >
               <FaMoon />
             </button>
