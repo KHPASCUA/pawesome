@@ -85,6 +85,27 @@ class POSController extends Controller
                 $subtotal += ($itemTotal - $itemDiscount);
             }
 
+            foreach ($payload['items'] as $item) {
+                if (($item['item_type'] ?? null) !== 'product' || empty($item['item_id'])) {
+                    continue;
+                }
+
+                $inventoryItem = InventoryItem::whereKey($item['item_id'])
+                    ->where('status', 'active')
+                    ->whereNull('archived_at')
+                    ->where('is_sellable', true)
+                    ->lockForUpdate()
+                    ->first();
+
+                if (!$inventoryItem) {
+                    throw new \Exception('Product is not available for POS sale.');
+                }
+
+                if ((int) $inventoryItem->stock < (int) $item['quantity']) {
+                    throw new \Exception("Insufficient stock for {$inventoryItem->name}. Available: {$inventoryItem->stock}, Requested: {$item['quantity']}");
+                }
+            }
+
             $taxAmount = $subtotal * $taxRate;
             $totalAmount = $subtotal + $taxAmount - $discountAmount;
 
@@ -223,6 +244,9 @@ class POSController extends Controller
                     'stock' => $item->stock,
                     'stock_quantity' => (int) $item->stock,
                     'available_stock' => (int) $item->stock,
+                    'is_sellable' => (bool) $item->is_sellable,
+                    'stock_status' => $item->stock > 0 ? 'in_stock' : 'out_of_stock',
+                    'is_available' => $item->stock > 0,
                     'category' => $item->category ?: $this->getCategoryFromSku($item->sku),
                     'description' => $item->description,
                     'status' => $item->status,
@@ -233,7 +257,10 @@ class POSController extends Controller
 
         return response()->json([
             'success' => true,
+            'data' => $products,
             'products' => $products,
+            'count' => $products->count(),
+            'timestamp' => now()->toIso8601String(),
         ]);
     }
 

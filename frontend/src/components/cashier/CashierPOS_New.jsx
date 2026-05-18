@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import styled, { createGlobalStyle, keyframes, css } from "styled-components";
 import { apiRequest, normalizeList } from "../../api/client";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import inventorySync, { eventEmitter } from "../../services/inventorySync";
 import {
   faPaw, faSearch, faRotateRight, faTrash, faBoxOpen,
   faShoppingCart, faCreditCard, faMoneyBillWave, faMobileScreen,
@@ -34,22 +33,42 @@ const fmt = (amount) =>
 
 const normCat = (v) => String(v || "others").trim().toLowerCase();
 
-const toStockNumber = (value) => {
-  const number = Number(value);
-  return Number.isFinite(number) ? number : 0;
+const toNumber = (value) => {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : 0;
 };
 
-const normProduct = (p, i) => ({
-  id: p.id || p.product_id || p.item_id || i + 1,
-  name: p.name || p.product_name || p.item_name || "Unnamed Product",
-  price: Number(p.price || p.selling_price || p.unit_price || 0) || 0,
-  stock: toStockNumber(p.available_stock ?? p.stock_quantity ?? p.stock ?? p.quantity),
-  category: normCat(p.category || p.product_category || p.type),
-  image: p.image || p.image_url || p.photo || "",
-  barcode: p.barcode || p.sku || p.item_code || "",
-  discount: Number(p.discount || p.discount_percent || 0) || 0,
-  raw: p,
-});
+const getAvailableStock = (item) =>
+  toNumber(
+    item?.available_stock ??
+    item?.available_quantity ??
+    item?.current_stock ??
+    item?.stock ??
+    item?.quantity ??
+    item?.total_stock ??
+    item?.stock_quantity ??
+    0
+  );
+
+const normProduct = (p, i) => {
+  const availableStock = getAvailableStock(p);
+
+  return {
+    ...p,
+    id: p?.id ?? p?.inventory_item_id ?? p?.product_id ?? p?.item_id ?? i + 1,
+    name: p?.name ?? p?.product_name ?? p?.item_name ?? "Unnamed Product",
+    price: toNumber(p?.price ?? p?.selling_price ?? p?.unit_price ?? 0),
+    stock: availableStock,
+    available_stock: availableStock,
+    stock_status: availableStock > 0 ? "in_stock" : "out_of_stock",
+    is_available: availableStock > 0,
+    category: normCat(p?.category || p?.product_category || p?.type),
+    image: p?.image || p?.image_url || p?.photo || "",
+    barcode: p?.barcode || p?.sku || p?.item_code || "",
+    discount: toNumber(p?.discount ?? p?.discount_percent ?? 0),
+    raw: p,
+  };
+};
 
 const discountedPrice = (p) => {
   const price = Number(p.price) || 0;
@@ -58,11 +77,13 @@ const discountedPrice = (p) => {
 };
 
 const stockStatus = (stock) => {
-  const q = Number(stock) || 0;
+  const q = getAvailableStock({ available_stock: stock });
   if (q <= 0) return { label: "Out of Stock", type: "out" };
   if (q <= 5) return { label: `Only ${q} left`, type: "low" };
   return { label: `${q} in stock`, type: "ok" };
 };
+
+const isProductOutOfStock = (product) => getAvailableStock(product) <= 0;
 
 /* ─── Design Tokens ────────────────────────────────────────────── */
 const PINK       = "#ff5f93";
@@ -1322,6 +1343,8 @@ const CashierPOS = () => {
   const [referenceNumber, setReferenceNumber] = useState("");
   const [showPaymentSection, setShowPaymentSection] = useState(false);
   const [loading, setLoading]             = useState(true);
+  const [isRefreshingProducts, setIsRefreshingProducts] = useState(false);
+  const [lastStockSyncAt, setLastStockSyncAt] = useState(null);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [error, setError]                 = useState("");
   const [completedReceipt, setCompletedReceipt] = useState(null);
@@ -1332,6 +1355,8 @@ const CashierPOS = () => {
 
   const searchRef = useRef(null);
   const navMenuRef = useRef(null);
+  const latestInventoryRequestRef = useRef(0);
+  const productsRef = useRef([]);
 
   /* Toast */
   const addToast = useCallback((message, type = "info") => {
@@ -1339,6 +1364,10 @@ const CashierPOS = () => {
     setToasts(prev => [...prev, { id, message, type }]);
     setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3200);
   }, []);
+
+  useEffect(() => {
+    productsRef.current = products;
+  }, [products]);
 
   /* Fullscreen toggle */
   const toggleFullscreen = useCallback(() => {
@@ -1378,100 +1407,71 @@ const CashierPOS = () => {
     }
   }, [addToast]);
 
-  /* Subscribe to real-time inventory sync */
-  useEffect(() => {
-    console.log("CashierPOS: Subscribing to inventory sync service");
-    
-    // Subscribe to inventory updates
-    const unsubscribe = inventorySync.subscribe('CashierPOS', (categorizedProducts) => {
-      console.log("CashierPOS: Received inventory update");
-      
-      // Convert categorized products back to flat array for POS
-      const allProducts = Object.values(categorizedProducts).flat();
-      const normalized = allProducts.map((p, i) => normProduct(p, i));
-      
-      console.log("CashierPOS: Setting products state:", normalized);
-      setProducts(normalized);
-      setLoading(false);
-      setError("");
-    });
+  const reconcileCartWithProducts = useCallback((freshProducts) => {
+    const stockById = new Map(freshProducts.map((product) => [product.id, getAvailableStock(product)]));
 
-    // Listen for stock change events
-    const handleStockChange = (stockChanges) => {
-      console.log("CashierPOS: Stock changed:", stockChanges);
-      
-      // Update products in real-time
-      setProducts(prevProducts => 
-        prevProducts.map(product => {
-          const stockChange = stockChanges.find(change => change.id === product.id);
-          if (stockChange) {
-            return {
-              ...product,
-              stock: stockChange.newStock,
-              inStock: stockChange.newStock > 0
-            };
-          }
-          return product;
-        })
-      );
-
-      // Update cart items if their stock changed
-      setCart(prevCart => 
-        prevCart.map(item => {
-          const stockChange = stockChanges.find(change => change.id === item.id);
-          if (stockChange) {
-            const newStock = stockChange.newStock;
-            if (newStock === 0) {
-              // Remove from cart if out of stock
-              addToast(`${item.name} removed from cart - out of stock`, "warn");
-              return null; // Will be filtered out
-            } else if (item.quantity > newStock) {
-              // Adjust quantity if exceeds stock
-              addToast(`${item.name} quantity adjusted to available stock`, "warn");
-              return { ...item, stock: newStock, inStock: newStock > 0 };
-            }
-          }
-          return item;
-        }).filter(Boolean) // Remove null items
-      );
-    };
-
-    eventEmitter.on('stockChanged', handleStockChange);
-
-    // Initial fetch
-    inventorySync.getProducts().then(categorizedProducts => {
-      const allProducts = Object.values(categorizedProducts).flat();
-      const normalized = allProducts.map((p, i) => normProduct(p, i));
-      setProducts(normalized);
-      setLoading(false);
-    }).catch(err => {
-      console.error("CashierPOS: Failed to fetch products:", err);
-      setError("Failed to load products");
-      setLoading(false);
-    });
-
-    // Cleanup
-    return () => {
-      unsubscribe();
-      eventEmitter.off('stockChanged', handleStockChange);
-    };
+    setCart((prevCart) => prevCart
+      .map((item) => {
+        const latestStock = stockById.get(item.id);
+        if (latestStock === undefined) return item;
+        if (latestStock <= 0) {
+          addToast(`${item.name} removed from cart - out of stock`, "warn");
+          return null;
+        }
+        if (item.quantity > latestStock) {
+          addToast(`${item.name} quantity adjusted to available stock`, "warn");
+          return {
+            ...item,
+            stock: latestStock,
+            available_stock: latestStock,
+            quantity: latestStock,
+          };
+        }
+        return {
+          ...item,
+          stock: latestStock,
+          available_stock: latestStock,
+        };
+      })
+      .filter(Boolean));
   }, [addToast]);
 
-  /* Legacy fetch for fallback (kept for compatibility) */
-  const fetchProducts = useCallback(async () => {
+  const fetchProducts = useCallback(async ({ silent = false } = {}) => {
+    const requestId = latestInventoryRequestRef.current + 1;
+    latestInventoryRequestRef.current = requestId;
+
     try {
-      setLoading(true);
-      setError("");
+      if (productsRef.current.length === 0 && !silent) {
+        setLoading(true);
+      } else {
+        setIsRefreshingProducts(true);
+      }
+
       const response = await apiRequest(PRODUCT_ENDPOINT);
-      const raw = normalizeList(response, ["products", "items", "data"]);
+      if (latestInventoryRequestRef.current !== requestId) return;
+
+      const raw = normalizeList(response, ["products", "items", "data", "inventory", "sellable_items"]);
       const normalized = raw.map((p, i) => normProduct(p, i));
       setProducts(normalized);
+      reconcileCartWithProducts(normalized);
+      setLastStockSyncAt(new Date());
+      setError("");
     } catch (err) {
-      setError(err.message || "Failed to load products");
+      if (latestInventoryRequestRef.current === requestId) {
+        const message = err.message || "Unable to refresh stock";
+        if (productsRef.current.length === 0) {
+          setError(message);
+        } else {
+          addToast("Unable to refresh stock. Keeping previous product list.", "warn");
+        }
+      }
     } finally {
-      setLoading(false);
+      if (latestInventoryRequestRef.current === requestId) {
+        setLoading(false);
+        setIsRefreshingProducts(false);
+      }
     }
-  }, []);
+  }, [addToast, reconcileCartWithProducts]);
 
   useEffect(() => { fetchProducts(); }, [fetchProducts]);
   /* Fullscreen state tracking */
@@ -1531,14 +1531,7 @@ const CashierPOS = () => {
   /* Filtered products */
   const filteredProducts = useMemo(() => {
     const kw = searchQuery.trim().toLowerCase();
-    console.log("Filtering products:", { 
-      totalProducts: products.length, 
-      activeCategory, 
-      searchQuery: kw,
-      products: products.map(p => ({ name: p.name, category: p.category, stock: p.stock }))
-    });
-    
-    const filtered = products.filter(p => {
+    return products.filter(p => {
       const matchCat = activeCategory === "all" || p.category === activeCategory;
       const matchSearch = !kw
         || p.name.toLowerCase().includes(kw)
@@ -1546,27 +1539,22 @@ const CashierPOS = () => {
         || String(p.barcode || "").toLowerCase().includes(kw);
       return matchCat && matchSearch;
     });
-    
-    console.log("Filter result:", { 
-      filteredCount: filtered.length,
-      activeCategory,
-      matchCat: activeCategory === "all",
-      filtered: filtered.map(p => ({ name: p.name, category: p.category }))
-    });
-    
-    return filtered;
   }, [products, activeCategory, searchQuery]);
 
-  const lowStockCount  = useMemo(() => products.filter(p => p.stock > 0 && p.stock <= 5).length, [products]);
-  const outOfStockCount = useMemo(() => products.filter(p => p.stock <= 0).length, [products]);
+  const lowStockCount  = useMemo(() => products.filter(p => getAvailableStock(p) > 0 && getAvailableStock(p) <= 5).length, [products]);
+  const outOfStockCount = useMemo(() => products.filter(p => isProductOutOfStock(p)).length, [products]);
 
   /* Cart operations */
   const addToCart = useCallback((product) => {
-    if (product.stock <= 0) return;
+    const availableStock = getAvailableStock(product);
+    if (availableStock <= 0) {
+      addToast(`${product.name} is out of stock`, "warn");
+      return;
+    }
     setCart(prev => {
       const existing = prev.find(i => i.id === product.id);
       if (existing) {
-        if (existing.quantity >= product.stock) {
+        if (existing.quantity >= availableStock) {
           addToast("Maximum stock reached", "warn");
           return prev;
         }
@@ -1579,7 +1567,11 @@ const CashierPOS = () => {
   const updateQty = useCallback((id, qty) => {
     const n = Number(qty) || 0;
     if (n <= 0) { setCart(prev => prev.filter(i => i.id !== id)); return; }
-    setCart(prev => prev.map(i => i.id !== id ? i : { ...i, quantity: Math.min(n, i.stock || n) }));
+    setCart(prev => prev.map(i => {
+      if (i.id !== id) return i;
+      const availableStock = getAvailableStock(i);
+      return { ...i, quantity: Math.min(n, availableStock || n) };
+    }));
   }, []);
 
   const removeFromCart = useCallback((id) => {
@@ -1613,7 +1605,7 @@ const CashierPOS = () => {
   const total = useMemo(() => Math.max(subtotal + tax - discountAmt, 0), [subtotal, tax, discountAmt]);
   const change = useMemo(() => Math.max((Number(amountReceived) || 0) - total, 0), [amountReceived, total]);
 
-  const canCheckout = cart.length > 0 && !checkoutLoading
+  const canCheckout = cart.length > 0 && cart.every((item) => item.quantity <= getAvailableStock(item)) && !checkoutLoading
     && (paymentMethod !== "Cash" || (Number(amountReceived) || 0) >= total);
 
   /* Barcode / search enter */
@@ -1703,7 +1695,7 @@ const CashierPOS = () => {
       setCompletedReceipt(receipt);
       addToast("Payment successful!", "success");
       clearOrder();
-      fetchProducts();
+      fetchProducts({ silent: true });
       window.setTimeout(() => handlePrint(receipt), 250);
     } catch (err) {
       addToast(err.message || "Checkout failed. Please try again.", "error");
@@ -1894,9 +1886,11 @@ const CashierPOS = () => {
                     : categories.find(c => c.id === activeCategory)?.label || "Products"}
                 </SectionTitle>
               </div>
-              <CountPill>
+              <CountPill title={lastStockSyncAt ? `Last synced ${lastStockSyncAt.toLocaleTimeString()}` : "Stock not synced yet"}>
                 <FontAwesomeIcon icon={faList} />
-                {filteredProducts.length} item{filteredProducts.length !== 1 ? "s" : ""}
+                {isRefreshingProducts
+                  ? "Refreshing stock..."
+                  : `${filteredProducts.length} item${filteredProducts.length !== 1 ? "s" : ""}`}
               </CountPill>
             </ProductsPaneHeader>
 
@@ -1925,13 +1919,15 @@ const CashierPOS = () => {
                   const cartItem = cart.find(i => i.id === product.id);
                   const dPrice   = discountedPrice(product);
                   const hasDisc  = Number(product.discount) > 0;
-                  const ss       = stockStatus(product.stock);
+                  const availableStock = getAvailableStock(product);
+                  const outOfStock = availableStock <= 0;
+                  const ss = stockStatus(availableStock);
 
                   return (
                     <ProductCard
                       key={product.id}
                       $inCart={!!cartItem}
-                      $outOfStock={product.stock <= 0}
+                      $outOfStock={outOfStock}
                     >
                       <ProductThumb>
                         {product.image
@@ -1949,10 +1945,10 @@ const CashierPOS = () => {
                         </PriceRow>
                         <StockBadge $type={ss.type}>{ss.label}</StockBadge>
                         <AddToCartBtn
-                          $outOfStock={product.stock <= 0}
+                          $outOfStock={outOfStock}
                           onClick={() => addToCart(product)}
                         >
-                          {product.stock <= 0 ? "Out of Stock" : "Add to Cart"}
+                          {outOfStock ? "Out of Stock" : "Add to Cart"}
                         </AddToCartBtn>
                       </ProductBody>
                     </ProductCard>
@@ -2007,13 +2003,13 @@ const CashierPOS = () => {
                       <QtyInput
                         type="number"
                         min="1"
-                        max={item.stock}
+                        max={getAvailableStock(item)}
                         value={item.quantity}
                         onChange={e => updateQty(item.id, e.target.value)}
                       />
                       <QtyBtn
                         onClick={() => updateQty(item.id, item.quantity + 1)}
-                        disabled={item.quantity >= item.stock}
+                        disabled={item.quantity >= getAvailableStock(item)}
                       >
                         <FontAwesomeIcon icon={faPlus} />
                       </QtyBtn>

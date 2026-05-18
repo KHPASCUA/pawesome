@@ -355,7 +355,7 @@ class InventoryService
         if ($item->needsFefo() || $item->batches()->exists()) {
             $movementType = in_array($referenceType, ['vet_usage', 'grooming_usage', 'boarding_food_usage'], true)
                 ? $referenceType
-                : 'stock_deduction';
+                : ($referenceType === 'sale' ? 'pos_sale' : 'stock_deduction');
             $batchDeductions = $item->deductStockFefo($quantity, $reason, $movementType, $referenceType, $referenceId);
 
             // Refresh item to get updated stock
@@ -382,7 +382,7 @@ class InventoryService
 
         $movementType = in_array($referenceType, ['vet_usage', 'grooming_usage', 'boarding_food_usage'], true)
             ? $referenceType
-            : ($referenceType === 'customer_order' ? 'customer_order_deduction' : 'pos_sale_deduction');
+            : ($referenceType === 'customer_order' ? 'customer_order_deduction' : 'pos_sale');
 
         // Log the stock deduction
         InventoryLog::create([
